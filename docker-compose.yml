@@ -1,0 +1,61 @@
+services:
+  # ── Backend (Producción) ─────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      target: production
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env
+    restart: unless-stopped
+
+  # ── Backend (Desarrollo — hot reload) ───────────────────────
+  backend-dev:
+    build:
+      context: ./backend
+      target: development
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    profiles:
+      - dev
+    restart: unless-stopped
+
+  # ── Frontend (Producción — Nginx) ───────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      target: production
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ── Frontend (Desarrollo — hot reload) ──────────────────────
+  frontend-dev:
+    build:
+      context: ./frontend
+      target: development
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:5000/api
+    profiles:
+      - dev
+    restart: unless-stopped
+
+  # ── Adminer (Visualizador de BD) ─────────────────────────────
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
