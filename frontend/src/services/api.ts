@@ -1,44 +1,61 @@
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api';
 
 function getToken(): string | null {
-  try {
-    const raw = localStorage.getItem('unah_auth');
-    if (!raw) return null;
-    const { token } = JSON.parse(raw);
-    return token ?? null;
-  } catch {
-    return null;
-  }
+  return localStorage.getItem('unah_token');
 }
 
-async function request<T>(
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<T> {
+function buildHeaders(extra?: HeadersInit): HeadersInit {
   const token = getToken();
-  const headers: Record<string, string> = {
+  return {
     'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
   };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+}
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-
-  const data = await res.json().catch(() => ({}));
+async function handleResponse<T>(res: Response): Promise<T> {
+  const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
   if (!res.ok) {
-    throw new Error((data as { error?: string }).error ?? `Error ${res.status}`);
+    throw new Error((body as { error?: string }).error ?? `Error ${res.status}`);
   }
-  return data as T;
+  return body as T;
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>('GET', path),
-  post: <T>(path: string, body: unknown) => request<T>('POST', path, body),
-  put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
-  patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
-  delete: <T>(path: string) => request<T>('DELETE', path),
+  get<T>(path: string): Promise<T> {
+    return fetch(`${BASE_URL}${path}`, {
+      headers: buildHeaders(),
+    }).then((r) => handleResponse<T>(r));
+  },
+
+  post<T>(path: string, body: unknown): Promise<T> {
+    return fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      headers: buildHeaders(),
+      body: JSON.stringify(body),
+    }).then((r) => handleResponse<T>(r));
+  },
+
+  put<T>(path: string, body: unknown): Promise<T> {
+    return fetch(`${BASE_URL}${path}`, {
+      method: 'PUT',
+      headers: buildHeaders(),
+      body: JSON.stringify(body),
+    }).then((r) => handleResponse<T>(r));
+  },
+
+  patch<T>(path: string, body?: unknown): Promise<T> {
+    return fetch(`${BASE_URL}${path}`, {
+      method: 'PATCH',
+      headers: buildHeaders(),
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    }).then((r) => handleResponse<T>(r));
+  },
+
+  delete<T>(path: string): Promise<T> {
+    return fetch(`${BASE_URL}${path}`, {
+      method: 'DELETE',
+      headers: buildHeaders(),
+    }).then((r) => handleResponse<T>(r));
+  },
 };
