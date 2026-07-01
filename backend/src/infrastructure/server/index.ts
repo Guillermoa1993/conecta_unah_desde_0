@@ -1,59 +1,109 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+
+// Infrastructure
 import pool from '../database/db';
+import { PostgresHealthRepository } from '../repositories/PostgresHealthRepository';
+import { PostgresUsuarioRepository } from '../repositories/PostgresUsuarioRepository';
+import { PostgresEventoRepository } from '../repositories/PostgresEventoRepository';
+import { PostgresInscripcionRepository } from '../repositories/PostgresInscripcionRepository';
+import { PostgresAsistenciaRepository } from '../repositories/PostgresAsistenciaRepository';
+import { PostgresConstanciaRepository } from '../repositories/PostgresConstanciaRepository';
+import { PostgresNotificacionRepository } from '../repositories/PostgresNotificacionRepository';
+
+// Use cases
+import { GetHealthReport } from '../../use-cases/GetHealthReport';
+import { LoginUsuario } from '../../use-cases/auth/LoginUsuario';
+import { RegistrarUsuario } from '../../use-cases/auth/RegistrarUsuario';
+import { CrearEvento } from '../../use-cases/eventos/CrearEvento';
+import { ObtenerEventos } from '../../use-cases/eventos/ObtenerEventos';
+import { ObtenerEventoPorId } from '../../use-cases/eventos/ObtenerEventoPorId';
+import { ActualizarEvento } from '../../use-cases/eventos/ActualizarEvento';
+import { AprobarRechazarEvento } from '../../use-cases/eventos/AprobarRechazarEvento';
+import { InscribirEstudiante } from '../../use-cases/inscripciones/InscribirEstudiante';
+import { CancelarInscripcion } from '../../use-cases/inscripciones/CancelarInscripcion';
+import { RegistrarAsistenciaQR } from '../../use-cases/asistencia/RegistrarAsistenciaQR';
+import { GestionarConstancia } from '../../use-cases/constancias/GestionarConstancia';
+
+// Controllers
+import { HealthController } from '../../interfaces/controllers/HealthController';
+import { AuthController } from '../../interfaces/controllers/AuthController';
+import { EventoController } from '../../interfaces/controllers/EventoController';
+import { InscripcionController } from '../../interfaces/controllers/InscripcionController';
+import { AsistenciaController } from '../../interfaces/controllers/AsistenciaController';
+import { ConstanciaController } from '../../interfaces/controllers/ConstanciaController';
+import { NotificacionController } from '../../interfaces/controllers/NotificacionController';
+
+// Routes
+import { authRouter } from '../../interfaces/routes/authRoutes';
+import { eventoRouter } from '../../interfaces/routes/eventoRoutes';
+import { inscripcionRouter } from '../../interfaces/routes/inscripcionRoutes';
+import { asistenciaRouter } from '../../interfaces/routes/asistenciaRoutes';
+import { constanciaRouter } from '../../interfaces/routes/constanciaRoutes';
+import { notificacionRouter } from '../../interfaces/routes/notificacionRoutes';
+
+// Middleware
+import { errorMiddleware } from '../../interfaces/middlewares/errorMiddleware';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT ?? 5000;
 
-// ── Middlewares ────────────────────────────────────────────────
-app.use(cors({
-  origin: process.env.FRONTEND_URL ?? 'http://localhost:5173',
-  credentials: true,
-}));
+app.use(cors({ origin: process.env.FRONTEND_URL ?? '*' }));
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// ── Health check ───────────────────────────────────────────────
-app.get('/api/health', async (_req, res) => {
-  try {
-    const result = await pool.query('SELECT NOW() AS tiempo');
-    res.json({
-      status: 'ok',
-      servidor: 'UNAH Conecta Pumas API',
-      base_de_datos: 'conectada',
-      tiempo_bd: result.rows[0].tiempo,
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      servidor: 'UNAH Conecta Pumas API',
-      base_de_datos: 'sin conexión',
-      error: error instanceof Error ? error.message : 'Error desconocido',
-    });
-  }
-});
+// ── Repositorios ────────────────────────────────────────────────────────────
+const healthRepo        = new PostgresHealthRepository();
+const usuarioRepo       = new PostgresUsuarioRepository(pool);
+const eventoRepo        = new PostgresEventoRepository(pool);
+const inscripcionRepo   = new PostgresInscripcionRepository(pool);
+const asistenciaRepo    = new PostgresAsistenciaRepository(pool);
+const constanciaRepo    = new PostgresConstanciaRepository(pool);
+const notificacionRepo  = new PostgresNotificacionRepository(pool);
 
-// ── Rutas (agregar aquí a medida que se implementen) ───────────
-// import authRoutes from '../../interfaces/routes/authRoutes';
-// app.use('/api/auth', authRoutes);
+// ── Use cases ───────────────────────────────────────────────────────────────
+const loginUC           = new LoginUsuario(usuarioRepo);
+const registrarUC       = new RegistrarUsuario(usuarioRepo);
+const crearEventoUC     = new CrearEvento(eventoRepo);
+const obtenerEventosUC  = new ObtenerEventos(eventoRepo);
+const obtenerEventoUC   = new ObtenerEventoPorId(eventoRepo);
+const actualizarUC      = new ActualizarEvento(eventoRepo);
+const aprobarUC         = new AprobarRechazarEvento(eventoRepo, notificacionRepo);
+const inscribirUC       = new InscribirEstudiante(inscripcionRepo, eventoRepo);
+const cancelarInscUC    = new CancelarInscripcion(inscripcionRepo);
+const asistenciaQRUC    = new RegistrarAsistenciaQR(asistenciaRepo, inscripcionRepo);
+const constanciaUC      = new GestionarConstancia(constanciaRepo, eventoRepo, notificacionRepo);
 
-// ── Error 404 ──────────────────────────────────────────────────
-app.use((_req, res) => {
-  res.status(404).json({ error: 'Ruta no encontrada' });
-});
+// ── Controllers ─────────────────────────────────────────────────────────────
+const healthCtrl        = new HealthController(new GetHealthReport(healthRepo));
+const authCtrl          = new AuthController(loginUC, registrarUC);
+const eventoCtrl        = new EventoController(crearEventoUC, obtenerEventosUC, obtenerEventoUC, actualizarUC, aprobarUC, eventoRepo);
+const inscripcionCtrl   = new InscripcionController(inscribirUC, cancelarInscUC, inscripcionRepo);
+const asistenciaCtrl    = new AsistenciaController(asistenciaQRUC, asistenciaRepo);
+const constanciaCtrl    = new ConstanciaController(constanciaUC, constanciaRepo);
+const notificacionCtrl  = new NotificacionController(notificacionRepo);
 
-// ── Iniciar servidor ───────────────────────────────────────────
+// ── Rutas ───────────────────────────────────────────────────────────────────
+app.get('/api/health', (req, res) => healthCtrl.handle(req, res));
+app.use('/api/auth',          authRouter(authCtrl));
+app.use('/api/eventos',       eventoRouter(eventoCtrl));
+app.use('/api/inscripciones', inscripcionRouter(inscripcionCtrl));
+app.use('/api/asistencia',    asistenciaRouter(asistenciaCtrl));
+app.use('/api/constancias',   constanciaRouter(constanciaCtrl));
+app.use('/api/notificaciones', notificacionRouter(notificacionCtrl));
+
+// ── Error handler (debe ir al final) ────────────────────────────────────────
+app.use(errorMiddleware);
+
 app.listen(PORT, () => {
-  console.log('\n╔══════════════════════════════════════╗');
-  console.log('║   UNAH Conecta Pumas — Backend       ║');
-  console.log('╚══════════════════════════════════════╝');
-  console.log(`\n  Servidor:  http://localhost:${PORT}`);
-  console.log(`  Salud:     http://localhost:${PORT}/api/health`);
-  console.log('\n  Arquitectura: Clean Architecture');
-  console.log('  BD: PostgreSQL en Render.com\n');
+  console.log(`\n🚀 UNAH Conecta API corriendo en http://localhost:${PORT}`);
+  console.log(`   Health:         GET  /api/health`);
+  console.log(`   Auth:           POST /api/auth/login | POST /api/auth/registro`);
+  console.log(`   Eventos:        GET  /api/eventos`);
+  console.log(`   Inscripciones:  POST /api/inscripciones/evento/:id`);
+  console.log(`   Asistencia:     POST /api/asistencia/qr`);
+  console.log(`   Constancias:    GET  /api/constancias/pendientes`);
+  console.log(`   Notificaciones: GET  /api/notificaciones\n`);
 });
-
-export default app;

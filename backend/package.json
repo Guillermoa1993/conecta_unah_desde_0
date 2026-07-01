@@ -1,15 +1,18 @@
 {
-  "name": "unah-conecta-backend",
+  "name": "backend",
   "version": "1.0.0",
-  "description": "API REST UNAH Conecta Pumas — Clean Architecture con Express + PostgreSQL",
+  "description": "API REST de UNAH Conecta Pumas — Clean Architecture con Express + PostgreSQL",
   "main": "dist/infrastructure/server/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/infrastructure/server/index.ts",
     "build": "tsc",
     "start": "node dist/infrastructure/server/index.js",
-    "db:init": "ts-node-dev --transpile-only scripts/initDb.ts"
+    "db:init": "ts-node-dev --transpile-only scripts/initDb.ts",
+    "db:viewer": "ts-node-dev --transpile-only scripts/dbViewer.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": ["unah", "conecta", "api", "eventos"],
+  "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {

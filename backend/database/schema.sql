@@ -1,9 +1,11 @@
 -- ============================================================
 --  UNAH CONECTA PUMAS — Schema de Base de Datos
---  PostgreSQL 13+ (gen_random_uuid() nativa, sin extensión)
+--  PostgreSQL 15+
 -- ============================================================
 
--- Usuarios del sistema
+-- gen_random_uuid() es nativa en PostgreSQL 13+ (no requiere extensión)
+
+-- ── Usuarios ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS usuarios (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nombre          VARCHAR(150) NOT NULL,
@@ -20,7 +22,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Eventos universitarios
+-- ── Eventos ──────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS eventos (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   titulo                VARCHAR(200) NOT NULL,
@@ -52,7 +54,7 @@ CREATE TABLE IF NOT EXISTS eventos (
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Inscripciones a eventos
+-- ── Inscripciones ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS inscripciones (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   estudiante_id     UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
@@ -64,7 +66,7 @@ CREATE TABLE IF NOT EXISTS inscripciones (
   UNIQUE (estudiante_id, evento_id)
 );
 
--- Registro de asistencia
+-- ── Asistencias ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS asistencias (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   estudiante_id   UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
@@ -76,7 +78,7 @@ CREATE TABLE IF NOT EXISTS asistencias (
   UNIQUE (estudiante_id, evento_id)
 );
 
--- Constancias de horas VOAE
+-- ── Constancias VOAE ──────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS constancias (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   estudiante_id   UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
@@ -92,7 +94,7 @@ CREATE TABLE IF NOT EXISTS constancias (
   UNIQUE (estudiante_id, evento_id)
 );
 
--- Notificaciones del sistema
+-- ── Notificaciones ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS notificaciones (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   usuario_id  UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
@@ -106,10 +108,11 @@ CREATE TABLE IF NOT EXISTS notificaciones (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Índices para rendimiento
+-- ── Índices ───────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_eventos_estado        ON eventos(estado);
 CREATE INDEX IF NOT EXISTS idx_eventos_tutor         ON eventos(tutor_id);
 CREATE INDEX IF NOT EXISTS idx_inscripciones_estud   ON inscripciones(estudiante_id);
 CREATE INDEX IF NOT EXISTS idx_inscripciones_evento  ON inscripciones(evento_id);
 CREATE INDEX IF NOT EXISTS idx_asistencias_evento    ON asistencias(evento_id);
 CREATE INDEX IF NOT EXISTS idx_constancias_estud     ON constancias(estudiante_id);
+-- Índice de notificaciones omitido: la tabla pre-existente usa columna id_usuario
