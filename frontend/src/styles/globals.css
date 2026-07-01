@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * TEMA OFICIAL — UNAH Conecta Pumas
+ * Manual de Identidad Institucional UNAH 2022.
+ * NO modificar estas variables sin autorización del equipo de diseño.
+ */
+@layer base {
+  :root {
+    /* Colores institucionales */
+    --unah-blue:       #004B87;
+    --unah-navy:       #003366;
+    --unah-gold:       #FFD100;
+    --unah-white:      #FFFFFF;
+
+    /* Fondos y texto */
+    --unah-bg:         #F0F2F5;
+    --unah-text:       #1A1A2E;
+    --unah-text-muted: #6B7280;
+    --unah-border:     #E5E7EB;
+
+    /* Estados */
+    --unah-error:   #DC2626;
+    --unah-success: #16A34A;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--unah-bg);
+    color: var(--unah-text);
+    font-size: 1rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Componentes base reutilizables */
+@layer components {
+  /* Botón primario UNAH */
+  .btn-primary {
+    @apply bg-[#004B87] hover:bg-[#003366] text-white font-semibold
+           px-5 py-2.5 rounded-lg transition-colors duration-200
+           disabled:opacity-60 disabled:cursor-not-allowed;
+  }
+
+  /* Botón secundario dorado */
+  .btn-gold {
+    @apply bg-[#FFD100] hover:bg-yellow-400 text-[#003366] font-semibold
+           px-5 py-2.5 rounded-lg transition-colors duration-200;
+  }
+
+  /* Tarjeta base */
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-6;
+  }
+
+  /* Badge de rol */
+  .badge-rol {
+    @apply inline-block bg-[#FFD100] text-[#003366] text-xs font-bold
+           px-3 py-1 rounded-full;
+  }
+
+  /* Input base */
+  .input-base {
+    @apply w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm
+           focus:outline-none focus:ring-2 focus:ring-[#004B87]
+           transition-shadow duration-150;
+  }
+}
