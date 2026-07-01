@@ -1,0 +1,94 @@
+version: '3.9'
+
+# ─── UNAH CONECTA PUMAS ────────────────────────────────────────────────────────
+# Base de datos: Render.com (PostgreSQL externo, sin contenedor local de DB)
+# Para inicializar las tablas: npm run db:init (dentro de /backend)
+#
+# Comandos:
+#   Desarrollo :  docker compose --profile dev up
+#   Producción :  docker compose up
+#   Solo backend: docker compose up backend
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Backend (API Express) ──────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: unah_backend
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - DATABASE_URL=postgresql://unahcu:Tt6khZa6eLgcAarLqJXBU13h0V66eYum@dpg-d8f4rregvqtc738td3og-a.virginia-postgres.render.com/puma_conecta?sslmode=require
+      - JWT_SECRET=unah_conecta_pumas_2026_jwt_secret_key_cambiar_en_produccion
+      - FRONTEND_URL=http://localhost:5173
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Backend en modo desarrollo (hot-reload) ────────────────────────────────
+  backend-dev:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: unah_backend_dev
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - DATABASE_URL=postgresql://unahcu:Tt6khZa6eLgcAarLqJXBU13h0V66eYum@dpg-d8f4rregvqtc738td3og-a.virginia-postgres.render.com/puma_conecta?sslmode=require
+      - JWT_SECRET=unah_conecta_pumas_2026_jwt_secret_key_cambiar_en_produccion
+      - FRONTEND_URL=http://localhost:5173
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    profiles: ["dev"]
+    restart: unless-stopped
+
+  # ── Frontend (React + Nginx) ───────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    container_name: unah_frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ── Frontend en modo desarrollo (Vite hot-reload) ─────────────────────────
+  frontend-dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: unah_frontend_dev
+    ports:
+      - "5173:5185"
+    environment:
+      - VITE_API_URL=http://backend-dev:5000/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend-dev
+    profiles: ["dev"]
+    restart: unless-stopped
+
+  # ── Adminer (visualizador de BD) ───────────────────────────────────────────
+  adminer:
+    image: adminer:latest
+    container_name: unah_adminer
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
