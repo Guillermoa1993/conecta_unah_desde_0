@@ -10,7 +10,7 @@ export class ConstanciaController {
 
   getMias = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.json(await this.constanciaRepo.findByEstudiante(req.usuario!.id));
+      res.json(await this.constanciaRepo.findByEstudiante(String(req.usuario!.id)));
     } catch (err) { next(err); }
   };
 
@@ -22,20 +22,20 @@ export class ConstanciaController {
 
   solicitar = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const constancia = await this.gestionUC.solicitarConstancia(req.usuario!.id, req.params.eventoId);
+      const constancia = await this.gestionUC.solicitarConstancia(String(req.usuario!.id), String(req.params.eventoId));
       res.status(201).json(constancia);
     } catch (err) { next(err); }
   };
 
   aprobar = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.json(await this.gestionUC.aprobarConstancia(req.params.id, req.usuario!.id));
+      res.json(await this.gestionUC.aprobarConstancia(String(req.params.id), String(req.usuario!.id)));
     } catch (err) { next(err); }
   };
 
   rechazar = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.json(await this.gestionUC.rechazarConstancia(req.params.id, req.usuario!.id, req.body.motivo));
+      res.json(await this.gestionUC.rechazarConstancia(String(req.params.id), String(req.usuario!.id), req.body.motivo));
     } catch (err) { next(err); }
   };
 }

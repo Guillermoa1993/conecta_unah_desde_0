@@ -26,11 +26,9 @@ export class GestionarConstancia {
     const actualizada = await this.constanciaRepo.cambiarEstado(constancia_id, 'APROBADA', { aprobado_por });
 
     await this.notificacionRepo.crear({
-      usuario_id: constancia.estudiante_id,
-      titulo: 'Constancia aprobada',
+      usuario_id: Number(constancia.estudiante_id),
       mensaje: 'Tu constancia de horas VOAE fue aprobada y está lista para descarga.',
       tipo: 'CONSTANCIA_EMITIDA',
-      evento_id: constancia.evento_id,
     });
 
     return actualizada;

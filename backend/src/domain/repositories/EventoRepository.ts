@@ -1,7 +1,7 @@
 import { Evento, CrearEventoDto, EstadoEvento } from '../entities/Evento';
 
 export interface FiltrosEvento {
-  estado?: EstadoEvento;
+  estado?: EstadoEvento | string;
   tutor_id?: string;
   categoria?: string;
   centro_regional?: string;

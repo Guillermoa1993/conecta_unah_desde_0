@@ -33,14 +33,14 @@ export class EventoController {
 
   getMios = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const filtros = { tutor_id: req.usuario!.id };
+      const filtros = { tutor_id: String(req.usuario!.id) };
       res.json(await this.obtenerTodosUC.execute(filtros));
     } catch (err) { next(err); }
   };
 
   getById = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.json(await this.obtenerUnoUC.execute(req.params.id));
+      res.json(await this.obtenerUnoUC.execute(String(req.params.id)));
     } catch (err) { next(err); }
   };
 
@@ -52,26 +52,26 @@ export class EventoController {
 
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const datos = { ...req.body, tutor_id: req.usuario!.id };
+      const datos = { ...req.body, tutor_id: String(req.usuario!.id) };
       res.status(201).json(await this.crearUC.execute(datos));
     } catch (err) { next(err); }
   };
 
   update = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.json(await this.actualizarUC.execute(req.params.id, req.body, req.usuario!.id, req.usuario!.rol));
+      res.json(await this.actualizarUC.execute(String(req.params.id), req.body, String(req.usuario!.id), req.usuario!.rol));
     } catch (err) { next(err); }
   };
 
   aprobar = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.json(await this.aprobarUC.aprobar(req.params.id, req.usuario!.id));
+      res.json(await this.aprobarUC.aprobar(String(req.params.id), String(req.usuario!.id)));
     } catch (err) { next(err); }
   };
 
   rechazar = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.json(await this.aprobarUC.rechazar(req.params.id, req.usuario!.id, req.body.motivo));
+      res.json(await this.aprobarUC.rechazar(String(req.params.id), String(req.usuario!.id), req.body.motivo));
     } catch (err) { next(err); }
   };
 }

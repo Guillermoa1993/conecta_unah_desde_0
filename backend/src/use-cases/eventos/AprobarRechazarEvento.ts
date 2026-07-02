@@ -15,11 +15,9 @@ export class AprobarRechazarEvento {
     const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'PROGRAMADO', { aprobado_por });
 
     await this.notificacionRepo.crear({
-      usuario_id: evento.tutor_id,
-      titulo: 'Evento aprobado',
+      usuario_id: Number(evento.tutor_id),
       mensaje: `Tu evento "${evento.titulo}" fue aprobado y ya está publicado.`,
       tipo: 'EVENTO_APROBADO',
-      evento_id,
     });
 
     return actualizado;
@@ -35,11 +33,9 @@ export class AprobarRechazarEvento {
     const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'RECHAZADO', { aprobado_por, motivo_rechazo });
 
     await this.notificacionRepo.crear({
-      usuario_id: evento.tutor_id,
-      titulo: 'Evento rechazado',
+      usuario_id: Number(evento.tutor_id),
       mensaje: `Tu evento "${evento.titulo}" fue rechazado. Motivo: ${motivo_rechazo}`,
       tipo: 'EVENTO_RECHAZADO',
-      evento_id,
     });
 
     return actualizado;

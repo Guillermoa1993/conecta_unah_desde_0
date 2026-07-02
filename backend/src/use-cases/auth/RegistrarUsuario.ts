@@ -7,10 +7,7 @@ interface RegistrarDto {
   correo: string;
   contrasena: string;
   rol: RolUsuario;
-  numero_cuenta?: string;
   carrera?: string;
-  centro_regional?: string;
-  telefono?: string;
 }
 
 export class RegistrarUsuario {
@@ -24,12 +21,14 @@ export class RegistrarUsuario {
       throw new Error('Solo se permiten correos institucionales @unah.hn o @unah.edu.hn');
     }
 
-    const contrasena_hash = await bcrypt.hash(datos.contrasena, 12);
+    const password = await bcrypt.hash(datos.contrasena, 12);
 
     return this.usuarioRepo.create({
-      ...datos,
-      contrasena_hash,
-      estado: 'ACTIVO',
+      nombre: datos.nombre,
+      correo: datos.correo,
+      password,
+      rol: datos.rol,
+      carrera: datos.carrera,
     });
   }
 }

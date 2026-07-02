@@ -18,7 +18,7 @@ export class AuthController {
   registrar = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const usuario = await this.registrarUseCase.execute(req.body);
-      const { contrasena_hash, ...pub } = usuario as Record<string, unknown> & { contrasena_hash: string };
+      const { password, ...pub } = usuario as unknown as Record<string, unknown> & { password: string };
       res.status(201).json(pub);
     } catch (err) { next(err); }
   };

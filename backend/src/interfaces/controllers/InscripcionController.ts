@@ -12,26 +12,26 @@ export class InscripcionController {
 
   getMias = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.json(await this.inscripcionRepo.findByEstudiante(req.usuario!.id));
+      res.json(await this.inscripcionRepo.findByEstudiante(String(req.usuario!.id)));
     } catch (err) { next(err); }
   };
 
   getByEvento = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.json(await this.inscripcionRepo.findByEvento(req.params.eventoId));
+      res.json(await this.inscripcionRepo.findByEvento(String(req.params.eventoId)));
     } catch (err) { next(err); }
   };
 
   inscribir = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const inscripcion = await this.inscribirUC.execute(req.usuario!.id, req.params.eventoId);
+      const inscripcion = await this.inscribirUC.execute(String(req.usuario!.id), String(req.params.eventoId));
       res.status(201).json(inscripcion);
     } catch (err) { next(err); }
   };
 
   cancelar = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await this.cancelarUC.execute(req.usuario!.id, req.params.eventoId);
+      await this.cancelarUC.execute(String(req.usuario!.id), String(req.params.eventoId));
       res.json({ message: 'Inscripción cancelada exitosamente' });
     } catch (err) { next(err); }
   };

@@ -2,31 +2,26 @@ export type RolUsuario = 'ESTUDIANTE' | 'TUTOR' | 'ADMIN' | 'VOAE';
 export type EstadoUsuario = 'ACTIVO' | 'INACTIVO' | 'SUSPENDIDO';
 
 export interface Usuario {
-  id: string;
+  id_usuario: number;
   nombre: string;
   correo: string;
-  contrasena_hash: string;
-  rol: RolUsuario;
-  estado: EstadoUsuario;
-  numero_cuenta?: string;
+  password: string;
+  id_rol: number;
+  rol?: string;
+  id_estado: number;
+  estado?: string;
+  id_carrera?: number;
   carrera?: string;
-  centro_regional?: string;
-  telefono?: string;
-  foto_url?: string;
-  created_at: Date;
-  updated_at: Date;
 }
 
 export interface UsuarioPublico {
-  id: string;
+  id_usuario: number;
   nombre: string;
   correo: string;
-  rol: RolUsuario;
-  estado: EstadoUsuario;
-  numero_cuenta?: string;
+  id_rol: number;
+  rol?: string;
+  id_estado: number;
+  estado?: string;
+  id_carrera?: number;
   carrera?: string;
-  centro_regional?: string;
-  telefono?: string;
-  foto_url?: string;
-  created_at: Date;
 }

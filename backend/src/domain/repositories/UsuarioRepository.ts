@@ -1,10 +1,10 @@
-import { Usuario, UsuarioPublico, RolUsuario } from '../entities/Usuario';
+import { Usuario, UsuarioPublico } from '../entities/Usuario';
 
 export interface UsuarioRepository {
-  findById(id: string): Promise<Usuario | null>;
+  findById(id: number): Promise<Usuario | null>;
   findByCorreo(correo: string): Promise<Usuario | null>;
-  findAll(filtros?: { rol?: RolUsuario; estado?: string }): Promise<UsuarioPublico[]>;
-  create(data: Omit<Usuario, 'id' | 'created_at' | 'updated_at'>): Promise<Usuario>;
-  update(id: string, data: Partial<Usuario>): Promise<Usuario | null>;
-  delete(id: string): Promise<boolean>;
+  findAll(filtros?: { rol?: string; estado?: string }): Promise<UsuarioPublico[]>;
+  create(data: { nombre: string; correo: string; password: string; rol: string; carrera?: string }): Promise<Usuario>;
+  update(id: number, data: Partial<Usuario>): Promise<Usuario | null>;
+  delete(id: number): Promise<boolean>;
 }

@@ -1,10 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { RolUsuario } from '../../domain/entities/Usuario';
 
 export interface JwtPayload {
-  id: string;
-  rol: RolUsuario;
+  id: number;
+  rol: string;
   iat: number;
   exp: number;
 }
@@ -34,7 +33,7 @@ export function autenticar(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-export function autorizar(...roles: RolUsuario[]) {
+export function autorizar(...roles: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.usuario) { res.status(401).json({ error: 'No autenticado' }); return; }
     if (!roles.includes(req.usuario.rol)) {

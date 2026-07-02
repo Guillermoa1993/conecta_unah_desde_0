@@ -21,17 +21,17 @@ export class LoginUsuario {
     if (!usuario) throw new Error('Credenciales inválidas');
     if (usuario.estado !== 'ACTIVO') throw new Error('Cuenta suspendida o inactiva');
 
-    const match = await bcrypt.compare(contrasena, usuario.contrasena_hash);
+    const match = await bcrypt.compare(contrasena, usuario.password);
     if (!match) throw new Error('Credenciales inválidas');
 
     const secret = process.env.JWT_SECRET ?? 'dev-secret-change-in-prod';
     const token = jwt.sign(
-      { id: usuario.id, rol: usuario.rol },
+      { id: usuario.id_usuario, rol: usuario.rol },
       secret,
-      { expiresIn: '8h' }
+      { expiresIn: '8h' },
     );
 
-    const { contrasena_hash, ...usuarioPublico } = usuario;
-    return { token, usuario: usuarioPublico };
+    const { password, ...usuarioPublico } = usuario;
+    return { token, usuario: usuarioPublico as UsuarioPublico };
   }
 }
