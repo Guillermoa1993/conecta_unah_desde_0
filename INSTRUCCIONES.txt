@@ -8,9 +8,9 @@ Plataforma web para gestión de eventos universitarios.
 Roles: Estudiante | Tutor | VOAE | Admin | Dev (preview)
 
 Base de datos: PostgreSQL en Render.com (en la nube — sin configuración local)
-  Host:     dpg-d8f4rregvqtc738td3og-a.virginia-postgres.render.com
-  DB:       puma_conecta
-  Usuario:  unahcu
+  Host:     dpg-d931mbugvqtc739qj7h0-a.virginia-postgres.render.com
+  DB:       unah_conecta2
+  Usuario:  unah_conecta2_user
 
 ESTRUCTURA DEL PROYECTO
 -----------------------
@@ -34,9 +34,13 @@ REQUISITOS: Node.js 18+ (https://nodejs.org)
 2. Instalar dependencias:
    npm install
 
-3. El archivo .env ya tiene las credenciales de la BD online.
-   Verificar que exista backend/.env con:
-     DATABASE_URL=postgresql://unahcu:...@render.com/puma_conecta?sslmode=require
+3. Copiar el archivo de ejemplo y rellenar la contraseña real:
+   copy .env.example .env        (Windows)
+   cp .env.example .env          (Mac/Linux)
+
+   Editar backend/.env y reemplazar PASSWORD con la contraseña real
+   que te dará el líder del Grupo 1:
+     DATABASE_URL=postgresql://unah_conecta2_user:PASSWORD@dpg-d931mbugvqtc739qj7h0-a.virginia-postgres.render.com/unah_conecta2
      PORT=5000
      JWT_SECRET=...
 
@@ -44,13 +48,16 @@ REQUISITOS: Node.js 18+ (https://nodejs.org)
    npm run db:init
 
    Verás:
-     ✅ Conectado a: puma_conecta
-     ✔ usuarios
-     ✔ eventos
-     ✔ inscripciones
-     ✔ asistencias
-     ✔ constancias
-     ✔ notificaciones
+     ✅ Conectado a: unah_conecta2
+     ✔ tabla_grupo_1_rol
+     ✔ tabla_grupo_1_estado_usuario
+     ✔ tabla_grupo_1_carreras
+     ✔ tabla_grupo_1_tipo_notificacion
+     ✔ tabla_grupo_1_usuario
+     ✔ tabla_grupo_1_notificaciones
+     ✔ tabla_grupo_1_sesion
+     ✔ tabla_grupo_1_bitacora
+     ✔ tabla_grupo_1_parametros
      ✅ Base de datos inicializada correctamente.
 
 5. Iniciar el servidor:
@@ -73,13 +80,16 @@ REQUISITOS: Node.js 18+ (https://nodejs.org)
 4. Iniciar la app:
    npm run dev
 
-   El frontend queda en: http://localhost:5173
+   El frontend queda en: http://localhost:5185
 
 ========================================================================
  MÉTODO 2: CON DOCKER (recomendado para producción / demo)
 ========================================================================
 
 REQUISITOS: Docker Desktop (https://www.docker.com/products/docker-desktop)
+
+Antes de iniciar con Docker, crea backend/.env con las credenciales reales
+(ver paso 3 del Método 1). Docker Compose las lee automáticamente.
 
 ── PRODUCCIÓN ───────────────────────────────────────────────────────────
 
@@ -110,16 +120,16 @@ URL:      http://localhost:8080
 
 Credenciales:
   Sistema:    PostgreSQL
-  Servidor:   dpg-d8f4rregvqtc738td3og-a.virginia-postgres.render.com
-  Usuario:    unahcu
-  Contraseña: Tt6khZa6eLgcAarLqJXBU13h0V66eYum
-  Base de datos: puma_conecta
+  Servidor:   dpg-d931mbugvqtc739qj7h0-a.virginia-postgres.render.com
+  Usuario:    unah_conecta2_user
+  Contraseña: (pedir al líder del Grupo 1 — no se guarda en el repo)
+  Base de datos: unah_conecta2
 
 ========================================================================
  ROLES Y ACCESO EN EL FRONTEND
 ========================================================================
 
-Al ingresar a http://localhost:5173:
+Al ingresar a http://localhost:5185:
 
   Estudiante  → ver eventos, inscribirse, escanear QR, historial de horas
   Tutor       → crear eventos, ver mis eventos, evento en vivo, reportes
