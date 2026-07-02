@@ -23,8 +23,8 @@ services:
       - "5000:5000"
     environment:
       - PORT=5000
-      - DATABASE_URL=postgresql://unahcu:Tt6khZa6eLgcAarLqJXBU13h0V66eYum@dpg-d8f4rregvqtc738td3og-a.virginia-postgres.render.com/puma_conecta?sslmode=require
-      - JWT_SECRET=unah_conecta_pumas_2026_jwt_secret_key_cambiar_en_produccion
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET:-unah_conecta_pumas_2026_jwt_secret_key_cambiar_en_produccion}
       - FRONTEND_URL=http://localhost:5173
     restart: unless-stopped
     healthcheck:
@@ -44,8 +44,8 @@ services:
       - "5000:5000"
     environment:
       - PORT=5000
-      - DATABASE_URL=postgresql://unahcu:Tt6khZa6eLgcAarLqJXBU13h0V66eYum@dpg-d8f4rregvqtc738td3og-a.virginia-postgres.render.com/puma_conecta?sslmode=require
-      - JWT_SECRET=unah_conecta_pumas_2026_jwt_secret_key_cambiar_en_produccion
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET:-unah_conecta_pumas_2026_jwt_secret_key_cambiar_en_produccion}
       - FRONTEND_URL=http://localhost:5173
     volumes:
       - ./backend:/app
