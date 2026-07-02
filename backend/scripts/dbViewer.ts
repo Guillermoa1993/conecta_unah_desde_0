@@ -55,7 +55,7 @@ function html(title: string, body: string) {
   <span>🐘 DB Viewer</span>
   <a href="/">Tablas</a>
   <a href="/sql">SQL</a>
-  <small style="margin-left:auto;opacity:.8">puma_conecta @ Render.com</small>
+  <small style="margin-left:auto;opacity:.8">unah_conecta2 @ Render.com</small>
 </nav>
 <div class="container">${body}</div>
 </body></html>`;
@@ -88,7 +88,7 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
 
       res.end(html('Tablas', `
         <div class="card">
-          <h1>Base de datos: puma_conecta</h1>
+          <h1>Base de datos: unah_conecta2</h1>
           <p class="count">${rows.length} tablas encontradas</p>
           <div class="grid">${cards.join('')}</div>
         </div>
@@ -213,5 +213,5 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
 const server = http.createServer(handleRequest);
 server.listen(PORT, () => {
   console.log(`\n🐘 DB Viewer corriendo en http://localhost:${PORT}`);
-  console.log(`   BD: puma_conecta @ Render.com\n`);
+  console.log(`   BD: unah_conecta2 @ Render.com\n`);
 });

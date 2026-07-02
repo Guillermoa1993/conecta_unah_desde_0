@@ -105,9 +105,9 @@ docker compose --profile dev up --build
 | Campo      | Valor                                            |
 |------------|--------------------------------------------------|
 | Sistema    | PostgreSQL                                       |
-| Servidor   | dpg-d8f4rregvqtc738td3og-a.virginia-postgres.render.com |
-| Usuario    | unahcu                                           |
-| Base datos | puma_conecta                                     |
+| Servidor   | dpg-d931mbugvqtc739qj7h0-a.virginia-postgres.render.com |
+| Usuario    | unah_conecta2_user                               |
+| Base datos | unah_conecta2                                    |
 
 ---
 
@@ -116,10 +116,10 @@ docker compose --profile dev up --build
 ### `backend/.env`
 
 ```env
-DATABASE_URL=postgresql://unahcu:password@host/puma_conecta?sslmode=require
+DATABASE_URL=postgresql://unah_conecta2_user:PASSWORD@dpg-d931mbugvqtc739qj7h0-a.virginia-postgres.render.com/unah_conecta2
 PORT=5000
 JWT_SECRET=tu_secreto_aqui
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=http://localhost:5185
 ```
 
 ### `frontend/.env`
