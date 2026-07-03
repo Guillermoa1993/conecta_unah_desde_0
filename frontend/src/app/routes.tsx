@@ -3,6 +3,7 @@ import { RootLayout } from "./components/layouts/RootLayout";
 import { ProtectedRoute } from "./components/guards/ProtectedRoute";
 
 // Auth & registro (públicas)
+import { AuthCallback } from "./pages/AuthCallback";
 import { Login } from "./pages/Login";
 import { RoleSelector } from "./pages/RoleSelector";
 import { RegistroSelector } from "./pages/RegistroSelector";
@@ -80,6 +81,7 @@ export const router = createBrowserRouter([
     children: [
       // ── Públicas (sin guard) ──────────────────────────────
       { index: true,                    element: <Login /> },
+      { path: "auth/callback",          element: <AuthCallback /> },
       { path: "roles",                  element: <RoleSelector /> },
       { path: "registro",               element: <RegistroSelector /> },
       { path: "registro/estudiante",    element: <FichaEstudiante /> },
