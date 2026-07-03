@@ -56,6 +56,10 @@ import { ValidacionEvento } from "./pages/voae/ValidacionEvento";
 import { Notifications } from "./pages/employees/Notifications";
 import { Logs } from "./pages/employees/Logs";
 
+// Grupo 4 — Employees
+import { Aplicativos } from "./pages/employees/Aplicativos";
+import { AcercaDe } from "./pages/employees/AcercaDe";
+
 // Mantenimiento (compartido por admin/tutor/voae)
 import {
   CareersPage, RegionalCentersPage, UserTypesPage,
@@ -90,6 +94,8 @@ export const router = createBrowserRouter([
       // ── Empleados (tutor/admin/voae comparten) ────────────
       { path: "employees/notifications", element: P(<Notifications />) },
       { path: "employees/logs",          element: P(<Logs />) },
+      { path: "employees/aplicativos",   element: P(<Aplicativos />) },
+      { path: "employees/acerca-de",     element: P(<AcercaDe />) },
 
       // ── Estudiante ────────────────────────────────────────
       { path: "student",                element: P(<StudentDashboard />) },
