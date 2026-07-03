@@ -78,7 +78,7 @@ const constanciaUC     = new GestionarConstancia(constanciaRepo, eventoRepo, not
 
 // ── Controllers ─────────────────────────────────────────────────────────────
 const healthCtrl       = new HealthController(new GetHealthReport(healthRepo));
-const authCtrl         = new AuthController(loginUC, registrarUC, loginMicrosoftUC, enviarOtpUC, verificarOtpUC);
+const authCtrl         = new AuthController(loginUC, registrarUC, loginMicrosoftUC, enviarOtpUC, verificarOtpUC, usuarioRepo);
 const eventoCtrl       = new EventoController(crearEventoUC, obtenerEventosUC, obtenerEventoUC, actualizarUC, aprobarUC, eventoRepo);
 const inscripcionCtrl  = new InscripcionController(inscribirUC, cancelarInscUC, inscripcionRepo);
 const constanciaCtrl   = new ConstanciaController(constanciaUC, constanciaRepo);
