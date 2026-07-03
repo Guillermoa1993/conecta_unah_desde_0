@@ -927,4 +927,4 @@ emisión de constancias de horas VOAE (Artículo 140).
   Para soporte técnico o reportar problemas, contactar al equipo de
   desarrollo del grupo asignado.
 
-===================================================
+================================================================================

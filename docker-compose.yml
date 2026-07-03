@@ -1,94 +1,34 @@
-version: '3.9'
-
-# ─── UNAH CONECTA PUMAS ────────────────────────────────────────────────────────
-# Base de datos: Render.com (PostgreSQL externo, sin contenedor local de DB)
-# Para inicializar las tablas: npm run db:init (dentro de /backend)
-#
-# Comandos:
-#   Desarrollo :  docker compose --profile dev up
-#   Producción :  docker compose up
-#   Solo backend: docker compose up backend
-# ─────────────────────────────────────────────────────────────────────────────
+version: "3.9"
 
 services:
-
-  # ── Backend (API Express) ──────────────────────────────────────────────────
-  backend:
+  # ── Aplicación en producción (build + Nginx) ─────────────────────────────
+  conecta-pumas:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
       target: production
-    container_name: unah_backend
+    container_name: conecta-pumas-app
     ports:
-      - "5000:5000"
-    environment:
-      - PORT=5000
-      - DATABASE_URL=${DATABASE_URL}
-      - JWT_SECRET=${JWT_SECRET:-unah_conecta_pumas_2026_jwt_secret_key_cambiar_en_produccion}
-      - FRONTEND_URL=http://localhost:5173
+      - "3000:80"         # Acceder en http://localhost:3000
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # ── Backend en modo desarrollo (hot-reload) ────────────────────────────────
-  backend-dev:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      target: development
-    container_name: unah_backend_dev
-    ports:
-      - "5000:5000"
-    environment:
-      - PORT=5000
-      - DATABASE_URL=${DATABASE_URL}
-      - JWT_SECRET=${JWT_SECRET:-unah_conecta_pumas_2026_jwt_secret_key_cambiar_en_produccion}
-      - FRONTEND_URL=http://localhost:5173
+  # ── Servidor de desarrollo (hot-reload) ──────────────────────────────────
+  conecta-pumas-dev:
+    image: node:22-alpine
+    container_name: conecta-pumas-dev
+    working_dir: /app
     volumes:
-      - ./backend:/app
-      - /app/node_modules
-    profiles: ["dev"]
-    restart: unless-stopped
-
-  # ── Frontend (React + Nginx) ───────────────────────────────────────────────
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: production
-    container_name: unah_frontend
+      - .:/app
+      - /app/node_modules        # volumen anónimo para no sobreescribir node_modules del host
     ports:
-      - "5173:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-
-  # ── Frontend en modo desarrollo (Vite hot-reload) ─────────────────────────
-  frontend-dev:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: development
-    container_name: unah_frontend_dev
-    ports:
-      - "5173:5185"
+      - "5185:5185"              # Acceder en http://localhost:5185
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     environment:
-      - VITE_API_URL=http://backend-dev:5000/api
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    depends_on:
-      - backend-dev
-    profiles: ["dev"]
-    restart: unless-stopped
-
-  # ── Adminer (visualizador de BD) ───────────────────────────────────────────
-  adminer:
-    image: adminer:latest
-    container_name: unah_adminer
-    ports:
-      - "8080:8080"
-    restart: unless-stopped
+      - NODE_ENV=development
+    profiles:
+      - dev                      # Solo se activa con: docker compose --profile dev up
