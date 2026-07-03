@@ -312,7 +312,10 @@ export function Login() {
       authService.setToken(data.token);
       authService.setUsuarioGuardado(data.usuario);
 
-      const role = data.usuario.rol.toLowerCase() as Role;
+      const ROL_MAP: Record<string, Role> = {
+        estudiante: 'student', tutor: 'tutor', admin: 'admin', voae: 'voae', dev: 'dev',
+      };
+      const role = ROL_MAP[data.usuario.rol.toLowerCase()] ?? 'student';
       const path = ROLE_PATHS[role] ?? "/student/feed";
 
       sessionStorage.setItem("unah_session_active", "true");
