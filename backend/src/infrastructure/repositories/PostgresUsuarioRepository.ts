@@ -6,7 +6,8 @@ const SELECT_USUARIO = `
   SELECT u.id_usuario, u.nombre, u.correo, u.password,
          u.id_rol,    r.nombre  AS rol,
          u.id_estado, e.estado,
-         u.id_carrera, c.nombre AS carrera
+         u.id_carrera, c.nombre AS carrera,
+         u.microsoft_id, u.otp_code, u.otp_expira
   FROM tabla_grupo_1_usuario u
   LEFT JOIN tabla_grupo_1_rol            r ON u.id_rol     = r.id_rol
   LEFT JOIN tabla_grupo_1_estado_usuario e ON u.id_estado  = e.id_estado
@@ -23,6 +24,11 @@ export class PostgresUsuarioRepository implements UsuarioRepository {
 
   async findByCorreo(correo: string): Promise<Usuario | null> {
     const { rows } = await this.pool.query(`${SELECT_USUARIO} WHERE u.correo = $1`, [correo]);
+    return rows[0] ?? null;
+  }
+
+  async findByMicrosoftId(microsoftId: string): Promise<Usuario | null> {
+    const { rows } = await this.pool.query(`${SELECT_USUARIO} WHERE u.microsoft_id = $1`, [microsoftId]);
     return rows[0] ?? null;
   }
 
@@ -51,12 +57,12 @@ export class PostgresUsuarioRepository implements UsuarioRepository {
     return this.findById(rows[0].id_usuario) as Promise<Usuario>;
   }
 
-  async update(id: number, data: Partial<Usuario>): Promise<Usuario | null> {
-    const allowed: Record<string, string> = { nombre: 'nombre', correo: 'correo', password: 'password' };
-    const campos = Object.keys(data).filter((k) => allowed[k]);
+  async update(id: number, data: Partial<Record<string, unknown>>): Promise<Usuario | null> {
+    const allowed = ['nombre', 'correo', 'password', 'microsoft_id', 'otp_code', 'otp_expira'];
+    const campos = Object.keys(data).filter((k) => allowed.includes(k));
     if (!campos.length) return this.findById(id);
-    const sets = campos.map((k, i) => `${allowed[k]} = $${i + 2}`).join(', ');
-    const values = campos.map((k) => (data as Record<string, unknown>)[k]);
+    const sets = campos.map((k, i) => `${k} = $${i + 2}`).join(', ');
+    const values = campos.map((k) => data[k]);
     await this.pool.query(`UPDATE tabla_grupo_1_usuario SET ${sets} WHERE id_usuario = $1`, [id, ...values]);
     return this.findById(id);
   }

@@ -11,16 +11,23 @@
     "db:viewer": "ts-node-dev --transpile-only scripts/dbViewer.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["unah", "conecta", "api", "eventos"],
+  "keywords": [
+    "unah",
+    "conecta",
+    "api",
+    "eventos"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@azure/msal-node": "^5.3.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^9.0.3",
     "pg": "^8.21.0"
   },
   "devDependencies": {

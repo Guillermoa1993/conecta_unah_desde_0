@@ -39,4 +39,17 @@ export const authService = {
   estaAutenticado(): boolean {
     return !!localStorage.getItem('unah_token');
   },
+
+  setToken(token: string): void {
+    localStorage.setItem('unah_token', token);
+  },
+
+  setUsuarioGuardado(usuario: Usuario): void {
+    localStorage.setItem('unah_usuario', JSON.stringify(usuario));
+  },
+
+  async getMe(token: string): Promise<Usuario> {
+    const data = await api.getWithToken<{ usuario: Usuario }>('/auth/me', token);
+    return data.usuario;
+  },
 };
