@@ -13,10 +13,10 @@ export function RootLayout() {
 
   useEffect(() => {
     const isActive = sessionStorage.getItem("unah_session_active") === "true";
-    const alreadyAsked = sessionStorage.getItem("unah_perms_asked") === "true";
+    const alreadyAsked = localStorage.getItem("unah_perms_asked") === "true";
     if (isActive && !alreadyAsked) {
       setShowPermModal(true);
-      sessionStorage.setItem("unah_perms_asked", "true");
+      localStorage.setItem("unah_perms_asked", "true");
     }
   }, [location.pathname]);
 
