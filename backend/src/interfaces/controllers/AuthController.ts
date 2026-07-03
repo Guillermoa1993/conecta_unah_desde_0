@@ -5,6 +5,8 @@ import { LoginMicrosoft } from '../../use-cases/auth/LoginMicrosoft';
 import { EnviarOtp } from '../../use-cases/auth/EnviarOtp';
 import { VerificarOtp } from '../../use-cases/auth/VerificarOtp';
 import { msalClient, AZURE_REDIRECT_URI, AZURE_SCOPES } from '../../infrastructure/auth/msalConfig';
+import { UsuarioRepository } from '../../domain/repositories/UsuarioRepository';
+import jwt from 'jsonwebtoken';
 
 export class AuthController {
   constructor(
@@ -13,6 +15,7 @@ export class AuthController {
     private readonly loginMicrosoftUseCase: LoginMicrosoft,
     private readonly enviarOtpUseCase: EnviarOtp,
     private readonly verificarOtpUseCase: VerificarOtp,
+    private readonly usuarioRepo?: UsuarioRepository,
   ) {}
 
   login = async (req: Request, res: Response, next: NextFunction) => {
@@ -105,5 +108,41 @@ export class AuthController {
       const mensaje = err instanceof Error ? err.message : 'Error de autenticación con Microsoft';
       res.redirect(`${frontendUrl}/auth/callback?error=${encodeURIComponent(mensaje)}`);
     }
+  };
+
+  // ── Solo disponible fuera de producción ──────────────────────────────────
+  devLogin = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const ROL_CORREO: Record<string, string> = {
+        estudiante: 'guillermo.ayestas@unah.hn',
+        admin:      'admin@unah.hn',
+        tutor:      'tutor@unah.edu.hn',
+        voae:       'voae@unah.hn',
+        dev:        'dev@unah.hn',
+      };
+
+      const rol = (req.body.rol as string)?.toLowerCase();
+      const correo = ROL_CORREO[rol];
+      if (!correo) {
+        res.status(400).json({ error: `Rol inválido. Opciones: ${Object.keys(ROL_CORREO).join(', ')}` });
+        return;
+      }
+
+      const usuario = await this.usuarioRepo!.findByCorreo(correo) as any;
+      if (!usuario) {
+        res.status(404).json({ error: `Usuario de prueba "${correo}" no encontrado en la DB` });
+        return;
+      }
+
+      const secret = process.env.JWT_SECRET ?? 'dev-secret-change-in-prod';
+      const token = jwt.sign(
+        { id: usuario.id_usuario, rol: usuario.rol },
+        secret,
+        { expiresIn: '8h' }
+      );
+
+      const { password, microsoft_id, otp_code, otp_expira, ...pub } = usuario;
+      res.json({ token, usuario: pub });
+    } catch (err) { next(err); }
   };
 }
