@@ -197,7 +197,7 @@ const eventosGuardadosLista: EventoGuardado[] = [
   },
 ];
 
-export const Perfil: React.FC<PerfilProps> = ({ rolSimulado }) => {
+export const StudentProfile: React.FC<PerfilProps> = ({ rolSimulado }) => {
   const [viewMode, setViewMode] = useState<'ver' | 'editar'>('ver');
   const [perfil, setPerfil] = useState<PerfilData>(perfilInicial);
   const [borrador, setBorrador] = useState<PerfilData>(perfilInicial);

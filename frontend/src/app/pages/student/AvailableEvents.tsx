@@ -26,7 +26,7 @@ interface Evento {
   ASISTENCIA?: AsistenciaInfo;
 }
 
-export const MisEventos: React.FC = () => {
+export const AvailableEvents: React.FC = () => {
 
   const [origenFiltro, setOrigenFiltro] = useState<'mis-eventos' | 'nuevos'>('mis-eventos');
   const [busqueda, setBusqueda] = useState('');

@@ -1329,7 +1329,7 @@ function NewPostModal({ onClose, onCreate }: {
 
 
 /* ─── MAIN FEED ─── */
-export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolean }) {
+export function SocialFeed({ showOnlySaved = false }: { showOnlySaved?: boolean }) {
   const [posts, setPosts] = useState<Post[]>(() => {
     const saved = localStorage.getItem("unah_posts");
     let loadedPosts: Post[] = saved ? JSON.parse(saved) : [...initialPosts];
