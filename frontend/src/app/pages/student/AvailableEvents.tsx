@@ -642,4 +642,4 @@ export const AvailableEvents: React.FC = () => {
   );
 };
 
-export default MisEventos; 
+export default AvailableEvents;
