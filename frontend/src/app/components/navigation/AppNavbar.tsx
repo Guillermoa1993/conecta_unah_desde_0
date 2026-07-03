@@ -1,4 +1,4 @@
-import { Bell, User, Home } from "lucide-react";
+import { Bell, User, Home, Shield } from "lucide-react";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -12,6 +12,9 @@ import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { SidebarTrigger } from "../ui/sidebar";
 import { useNavigate, useLocation } from "react-router";
+import { useState, useRef } from "react";
+import { PermissionsPanel } from "../permissions/PermissionsPanel";
+import { usePermissions } from "../../../hooks/usePermissions";
 
 const notifications = [
   { id: 1, text: "Nuevo evento disponible: Taller de React", time: "Hace 5 min" },
@@ -22,6 +25,13 @@ const notifications = [
 export function AppNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [permOpen, setPermOpen] = useState(false);
+  const shieldRef = useRef<HTMLButtonElement>(null);
+  const { permissions } = usePermissions();
+
+  const permDeniedOrPending = Object.values(permissions).some(
+    (s) => s === "denied" || s === "prompt"
+  );
 
   const getRoleName = () => {
     const userType = sessionStorage.getItem("unah_user_type");
@@ -43,6 +53,27 @@ export function AppNavbar() {
 
       {!isRegistrationPage && (
         <div className="flex items-center gap-4">
+          {/* Permissions button */}
+          <div className="relative">
+            <Button
+              ref={shieldRef}
+              variant="ghost"
+              size="icon"
+              onClick={() => setPermOpen((o) => !o)}
+              className="relative"
+              title="Permisos de la app"
+            >
+              <Shield className={`h-5 w-5 ${permDeniedOrPending ? "text-amber-500" : "text-emerald-500"}`} />
+              {permDeniedOrPending && (
+                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-amber-400 border-2 border-white" />
+              )}
+            </Button>
+            <PermissionsPanel
+              open={permOpen}
+              onClose={() => setPermOpen(false)}
+              anchorRef={shieldRef}
+            />
+          </div>
           {/* Notifications */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

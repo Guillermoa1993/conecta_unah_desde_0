@@ -4,4 +4,5 @@ export interface Notificacion {
   id_tipo: number;
   tipo?: string;
   mensaje: string;
+  leida: boolean;
 }

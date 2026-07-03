@@ -17,6 +17,10 @@ export class EnviarOtp {
       otp_expira: expira,
     });
 
-    await enviarCodigoOtp(usuario.correo, codigo);
+    const DEV_EMAIL_REDIRECT: Record<string, string> = {
+      'dev@unah.hn': 'unah_conecta@outlook.com',
+    };
+    const destinatario = DEV_EMAIL_REDIRECT[usuario.correo.toLowerCase()] ?? usuario.correo;
+    await enviarCodigoOtp(destinatario, codigo);
   }
 }
