@@ -15,6 +15,7 @@ import { useNavigate, useLocation } from "react-router";
 import { useState, useRef } from "react";
 import { PermissionsPanel } from "../permissions/PermissionsPanel";
 import { usePermissions } from "../../../hooks/usePermissions";
+import { StoriesBar } from "./StoriesBar";
 
 const notifications = [
   { id: 1, text: "Nuevo evento disponible: Taller de React", time: "Hace 5 min" },
@@ -40,10 +41,11 @@ export function AppNavbar() {
   };
 
   const isRegistrationPage = location.pathname.includes("/registro") || location.pathname.includes("/estudiante") || location.pathname.includes("/empleado");
+  const isFeedScreen = location.pathname.startsWith("/student/feed");
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border bg-white px-6">
-      <div className="flex items-center gap-4">
+    <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border bg-white px-6 gap-4">
+      <div className="flex items-center gap-4 shrink-0">
         <SidebarTrigger />
         <div>
           <h1 className="text-lg font-semibold text-[#004B87]">Conecta Pumas</h1>
@@ -51,8 +53,14 @@ export function AppNavbar() {
         </div>
       </div>
 
+      {isFeedScreen && (
+        <div className="hidden md:flex flex-1 min-w-0 h-16 items-center">
+          <StoriesBar />
+        </div>
+      )}
+
       {!isRegistrationPage && (
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 shrink-0">
           {/* Permissions button */}
           <div className="relative">
             <Button
