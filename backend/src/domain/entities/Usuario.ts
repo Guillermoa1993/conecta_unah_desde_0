@@ -12,6 +12,9 @@ export interface Usuario {
   estado?: string;
   id_carrera?: number;
   carrera?: string;
+  microsoft_id?: string | null;
+  otp_code?: string | null;
+  otp_expira?: Date | null;
 }
 
 export interface UsuarioPublico {

@@ -15,6 +15,9 @@ import { PostgresNotificacionRepository } from '../repositories/PostgresNotifica
 import { GetHealthReport } from '../../use-cases/GetHealthReport';
 import { LoginUsuario } from '../../use-cases/auth/LoginUsuario';
 import { RegistrarUsuario } from '../../use-cases/auth/RegistrarUsuario';
+import { LoginMicrosoft } from '../../use-cases/auth/LoginMicrosoft';
+import { EnviarOtp } from '../../use-cases/auth/EnviarOtp';
+import { VerificarOtp } from '../../use-cases/auth/VerificarOtp';
 import { CrearEvento } from '../../use-cases/eventos/CrearEvento';
 import { ObtenerEventos } from '../../use-cases/eventos/ObtenerEventos';
 import { ObtenerEventoPorId } from '../../use-cases/eventos/ObtenerEventoPorId';
@@ -61,6 +64,9 @@ const notificacionRepo = new PostgresNotificacionRepository(pool);
 // ── Use cases ───────────────────────────────────────────────────────────────
 const loginUC          = new LoginUsuario(usuarioRepo);
 const registrarUC      = new RegistrarUsuario(usuarioRepo);
+const loginMicrosoftUC = new LoginMicrosoft(usuarioRepo);
+const enviarOtpUC      = new EnviarOtp(usuarioRepo);
+const verificarOtpUC   = new VerificarOtp(usuarioRepo);
 const crearEventoUC    = new CrearEvento(eventoRepo);
 const obtenerEventosUC = new ObtenerEventos(eventoRepo);
 const obtenerEventoUC  = new ObtenerEventoPorId(eventoRepo);
@@ -72,7 +78,7 @@ const constanciaUC     = new GestionarConstancia(constanciaRepo, eventoRepo, not
 
 // ── Controllers ─────────────────────────────────────────────────────────────
 const healthCtrl       = new HealthController(new GetHealthReport(healthRepo));
-const authCtrl         = new AuthController(loginUC, registrarUC);
+const authCtrl         = new AuthController(loginUC, registrarUC, loginMicrosoftUC, enviarOtpUC, verificarOtpUC, usuarioRepo);
 const eventoCtrl       = new EventoController(crearEventoUC, obtenerEventosUC, obtenerEventoUC, actualizarUC, aprobarUC, eventoRepo);
 const inscripcionCtrl  = new InscripcionController(inscribirUC, cancelarInscUC, inscripcionRepo);
 const constanciaCtrl   = new ConstanciaController(constanciaUC, constanciaRepo);

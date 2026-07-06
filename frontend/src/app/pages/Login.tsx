@@ -6,6 +6,9 @@ import { Input } from "../components/ui/input";
 import { toast } from "sonner";
 import logoUnah from "../../imports/logoUnah.png";
 import logoIA from "../../imports/logoIA.png";
+import { authService } from "../../services/auth.service";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Step = 1 | 2;
@@ -273,42 +276,62 @@ export function Login() {
 
   const handleSendOtp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!username.trim()) {
-      toast.error("Por favor ingresa tu nombre de usuario.");
-      return;
-    }
-    if (!isValidDomain(correo)) {
-      toast.error("Por favor, ingresa un correo institucional válido.");
-      return;
-    }
+    if (!username.trim()) { toast.error("Por favor ingresa tu nombre de usuario."); return; }
+    if (!isValidDomain(correo)) { toast.error("Por favor, ingresa un correo institucional válido."); return; }
     setLoading(true);
-    await new Promise<void>((resolve) => setTimeout(resolve, 1000));
-    setLoading(false);
-    toast.success(`Código de seguridad enviado a: ${correo}`);
-    setStep(2);
+    try {
+      const res = await fetch(`${API_URL}/auth/otp/enviar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ correo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error al enviar código");
+      toast.success(`Código de seguridad enviado a: ${correo}`);
+      setStep(2);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al enviar código");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleVerifyOtp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (otp.length !== 6) {
-      toast.error("El código debe ser exactamente de 6 dígitos.");
-      return;
-    }
+    if (otp.length !== 6) { toast.error("El código debe ser exactamente de 6 dígitos."); return; }
     setLoading(true);
-    await new Promise<void>((resolve) => setTimeout(resolve, 800));
-    setLoading(false);
+    try {
+      const res = await fetch(`${API_URL}/auth/otp/verificar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ correo, codigo: otp }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Código incorrecto");
 
-    const role     = deriveRole(correo);
-    const userType = correo.endsWith("@unah.edu.hn") ? "empleado" : "estudiante";
-    const path     = ROLE_PATHS[role];
+      authService.setToken(data.token);
+      authService.setUsuarioGuardado(data.usuario);
 
-    sessionStorage.setItem("unah_session_active", "true");
-    sessionStorage.setItem("unah_session_role",   path);
-    sessionStorage.setItem("unah_user_type",      userType);
-    sessionStorage.setItem("unah_role",           role);
+      const ROL_MAP: Record<string, Role> = {
+        estudiante: 'student', tutor: 'tutor', admin: 'admin', voae: 'voae', dev: 'dev',
+      };
+      const role = ROL_MAP[data.usuario.rol.toLowerCase()] ?? 'student';
+      const path = ROLE_PATHS[role] ?? "/student/feed";
 
-    toast.success("¡Inicio de sesión exitoso!");
-    navigate(path, { replace: true });
+      sessionStorage.setItem("unah_session_active", "true");
+      sessionStorage.setItem("unah_role", role);
+
+      toast.success("¡Inicio de sesión exitoso!");
+      window.location.replace(path);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al verificar código");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMicrosoftLogin = () => {
+    window.location.href = `${API_URL.replace("/api", "")}/api/auth/microsoft`;
   };
 
   return (
@@ -347,6 +370,29 @@ export function Login() {
                 onBack={() => setStep(1)}
                 onSubmit={handleVerifyOtp}
               />
+            )}
+
+            {step === 1 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-slate-200" />
+                  <span className="text-xs text-slate-400 font-medium">o continúa con</span>
+                  <div className="flex-1 h-px bg-slate-200" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleMicrosoftLogin}
+                  className="w-full h-12 flex items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors font-semibold text-slate-700 shadow-sm"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 21 21">
+                    <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                    <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                    <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                    <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                  </svg>
+                  Iniciar sesión con Microsoft
+                </button>
+              </div>
             )}
 
             <div className="text-center pt-4 border-t border-slate-100">

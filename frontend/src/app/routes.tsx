@@ -3,6 +3,7 @@ import { RootLayout } from "./components/layouts/RootLayout";
 import { ProtectedRoute } from "./components/guards/ProtectedRoute";
 
 // Auth & registro (públicas)
+import { AuthCallback } from "./pages/AuthCallback";
 import { Login } from "./pages/Login";
 import { RoleSelector } from "./pages/RoleSelector";
 import { RegistroSelector } from "./pages/RegistroSelector";
@@ -33,6 +34,7 @@ import { SystemSettings } from "./pages/admin/SystemSettings";
 import { CommentsReview } from "./pages/admin/CommentsReview";
 import { Roles } from "./pages/admin/Roles";
 import { Permissions } from "./pages/admin/Permissions";
+import { BackupRestore } from "./pages/admin/BackupRestore";
 
 // Grupo 3 — Student
 import { SolicitarEvento } from "./pages/student/SolicitarEvento";
@@ -54,6 +56,10 @@ import { ValidacionEvento } from "./pages/voae/ValidacionEvento";
 // Employees (compartido por tutor/admin/voae)
 import { Notifications } from "./pages/employees/Notifications";
 import { Logs } from "./pages/employees/Logs";
+
+// Grupo 4 — Employees
+import { Aplicativos } from "./pages/employees/Aplicativos";
+import { AcercaDe } from "./pages/employees/AcercaDe";
 
 // Mantenimiento (compartido por admin/tutor/voae)
 import {
@@ -80,6 +86,7 @@ export const router = createBrowserRouter([
     children: [
       // ── Públicas (sin guard) ──────────────────────────────
       { index: true,                    element: <Login /> },
+      { path: "auth/callback",          element: <AuthCallback /> },
       { path: "roles",                  element: <RoleSelector /> },
       { path: "registro",               element: <RegistroSelector /> },
       { path: "registro/estudiante",    element: <FichaEstudiante /> },
@@ -88,6 +95,8 @@ export const router = createBrowserRouter([
       // ── Empleados (tutor/admin/voae comparten) ────────────
       { path: "employees/notifications", element: P(<Notifications />) },
       { path: "employees/logs",          element: P(<Logs />) },
+      { path: "employees/aplicativos",   element: P(<Aplicativos />) },
+      { path: "employees/acerca-de",     element: P(<AcercaDe />) },
 
       // ── Estudiante ────────────────────────────────────────
       { path: "student",                element: P(<StudentDashboard />) },
@@ -119,6 +128,7 @@ export const router = createBrowserRouter([
       { path: "admin/comments",         element: P(<CommentsReview />) },
       { path: "admin/roles",            element: P(<Roles />) },
       { path: "admin/permissions",      element: P(<Permissions />) },
+      { path: "admin/backup-restore",   element: P(<BackupRestore />) },
       ...maintenanceRoutes("admin"),
 
       // ── VOAE ──────────────────────────────────────────────

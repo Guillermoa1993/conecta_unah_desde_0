@@ -1,223 +1,196 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 
-interface PermissionData {
-  id_permisos?: number;
-  nombre_permiso: string;
-  modulo: string;
-  descripcion?: string;
+interface PermisoEstado {
+  crear: boolean;
+  leer: boolean;
+  editar: boolean;
+  eliminar: boolean;
 }
 
-const MODULES = ['Roles', 'Permisos', 'Usuarios', 'Eventos', 'Bitácora', 'Reportes', 'Mantenimiento'];
-
-const mockPermissions: PermissionData[] = [
-  { id_permisos: 1, nombre_permiso: 'leer_roles', modulo: 'Roles', descripcion: 'Visualizar el listado de roles del sistema.' },
-  { id_permisos: 2, nombre_permiso: 'crear_roles', modulo: 'Roles', descripcion: 'Añadir nuevos roles operativos al sistema.' },
-  { id_permisos: 3, nombre_permiso: 'modificar_permisos', modulo: 'Permisos', descripcion: 'Acceso total para editar la matriz ACL.' },
-  { id_permisos: 4, nombre_permiso: 'gestionar_usuarios', modulo: 'Usuarios', descripcion: 'Crear, editar y desactivar cuentas de usuario.' },
-  { id_permisos: 5, nombre_permiso: 'crear_eventos', modulo: 'Eventos', descripcion: 'Publicar nuevos eventos académicos e institucionales.' },
-  { id_permisos: 6, nombre_permiso: 'aprobar_eventos', modulo: 'Eventos', descripcion: 'Validar y aprobar eventos antes de publicarlos (solo VOAE).' },
-  { id_permisos: 7, nombre_permiso: 'ver_bitacora', modulo: 'Bitácora', descripcion: 'Consultar el registro de actividad del sistema.' },
-];
-
-const moduleColor: Record<string, string> = {
-  Roles: 'bg-blue-50 border-blue-100 text-[#004B87]',
-  Permisos: 'bg-yellow-50 border-yellow-100 text-yellow-700',
-  Usuarios: 'bg-purple-50 border-purple-100 text-purple-700',
-  Eventos: 'bg-green-50 border-green-100 text-green-700',
-  'Bitácora': 'bg-gray-50 border-gray-200 text-gray-600',
-  Reportes: 'bg-orange-50 border-orange-100 text-orange-700',
-  Mantenimiento: 'bg-slate-50 border-slate-200 text-slate-600',
-};
+interface MatrizPermisos {
+  [rol: string]: {
+    [modulo: string]: PermisoEstado;
+  };
+}
 
 export function Permissions() {
-  const [permissions, setPermissions] = useState<PermissionData[]>(mockPermissions);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedPermission, setSelectedPermission] = useState<PermissionData | null>(null);
-  const [nombrePermiso, setNombrePermiso] = useState('');
-  const [modulo, setModulo] = useState('Roles');
-  const [descripcion, setDescripcion] = useState('');
+  // CONTROL DE ACCESO (sessionStorage institucional)
+  const rolActivo = sessionStorage.getItem("unah_role");
+  const esAdminValido = rolActivo === "admin" || rolActivo === "dev";
 
-  const handleOpenCreate = () => {
-    setSelectedPermission(null);
-    setNombrePermiso('');
-    setModulo('Roles');
-    setDescripcion('');
-    setIsModalOpen(true);
-  };
+  if (!esAdminValido) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] bg-slate-50 p-6 rounded-xl border border-slate-200">
+        <div className="bg-red-50 text-[#003366] border border-red-200 p-4 rounded-lg font-bold max-w-md text-center shadow-xs">
+          🛑 ACCESO RESTRINGIDO: El módulo de configuración de permisos es de uso exclusivo para el rol de Administrador.
+        </div>
+      </div>
+    );
+  }
 
-  const handleOpenEdit = (perm: PermissionData) => {
-    setSelectedPermission(perm);
-    setNombrePermiso(perm.nombre_permiso);
-    setModulo(perm.modulo);
-    setDescripcion(perm.descripcion || '');
-    setIsModalOpen(true);
-  };
+  // 1. Estado para el Rol seleccionado de la caja superior
+  const [rolSeleccionado, setRolSeleccionado] = useState<string>('admin');
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (selectedPermission?.id_permisos) {
-      setPermissions(prev => prev.map(p =>
-        p.id_permisos === selectedPermission.id_permisos
-          ? { ...p, nombre_permiso: nombrePermiso, modulo, descripcion }
-          : p
-      ));
-    } else {
-      const newId = Math.max(0, ...permissions.map(p => p.id_permisos ?? 0)) + 1;
-      setPermissions(prev => [...prev, { id_permisos: newId, nombre_permiso: nombrePermiso, modulo, descripcion }]);
+  // 2. Estado para controlar qué módulos están desplegados (Abiertos/Cerrados)
+  const [modulosAbiertos, setModulosAbiertos] = useState<{ [key: string]: boolean }>({
+    'Usuario': true,  // El primero abierto por defecto para dar feedback visual
+    'Evento': false,
+    'Bitácora': false,
+    'Backup': false
+  });
+
+  // 3. MATRIZ BASE DE PERMISOS POR ROL Fijos e Interactivos
+  const [matrizRoles, setMatrizRoles] = useState<MatrizPermisos>({
+    admin: {
+      Usuario:  { crear: true, leer: true, editar: true, eliminar: true },
+      Evento:   { crear: true, leer: true, editar: true, eliminar: true },
+      Bitácora: { crear: true, leer: true, editar: true, eliminar: true },
+      Backup:   { crear: true, leer: true, editar: true, eliminar: true },
+    },
+    tutor: {
+      Usuario:  { crear: false, leer: true, editar: false, eliminar: false },
+      Evento:   { crear: true, leer: true, editar: true, eliminar: false },
+      Bitácora: { crear: true, leer: true, editar: false, eliminar: false },
+      Backup:   { crear: false, leer: false, editar: false, eliminar: false },
+    },
+    voae: {
+      Usuario:  { crear: false, leer: true, editar: true, eliminar: false },
+      Evento:   { crear: false, leer: true, editar: true, eliminar: false },
+      Bitácora: { crear: false, leer: true, editar: false, eliminar: false },
+      Backup:   { crear: false, leer: false, editar: false, eliminar: false },
+    },
+    student: {
+      Usuario:  { crear: false, leer: true, editar: false, eliminar: false },
+      Evento:   { crear: false, leer: true, editar: false, eliminar: false },
+      Bitácora: { crear: false, leer: false, editar: false, eliminar: false },
+      Backup:   { crear: false, leer: false, editar: false, eliminar: false },
     }
-    setIsModalOpen(false);
+  });
+
+  // Estructuras exigidas estrictamente
+  const modulos = ['Usuario', 'Evento', 'Bitácora', 'Backup'];
+  const acciones: (keyof PermisoEstado)[] = ['crear', 'leer', 'editar', 'eliminar'];
+
+  // Alternar apertura de los bloques azules (Acordeón)
+  const toggleModuloDesplegable = (modulo: string) => {
+    setModulosAbiertos(prev => ({ ...prev, [modulo]: !prev[modulo] }));
   };
 
-  const handleDelete = (id: number) => {
-    if (window.confirm('¿Estás seguro de eliminar este permiso?')) {
-      setPermissions(prev => prev.filter(p => p.id_permisos !== id));
-    }
+  // Cambiar el switch de un permiso de forma interactiva para el rol completo
+  const handleTogglePermiso = (modulo: string, accion: keyof PermisoEstado) => {
+    setMatrizRoles(prev => {
+      const nuevoEstadoRol = { ...prev[rolSeleccionado] };
+      nuevoEstadoRol[modulo] = {
+        ...nuevoEstadoRol[modulo],
+        [accion]: !nuevoEstadoRol[modulo][accion]
+      };
+      return {
+        ...prev,
+        [rolSeleccionado]: nuevoEstadoRol
+      };
+    });
   };
 
-  const groupedByModule = MODULES.map(mod => ({
-    mod,
-    perms: permissions.filter(p => p.modulo === mod),
-  })).filter(g => g.perms.length > 0);
+  const handleGuardarCambiosRol = () => {
+    alert(`¡Estructura de permisos para el rol seleccionado guardada con éxito!`);
+  };
 
   return (
-    <div className="animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div className="p-6 bg-white rounded-xl shadow-sm border border-slate-100 max-w-4xl mx-auto space-y-6">
+      
+      {/* CABECERA CORREGIDA */}
+      <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#003366] flex items-center gap-2">
-            🔑 Módulo de Permisos
-          </h1>
-          <p className="text-[#717182] text-sm mt-1">
-            Gestiona los accesos por funcionalidad de la plataforma.
-          </p>
+          <h1 className="text-2xl font-bold text-[#003366]">Configuración de Permisos de Administrador</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Gestione y altere las capacidades de los distintos perfiles del sistema.</p>
         </div>
+        {/* BOTÓN SIMPLIFICADO A SOLICITUD */}
         <button
-          onClick={handleOpenCreate}
-          className="px-5 py-2.5 bg-[#FFD100] hover:bg-[#FFE766] text-[#003366] font-bold rounded-xl text-sm transition-colors shadow-sm"
+          onClick={handleGuardarCambiosRol}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm px-6 py-2.5 rounded-lg shadow-xs transition-all active:scale-95"
         >
-          + Nuevo Permiso
+          💾 Guardar
         </button>
       </div>
 
-      {/* Agrupado por módulo */}
-      <div className="space-y-6">
-        {groupedByModule.map(({ mod, perms }) => (
-          <div key={mod}>
-            <h2 className="text-xs font-bold text-[#717182] uppercase tracking-widest mb-3 flex items-center gap-2">
-              <span className={`px-2 py-0.5 rounded-md border text-[10px] ${moduleColor[mod] ?? 'bg-gray-50 border-gray-200 text-gray-600'}`}>
-                {mod}
-              </span>
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {perms.map((perm) => (
-                <div
-                  key={perm.id_permisos}
-                  className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:border-[#FFD100] hover:shadow-md transition-all group"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-yellow-50 text-yellow-600 group-hover:scale-110 transition-transform text-lg">
-                        🔑
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-[#003366] text-sm group-hover:text-[#1A6FBF] transition-colors truncate max-w-[140px]">
-                          {perm.nombre_permiso}
-                        </h3>
-                        <p className="text-[#717182] text-[11px] font-mono">ID: #{perm.id_permisos ?? 'TEMP'}</p>
-                      </div>
-                    </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider ${moduleColor[perm.modulo] ?? 'bg-gray-50 border-gray-200 text-gray-600'}`}>
-                      {perm.modulo}
-                    </span>
-                  </div>
-
-                  <p className="text-[#717182] text-xs mb-4 min-h-[2.5rem] leading-relaxed">
-                    {perm.descripcion || `Operaciones dentro del módulo ${perm.modulo}.`}
-                  </p>
-
-                  <div className="flex gap-2 border-t border-gray-100 pt-3">
-                    <button
-                      onClick={() => handleOpenEdit(perm)}
-                      className="flex-1 py-2 px-3 text-xs bg-[#F4F6F8] hover:bg-[#EEF4FF] text-[#003366] font-semibold rounded-xl transition-colors"
-                    >
-                      ✏️ Editar
-                    </button>
-                    <button
-                      onClick={() => perm.id_permisos && handleDelete(perm.id_permisos)}
-                      className="py-2 px-3 bg-red-50 border border-red-100 hover:bg-red-500 text-red-500 hover:text-white text-xs font-bold rounded-xl transition-all"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
+      {/* FILTRO DE ROL PRINCIPAL */}
+      <div className="bg-slate-50 rounded-xl p-5 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <label className="text-xs font-bold uppercase tracking-wider text-[#004B87] block mb-1">Seleccione Perfil de Rol</label>
+          <p className="text-xs text-slate-400">Los cambios afectarán automáticamente a todos los usuarios que pertenezcan a este grupo.</p>
+        </div>
+        <select
+          value={rolSeleccionado}
+          onChange={(e) => setRolSeleccionado(e.target.value)}
+          className="bg-white border border-slate-300 rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#004B87] shadow-xs min-w-[220px]"
+        >
+          <option value="admin">Administrador</option>
+          <option value="tutor">Tutor / Empleado</option>
+          <option value="voae">Personal VOAE</option>
+          <option value="student">Estudiante</option>
+        </select>
       </div>
 
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-2xl border border-gray-200 p-6 shadow-2xl mx-4">
-            <h3 className="text-lg font-bold mb-4 text-[#FFD100] drop-shadow-sm">
-              {selectedPermission ? '✏️ Editar Permiso' : '🔑 Crear Nuevo Permiso'}
-            </h3>
-            <form onSubmit={handleSave} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-[#717182] uppercase tracking-wider mb-1.5">
-                  Nombre del Permiso
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ej. leer_bitacora"
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#F4F6F8] border border-gray-200 text-[#003366] text-sm focus:outline-none focus:border-[#FFD100] transition-colors"
-                  value={nombrePermiso}
-                  onChange={(e) => setNombrePermiso(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-[#717182] uppercase tracking-wider mb-1.5">
-                  Módulo Destino
-                </label>
-                <select
-                  value={modulo}
-                  onChange={(e) => setModulo(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#F4F6F8] border border-gray-200 text-[#003366] text-sm focus:outline-none focus:border-[#FFD100] transition-colors"
-                >
-                  {MODULES.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-[#717182] uppercase tracking-wider mb-1.5">
-                  Descripción
-                </label>
-                <textarea
-                  placeholder="Describe qué habilita este permiso..."
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#F4F6F8] border border-gray-200 text-[#003366] text-sm focus:outline-none focus:border-[#FFD100] h-20 resize-none transition-colors"
-                  value={descripcion}
-                  onChange={(e) => setDescripcion(e.target.value)}
-                />
-              </div>
-              <div className="flex gap-3 pt-4 border-t border-gray-100">
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 px-4 bg-[#FFD100] hover:bg-[#FFE766] text-[#003366] text-sm font-bold rounded-xl transition-colors"
-                >
-                  {selectedPermission ? 'Actualizar' : 'Guardar'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-2.5 px-4 bg-[#F4F6F8] hover:bg-gray-200 text-[#003366] text-sm font-bold rounded-xl transition-colors"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* SECCIÓN DE MÓDULOS EN AZUL FUERTE */}
+      <div className="space-y-3">
+        {modulos.map(modulo => {
+          const isOpen = modulosAbiertos[modulo];
+          const permisosModulo = matrizRoles[rolSeleccionado][modulo];
+
+          return (
+            <div key={modulo} className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+              
+              {/* BOTÓN DEL MÓDULO (AZUL FUERTE) */}
+              <button
+                onClick={() => toggleModuloDesplegable(modulo)}
+                className="w-full bg-[#003366] text-white px-5 py-3.5 font-bold text-sm flex items-center justify-between transition-colors hover:bg-[#002244]"
+              >
+                <span className="uppercase tracking-wider flex items-center gap-2">
+                  📦 Módulo: {modulo}
+                </span>
+                <span className="text-xs font-mono bg-[#004B87] px-2.5 py-0.5 rounded-sm">
+                  {isOpen ? '▲ OCULTAR' : '▼ DESPLEGAR'}
+                </span>
+              </button>
+              
+              {/* CUERPO DESPLEGABLE (ACCIONES LIMPIAS SOLICITADAS) */}
+              {isOpen && (
+                <div className="bg-white divide-y divide-slate-100 px-5 py-1">
+                  {acciones.map(accion => {
+                    const estaActivo = permisosModulo[accion];
+                    return (
+                      <div key={accion} className="flex items-center justify-between py-3 hover:bg-slate-50/50 transition-colors">
+                        <div>
+                          {/* Nombre del permiso limpio y directo */}
+                          <p className="text-xs font-bold text-slate-700 capitalize">
+                            {accion}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-mono">
+                            unah_{modulo.toLowerCase()}_{accion}
+                          </p>
+                        </div>
+
+                        {/* Switch iOS */}
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={estaActivo}
+                            onChange={() => handleTogglePermiso(modulo, accion)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+            </div>
+          );
+        })}
+      </div>
+
     </div>
   );
 }

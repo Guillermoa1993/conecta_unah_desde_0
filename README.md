@@ -1,930 +1,148 @@
-================================================================================
-       CONECTA PUMAS UNAH — MANUAL COMPLETO DE INSTALACIÓN Y USO
-       Universidad Nacional Autónoma de Honduras
-       Versión 1.0 | Proyecto Integrado — 4 Grupos
-================================================================================
-
-ÍNDICE
-------
-  1.  Descripción del sistema
-  2.  Requisitos previos
-  3.  Instalación local (sin Docker)
-  4.  Ejecución en modo desarrollo
-  5.  Compilación para producción
-  6.  Roles y acceso al sistema
-  7.  Guía de uso por rol
-       7.1  Estudiante
-       7.2  Tutor / Empleado
-       7.3  Administrador
-       7.4  VOAE
-       7.5  Dev / Preview (modo especial)
-  8.  Rutas disponibles
-  9.  Configuración con Docker
-       9.1  Producción con Docker
-       9.2  Desarrollo con Docker
-       9.3  Docker Compose
-  10. Estructura del proyecto
-  11. Dependencias principales
-  12. Solución de problemas frecuentes
-  13. Notas de desarrollo
-
-
-================================================================================
-  1. DESCRIPCIÓN DEL SISTEMA
-================================================================================
-
-Conecta Pumas UNAH es una plataforma web institucional unificada que integra los
-proyectos de 4 grupos estudiantiles. Permite la gestión completa del ciclo de
-vida de eventos universitarios: creación, aprobación, inscripción, asistencia y
-emisión de constancias de horas VOAE (Artículo 140).
-
-  Tecnologías principales:
-  - React 18 + TypeScript
-  - Vite 6.3.5 (bundler)
-  - Tailwind CSS v4
-  - React Router v7 (SPA)
-  - shadcn/ui + Radix UI (componentes)
-  - Leaflet.js (mapas de geolocalización)
-  - qrcode.react (generación de QR)
-  - PWA habilitado (instalable como app)
-
-  Puerto de desarrollo : 5185
-  Puerto de producción : 80 (Nginx) / 3000 (Docker Compose)
-
-
-================================================================================
-  2. REQUISITOS PREVIOS
-================================================================================
+# UNAH Conecta Pumas — Proyecto Limpio desde 0
+
+Plantilla base con backend (Clean Architecture), frontend (React + TypeScript) y conexión a PostgreSQL en Render.com, lista para construir encima.
+
+---
+
+## Estructura
+
+```
+proyecto_unah_conecta_desde_0/
+├── backend/
+│   ├── database/
+│   │   └── schema.sql              ← DDL completo de la BD
+│   ├── scripts/
+│   │   └── initDb.ts               ← Inicializa las tablas
+│   └── src/
+│       ├── domain/
+│       │   ├── entities/           ← Tipos/interfaces del dominio
+│       │   └── repositories/       ← Contratos de repositorios
+│       ├── use-cases/              ← Lógica de negocio
+│       ├── infrastructure/
+│       │   ├── database/
+│       │   │   └── db.ts           ← Conexión Pool a PostgreSQL
+│       │   └── repositories/       ← Implementaciones SQL
+│       └── interfaces/
+│           ├── controllers/        ← Handlers de Express
+│           ├── middlewares/        ← JWT auth, manejo de errores
+│           └── routes/             ← Definición de rutas
+│
+├── frontend/
+│   └── src/
+│       ├── types/index.ts          ← Tipos TypeScript compartidos
+│       ├── services/
+│       │   ├── api.ts              ← Cliente fetch con JWT automático
+│       │   └── auth.service.ts     ← Login, registro, logout
+│       ├── context/
+│       │   └── AuthContext.tsx     ← Estado global de autenticación
+│       ├── hooks/
+│       │   └── useAuth.ts          ← Hook de acceso al AuthContext
+│       └── app/
+│           ├── pages/
+│           │   ├── LoginPage.tsx   ← Página de login
+│           │   └── DashboardPage.tsx ← Dashboard post-login
+│           └── App.tsx             ← Router + rutas
+│
+├── docker-compose.yml              ← Backend + Frontend + Adminer
+└── .gitignore
+```
+
+---
+
+## Inicio rápido
+
+### Requisitos
+
+- Node.js 18+
+- (Opcional) Docker Desktop para Docker Compose
+
+### Backend
+
+```bash
+cd backend
+npm install
+npm run dev
+# → http://localhost:5000
+# → http://localhost:5000/api/health
+```
+
+### Inicializar tablas (solo la primera vez)
+
+```bash
+cd backend
+npm run db:init
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+# → http://localhost:5173
+```
+
+---
+
+## Con Docker
+
+```bash
+# Producción
+docker compose up --build
+
+# Desarrollo (hot-reload)
+docker compose --profile dev up --build
+```
+
+| Servicio  | URL                   |
+|-----------|-----------------------|
+| Frontend  | http://localhost:5173 |
+| Backend   | http://localhost:5000 |
+| Adminer   | http://localhost:8080 |
 
-  PARA INSTALACIÓN LOCAL:
-  ─────────────────────────
-  - Node.js v18 o superior (recomendado v22)
-    Descarga: https://nodejs.org/
-    Verificar: node --version
+### Adminer — conectarse a la BD
 
-  - npm v9 o superior (incluido con Node.js)
-    Verificar: npm --version
+| Campo      | Valor                                            |
+|------------|--------------------------------------------------|
+| Sistema    | PostgreSQL                                       |
+| Servidor   | dpg-d931mbugvqtc739qj7h0-a.virginia-postgres.render.com |
+| Usuario    | unah_conecta2_user                               |
+| Base datos | unah_conecta2                                    |
 
-  - Git (opcional, para clonar el repositorio)
-    Descarga: https://git-scm.com/
+---
 
-  - Navegador moderno: Chrome 100+, Firefox 110+, Edge 100+
+## Variables de entorno
 
-  PARA INSTALACIÓN CON DOCKER:
-  ──────────────────────────────
-  - Docker Desktop v24 o superior
-    Descarga: https://www.docker.com/products/docker-desktop/
-    Verificar: docker --version
+### `backend/.env`
 
-  - Docker Compose v2.20 o superior (incluido en Docker Desktop)
-    Verificar: docker compose version
+```env
+DATABASE_URL=postgresql://unah_conecta2_user:PASSWORD@dpg-d931mbugvqtc739qj7h0-a.virginia-postgres.render.com/unah_conecta2
+PORT=5000
+JWT_SECRET=tu_secreto_aqui
+FRONTEND_URL=http://localhost:5185
+```
 
-  HARDWARE MÍNIMO RECOMENDADO:
-  ──────────────────────────────
-  - RAM: 4 GB (8 GB recomendado durante compilación)
-  - Disco: 2 GB libres (node_modules ocupa ~1.2 GB)
-  - CPU: 2 núcleos o más
+### `frontend/.env`
 
+```env
+VITE_API_URL=http://localhost:5000/api
+```
 
-================================================================================
-  3. INSTALACIÓN LOCAL (SIN DOCKER)
-================================================================================
+---
 
-  PASO 1 — Obtener el código fuente
-  ───────────────────────────────────
-  Opción A: Copiar la carpeta del proyecto directamente.
-
-  Opción B: Clonar desde repositorio Git:
-    git clone <URL_DEL_REPOSITORIO>
-    cd unah-conecta-unified
-
-  PASO 2 — Instalar dependencias
-  ────────────────────────────────
-  Abrir una terminal dentro de la carpeta del proyecto y ejecutar:
+## Arquitectura del backend
 
-    npm install
+```
+Interfaces (HTTP)  →  Use Cases (Negocio)  →  Domain (Entidades)
+                              ↑
+                    Infrastructure (BD, APIs)
+```
 
-  Este proceso puede tardar entre 2 y 5 minutos dependiendo de la
-  velocidad de la conexión a internet. Descargará todas las librerías
-  listadas en package.json (~350 MB).
+- **Domain**: entidades e interfaces sin dependencias externas
+- **Use Cases**: lógica de negocio pura
+- **Infrastructure**: implementaciones concretas (PostgreSQL, etc.)
+- **Interfaces**: controllers, middlewares, rutas de Express
 
-  Si npm install falla con errores de permisos en Windows:
-    npm install --legacy-peer-deps
+---
 
-  PASO 3 — Verificar instalación
-  ────────────────────────────────
-  Comprobar que la carpeta node_modules fue creada:
-
-    Windows: dir node_modules
-    Mac/Linux: ls node_modules
-
-  Debe contener al menos 500 carpetas.
-
-
-================================================================================
-  4. EJECUCIÓN EN MODO DESARROLLO
-================================================================================
-
-  Ejecutar el servidor de desarrollo con hot-reload:
-
-    npm run dev
-
-  La aplicación se abrirá automáticamente en:
-    http://localhost:5185
-
-  También accesible desde otros dispositivos en la misma red:
-    http://<IP_DE_TU_MAQUINA>:5185
-
-  Para encontrar tu IP:
-    Windows: ipconfig
-    Mac/Linux: ifconfig o ip addr
-
-  El servidor de desarrollo incluye:
-  - Hot Module Replacement (HMR): los cambios se reflejan sin recargar
-  - Source maps para depuración en DevTools
-  - Modo PWA habilitado (instalación como app en navegador compatible)
-
-  Para detener el servidor: Ctrl + C en la terminal
-
-
-================================================================================
-  5. COMPILACIÓN PARA PRODUCCIÓN
-================================================================================
-
-  Generar los archivos optimizados para despliegue:
-
-    npm run build
-
-  Los archivos se generan en la carpeta dist/
-  El proceso tarda entre 15 y 30 segundos.
-
-  Para previsualizar el build de producción localmente:
-
-    npx vite preview --port 4173
-
-  Luego abrir: http://localhost:4173
-
-  Los archivos en dist/ son estáticos y pueden servirse con cualquier
-  servidor web (Nginx, Apache, Vercel, Netlify, GitHub Pages, etc.).
-
-
-================================================================================
-  6. ROLES Y ACCESO AL SISTEMA
-================================================================================
-
-  La aplicación usa sessionStorage para manejar roles. Al abrir la app
-  por primera vez se muestra la pantalla de Login.
-
-  ROLES DISPONIBLES:
-  ──────────────────
-  ┌─────────────────┬─────────────────────────────────────────────────────┐
-  │ Rol             │ Descripción                                         │
-  ├─────────────────┼─────────────────────────────────────────────────────┤
-  │ student         │ Estudiante UNAH — consulta eventos, se inscribe,    │
-  │                 │ escanea QR, ve historial de horas VOAE              │
-  ├─────────────────┼─────────────────────────────────────────────────────┤
-  │ tutor           │ Empleado/Tutor — crea y gestiona eventos,           │
-  │                 │ monitorea asistencia en vivo                        │
-  ├─────────────────┼─────────────────────────────────────────────────────┤
-  │ admin           │ Administrador — gestión de usuarios, roles,         │
-  │                 │ permisos y configuración del sistema                │
-  ├─────────────────┼─────────────────────────────────────────────────────┤
-  │ voae            │ Unidad de Orientación — aprueba/rechaza eventos,    │
-  │                 │ emite constancias y valida asistencia               │
-  ├─────────────────┼─────────────────────────────────────────────────────┤
-  │ dev             │ Modo preview — acceso a TODAS las páginas de todos  │
-  │                 │ los roles para demostración o desarrollo            │
-  └─────────────────┴─────────────────────────────────────────────────────┘
-
-  CÓMO INGRESAR:
-  ──────────────
-  1. Abrir http://localhost:5185
-  2. En la pantalla de Login, ingresar cualquier correo y contraseña
-  3. El sistema preguntará qué rol deseas usar
-  4. Seleccionar el rol y se redirige al dashboard correspondiente
-
-  NOTA: Esta versión es un prototipo funcional con datos de demostración.
-  No existe autenticación real contra un servidor — el login acepta
-  cualquier credencial y el rol se guarda en sessionStorage.
-
-
-================================================================================
-  7. GUÍA DE USO POR ROL
-================================================================================
-
-  ┌──────────────────────────────────────────────────────────────────────────┐
-  │  7.1  ROL: ESTUDIANTE                                                    │
-  └──────────────────────────────────────────────────────────────────────────┘
-
-  Acceso: http://localhost:5185/student
-
-  MÓDULOS DISPONIBLES:
-  ─────────────────────
-
-  MI PERFIL (/student/ficha)
-    - Ficha de información personal del estudiante
-    - Carrera, número de cuenta, centros regionales
-    - Foto de perfil y datos de contacto
-
-  MURO SOCIAL (/student/feed)
-    - Feed de publicaciones y noticias institucionales
-    - Publicar comentarios e interacciones
-    - Ver eventos destacados
-
-  DASHBOARD (/student)
-    - Resumen de horas VOAE acumuladas
-    - Próximos eventos a los que está inscrito
-    - Acceso rápido a funciones principales
-
-  EVENTOS DISPONIBLES (/student/events)
-    - Listado de todos los eventos vigentes
-    - Filtros por categoría (Académico, Cultural, Deportivo, Social)
-    - Búsqueda por nombre o descripción
-    - Inscripción directa con un clic
-    - Ver detalles: lugar, fecha, horas VOAE, cupo disponible
-
-  ESCANEAR QR (/student/scan)
-    - Lector de QR por cámara del dispositivo
-    - Registra asistencia al escanear el QR del evento
-    - También permite subir una imagen con un QR
-
-  MI HISTORIAL (/student/history)
-    - Historial completo de eventos asistidos
-    - Total de horas VOAE acumuladas (Artículo 140)
-    - Estado de cada participación: completado, pendiente, rechazado
-    - Descarga de constancias en formato PDF
-
-  SOLICITAR EVENTO (/student/solicitar)
-    - Formulario para que el estudiante proponga un nuevo evento
-    - Datos básicos: título, descripción, categoría, fecha sugerida
-    - La solicitud queda pendiente de revisión por VOAE/Tutor
-
-
-  ┌──────────────────────────────────────────────────────────────────────────┐
-  │  7.2  ROL: TUTOR / EMPLEADO                                              │
-  └──────────────────────────────────────────────────────────────────────────┘
-
-  Acceso: http://localhost:5185/tutor
-
-  MÓDULOS DISPONIBLES:
-  ─────────────────────
-
-  DASHBOARD (/tutor)
-    - Resumen de eventos activos del tutor
-    - Estadísticas: total eventos, participantes, horas impartidas
-    - Acceso rápido a crear evento y ver eventos en vivo
-
-  MIS EVENTOS (/tutor/eventos)
-    - Lista de todos los eventos creados por el tutor
-    - 4 pestañas con contador:
-        * Activos — eventos Programados y En Curso
-        * Pendiente de aprobación — esperando revisión VOAE
-        * Finalizados — eventos completados
-        * Rechazados — eventos rechazados por VOAE
-    - Clic en "Ver motivo" para ver el motivo de rechazo
-    - Clic en "Ver detalle" para ir al panel del evento
-
-  CREAR EVENTO (/tutor/create-event)
-    - Formulario de 4 pasos (wizard):
-
-      PASO 1 — Información básica:
-        * Título del evento (máx. 150 caracteres)
-        * Categoría: Académico / Cultural / Deportivo / Social
-        * Tipo de actividad: Presencial / Virtual / Híbrido
-        * Descripción (máx. 100 palabras)
-        * Tipo de evento: Con horas VOAE (Art. 140) / Recreación
-        * Visibilidad: Público / Privado (con lista de invitados)
-        * Centro regional
-
-      PASO 2 — Fecha, lugar y capacidad:
-        * Fecha de inicio y fin
-        * Hora de inicio y fin
-        * Descripción del lugar físico
-        * Mapa interactivo (Leaflet/OpenStreetMap) para marcar
-          la ubicación exacta con un pin personalizable
-        * Botón "Usar mi ubicación" (geolocalización del dispositivo)
-        * Enlace virtual (para eventos virtuales/híbridos)
-        * Cupo máximo de participantes
-        * Duración en horas (totales o diarias)
-        * ¿Requiere inscripción previa?
-
-      PASO 3 — Material visual:
-        * Toggle para activar/desactivar imágenes
-        * Subir imagen de portada (drag & drop o clic)
-        * Galería de hasta 4 imágenes adicionales
-        * Seleccionar imagen estrella como portada
-
-      PASO 4 — Revisión y publicación:
-        * Resumen completo de todos los datos
-        * Aviso del estado final (pendiente VOAE / publicado)
-        * Al publicar: pantalla de éxito con QR de inscripción
-        * Botón para descargar el QR en PNG
-
-    Comportamiento al publicar:
-        - Si tipo = "HORAS_VOAE" → estado PENDIENTE_APROBACION (VOAE debe aprobar)
-        - Si tipo = "RECREACION" → estado PROGRAMADO (publicado inmediatamente)
-
-  EVENTO EN VIVO (/tutor/live)
-    - Panel de monitoreo en tiempo real del evento activo
-    - Lista de asistentes que escanearon el QR
-    - Estadísticas en vivo: inscritos, presentes, ausentes
-    - Control manual de asistencia
-
-  REPORTES (/tutor/reports)
-    - Gráficas de participación por evento
-    - Comparativa de asistencia histórica
-    - Exportar datos a CSV
-
-  NOTIFICACIONES (/employees/notifications)
-    - Bandeja de notificaciones del sistema
-    - Alertas de aprobación/rechazo de eventos
-
-  BITÁCORA (/employees/logs)
-    - Registro de todas las acciones realizadas
-
-
-  ┌──────────────────────────────────────────────────────────────────────────┐
-  │  7.3  ROL: ADMINISTRADOR                                                 │
-  └──────────────────────────────────────────────────────────────────────────┘
-
-  Acceso: http://localhost:5185/admin
-
-  MÓDULOS DISPONIBLES:
-  ─────────────────────
-
-  ADMINISTRACIÓN (/admin/administracion)
-    - Panel central de administración del sistema
-    - Vista general del estado de la plataforma
-
-  GESTIÓN DE EVENTOS (/admin/events)
-    - Vista administrativa de todos los eventos
-    - Sección de eventos pendientes de aprobación
-    - Sección de eventos finalizados
-    - Pestañas: Aprobados / Rechazados
-
-  USUARIOS (/admin/users)
-    - Listado completo de usuarios registrados
-    - Búsqueda por nombre, correo o número de cuenta
-    - Activar/desactivar cuentas
-    - Cambiar rol de usuario
-
-  ROLES (/admin/roles)
-    - Gestión de roles del sistema
-    - Crear y editar roles personalizados
-
-  PERMISOS (/admin/permissions)
-    - Matriz de permisos por rol
-    - Asignar/revocar permisos específicos
-
-  COMENTARIOS (/admin/comments)
-    - Moderación de comentarios en el muro social
-    - Eliminar contenido inapropiado
-
-  REPORTES (/tutor/reports)
-    - Acceso a los mismos reportes del módulo tutor
-
-  MANTENIMIENTO (menú desplegable en sidebar):
-    - Carreras: CRUD de carreras universitarias
-    - Centros regionales: gestión de sedes UNAH
-    - Tipos de usuario: configurar tipos de cuenta
-    - Estados de usuario: gestionar estados posibles
-    - Tipos de notificación: configurar categorías de alertas
-
-
-  ┌──────────────────────────────────────────────────────────────────────────┐
-  │  7.4  ROL: VOAE                                                          │
-  └──────────────────────────────────────────────────────────────────────────┘
-
-  Acceso: http://localhost:5185/voae
-
-  MÓDULOS DISPONIBLES:
-  ─────────────────────
-
-  DASHBOARD (/voae)
-    - Resumen ejecutivo de la actividad VOAE
-    - Eventos pendientes de revisión (contador urgente)
-    - Gráficas de participación estudiantil
-    - Estadísticas: eventos aprobados/rechazados, horas emitidas
-
-  REPORTES OFICIALES (/voae/reports)
-    - Reportes institucionales de horas VOAE
-    - Filtros por período, carrera, centro regional
-    - Exportación a PDF y Excel
-    - Cumplimiento del Artículo 140 por estudiante
-
-  REGISTROS (/voae/records)
-    - Historial completo de todos los eventos procesados
-    - Pestañas: Todos / Certificado / Completado / Rechazado
-    - Expandir fila para ver constancias descargables por estudiante
-    - Modal de detalle con estado de aprobación individual
-
-  CENTROS REGIONALES (/voae/centros)
-    - Analytics comparativo de los 6 centros regionales UNAH:
-        * Ciudad Universitaria
-        * CURLA — La Ceiba
-        * CURC — Choluteca
-        * CURH — Siguatepeque
-        * CURN — San Pedro Sula
-        * CURO — Danlí
-    - Ordenar por: participación %, eventos, estudiantes, horas
-    - Tabla comparativa completa
-
-  MODERADORES (/voae/moderadores)
-    - Gestión del equipo de moderadores VOAE
-    - Asignación de moderadores a eventos
-    - Estado activo/inactivo por moderador
-
-  VALIDACIÓN DE EVENTO (/voae/events/:id/validar)
-    - Aprobación o rechazo individual por estudiante
-    - Canvas de firma digital (mouse y táctil)
-    - Animación de sello VOAE al aprobar
-    - Descarga de constancias individuales
-
-  NOTIFICACIONES Y BITÁCORA
-    - Mismo acceso que los demás roles
-
-
-  ┌──────────────────────────────────────────────────────────────────────────┐
-  │  7.5  ROL: DEV / PREVIEW                                                 │
-  └──────────────────────────────────────────────────────────────────────────┘
-
-  El rol Dev es un modo especial para demostraciones y desarrollo.
-  El sidebar muestra accesos a TODOS los módulos de todos los roles
-  en una sola vista, sin restricciones de ruta.
-
-  Útil para:
-  - Presentaciones y demos rápidas
-  - Revisar el trabajo de todos los grupos en un mismo login
-  - Pruebas de integración entre módulos
-
-
-================================================================================
-  8. RUTAS DISPONIBLES (REFERENCIA COMPLETA)
-================================================================================
-
-  PÚBLICAS (sin autenticación requerida):
-  ──────────────────────────────────────────
-  /                          — Login
-  /roles                     — Selección de rol
-  /registro                  — Selector de tipo de registro
-  /registro/estudiante       — Formulario de registro estudiante
-  /registro/empleado         — Formulario de registro empleado/tutor
-
-  ESTUDIANTE (/student/*):
-  ─────────────────────────
-  /student                   — Dashboard
-  /student/ficha             — Perfil del estudiante
-  /student/feed              — Muro social
-  /student/events            — Eventos disponibles
-  /student/scan              — Escáner QR de asistencia
-  /student/survey/:eventId   — Encuesta post-evento
-  /student/history           — Historial de horas VOAE
-  /student/solicitar         — Solicitar nuevo evento
-
-  TUTOR (/tutor/*):
-  ──────────────────
-  /tutor                     — Dashboard del tutor
-  /tutor/eventos             — Mis eventos (4 pestañas)
-  /tutor/create-event        — Crear nuevo evento (wizard 4 pasos)
-  /tutor/event/:eventId      — Gestionar evento específico
-  /tutor/reports             — Reportes y gráficas
-  /tutor/live                — Monitoreo en vivo del evento
-  /tutor/ficha               — Ficha del empleado
-
-  ADMINISTRADOR (/admin/*):
-  ──────────────────────────
-  /admin                     — Dashboard administrativo
-  /admin/administracion      — Panel de administración
-  /admin/events              — Gestión de eventos (vista VOAE/admin)
-  /admin/users               — Gestión de usuarios
-  /admin/roles               — Gestión de roles
-  /admin/permissions         — Gestión de permisos
-  /admin/comments            — Moderación de comentarios
-  /admin/settings            — Configuración del sistema
-
-  VOAE (/voae/*):
-  ────────────────
-  /voae                      — Dashboard VOAE
-  /voae/reports              — Reportes oficiales
-  /voae/records              — Registros históricos
-  /voae/centros              — Analítica por centro regional
-  /voae/moderadores          — Gestión de moderadores
-  /voae/events/:id/validar   — Validación de evento individual
-
-  COMPARTIDAS (empleados):
-  ─────────────────────────
-  /employees/notifications   — Notificaciones (tutor/admin/voae)
-  /employees/logs            — Bitácora de actividad
-
-  MANTENIMIENTO (accesible desde sidebar con prefijo del rol):
-  ────────────────────────────────────────────────────────────
-  /<rol>/maintenance/careers             — Carreras
-  /<rol>/maintenance/regional-centers    — Centros regionales
-  /<rol>/maintenance/user-types          — Tipos de usuario
-  /<rol>/maintenance/user-states         — Estados de usuario
-  /<rol>/maintenance/notification-types  — Tipos de notificación
-
-
-================================================================================
-  9. CONFIGURACIÓN CON DOCKER
-================================================================================
-
-  ┌──────────────────────────────────────────────────────────────────────────┐
-  │  9.1  PRODUCCIÓN CON DOCKER (imagen Nginx optimizada)                    │
-  └──────────────────────────────────────────────────────────────────────────┘
-
-  El Dockerfile incluido usa construcción multi-etapa:
-    - Etapa "builder": Node.js 22 compila la aplicación (npm run build)
-    - Etapa "production": Nginx Alpine sirve los archivos estáticos
-
-  La imagen final pesa aproximadamente 25-30 MB (vs ~1.5 GB en desarrollo).
-
-  PASO 1 — Construir la imagen de producción:
-
-    docker build --target production -t conecta-pumas:latest .
-
-  PASO 2 — Ejecutar el contenedor:
-
-    docker run -d \
-      --name conecta-pumas \
-      -p 3000:80 \
-      --restart unless-stopped \
-      conecta-pumas:latest
-
-  PASO 3 — Verificar que funciona:
-    Abrir: http://localhost:3000
-
-  COMANDOS ÚTILES:
-  ─────────────────
-    Ver logs del contenedor:
-      docker logs -f conecta-pumas
-
-    Detener el contenedor:
-      docker stop conecta-pumas
-
-    Eliminar el contenedor:
-      docker rm -f conecta-pumas
-
-    Eliminar la imagen:
-      docker rmi conecta-pumas:latest
-
-    Ver contenedores en ejecución:
-      docker ps
-
-
-  ┌──────────────────────────────────────────────────────────────────────────┐
-  │  9.2  DESARROLLO CON DOCKER (hot-reload)                                 │
-  └──────────────────────────────────────────────────────────────────────────┘
-
-  Usar la etapa "development" del Dockerfile para desarrollo con
-  sincronización de archivos en tiempo real:
-
-  PASO 1 — Construir la imagen de desarrollo:
-
-    docker build --target development -t conecta-pumas:dev .
-
-  PASO 2 — Ejecutar con volumen montado (hot-reload):
-
-    docker run -d \
-      --name conecta-pumas-dev \
-      -p 5185:5185 \
-      -v "$(pwd)/src:/app/src" \
-      conecta-pumas:dev
-
-    En Windows (PowerShell):
-      docker run -d `
-        --name conecta-pumas-dev `
-        -p 5185:5185 `
-        -v "${PWD}/src:/app/src" `
-        conecta-pumas:dev
-
-  PASO 3 — Acceder a la aplicación:
-    Abrir: http://localhost:5185
-
-
-  ┌──────────────────────────────────────────────────────────────────────────┐
-  │  9.3  DOCKER COMPOSE (recomendado)                                       │
-  └──────────────────────────────────────────────────────────────────────────┘
-
-  El archivo docker-compose.yml incluye dos servicios configurados:
-
-  SERVICIO 1: conecta-pumas (producción)
-    - Build automático de la imagen con Nginx
-    - Puerto host: 3000 → Puerto contenedor: 80
-    - Restart automático si el contenedor falla
-
-  SERVICIO 2: conecta-pumas-dev (desarrollo — perfil "dev")
-    - Node.js con hot-reload
-    - Puerto host: 5185 → Puerto contenedor: 5185
-    - Código fuente montado como volumen
-
-  COMANDOS DOCKER COMPOSE:
-  ─────────────────────────
-
-    Iniciar en PRODUCCIÓN:
-      docker compose up -d
-
-    Acceder en: http://localhost:3000
-
-    ─────────────────────────────────────────
-
-    Iniciar en DESARROLLO (hot-reload):
-      docker compose --profile dev up
-
-    Acceder en: http://localhost:5185
-
-    ─────────────────────────────────────────
-
-    Ver logs en tiempo real:
-      docker compose logs -f
-
-    Detener todos los servicios:
-      docker compose down
-
-    Reconstruir la imagen (después de cambios en código):
-      docker compose build
-      docker compose up -d
-
-    Reconstruir sin caché (solucionar problemas):
-      docker compose build --no-cache
-
-  NOTAS IMPORTANTES PARA DOCKER:
-  ────────────────────────────────
-  - El archivo nginx.conf (incluido en el proyecto) es necesario
-    para que el enrutamiento SPA funcione correctamente.
-    Sin él, al refrescar en una ruta como /tutor obtendrás error 404.
-
-  - El archivo .dockerignore (si lo creas) debería excluir:
-      node_modules/
-      dist/
-      .git/
-      *.log
-
-  - La primera construcción puede tardar 5-10 minutos por la
-    descarga de imágenes base y la compilación de dependencias.
-    Las reconstrucciones posteriores son más rápidas gracias al
-    sistema de capas de Docker.
-
-
-================================================================================
-  10. ESTRUCTURA DEL PROYECTO
-================================================================================
-
-  unah-conecta-unified/
-  │
-  ├── src/
-  │   ├── main.tsx                     — Punto de entrada de la aplicación
-  │   └── app/
-  │       ├── App.tsx                  — Componente raíz + RouterProvider
-  │       ├── routes.tsx               — Definición de TODAS las rutas
-  │       │
-  │       ├── components/
-  │       │   ├── guards/
-  │       │   │   └── ProtectedRoute.tsx  — Guard de autenticación/roles
-  │       │   ├── layouts/
-  │       │   │   ├── RootLayout.tsx      — Layout principal (sidebar + nav)
-  │       │   │   └── BottomNav.tsx       — Navegación inferior (móvil)
-  │       │   ├── navigation/
-  │       │   │   ├── AppSidebar.tsx      — Sidebar con menú por rol
-  │       │   │   └── AppNavbar.tsx       — Barra superior
-  │       │   ├── map/
-  │       │   │   └── LocationPicker.tsx  — Mapa Leaflet interactivo
-  │       │   └── ui/                     — Componentes shadcn/ui
-  │       │
-  │       └── pages/
-  │           ├── Login.tsx
-  │           ├── RoleSelector.tsx
-  │           ├── RegistroSelector.tsx
-  │           │
-  │           ├── student/
-  │           │   ├── StudentDashboard.tsx
-  │           │   ├── SocialFeed.tsx
-  │           │   ├── StudentProfile.tsx
-  │           │   ├── AvailableEvents.tsx
-  │           │   ├── QRScanner.tsx
-  │           │   ├── Survey.tsx
-  │           │   ├── AcademicHistory.tsx
-  │           │   ├── FichaEstudiante.tsx
-  │           │   └── SolicitarEvento.tsx     (Grupo 3)
-  │           │
-  │           ├── tutor/
-  │           │   ├── TutorDashboard.tsx
-  │           │   ├── CreateEvent.tsx          (wizard 4 pasos + QR)
-  │           │   ├── TutorEventos.tsx         (Mis Eventos — 4 tabs)
-  │           │   ├── ManageEvent.tsx
-  │           │   ├── TutorReports.tsx
-  │           │   ├── LiveEvent.tsx            (Grupo 3)
-  │           │   └── FichaEmpleado.tsx
-  │           │
-  │           ├── admin/
-  │           │   ├── AdminDashboard.tsx
-  │           │   ├── Administracion.tsx
-  │           │   ├── EventManagement.tsx      (dashboard VOAE/Admin)
-  │           │   ├── UserManagement.tsx
-  │           │   ├── SystemSettings.tsx
-  │           │   ├── CommentsReview.tsx
-  │           │   ├── Roles.tsx
-  │           │   └── Permissions.tsx
-  │           │
-  │           ├── voae/
-  │           │   ├── VOAEDashboard.tsx
-  │           │   ├── OfficialReports.tsx
-  │           │   ├── Records.tsx              (Grupo 3)
-  │           │   ├── CentrosRegionales.tsx    (Grupo 3)
-  │           │   ├── Moderadores.tsx          (Grupo 3)
-  │           │   └── ValidacionEvento.tsx     (Grupo 3 — firma digital)
-  │           │
-  │           ├── employees/
-  │           │   ├── Notifications.tsx
-  │           │   └── Logs.tsx
-  │           │
-  │           └── maintenance/
-  │               └── MaintenanceCatalog.tsx   — Catálogos (Carreras, etc.)
-  │
-  ├── public/
-  │   ├── puma_final.png               — Mascota UNAH (sidebar)
-  │   ├── puma_unah.png                — Ícono PWA
-  │   └── favicon.ico
-  │
-  ├── Dockerfile                       — Build multi-etapa (prod + dev)
-  ├── docker-compose.yml               — Orquestación de servicios
-  ├── nginx.conf                       — Configuración del servidor Nginx
-  ├── vite.config.ts                   — Configuración de Vite + PWA
-  ├── package.json                     — Dependencias y scripts
-  └── MANUAL_INSTALACION_USO.txt       — Este archivo
-
-
-================================================================================
-  11. DEPENDENCIAS PRINCIPALES
-================================================================================
-
-  FRAMEWORK Y RUNTIME:
-  ─────────────────────
-  - react / react-dom 18.3.1         — Librería UI principal
-  - react-router 7.13.0              — Enrutamiento SPA
-  - typescript                       — Tipado estático
-  - vite 6.3.5                       — Bundler y servidor de desarrollo
-
-  COMPONENTES UI:
-  ───────────────
-  - @radix-ui/*                      — Componentes accesibles (shadcn/ui)
-  - lucide-react 0.487.0             — Ícono SVG (500+ íconos)
-  - tailwindcss 4.1.12               — Estilos utilitarios
-  - @mui/material 7.3.5              — Material UI (componentes adicionales)
-  - sonner 2.0.3                     — Notificaciones toast
-  - vaul 1.1.2                       — Drawer/panel deslizable
-  - embla-carousel-react 8.6.0       — Carruseles
-
-  FUNCIONALIDADES:
-  ─────────────────
-  - leaflet / @types/leaflet 1.9.4   — Mapas OpenStreetMap interactivos
-  - qrcode.react 4.2.0               — Generación de códigos QR (canvas)
-  - qrcode 1.5.4                     — Generación QR alternativa
-  - react-hook-form 7.55.0           — Manejo de formularios
-  - recharts 2.15.2                  — Gráficas y visualizaciones
-  - canvas-confetti 1.9.4            — Animación de confeti
-  - motion 12.23.24                  — Animaciones fluidas
-  - date-fns 3.6.0                   — Manejo de fechas
-  - tesseract.js 7.0.0               — OCR (reconocimiento de texto en imágenes)
-
-  PWA:
-  ─────
-  - vite-plugin-pwa 1.3.0            — Service Worker + manifiesto PWA
-  - workbox                          — Caché offline
-
-
-================================================================================
-  12. SOLUCIÓN DE PROBLEMAS FRECUENTES
-================================================================================
-
-  PROBLEMA: npm install falla con errores de peer dependencies
-  SOLUCIÓN:
-    npm install --legacy-peer-deps
-
-  ─────────────────────────────────────────────────────────────────────────────
-
-  PROBLEMA: El puerto 5185 está en uso
-  SOLUCIÓN: Cambiar el puerto en vite.config.ts:
-    server: { port: 5186 }
-  O usar:
-    npm run dev -- --port 5186
-
-  ─────────────────────────────────────────────────────────────────────────────
-
-  PROBLEMA: La aplicación muestra pantalla en blanco después del login
-  SOLUCIÓN:
-    1. Abrir DevTools (F12) → pestaña Console
-    2. Si hay errores de "sessionStorage", limpiar el storage:
-       En la consola: sessionStorage.clear()
-    3. Recargar la página
-
-  ─────────────────────────────────────────────────────────────────────────────
-
-  PROBLEMA: El mapa no aparece o aparece en gris
-  SOLUCIÓN:
-    1. Verificar conexión a internet (usa tiles de OpenStreetMap)
-    2. Esperar 2-3 segundos — Leaflet carga de forma asíncrona
-    3. Si persiste: npm install leaflet @types/leaflet
-
-  ─────────────────────────────────────────────────────────────────────────────
-
-  PROBLEMA: El QR no se genera al publicar un evento
-  SOLUCIÓN:
-    1. Verificar que qrcode.react está instalado:
-       npm list qrcode.react
-    2. Si no aparece: npm install qrcode.react
-    3. El QR solo aparece en la pantalla de éxito (paso final)
-
-  ─────────────────────────────────────────────────────────────────────────────
-
-  PROBLEMA: "No finaliza el evento" al hacer clic en Publicar
-  SOLUCIÓN:
-    El formulario valida todos los campos obligatorios. Verificar:
-    - Paso 1: título, descripción y todos los campos seleccionados
-    - Paso 2: fechas válidas (inicio <= fin), horas, cupo y duración
-    El botón mostrará un toast de error con el campo faltante.
-
-  ─────────────────────────────────────────────────────────────────────────────
-
-  PROBLEMA: Al refrescar una ruta en producción/Docker aparece error 404
-  SOLUCIÓN:
-    Verificar que nginx.conf está correctamente copiado en el contenedor.
-    El archivo debe contener la línea:
-      try_files $uri $uri/ /index.html;
-    Esta línea redirige todas las rutas al index.html (necesario para SPAs).
-
-  ─────────────────────────────────────────────────────────────────────────────
-
-  PROBLEMA: Docker build falla con errores de memoria
-  SOLUCIÓN:
-    En Docker Desktop → Settings → Resources → Memory
-    Aumentar a mínimo 4 GB.
-
-  ─────────────────────────────────────────────────────────────────────────────
-
-  PROBLEMA: node no se reconoce en Windows PowerShell
-  SOLUCIÓN:
-    Usar la ruta completa al ejecutable de Node.js portable:
-    & "C:\Users\<usuario>\AppData\Local\node-portable\node-v22.14.0-win-x64\node.exe"
-    O agregar Node.js al PATH del sistema.
-
-
-================================================================================
-  13. NOTAS DE DESARROLLO
-================================================================================
-
-  COLORES INSTITUCIONALES UNAH:
-  ───────────────────────────────
-  - Azul primario:    #004B87
-  - Azul marino:      #003366
-  - Azul claro:       #1A6FBF
-  - Amarillo dorado:  #FFD100
-  - Texto secundario: #717182
-
-  GESTIÓN DE ROLES EN CÓDIGO:
-  ─────────────────────────────
-  El rol activo se lee desde sessionStorage:
-    sessionStorage.getItem("unah_role")  → "student" | "tutor" | "admin" | "voae" | "dev"
-
-  ProtectedRoute verifica que la ruta actual coincida con el prefijo
-  del rol activo. Los prefijos permitidos son:
-    student → /student, /student/*
-    tutor   → /tutor, /tutor/*, /employees/*
-    admin   → /admin, /admin/*, /employees/*, /tutor/reports
-    voae    → /voae, /voae/*, /employees/*
-    dev     → cualquier ruta
-
-  AGREGAR UNA NUEVA PÁGINA:
-  ──────────────────────────
-  1. Crear el componente en src/app/pages/<rol>/<NuevaPagina>.tsx
-  2. Exportar la función: export function NuevaPagina() { ... }
-  3. Importar en src/app/routes.tsx
-  4. Agregar la ruta en el array de children del router
-  5. Agregar el ítem al sidebar en AppSidebar.tsx (sección del rol)
-
-  FORMATO DE DATOS DE SESIÓN:
-  ─────────────────────────────
-  sessionStorage.setItem("unah_role", "student")
-  sessionStorage.setItem("unah_session_active", "true")
-  sessionStorage.setItem("unah_user_type", "STUDENT" | "EMPLOYEE")
-
-  PWA — INSTALACIÓN COMO APP:
-  ─────────────────────────────
-  La aplicación es instalable como PWA en:
-    - Chrome/Edge: ícono de instalación en la barra de direcciones
-    - Android: "Agregar a pantalla de inicio"
-    - iOS Safari: botón compartir → "Agregar a pantalla de inicio"
-  Funciona offline para rutas ya visitadas gracias a Workbox.
-
-================================================================================
-  FIN DEL MANUAL
-================================================================================
-
-  Universidad Nacional Autónoma de Honduras (UNAH)
-  Proyecto Integrado — Conecta Pumas
-  Departamento de Ingeniería en Sistemas
-
-  Para soporte técnico o reportar problemas, contactar al equipo de
-  desarrollo del grupo asignado.
-
-===================================================
+Universidad Nacional Autónoma de Honduras — Grupo 1

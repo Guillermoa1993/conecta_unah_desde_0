@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useLocation, Link, useNavigate } from "react-router";
 import {
   Home, Calendar, QrCode, History, Plus, BarChart3, Users, Settings,
-  Shield, FileText, MessageSquare, ChevronDown, ChevronUp,
+  Shield, FileText, ChevronDown, ChevronUp,
   GraduationCap, MapPin, Bell, LogOut, Rss, KeyRound, User,
-  Wifi, ShieldCheck, ClipboardList, SendHorizonal,
+  Wifi, ShieldCheck, ClipboardList, SendHorizonal, Database,
+  LayoutGrid, Info,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
@@ -25,15 +26,13 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
     { icon: Bell,          label: "Notificaciones",  path: "/employees/notifications" },
   ],
   admin: [
-    { icon: Shield,        label: "Administración",     path: "/admin/administracion" },
-    { icon: Calendar,      label: "Gestión de Eventos", path: "/admin/events"         },
-    { icon: Users,         label: "Usuarios",           path: "/admin/users"          },
-    { icon: KeyRound,      label: "Roles",              path: "/admin/roles"          },
-    { icon: Settings,      label: "Permisos",           path: "/admin/permissions"    },
-    { icon: MessageSquare, label: "Comentarios",        path: "/admin/comments"       },
-    { icon: BarChart3,     label: "Reportes",           path: "/tutor/reports"        },
-    { icon: Bell,          label: "Notificaciones",     path: "/employees/notifications" },
-    { icon: History,       label: "Bitácora",           path: "/employees/logs"       },
+    { icon: Shield,        label: "Administración",         path: "/admin/administracion" },
+    { icon: Calendar,      label: "Gestión de Eventos",     path: "/admin/events"         },
+    { icon: Users,         label: "Usuarios",               path: "/admin/users"          },
+    { icon: KeyRound,      label: "Roles",                  path: "/admin/roles"          },
+    { icon: Settings,      label: "Permisos",               path: "/admin/permissions"    },
+    { icon: Database,      label: "Respaldo y Restauración",path: "/admin/backup-restore" },
+    { icon: History,       label: "Bitácora",               path: "/employees/logs"       },
   ],
   voae: [
     { icon: Home,           label: "Dashboard",         path: "/voae"             },
@@ -85,6 +84,8 @@ const MAINTENANCE_ITEMS = [
   { icon: Users,         label: "Tipos de usuario",      subPath: "/maintenance/user-types"         },
   { icon: FileText,      label: "Estados de usuario",    subPath: "/maintenance/user-states"        },
   { icon: Bell,          label: "Tipos de notificación", subPath: "/maintenance/notification-types" },
+  { icon: LayoutGrid,    label: "Aplicativos",           path: "/employees/aplicativos"            },
+  { icon: Info,          label: "Acerca de",             path: "/employees/acerca-de"             },
 ];
 
 /* ─── ROLES CON MANTENIMIENTO ─── */
@@ -180,7 +181,7 @@ export function AppSidebar() {
                   {maintenanceOpen && !isCollapsed && (
                     <div className="pl-6 mt-1 space-y-1 border-l border-white/20 ml-5">
                       {MAINTENANCE_ITEMS.map((sub) => {
-                        const fullPath = `${prefix}${sub.subPath}`;
+                        const fullPath = sub.path ?? `${prefix}${sub.subPath}`;
                         const isActive = location.pathname === fullPath;
                         return (
                           <SidebarMenuButton
