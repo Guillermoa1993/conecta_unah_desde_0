@@ -26,11 +26,9 @@ interface Evento {
   ASISTENCIA?: AsistenciaInfo;
 }
 
-<<<<<<< Updated upstream
 export const AvailableEvents: React.FC = () => {
-=======
-export const MisEventos: React.FC = () => {
->>>>>>> Stashed changes
+
+
 
   const [origenFiltro, setOrigenFiltro] = useState<'mis-eventos' | 'nuevos'>('mis-eventos');
   const [busqueda, setBusqueda] = useState('');
@@ -646,8 +644,4 @@ export const MisEventos: React.FC = () => {
   );
 };
 
-<<<<<<< Updated upstream
 export default AvailableEvents;
-=======
-export { MisEventos as AvailableEvents };
->>>>>>> Stashed changes
