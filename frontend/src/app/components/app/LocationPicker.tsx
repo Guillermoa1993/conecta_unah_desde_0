@@ -4,6 +4,23 @@ import { toast } from "sonner";
 
 const defaultCenter: [number, number] = [14.082216, -87.191523]; // UNAH CU
 
+const UNAH_BUILDINGS = [
+  { name: "Seleccionar un edificio de la UNAH...", lat: "", lng: "" },
+  { name: "Alma Mater / Edificio Administrativo", lat: "14.082216", lng: "-87.191523" },
+  { name: "Edificio D1 (Ingeniería / Sistemas)", lat: "14.082823", lng: "-87.190472" },
+  { name: "Edificio B1 (Ciencias Económicas)", lat: "14.083818", lng: "-87.190987" },
+  { name: "Edificio B2 (Aulas)", lat: "14.084128", lng: "-87.190805" },
+  { name: "Edificio C1 (Aulas)", lat: "14.083318", lng: "-87.190206" },
+  { name: "Edificio C2 (Aulas)", lat: "14.083618", lng: "-87.190006" },
+  { name: "Edificio F1 (Ciencias / Física)", lat: "14.082348", lng: "-87.189516" },
+  { name: "Edificio J1 (Odontología)", lat: "14.083908", lng: "-87.189816" },
+  { name: "Edificio I1 (Ciencias Sociales)", lat: "14.083548", lng: "-87.191816" },
+  { name: "Edificio G1 (Aulas)", lat: "14.082248", lng: "-87.188816" },
+  { name: "Palacio de los Deportes (Polideportivo)", lat: "14.080562", lng: "-87.190250" },
+  { name: "Plaza de las Cuatro Culturas", lat: "14.082834", lng: "-87.191345" },
+  { name: "CRAI / Biblioteca Central", lat: "14.082531", lng: "-87.191823" },
+];
+
 export function LocationPicker({
   lat,
   lng,
@@ -81,7 +98,7 @@ export function LocationPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leaflet]);
 
-  // Sincronizar de forma reactiva si el prop de lat/lng cambia (por entrada de inputs)
+  // Sincronizar de forma reactiva si el prop de lat/lng cambia (por entrada de inputs o select)
   useEffect(() => {
     if (!mapInstance.current || !markerInstance.current || !leaflet) return;
     const currentLat = parseFloat(lat);
@@ -130,25 +147,49 @@ export function LocationPicker({
 
   return (
     <div className="space-y-3">
-      {/* Buscador */}
-      <form onSubmit={handleSearch} className="flex gap-2">
-        <div className="relative flex-1">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Buscar edificio o lugar (ej. Edificio D1 UNAH)..."
-            className="w-full h-10 pl-3 pr-10 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-          <button
-            type="submit"
-            disabled={searching}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+      {/* Buscador & Lista rápida */}
+      <div className="space-y-2">
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar dirección general..."
+              className="w-full h-10 pl-3 pr-10 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <button
+              type="submit"
+              disabled={searching}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <Search className="size-4" />
+            </button>
+          </div>
+        </form>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Selección rápida de edificios de Ciudad Universitaria:
+          </label>
+          <select
+            onChange={(e) => {
+              const val = e.target.value;
+              if (!val) return;
+              const [bLat, bLng] = val.split(",");
+              onLocationChange(bLat, bLng);
+              toast.success("Ubicación fijada en el edificio seleccionado");
+            }}
+            className="w-full h-10 px-3 rounded-lg border border-input bg-white text-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
           >
-            <Search className="size-4" />
-          </button>
+            {UNAH_BUILDINGS.map((b) => (
+              <option key={b.name} value={b.lat && b.lng ? `${b.lat},${b.lng}` : ""}>
+                {b.name}
+              </option>
+            ))}
+          </select>
         </div>
-      </form>
+      </div>
 
       {/* Mapa */}
       <div ref={mapRef} className="w-full h-64 rounded-xl border z-0 overflow-hidden shadow-sm" />
