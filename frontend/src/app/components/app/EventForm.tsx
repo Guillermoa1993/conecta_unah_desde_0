@@ -401,7 +401,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       tipo_evento: data.tipo_evento === "HORAS_VOAE" ? "HORAS_VOAE" : "RECREACION",
       fecha_inicio: data.fecha_inicio + "T" + data.hora_inicio + ":00",
       fecha_fin: data.fecha_fin + "T" + data.hora_fin + ":00",
-      duracion_horas: data.tipo_evento === "HORAS_VOAE" ? checkedCategorias.reduce((s, c) => s + c.horas, 0) || calcDuration() : calcDuration(),
+      duracion_horas: data.tipo_evento === "HORAS_VOAE" ? (checkedCategorias.reduce((s, c) => s + c.horas, 0) || calcDuration()) : 0,
       cupo_maximo: parseInt(data.cupo_maximo, 10) || 0,
       lugar: data.ubicacion || data.enlace_virtual || "",
       tipo_actividad: data.tipo_actividad,

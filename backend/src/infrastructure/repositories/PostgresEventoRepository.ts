@@ -11,6 +11,7 @@ export class PostgresEventoRepository implements EventoRepository {
     let audiencia = "TODO_PUBLICO";
     let registro_entrada = true;
     let registro_salida = true;
+    let tipo_evento = parseFloat(row.duracion_horas) > 0 ? "HORAS_VOAE" : "RECREACION";
 
     if (desc.includes("\n---EVENTO_METADATA---")) {
       const parts = desc.split("\n---EVENTO_METADATA---");
@@ -21,6 +22,9 @@ export class PostgresEventoRepository implements EventoRepository {
         audiencia = meta.audiencia || "TODO_PUBLICO";
         registro_entrada = meta.registro_entrada !== undefined ? meta.registro_entrada : true;
         registro_salida = meta.registro_salida !== undefined ? meta.registro_salida : true;
+        if (meta.tipo_evento) {
+          tipo_evento = meta.tipo_evento === "HORAS_VOAE" ? "HORAS_VOAE" : "RECREACION";
+        }
       } catch (e) {
         distribucion = [];
       }
@@ -40,7 +44,7 @@ export class PostgresEventoRepository implements EventoRepository {
       descripcion: desc,
       categoria: row.categoria,
       tipo_actividad: row.tipo_actividad,
-      tipo_evento: parseFloat(row.duracion_horas) > 0 ? "HORAS_VOAE" : "RECREACION",
+      tipo_evento: tipo_evento,
       visibilidad: "PUBLICO",
       estado: row.estado,
       centro_regional: "Ciudad Universitaria", // Centro por defecto ya que no existe columna física en BD
@@ -154,6 +158,7 @@ export class PostgresEventoRepository implements EventoRepository {
       audiencia: (data as any).audiencia,
       registro_entrada: (data as any).registro_entrada,
       registro_salida: (data as any).registro_salida,
+      tipo_evento: data.tipo_evento,
     };
     finalDesc += "\n---EVENTO_METADATA---" + JSON.stringify(metadata);
 
@@ -178,7 +183,7 @@ export class PostgresEventoRepository implements EventoRepository {
         data.ubicacion || (data as any).lugar || null,
         data.enlace_virtual || null,
         data.cupo_maximo || 50,
-        data.duracion_horas || 0,
+        parseFloat(String(data.duracion_horas)) || 1.0,
         data.portada_url || null,
         data.tutor_id,
         data.imagenes_adicionales || []
@@ -197,6 +202,7 @@ export class PostgresEventoRepository implements EventoRepository {
         audiencia: (data as any).audiencia,
         registro_entrada: data.registro_entrada,
         registro_salida: data.registro_salida,
+        tipo_evento: data.tipo_evento,
       };
       finalDesc += "\n---EVENTO_METADATA---" + JSON.stringify(metadata);
       dbData.descripcion = finalDesc;
@@ -211,7 +217,9 @@ export class PostgresEventoRepository implements EventoRepository {
     }
     if (data.enlace_virtual !== undefined) dbData.enlace_virtual = data.enlace_virtual;
     if (data.cupo_maximo !== undefined) dbData.cupo_maximo = data.cupo_maximo;
-    if (data.duracion_horas !== undefined) dbData.duracion_horas = data.duracion_horas;
+    if (data.duracion_horas !== undefined) {
+      dbData.duracion_horas = parseFloat(String(data.duracion_horas)) || 1.0;
+    }
     if (data.portada_url !== undefined) dbData.imagen_url = data.portada_url;
     if (data.imagenes_adicionales !== undefined) dbData.imagenes_adicionales = data.imagenes_adicionales;
 
