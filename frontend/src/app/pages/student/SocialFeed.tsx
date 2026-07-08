@@ -2343,7 +2343,7 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
             <div className="topbar-right" onClick={e=>e.stopPropagation()}>
               {!showOnlySaved && <button className="btn-primary" onClick={()=>setShowModal(true)}>+ Crear Post</button>}
               <div style={{position:"relative"}}>
-                <button className="icon-btn" onClick={()=>{setNotiOpen(v=>!v);setOpenMenuId(null);}}>
+                <button className="icon-btn" onClick={()=>{setNotiOpen(v=>!v);}}>
                   🔔 {unread>0 && <span className="badge">{unread}</span>}
                 </button>
                 {notiOpen && (

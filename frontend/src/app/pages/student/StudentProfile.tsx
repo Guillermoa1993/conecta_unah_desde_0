@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 interface PerfilProps {
-  rolSimulado: string;
+  rolSimulado?: string;
   subScreen?: string;
   setSubScreen?: React.Dispatch<React.SetStateAction<string>>;
 }
