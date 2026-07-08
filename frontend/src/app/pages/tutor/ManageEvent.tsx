@@ -901,39 +901,6 @@ export function ManageEvent() {
                   </div>
                 </div>
 
-                {/* Código alternativo */}
-                {(isEntryActive || isExitActive) && (
-                  <div className="mt-6 border-t border-slate-100 pt-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="space-y-0.5 text-center sm:text-left">
-                      <span className="text-xs font-bold text-[#003366] uppercase tracking-wider block">Código Manual Alternativo</span>
-                      <p className="text-xs text-muted-foreground">Comparte este código si los alumnos tienen problemas para escanear.</p>
-                    </div>
-                    <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
-                      <span className="text-xl font-mono font-bold tracking-widest text-[#003366] bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">
-                        {attendanceCode}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="hover:bg-slate-200"
-                        onClick={() => {
-                          navigator.clipboard.writeText(attendanceCode);
-                          toast.success("Código copiado al portapapeles");
-                        }}
-                      >
-                        <Copy className="size-4 text-[#004B87]" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="hover:bg-slate-200"
-                        onClick={generateAttendanceCode}
-                      >
-                        <RefreshCw className="size-4 text-emerald-600" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
           ) : (
