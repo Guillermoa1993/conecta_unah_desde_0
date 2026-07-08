@@ -49,45 +49,6 @@ import { AnalogTimePicker } from "./AnalogTimePicker";
 import { toast } from "sonner";
 import { cn } from "../../../lib/utils";
 
-const EDIFICIOS_POR_CENTRO: Record<string, { name: string; mapUrl: string }[]> = {
-  "Ciudad Universitaria": [
-    { name: "Alma Mater / Edificio Administrativo", mapUrl: "https://maps.google.com/?q=14.082216,-87.165000" },
-    { name: "Edificio D1 (Ingeniería / Sistemas)", mapUrl: "https://maps.google.com/?q=14.082823,-87.163972" },
-    { name: "Edificio B1 (Ciencias Económicas)", mapUrl: "https://maps.google.com/?q=14.083818,-87.164487" },
-    { name: "Edificio B2 (Aulas)", mapUrl: "https://maps.google.com/?q=14.084128,-87.164305" },
-    { name: "Edificio C1 (Aulas)", mapUrl: "https://maps.google.com/?q=14.083318,-87.163706" },
-    { name: "Edificio C2 (Aulas)", mapUrl: "https://maps.google.com/?q=14.083618,-87.163506" },
-    { name: "Edificio F1 (Ciencias / Física)", mapUrl: "https://maps.google.com/?q=14.082348,-87.163016" },
-    { name: "Edificio J1 (Odontología)", mapUrl: "https://maps.google.com/?q=14.083908,-87.163316" },
-    { name: "Edificio I1 (Ciencias Sociales)", mapUrl: "https://maps.google.com/?q=14.083548,-87.165316" },
-    { name: "Edificio G1 (Aulas)", mapUrl: "https://maps.google.com/?q=14.082248,-87.162316" },
-    { name: "Palacio de los Deportes (Polideportivo)", mapUrl: "https://maps.google.com/?q=14.082000,-87.165500" },
-    { name: "Plaza de las Cuatro Culturas", mapUrl: "https://maps.google.com/?q=14.082834,-87.164845" },
-    { name: "CRAI / Biblioteca Central", mapUrl: "https://maps.google.com/?q=14.082531,-87.165323" },
-  ],
-  "UNAH-VS": [
-    { name: "Edificio 1 (Administración)", mapUrl: "https://maps.google.com/?q=15.525500,-88.028800" },
-    { name: "Edificio 2 (Aulas)", mapUrl: "https://maps.google.com/?q=15.525800,-88.028500" },
-    { name: "Edificio 3 (Aulas)", mapUrl: "https://maps.google.com/?q=15.526200,-88.028200" },
-    { name: "Edificio 4 (Laboratorios)", mapUrl: "https://maps.google.com/?q=15.526500,-88.027800" },
-    { name: "Edificio 5 (Ingeniería)", mapUrl: "https://maps.google.com/?q=15.526800,-88.027500" },
-  ],
-  "CURC": [
-    { name: "Edificio Principal (Aulas y Admin)", mapUrl: "https://maps.google.com/?q=14.444700,-87.625800" },
-    { name: "Auditorio CURC", mapUrl: "https://maps.google.com/?q=14.444900,-87.625500" },
-  ],
-  "CURLA": [
-    { name: "Edificio Central / Administración", mapUrl: "https://maps.google.com/?q=15.772500,-86.852500" },
-    { name: "Agronomía / Aulas", mapUrl: "https://maps.google.com/?q=15.772800,-86.852100" },
-  ],
-  "CURLP": [
-    { name: "Edificio Único de Aulas", mapUrl: "https://maps.google.com/?q=13.310500,-87.171800" }
-  ],
-  "CURVA": [
-    { name: "Edificio de Aulas CURVA", mapUrl: "https://maps.google.com/?q=15.021500,-86.230400" }
-  ]
-};
-
 type FormData = {
   titulo: string;
   categoria: EventCategory;
@@ -807,12 +768,13 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
             value={data.centro_regional}
             onValueChange={(v) => {
               setData((prev) => {
-                const firstBuilding = EDIFICIOS_POR_CENTRO[v]?.[0];
-                const nextUbicacion = firstBuilding ? `${firstBuilding.name}|${firstBuilding.mapUrl}` : "";
+                const currentName = prev.ubicacion.includes("|") ? prev.ubicacion.split("|")[0] : prev.ubicacion;
+                const query = currentName ? `${currentName} ${v}`.trim() : "";
+                const link = query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : "";
                 return {
                   ...prev,
                   centro_regional: v,
-                  ubicacion: nextUbicacion
+                  ubicacion: currentName ? `${currentName}|${link}` : ""
                 };
               });
             }}
@@ -834,7 +796,6 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
           const [buildingName, gMapsUrl] = data.ubicacion && data.ubicacion.includes("|")
             ? data.ubicacion.split("|")
             : [data.ubicacion || "", ""];
-          const buildings = EDIFICIOS_POR_CENTRO[data.centro_regional] || [];
 
           return (
             <div className="space-y-4 animate-in fade-in duration-200">
@@ -842,34 +803,21 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                 <Label>
                   Edificio / Ubicación física <span className="text-red-500">*</span>
                 </Label>
-                <Select
+                <Input
                   value={buildingName}
-                  onValueChange={(v) => {
-                    const b = buildings.find((x) => x.name === v);
-                    if (b) {
-                      setData((prev) => ({
-                        ...prev,
-                        ubicacion: `${b.name}|${b.mapUrl}`
-                      }));
-                    } else {
-                      setData((prev) => ({
-                        ...prev,
-                        ubicacion: v
-                      }));
-                    }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const query = val ? `${val} ${data.centro_regional}`.trim() : "";
+                    const link = query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : "";
+                    setData((prev) => ({
+                      ...prev,
+                      ubicacion: val ? `${val}|${link}` : ""
+                    }));
                   }}
-                >
-                  <SelectTrigger className="mt-1 h-11 bg-white">
-                    <SelectValue placeholder="Seleccionar edificio..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {buildings.map((b) => (
-                      <SelectItem key={b.name} value={b.name}>
-                        {b.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onBlur={() => blur("ubicacion")}
+                  placeholder="Ej. Edificio D1, Auditorio Juan Lindo, Plaza Cuatro Culturas..."
+                  className={cn("mt-1 h-11 bg-white", errors.ubicacion && "border-red-500")}
+                />
                 {errors.ubicacion && <p className="text-xs mt-0.5 text-red-800">{errors.ubicacion}</p>}
               </div>
 
@@ -881,12 +829,12 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                     className="w-full gap-1.5 h-11 text-[#004B87] border-[#004B87] hover:bg-slate-50 font-semibold bg-white shadow-sm"
                     onClick={() => window.open(gMapsUrl, "_blank")}
                   >
-                    <MapPin className="size-4 text-[#004B87]" /> Ver ubicación en Google Maps
+                    <MapPin className="size-4 text-[#004B87]" /> Probar búsqueda en Google Maps
                   </Button>
 
                   <div className="space-y-1">
                     <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-                      Enlace de Google Maps (Solo lectura)
+                      Enlace de Google Maps Generado (Solo lectura)
                     </Label>
                     <Input
                       type="text"
