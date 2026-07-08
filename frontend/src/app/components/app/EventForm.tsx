@@ -106,7 +106,7 @@ function buildFormDefaults(user: { name?: string }, initialEvent?: UniEvent): Fo
       fecha_fin: initialEvent.fecha_fin.slice(0, 10),
       hora_inicio: initialEvent.hora_inicio || initialEvent.fecha_inicio.slice(11, 16),
       hora_fin: initialEvent.hora_fin || initialEvent.fecha_fin.slice(11, 16),
-      ubicacion: initialEvent.lugar || "",
+      ubicacion: (initialEvent as any).ubicacion || initialEvent.lugar || "",
       enlace_virtual: initialEvent.enlace_virtual || "",
       cupo_maximo: String(initialEvent.cupo_maximo),
       tutor_responsable: initialEvent.tutor_nombre || user.name || "Dr. Carlos Mendoza",
@@ -159,7 +159,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Partial<Record<keyof FormData, boolean>>>({});
   const [images, setImages] = useState<string[]>(initialEvent?.imagenes_adicionales || []);
-  const [imgPortada, setImgPortada] = useState<string | null>(initialEvent?.imagen_url || null);
+  const [imgPortada, setImgPortada] = useState<string | null>(initialEvent?.portada_url || initialEvent?.imagen_url || null);
 
   const [dragOver, setDragOver] = useState(false);
   const [dragOverPortada, setDragOverPortada] = useState(false);
@@ -426,7 +426,11 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       toast.error("Límite alcanzado", { description: "Máximo 4 imágenes" });
       return;
     }
-    setImages((prev) => [...prev, URL.createObjectURL(file)]);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImages((prev) => [...prev, reader.result as string]);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handlePortadaFile = (file: File | undefined) => {
@@ -439,7 +443,11 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       toast.error("Archivo muy grande", { description: "Máximo 5MB para la portada" });
       return;
     }
-    setImgPortada(URL.createObjectURL(file));
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImgPortada(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const renderStep1 = () => (
