@@ -15,6 +15,13 @@ import {
   Copy,
   Eye,
   AlertTriangle,
+  Camera,
+  XCircle,
+  Pen,
+  Trash2,
+  Send,
+  Share2,
+  Info,
 } from "lucide-react";
 import { api } from "../../../services/api";
 import { Button } from "../../components/ui/button";
@@ -34,7 +41,8 @@ import { Label } from "../../components/ui/label";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 import { downloadConstanciaPdf, MESES } from "../../../lib/constancia-pdf";
-import { SignatureModal, PdfModal } from "../../components/app/ConstanciaModal";
+import { SignatureModal } from "../../components/app/ConstanciaModal";
+import { EventForm } from "../../components/app/EventForm";
 
 const CATEGORY_LABEL: Record<string, string> = {
   ACADEMICO: "Académico",
@@ -50,6 +58,36 @@ const CATEGORY_COLORS: Record<string, string> = {
   SOCIAL: "#f59e0b",
 };
 
+const PLACEHOLDER_BG: Record<string, string> = {
+  ACADEMICO: "#eff6ff",
+  CULTURAL: "#faf5ff",
+  DEPORTIVO: "#f0fdf4",
+  SOCIAL: "#fffbeb",
+};
+
+const PLACEHOLDER_INITIALS_BG: Record<string, string> = {
+  ACADEMICO: "#dbeafe",
+  CULTURAL: "#f3e8ff",
+  DEPORTIVO: "#dcfce7",
+  SOCIAL: "#fef3c7",
+};
+
+const PLACEHOLDER_TEXT: Record<string, string> = {
+  ACADEMICO: "#3b82f6",
+  CULTURAL: "#8b5cf6",
+  DEPORTIVO: "#22c55e",
+  SOCIAL: "#f59e0b",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  BORRADOR: "Borrador",
+  PENDIENTE_APROBACION: "Pendiente de aprobación",
+  PROGRAMADO: "Programado",
+  EN_CURSO: "En curso",
+  FINALIZADO: "Finalizado",
+  RECHAZADO: "Rechazado",
+};
+
 function formatDate(iso: string) {
   if (!iso) return "N/A";
   return new Date(iso).toLocaleDateString("es-HN", {
@@ -59,12 +97,38 @@ function formatDate(iso: string) {
   });
 }
 
+interface TimelineStepProps {
+  label: string;
+  isCompleted: boolean;
+  isActive: boolean;
+}
+
+function TimelineStep({ label, isCompleted, isActive }: TimelineStepProps) {
+  return (
+    <div className="flex flex-col items-center flex-1 relative">
+      <div className={`size-8 rounded-full flex items-center justify-center border-2 z-10 transition-all ${
+        isCompleted
+          ? "bg-green-500 border-green-500 text-white"
+          : isActive
+          ? "bg-blue-50 border-[#004B87] text-[#004B87] font-bold"
+          : "bg-white border-slate-200 text-slate-400"
+      }`}>
+        {isCompleted ? <CheckCircle2 className="size-4" /> : "•"}
+      </div>
+      <span className={`text-[11px] font-semibold mt-2 text-center transition-colors ${
+        isActive ? "text-[#004B87]" : isCompleted ? "text-slate-800" : "text-slate-400"
+      }`}>{label}</span>
+    </div>
+  );
+}
+
 export function ManageEvent() {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const [event, setEvent] = useState<any>(null);
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
   
   // Controls state
   const [qrTimer, setQrTimer] = useState(120);
@@ -75,6 +139,8 @@ export function ManageEvent() {
   const [pdfStudent, setPdfStudent] = useState<any>(null);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [firmadasSet, setFirmadasSet] = useState<Set<string>>(new Set());
+
+  const portadaInputRef = useRef<HTMLInputElement>(null);
 
   const fetchEventDetails = async () => {
     if (!eventId) return;
@@ -152,6 +218,59 @@ export function ManageEvent() {
     }
   };
 
+  const handleSendToVoae = async () => {
+    if (!event) return;
+    try {
+      const updated = await api.put<any>(`/eventos/${event.id}`, {
+        ...event,
+        estado: "PENDIENTE_APROBACION",
+      });
+      setEvent(updated);
+      toast.success("Evento enviado a VOAE para revisión");
+    } catch (err: any) {
+      toast.error("Error al enviar a VOAE", { description: err.message });
+    }
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!event) return;
+    try {
+      await api.delete(`/eventos/${event.id}`);
+      toast.success("Evento descartado con éxito");
+      navigate("/tutor/eventos");
+    } catch (err: any) {
+      toast.error("Error al descartar evento", { description: err.message });
+    }
+  };
+
+  const handlePortadaFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast.error("Formato no válido", { description: "Usa JPG, PNG o WEBP" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Archivo muy grande", { description: "Máximo 5MB" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      try {
+        const updated = await api.put<any>(`/eventos/${event.id}`, {
+          ...event,
+          portada_url: base64
+        });
+        setEvent(updated);
+        toast.success("Imagen de portada actualizada");
+      } catch (err: any) {
+        toast.error("Error al actualizar portada", { description: err.message });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleConfirmSignature = (signatureDataUrl: string) => {
     if (!pdfStudent || !event) return;
     setShowSignatureModal(false);
@@ -185,90 +304,295 @@ export function ManageEvent() {
   };
 
   if (loading) {
-    return <div className="py-20 text-center text-sm text-muted-foreground">Cargando panel del evento...</div>;
+    return <div className="py-20 text-center text-sm text-muted-foreground font-medium">Cargando panel del evento...</div>;
   }
 
   if (!event) {
     return (
       <div className="py-20 text-center">
-        <AlertTriangle className="size-12 mx-auto text-red-500 mb-3" />
+        <AlertTriangle className="size-12 mx-auto text-red-500 mb-3 animate-bounce" />
         <p className="text-sm font-semibold">Evento no encontrado.</p>
-        <Link to="/tutor/eventos" className="text-xs text-[#004B87] underline mt-2 block">Volver a mis eventos</Link>
+        <Link to="/tutor/eventos" className="text-xs text-[#004B87] underline mt-2 block hover:text-[#003366]">Volver a mis eventos</Link>
       </div>
     );
   }
 
+  if (isEditing) {
+    return <EventForm initialEvent={event} onClose={() => { setIsEditing(false); fetchEventDetails(); }} />;
+  }
+
   const qrValue = `https://conectapumas.app/asistencia/${event.id}?type=${qrType}&code=${attendanceCode}`;
 
+  const steps = [
+    { label: "Creado", isCompleted: true, isActive: false },
+    {
+      label: "Enviado a VOAE",
+      isCompleted: event.estado !== "BORRADOR" && event.estado !== "RECHAZADO",
+      isActive: event.estado === "PENDIENTE_APROBACION"
+    },
+    {
+      label: "Aprobado",
+      isCompleted: ["PROGRAMADO", "EN_CURSO", "FINALIZADO"].includes(event.estado),
+      isActive: event.estado === "PROGRAMADO"
+    },
+    {
+      label: "En curso",
+      isCompleted: ["EN_CURSO", "FINALIZADO"].includes(event.estado),
+      isActive: event.estado === "EN_CURSO"
+    },
+    {
+      label: "Finalizado",
+      isCompleted: event.estado === "FINALIZADO",
+      isActive: event.estado === "FINALIZADO"
+    }
+  ];
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       <Link
         to="/tutor/eventos"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-[#004B87] transition font-medium"
       >
-        <ArrowLeft className="size-4" /> Volver a mis eventos
+        <ArrowLeft className="size-4" /> Volver
       </Link>
 
-      <div className="flex justify-between items-start flex-wrap gap-4">
+      {/* Header bar */}
+      <div className="flex justify-between items-center flex-wrap gap-4 border-b pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#003366]">{event.titulo}</h1>
-          <p className="text-sm text-muted-foreground mt-1">Gestión del Evento y Asistencias</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-slate-800">{event.titulo}</h1>
+            <Badge className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5" style={{
+              backgroundColor:
+                event.estado === "BORRADOR" ? "#64748b" :
+                event.estado === "PENDIENTE_APROBACION" ? "#f59e0b" :
+                event.estado === "PROGRAMADO" ? "#3b82f6" :
+                event.estado === "EN_CURSO" ? "#22c55e" :
+                event.estado === "FINALIZADO" ? "#10b981" : "#ef4444"
+            }}>
+              {STATUS_LABEL[event.estado] || event.estado}
+            </Badge>
+          </div>
         </div>
+
         <div className="flex items-center gap-2">
+          {event.estado === "BORRADOR" && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+                className="gap-1.5 border-blue-200 text-[#004B87] hover:bg-blue-50"
+              >
+                <Pen className="size-4" /> Editar
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSendToVoae}
+                className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shadow-sm"
+              >
+                <Send className="size-4" /> Enviar a VOAE
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDeleteEvent}
+                className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="size-4" /> Descartar
+              </Button>
+            </>
+          )}
+
+          {event.estado === "RECHAZADO" && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+                className="gap-1.5 border-blue-200 text-[#004B87] hover:bg-blue-50"
+              >
+                <Pen className="size-4" /> Corregir y Reenviar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDeleteEvent}
+                className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="size-4" /> Descartar
+              </Button>
+            </>
+          )}
+
           {event.estado === "PROGRAMADO" && (
-            <Button onClick={handleStartEvent} className="bg-green-600 hover:bg-green-700 gap-1.5">
+            <Button onClick={handleStartEvent} className="bg-green-600 hover:bg-green-700 text-white gap-1.5 shadow-sm">
               <Play className="size-4" /> Iniciar Evento
             </Button>
           )}
+
           {event.estado === "EN_CURSO" && (
-            <Button onClick={handleEndEvent} className="bg-red-600 hover:bg-red-700 gap-1.5">
+            <Button onClick={handleEndEvent} className="bg-red-600 hover:bg-red-700 text-white gap-1.5 shadow-sm">
               <Square className="size-4" /> Finalizar Evento
             </Button>
           )}
-          <Badge className="text-xs px-2.5 py-1" style={{ backgroundColor: CATEGORY_COLORS[event.categoria] || "#64748b" }}>
-            {event.estado}
-          </Badge>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="shadow-sm">
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">Estudiantes Inscritos</p>
-                <h3 className="text-2xl font-bold mt-1 text-[#003366]">{students.length}</h3>
-              </div>
-              <Users className="size-8 text-blue-500 opacity-20" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-sm">
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">Categoría</p>
-                <h3 className="text-lg font-bold mt-1 text-[#003366] truncate">{CATEGORY_LABEL[event.categoria] || event.categoria}</h3>
-              </div>
-              <CalendarDays className="size-8 text-indigo-500 opacity-20" />
-            </div>
-          </CardContent>
-        </Card>
+      {/* Banners */}
+      {event.estado === "BORRADOR" && (
+        <div className="rounded-xl border bg-slate-50 border-slate-200/80 p-4 text-sm flex items-start gap-3 text-slate-600">
+          <Info className="size-5 shrink-0 text-slate-400 mt-0.5" />
+          <span>Este evento está en borrador. Puedes editarlo antes de publicarlo.</span>
+        </div>
+      )}
 
-        <Card className="shadow-sm">
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">Horas Otorgadas</p>
-                <h3 className="text-2xl font-bold mt-1 text-[#003366]">{event.duracion_horas} horas</h3>
+      {event.estado === "RECHAZADO" && (
+        <div className="rounded-xl border bg-amber-50 border-amber-200 p-4 text-sm flex items-start gap-3 text-amber-800">
+          <AlertTriangle className="size-5 shrink-0 text-amber-500 mt-0.5" />
+          <div>
+            <span className="font-semibold block text-amber-900">Este evento fue rechazado por VOAE</span>
+            <p className="mt-1 text-amber-700 font-medium bg-white/60 p-2.5 rounded-lg border border-amber-200/50 mt-2">
+              <span className="font-bold">Motivo: </span>
+              {event.motivo_rechazo || "No se especificó un motivo de rechazo."}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Portada + Ubicacion dynamic boxes */}
+      <div className="grid grid-cols-1 md:grid-cols-10 gap-5">
+        {/* Left: Portada box */}
+        <div className="md:col-span-5 rounded-xl overflow-hidden border bg-card shadow-sm relative group h-52 flex flex-col justify-center">
+          {event.estado === "BORRADOR" && (
+            <>
+              <input
+                ref={portadaInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handlePortadaFileChange}
+              />
+              <button
+                type="button"
+                onClick={() => portadaInputRef.current?.click()}
+                className="absolute inset-0 z-10 flex items-center justify-center bg-black/0 hover:bg-black/40 transition-colors cursor-pointer"
+                aria-label="Cambiar imagen de portada"
+              >
+                <div className="size-10 rounded-full bg-white/90 grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md">
+                  <Camera className="size-5 text-slate-700" />
+                </div>
+              </button>
+              <p className="absolute bottom-2 left-2 z-10 text-[10px] text-white/70 bg-black/40 px-2 py-0.5 rounded">
+                Toca para cambiar la portada
+              </p>
+            </>
+          )}
+
+          {event.portada_url || event.imagen_url ? (
+            <img src={event.portada_url || event.imagen_url} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div
+              className="w-full h-full grid place-items-center"
+              style={{ backgroundColor: PLACEHOLDER_BG[event.categoria] || "#f1f5f9" }}
+            >
+              <div
+                className="size-20 rounded-full grid place-items-center"
+                style={{
+                  backgroundColor: PLACEHOLDER_INITIALS_BG[event.categoria] || "#e2e8f0",
+                }}
+              >
+                <div
+                  className="text-3xl font-bold"
+                  style={{ color: PLACEHOLDER_TEXT[event.categoria] || "#64748b" }}
+                >
+                  {CATEGORY_LABEL[event.categoria]?.slice(0, 2).toUpperCase()}
+                </div>
               </div>
-              <Clock className="size-8 text-green-500 opacity-20" />
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
+
+        {/* Right: Maps / Link box */}
+        <div className="md:col-span-5">
+          {event.tipo_actividad === "Virtual" ? (
+            <div className="rounded-xl border bg-blue-50/50 border-blue-200/80 p-5 flex flex-col justify-between h-52 shadow-sm">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs text-blue-600 font-semibold uppercase tracking-wider">
+                  <Camera className="size-4" /> Modalidad Virtual
+                </div>
+                <h4 className="font-bold text-lg text-slate-800">Evento por Videoconferencia</h4>
+                <p className="text-xs text-muted-foreground">Se transmitirá de forma digital</p>
+              </div>
+
+              {event.enlace_virtual ? (
+                <Button
+                  type="button"
+                  className="w-full gap-1.5 h-11 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                  onClick={() => window.open(event.enlace_virtual, "_blank")}
+                >
+                  <Eye className="size-4" /> Ir a la reunión virtual
+                </Button>
+              ) : (
+                <div className="text-xs text-amber-600 bg-amber-50 p-2.5 rounded-lg border border-amber-200/50 text-center font-medium">
+                  Enlace de videoconferencia no configurado.
+                </div>
+              )}
+            </div>
+          ) : (
+            (() => {
+              const loc = event.lugar || event.ubicacion || "";
+              const [bName, bLink] = loc.includes("|")
+                ? loc.split("|")
+                : [loc, loc ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc + " " + (event.centro_regional || "Ciudad Universitaria"))}` : ""];
+
+              if (!bName) {
+                return (
+                  <div className="rounded-xl border bg-slate-50/50 border-slate-200 h-52 flex flex-col items-center justify-center text-sm text-slate-400">
+                    <MapPin className="size-8 mb-1.5 opacity-40" />
+                    <span>Ubicación no disponible</span>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="rounded-xl border bg-white border-slate-200/80 p-5 flex flex-col justify-between h-52 shadow-sm relative group hover:border-[#004B87]/40 transition-colors">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-xs text-[#004B87] font-semibold uppercase tracking-wider">
+                      <MapPin className="size-4" /> Ubicación Física
+                    </div>
+                    <h4 className="font-bold text-lg text-slate-800 line-clamp-2">{bName}</h4>
+                    <p className="text-xs text-muted-foreground">{event.centro_regional || "Ciudad Universitaria"}</p>
+                  </div>
+
+                  {bLink && (
+                    <Button
+                      type="button"
+                      className="w-full gap-1.5 h-11 text-white shadow-sm transition hover:scale-[1.01]"
+                      style={{ backgroundColor: "#004B87" }}
+                      onClick={() => window.open(bLink, "_blank")}
+                    >
+                      <Share2 className="size-4" /> Ver en Google Maps
+                    </Button>
+                  )}
+                </div>
+              );
+            })()
+          )}
+        </div>
       </div>
 
+      {/* Stepper Timeline */}
+      <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-6 shadow-sm">
+        <div className="flex items-center justify-between relative max-w-3xl mx-auto">
+          {/* Connector Line behind steps */}
+          <div className="absolute left-6 right-6 top-4 h-[2px] bg-slate-200 -z-0" />
+          {steps.map((step, idx) => (
+            <TimelineStep key={idx} label={step.label} isCompleted={step.isCompleted} isActive={step.isActive} />
+          ))}
+        </div>
+      </div>
+
+      {/* Tabs list (Control de asistencia, Participantes, Detalle) */}
       <Tabs defaultValue="control" className="space-y-4">
         <TabsList className="grid grid-cols-3 w-full max-w-md">
           <TabsTrigger value="control">Control de Asistencia</TabsTrigger>
@@ -278,14 +602,14 @@ export function ManageEvent() {
 
         <TabsContent value="control" className="space-y-4">
           {event.estado === "EN_CURSO" ? (
-            <Card className="shadow-sm">
+            <Card className="shadow-sm border-slate-200">
               <CardHeader>
-                <CardTitle className="text-[#003366] text-base">QR de Asistencia Dinámico</CardTitle>
+                <CardTitle className="text-slate-800 text-base">QR de Asistencia Dinámico</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex flex-col md:flex-row items-center gap-8 justify-center">
                   <div className="flex flex-col items-center gap-4">
-                    <div className="p-4 bg-white border-2 border-slate-200 rounded-2xl">
+                    <div className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
                       <QRCodeCanvas value={qrValue} size={220} level="M" />
                     </div>
                     <div className="text-center">
@@ -296,7 +620,7 @@ export function ManageEvent() {
 
                   <div className="space-y-4 max-w-sm">
                     <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Tipo de registro QR</Label>
+                      <Label className="text-xs font-semibold text-slate-700">Tipo de registro QR</Label>
                       <div className="flex gap-2 mt-1">
                         <Button
                           variant={qrType === "ENTRADA" ? "default" : "outline"}
@@ -461,7 +785,7 @@ export function ManageEvent() {
         </TabsContent>
       </Tabs>
 
-      {/* Signature and PDF preview modals */}
+      {/* Signature Modal */}
       {showSignatureModal && (
         <SignatureModal
           open={showSignatureModal}
