@@ -18,10 +18,12 @@ type MenuItem = { icon: React.ElementType; label: string; path: string };
 const MENU_BY_ROLE: Record<string, MenuItem[]> = {
   student: [
     { icon: Home,          label: "Dashboard",       path: "/student"          },
+    { icon: Rss,           label: "Muro Social",     path: "/student/feed"     },
     { icon: Bell,          label: "Notificaciones",  path: "/employees/notifications" },
   ],
   tutor: [
     { icon: Home,          label: "Dashboard",       path: "/tutor"              },
+    { icon: Rss,           label: "Muro Social",     path: "/tutor/feed"         },
     { icon: Bell,          label: "Notificaciones",  path: "/employees/notifications" },
   ],
   admin: [
@@ -37,6 +39,7 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
   ],
   voae: [
     { icon: Home,           label: "Dashboard",         path: "/voae"             },
+    { icon: Rss,            label: "Muro Social",       path: "/voae/feed"        },
     { icon: FileText,       label: "Reportes Oficiales",path: "/voae/reports"     },
     { icon: ClipboardList,  label: "Registros",         path: "/voae/records"     },
     { icon: MapPin,         label: "Centros Regionales",path: "/voae/centros"     },
@@ -46,6 +49,7 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
   ],
   dev: [
     { icon: Home,          label: "Dashboard Estudiante",path: "/student"        },
+    { icon: Rss,           label: "Muro Social",        path: "/student/feed"   },
     { icon: Calendar,      label: "Eventos",            path: "/student/events" },
     { icon: QrCode,        label: "QR Scanner",         path: "/student/scan"   },
     // Tutor

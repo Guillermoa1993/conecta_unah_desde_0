@@ -116,6 +116,7 @@ export const router = createBrowserRouter([
       { path: "tutor/ficha",             element: P(<FichaEmpleado />) },
       { path: "tutor/live",              element: P(<LiveEvent />) },
       { path: "tutor/eventos",           element: P(<TutorEventos />) },
+      { path: "tutor/feed",              element: P(<SocialFeed />) },
       ...maintenanceRoutes("tutor"),
 
       // ── Admin ─────────────────────────────────────────────
@@ -136,6 +137,7 @@ export const router = createBrowserRouter([
       { path: "voae/records",           element: P(<VOAERecords />) },
       { path: "voae/centros",           element: P(<CentrosRegionales />) },
       { path: "voae/events/:id/validar",element: P(<ValidacionEvento />) },
+      { path: "voae/feed",               element: P(<SocialFeed />) },
       ...maintenanceRoutes("voae"),
     ],
   },
