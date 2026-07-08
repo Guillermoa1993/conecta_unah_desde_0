@@ -837,8 +837,11 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                 lat={data.latitud}
                 lng={data.longitud}
                 onLocationChange={(lat, lng) => {
-                  set("latitud", lat);
-                  set("longitud", lng);
+                  setData((prev) => ({
+                    ...prev,
+                    latitud: lat,
+                    longitud: lng,
+                  }));
                 }}
               />
             </div>
