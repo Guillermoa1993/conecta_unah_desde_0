@@ -2,23 +2,23 @@ import { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { toast } from "sonner";
 
-const defaultCenter: [number, number] = [14.082216, -87.191523]; // UNAH CU
+const defaultCenter: [number, number] = [14.082216, -87.165000]; // UNAH CU
 
 const UNAH_BUILDINGS = [
   { name: "Seleccionar un edificio de la UNAH...", lat: "", lng: "" },
-  { name: "Alma Mater / Edificio Administrativo", lat: "14.082216", lng: "-87.191523" },
-  { name: "Edificio D1 (Ingeniería / Sistemas)", lat: "14.082823", lng: "-87.190472" },
-  { name: "Edificio B1 (Ciencias Económicas)", lat: "14.083818", lng: "-87.190987" },
-  { name: "Edificio B2 (Aulas)", lat: "14.084128", lng: "-87.190805" },
-  { name: "Edificio C1 (Aulas)", lat: "14.083318", lng: "-87.190206" },
-  { name: "Edificio C2 (Aulas)", lat: "14.083618", lng: "-87.190006" },
-  { name: "Edificio F1 (Ciencias / Física)", lat: "14.082348", lng: "-87.189516" },
-  { name: "Edificio J1 (Odontología)", lat: "14.083908", lng: "-87.189816" },
-  { name: "Edificio I1 (Ciencias Sociales)", lat: "14.083548", lng: "-87.191816" },
-  { name: "Edificio G1 (Aulas)", lat: "14.082248", lng: "-87.188816" },
-  { name: "Palacio de los Deportes (Polideportivo)", lat: "14.080562", lng: "-87.190250" },
-  { name: "Plaza de las Cuatro Culturas", lat: "14.082834", lng: "-87.191345" },
-  { name: "CRAI / Biblioteca Central", lat: "14.082531", lng: "-87.191823" },
+  { name: "Alma Mater / Edificio Administrativo", lat: "14.082216", lng: "-87.165000" },
+  { name: "Edificio D1 (Ingeniería / Sistemas)", lat: "14.082823", lng: "-87.163972" },
+  { name: "Edificio B1 (Ciencias Económicas)", lat: "14.083818", lng: "-87.164487" },
+  { name: "Edificio B2 (Aulas)", lat: "14.084128", lng: "-87.164305" },
+  { name: "Edificio C1 (Aulas)", lat: "14.083318", lng: "-87.163706" },
+  { name: "Edificio C2 (Aulas)", lat: "14.083618", lng: "-87.163506" },
+  { name: "Edificio F1 (Ciencias / Física)", lat: "14.082348", lng: "-87.163016" },
+  { name: "Edificio J1 (Odontología)", lat: "14.083908", lng: "-87.163316" },
+  { name: "Edificio I1 (Ciencias Sociales)", lat: "14.083548", lng: "-87.165316" },
+  { name: "Edificio G1 (Aulas)", lat: "14.082248", lng: "-87.162316" },
+  { name: "Palacio de los Deportes (Polideportivo)", lat: "14.082000", lng: "-87.165500" },
+  { name: "Plaza de las Cuatro Culturas", lat: "14.082834", lng: "-87.164845" },
+  { name: "CRAI / Biblioteca Central", lat: "14.082531", lng: "-87.165323" },
 ];
 
 export function LocationPicker({
