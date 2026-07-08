@@ -119,7 +119,7 @@ export class PostgresEventoRepository implements EventoRepository {
         defaultEstado,
         startDateTime,
         endDateTime,
-        data.ubicacion || null,
+        data.ubicacion || (data as any).lugar || null,
         data.enlace_virtual || null,
         data.cupo_maximo || 50,
         data.duracion_horas || 0,
@@ -139,7 +139,9 @@ export class PostgresEventoRepository implements EventoRepository {
     if (data.estado !== undefined) dbData.estado = data.estado;
     if (data.fecha_inicio !== undefined) dbData.fecha_inicio = data.fecha_inicio;
     if (data.fecha_fin !== undefined) dbData.fecha_fin = data.fecha_fin;
-    if (data.ubicacion !== undefined) dbData.lugar = data.ubicacion;
+    if (data.ubicacion !== undefined || (data as any).lugar !== undefined) {
+      dbData.lugar = data.ubicacion !== undefined ? data.ubicacion : (data as any).lugar;
+    }
     if (data.enlace_virtual !== undefined) dbData.enlace_virtual = data.enlace_virtual;
     if (data.cupo_maximo !== undefined) dbData.cupo_maximo = data.cupo_maximo;
     if (data.duracion_horas !== undefined) dbData.duracion_horas = data.duracion_horas;
