@@ -1,229 +1,372 @@
 import { useState } from "react";
-import { ShieldCheck, UserPlus, Pencil, UserX, AlertTriangle } from "lucide-react";
+import { Link } from "react-router";
+import { ArrowLeft, ShieldCheck, UserPlus, Pencil, UserX, AlertTriangle } from "lucide-react";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Checkbox } from "../../components/ui/checkbox";
 import { toast } from "sonner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../../components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "../../components/ui/dialog";
 
 interface Moderador {
-  id: string; nombre: string; email: string;
-  permisos: string[]; activo: boolean;
-  motivo_desactivacion?: string; created_at: string;
+  id: string;
+  nombre: string;
+  email: string;
+  permisos: string[];
+  activo: boolean;
+  motivo_desactivacion?: string;
+  created_at: string;
 }
 
-const PERMISOS_LABELS: Record<string,string> = {
-  APROBAR_EVENTOS:     "Aprobar eventos",
-  VALIDAR_ASISTENCIAS: "Validar asistencias",
-  GESTIONAR_FEED:      "Gestionar feed",
-  REVISAR_CONSTANCIAS: "Revisar constancias",
-};
-const TODOS_PERMISOS = Object.keys(PERMISOS_LABELS);
-
-const MOCK_MODERADORES: Moderador[] = [
-  { id:"m1", nombre:"Dr. Carlos Paz",      email:"cpaz@unah.edu.hn",    permisos:["APROBAR_EVENTOS","VALIDAR_ASISTENCIAS"], activo:true,  created_at:"2026-01-15" },
-  { id:"m2", nombre:"Lic. Ana Reyes",      email:"areyes@unah.edu.hn",  permisos:["GESTIONAR_FEED","REVISAR_CONSTANCIAS"],  activo:true,  created_at:"2026-02-01" },
-  { id:"m3", nombre:"Ing. Roberto Sosa",   email:"rsosa@unah.edu.hn",   permisos:["APROBAR_EVENTOS"],                       activo:false, motivo_desactivacion:"Cambio de funciones en marzo 2026.", created_at:"2025-09-10" },
-  { id:"m4", nombre:"MSc. Diana Fuentes",  email:"dfuentes@unah.edu.hn",permisos:["APROBAR_EVENTOS","VALIDAR_ASISTENCIAS","GESTIONAR_FEED","REVISAR_CONSTANCIAS"], activo:true, created_at:"2026-03-05" },
+const PERMISOS_MODERADOR = [
+  "APROBAR_EVENTOS",
+  "VALIDAR_ASISTENCIAS",
+  "GESTIONAR_FEED",
+  "VER_ANALITICA",
 ];
 
-function PermisoBadge({ label }: { label: string }) {
-  return (
-    <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-blue-50 border border-blue-100 text-[#004B87] font-semibold">
-      {label}
-    </span>
-  );
-}
+const PERMISO_LABELS: Record<string, string> = {
+  APROBAR_EVENTOS: "Aprobar eventos",
+  VALIDAR_ASISTENCIAS: "Validar asistencias",
+  GESTIONAR_FEED: "Gestionar feed",
+  VER_ANALITICA: "Revisar analíticas",
+};
 
-function Modal({ open, onClose, children }: { open:boolean; onClose:()=>void; children:React.ReactNode }) {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[#003366]/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 w-full max-w-md mx-4 shadow-2xl" onClick={e=>e.stopPropagation()}>
-        {children}
-      </div>
-    </div>
-  );
-}
+const MOCK_MODERADORES: Moderador[] = [
+  { id: "m1", nombre: "Dr. Carlos Paz", email: "cpaz@unah.edu.hn", permisos: ["APROBAR_EVENTOS", "VALIDAR_ASISTENCIAS"], activo: true, created_at: "2026-01-15" },
+  { id: "m2", nombre: "Lic. Ana Reyes", email: "areyes@unah.edu.hn", permisos: ["GESTIONAR_FEED", "VER_ANALITICA"], activo: true, created_at: "2026-02-01" },
+  { id: "m3", nombre: "Ing. Roberto Sosa", email: "rsosa@unah.edu.hn", permisos: ["APROBAR_EVENTOS"], activo: false, motivo_desactivacion: "Cambio de funciones en marzo 2026.", created_at: "2025-09-10" },
+  { id: "m4", nombre: "MSc. Diana Fuentes", email: "dfuentes@unah.edu.hn", permisos: ["APROBAR_EVENTOS", "VALIDAR_ASISTENCIAS", "GESTIONAR_FEED", "VER_ANALITICA"], activo: true, created_at: "2026-03-05" },
+];
 
 export function Moderadores() {
-  const [mods, setMods]   = useState<Moderador[]>(MOCK_MODERADORES);
-  const [addOpen, setAddOpen] = useState(false);
-  const [editMod, setEditMod] = useState<Moderador|null>(null);
-  const [editPerms, setEditPerms] = useState<string[]>([]);
-  const [deactivateMod, setDeactivateMod] = useState<Moderador|null>(null);
-  const [deactivateReason, setDeactivateReason] = useState("");
+  const [moderadores, setModeradores] = useState<Moderador[]>(MOCK_MODERADORES);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const [editPermisosModerador, setEditPermisosModerador] = useState<Moderador | null>(null);
+  const [editPermisosSelected, setEditPermisosSelected] = useState<string[]>([]);
+
+  const [desactivarModerador, setDesactivarModerador] = useState<Moderador | null>(null);
+  const [desactivarMotivo, setDesactivarMotivo] = useState("");
+
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newPerms, setNewPerms] = useState<string[]>([]);
 
-  const openEdit = (m: Moderador) => { setEditMod(m); setEditPerms([...m.permisos]); };
-  const togglePerm = (p:string, set:React.Dispatch<React.SetStateAction<string[]>>) =>
-    set(prev => prev.includes(p) ? prev.filter(x=>x!==p) : [...prev, p]);
-
-  const saveEdit = () => {
-    if (!editMod) return;
-    setMods(prev => prev.map(m => m.id===editMod.id ? {...m, permisos:editPerms} : m));
-    toast.success("Permisos actualizados");
-    setEditMod(null);
+  const openEditPermisos = (m: Moderador) => {
+    setEditPermisosModerador(m);
+    setEditPermisosSelected([...m.permisos]);
   };
 
-  const confirmDeactivate = () => {
-    if (!deactivateMod || deactivateReason.trim().length < 10) return;
-    setMods(prev => prev.map(m => m.id===deactivateMod.id ? {...m, activo:false, motivo_desactivacion:deactivateReason} : m));
-    toast.success(`${deactivateMod.nombre} desactivado`);
-    setDeactivateMod(null); setDeactivateReason("");
+  const savePermisos = () => {
+    if (!editPermisosModerador) return;
+    setModeradores((prev) =>
+      prev.map((m) =>
+        m.id === editPermisosModerador.id ? { ...m, permisos: [...editPermisosSelected] } : m
+      )
+    );
+    toast.success("Permisos actualizados", {
+      description: "Los permisos del moderador han sido modificados con éxito.",
+    });
+    setEditPermisosModerador(null);
   };
 
-  const addModerador = () => {
-    if (!newName.trim() || !newEmail.trim()) { toast.error("Nombre y correo son requeridos"); return; }
-    const nuevo: Moderador = { id:`m${Date.now()}`, nombre:newName.trim(), email:newEmail.trim(),
-      permisos:newPerms, activo:true, created_at:new Date().toISOString().slice(0,10) };
-    setMods(prev => [...prev, nuevo]);
-    toast.success("Moderador agregado"); setAddOpen(false); setNewName(""); setNewEmail(""); setNewPerms([]);
+  const confirmDesactivar = () => {
+    if (!desactivarModerador) return;
+    setModeradores((prev) =>
+      prev.map((m) =>
+        m.id === desactivarModerador.id
+          ? { ...m, activo: false, motivo_desactivacion: desactivarMotivo }
+          : m
+      )
+    );
+    toast.success("Moderador desactivado", {
+      description: `${desactivarModerador.nombre} ha sido desactivado.`,
+    });
+    setDesactivarModerador(null);
+    setDesactivarMotivo("");
+  };
+
+  const handleAddModerador = () => {
+    if (!newName.trim() || !newEmail.trim()) {
+      toast.error("Nombre y correo son obligatorios");
+      return;
+    }
+    const nuevo: Moderador = {
+      id: `m-${Date.now()}`,
+      nombre: newName.trim(),
+      email: newEmail.trim(),
+      permisos: newPerms,
+      activo: true,
+      created_at: new Date().toISOString(),
+    };
+    setModeradores((prev) => [...prev, nuevo]);
+    toast.success("Moderador agregado correctamente");
+    setDialogOpen(false);
+    setNewName("");
+    setNewEmail("");
+    setNewPerms([]);
+  };
+
+  const togglePermiso = (perm: string) => {
+    setEditPermisosSelected((prev) =>
+      prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]
+    );
+  };
+
+  const toggleNewPermiso = (perm: string) => {
+    setNewPerms((prev) =>
+      prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]
+    );
   };
 
   return (
-    <div className="space-y-5 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="max-w-6xl mx-auto space-y-6">
+      <Link
+        to="/voae"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition"
+      >
+        <ArrowLeft className="size-4" /> Volver al panel
+      </Link>
+      
+      <div className="flex justify-between items-center flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-black text-[#003366] flex items-center gap-2">
-            <ShieldCheck className="h-6 w-6 text-[#004B87]"/>Gestión de Moderadores
-          </h1>
-          <p className="text-sm text-[#717182]">Asigna y gestiona permisos del equipo VOAE</p>
+          <h1 className="text-xl font-bold text-[#003366]">Gestión de Moderadores</h1>
+          <p className="text-sm text-muted-foreground font-medium">Asigna y gestiona permisos de moderadores del VOAE.</p>
         </div>
-        <button onClick={()=>setAddOpen(true)}
-          className="flex items-center gap-1.5 px-4 py-2.5 bg-[#004B87] hover:bg-[#003366] text-white rounded-xl text-sm font-bold transition-colors">
-          <UserPlus className="h-4 w-4"/>Agregar moderador
-        </button>
+        <Button
+          className="text-white gap-1.5"
+          style={{ backgroundColor: "#004B87" }}
+          onClick={() => setDialogOpen(true)}
+        >
+          <UserPlus className="size-4" /> Agregar Moderador
+        </Button>
       </div>
 
-      {/* Tabla */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                {["Moderador","Correo","Permisos","Estado","Desde","Acciones"].map(h=>(
-                  <th key={h} className="text-left px-4 py-3 text-[10px] font-black text-[#717182] uppercase tracking-wider">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {mods.map((m,i)=>(
-                <tr key={m.id} className={`border-b border-gray-100 hover:bg-blue-50/30 transition-colors ${i%2===0?'bg-white':'bg-gray-50/50'}`}>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 bg-[#004B87] text-white rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0">
-                        {m.nombre.split(" ").map(p=>p[0]).slice(0,2).join("")}
-                      </div>
-                      <span className="font-semibold text-[#003366]">{m.nombre}</span>
+      <div className="rounded-xl border bg-card shadow-sm overflow-hidden bg-white">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-[#f1f5f9]">
+              <TableHead className="text-[#003366] font-bold">Moderador</TableHead>
+              <TableHead className="text-[#003366] font-bold">Email</TableHead>
+              <TableHead className="text-[#003366] font-bold">Permisos</TableHead>
+              <TableHead className="text-[#003366] font-bold">Estado</TableHead>
+              <TableHead className="text-[#003366] font-bold">Fecha Asignación</TableHead>
+              <TableHead className="text-[#003366] font-bold text-right">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {moderadores.map((m) => (
+              <TableRow
+                key={m.id}
+                className="even:bg-slate-50/50 hover:bg-slate-100/50"
+              >
+                <TableCell>
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="size-7 rounded-full grid place-items-center text-[10px] font-semibold shrink-0 bg-[#004B87] text-white"
+                    >
+                      {m.nombre
+                        .split(" ")
+                        .map((p) => p[0])
+                        .slice(0, 2)
+                        .join("")
+                        .toUpperCase()}
                     </div>
-                  </td>
-                  <td className="px-4 py-3 text-[#717182] text-xs">{m.email}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {m.permisos.map(p=><PermisoBadge key={p} label={PERMISOS_LABELS[p]??p}/>)}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {m.activo ? (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold">Activo</span>
-                    ) : (
-                      <span title={m.motivo_desactivacion} className="text-[10px] px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-700 font-bold cursor-help">Inactivo</span>
+                    <span className="font-semibold text-sm text-slate-800">{m.nombre}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-sm text-slate-700">{m.email}</TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1.5">
+                    {m.permisos.map((p) => (
+                      <span
+                        key={p}
+                        className="inline-block text-[10px] px-2 py-0.5 rounded font-medium bg-[#f1f5f9] text-[#004B87]"
+                      >
+                        {PERMISO_LABELS[p] || p}
+                      </span>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {m.activo ? (
+                    <span
+                      className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-green-50 border border-green-200 text-green-700"
+                    >
+                      Activo
+                    </span>
+                  ) : (
+                    <span
+                      className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-red-50 border border-red-200 text-red-700 cursor-help"
+                      title={m.motivo_desactivacion}
+                    >
+                      Inactivo
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className="text-sm text-slate-600">{m.created_at.slice(0, 10)}</TableCell>
+                <TableCell className="text-right">
+                  <div className="flex gap-1.5 justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1 text-xs text-[#004B87] border-[#004B87] hover:bg-[#004B87]/5"
+                      onClick={() => openEditPermisos(m)}
+                    >
+                      <Pencil className="size-3" /> Permisos
+                    </Button>
+                    {m.activo && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1 text-xs text-red-500 border-red-200 hover:bg-red-50"
+                        onClick={() => {
+                          setDesactivarModerador(m);
+                          setDesactivarMotivo("");
+                        }}
+                      >
+                        <UserX className="size-3" /> Desactivar
+                      </Button>
                     )}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-[#717182]">{m.created_at}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-1.5">
-                      <button onClick={()=>openEdit(m)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 border border-[#1A6FBF] text-[#1A6FBF] hover:bg-blue-50 rounded-lg text-[10px] font-bold transition-colors">
-                        <Pencil className="h-3 w-3"/>Editar
-                      </button>
-                      {m.activo && (
-                        <button onClick={()=>{setDeactivateMod(m);setDeactivateReason("");}}
-                          className="flex items-center gap-1 px-2.5 py-1.5 border border-red-300 text-red-500 hover:bg-red-50 rounded-lg text-[10px] font-bold transition-colors">
-                          <UserX className="h-3 w-3"/>Desactivar
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
 
-      {/* Modal Editar Permisos */}
-      <Modal open={!!editMod} onClose={()=>setEditMod(null)}>
-        <h2 className="text-base font-black text-[#003366] flex items-center gap-2 mb-1">
-          <ShieldCheck className="h-5 w-5 text-[#004B87]"/>Editar permisos
-        </h2>
-        <p className="text-xs text-[#717182] mb-4">Modifica los permisos de <strong>{editMod?.nombre}</strong></p>
-        <div className="space-y-3 mb-5">
-          {TODOS_PERMISOS.map(p=>(
-            <label key={p} className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" className="w-4 h-4 accent-[#004B87]"
-                checked={editPerms.includes(p)} onChange={()=>togglePerm(p,setEditPerms)}/>
-              <span className="text-sm text-[#003366]">{PERMISOS_LABELS[p]}</span>
-            </label>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <button onClick={()=>setEditMod(null)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-bold text-[#717182] hover:bg-gray-50">Cancelar</button>
-          <button onClick={saveEdit} className="flex-1 py-2.5 bg-[#004B87] hover:bg-[#003366] text-white rounded-xl text-sm font-bold transition-colors">Guardar</button>
-        </div>
-      </Modal>
-
-      {/* Modal Desactivar */}
-      <Modal open={!!deactivateMod} onClose={()=>setDeactivateMod(null)}>
-        <h2 className="text-base font-black text-red-700 flex items-center gap-2 mb-3">
-          <AlertTriangle className="h-5 w-5"/>Desactivar moderador
-        </h2>
-        <p className="text-sm text-[#717182] mb-4">¿Desactivar a <strong className="text-[#003366]">{deactivateMod?.nombre}</strong>? Esta acción puede revertirse.</p>
-        <label className="block text-xs font-bold text-[#717182] uppercase tracking-wider mb-1.5">Motivo (mínimo 10 caracteres)</label>
-        <textarea rows={3} value={deactivateReason} onChange={e=>setDeactivateReason(e.target.value)}
-          placeholder="Ej: Cambio de funciones, fin de período..." className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-[#003366] resize-none focus:outline-none focus:border-red-400 mb-4"/>
-        <div className="flex gap-2">
-          <button onClick={()=>setDeactivateMod(null)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-bold text-[#717182] hover:bg-gray-50">Cancelar</button>
-          <button onClick={confirmDeactivate} disabled={deactivateReason.trim().length < 10}
-            className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-sm font-bold transition-colors">
-            Confirmar
-          </button>
-        </div>
-      </Modal>
-
-      {/* Modal Agregar */}
-      <Modal open={addOpen} onClose={()=>setAddOpen(false)}>
-        <h2 className="text-base font-black text-[#003366] flex items-center gap-2 mb-4">
-          <UserPlus className="h-5 w-5 text-[#004B87]"/>Agregar moderador
-        </h2>
-        <div className="space-y-3 mb-4">
-          <div>
-            <label className="block text-[10px] font-bold text-[#717182] uppercase tracking-wider mb-1">Nombre completo</label>
-            <input type="text" value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Ej. Lic. Ana Reyes"
-              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-[#003366] focus:outline-none focus:border-[#004B87]"/>
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-[#717182] uppercase tracking-wider mb-1">Correo institucional</label>
-            <input type="email" value={newEmail} onChange={e=>setNewEmail(e.target.value)} placeholder="correo@unah.edu.hn"
-              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-[#003366] focus:outline-none focus:border-[#004B87]"/>
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-[#717182] uppercase tracking-wider mb-2">Permisos</label>
-            <div className="space-y-2">
-              {TODOS_PERMISOS.map(p=>(
-                <label key={p} className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" className="w-4 h-4 accent-[#004B87]"
-                    checked={newPerms.includes(p)} onChange={()=>togglePerm(p,setNewPerms)}/>
-                  <span className="text-sm text-[#003366]">{PERMISOS_LABELS[p]}</span>
-                </label>
-              ))}
+      {/* Add Moderador Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-[#003366]">Agregar nuevo moderador</DialogTitle>
+            <DialogDescription>Asigna permisos VOAE a un nuevo docente o moderador institucional.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-semibold text-slate-700">Nombre Completo</label>
+              <Input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Ej. Lic. Ana Reyes"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-700">Correo Institucional</label>
+              <Input
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="correo@unah.edu.hn"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-700 block mb-2">Permisos asignados</label>
+              <div className="space-y-2">
+                {PERMISOS_MODERADOR.map((perm) => (
+                  <label key={perm} className="flex items-center gap-3 cursor-pointer">
+                    <Checkbox
+                      checked={newPerms.includes(perm)}
+                      onCheckedChange={() => toggleNewPermiso(perm)}
+                    />
+                    <span className="text-sm text-slate-800">{PERMISO_LABELS[perm]}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={()=>setAddOpen(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-bold text-[#717182] hover:bg-gray-50">Cancelar</button>
-          <button onClick={addModerador} className="flex-1 py-2.5 bg-[#004B87] hover:bg-[#003366] text-white rounded-xl text-sm font-bold transition-colors">Agregar</button>
-        </div>
-      </Modal>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleAddModerador} style={{ backgroundColor: "#004B87" }}>Agregar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Permisos Dialog */}
+      <Dialog
+        open={!!editPermisosModerador}
+        onOpenChange={(v) => !v && setEditPermisosModerador(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[#003366]">
+              <ShieldCheck className="size-5" /> Editar permisos
+            </DialogTitle>
+            <DialogDescription>
+              Modifica los permisos asignados a {editPermisosModerador?.nombre}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            {PERMISOS_MODERADOR.map((perm) => (
+              <label key={perm} className="flex items-center gap-3 cursor-pointer">
+                <Checkbox
+                  checked={editPermisosSelected.includes(perm)}
+                  onCheckedChange={() => togglePermiso(perm)}
+                />
+                <span className="text-sm text-slate-800">{PERMISO_LABELS[perm]}</span>
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditPermisosModerador(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={savePermisos} style={{ backgroundColor: "#004B87" }}>
+              Guardar Cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Desactivar Dialog */}
+      <Dialog
+        open={!!desactivarModerador}
+        onOpenChange={(v) => !v && setDesactivarModerador(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="size-5" /> Desactivar moderador
+            </DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro que deseas desactivar a {desactivarModerador?.nombre}? Podrás reactivarlo en el futuro.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-2">
+            <label className="text-xs font-semibold text-slate-700">Especifica el motivo de la desactivación</label>
+            <Input
+              value={desactivarMotivo}
+              onChange={(e) => setDesactivarMotivo(e.target.value)}
+              placeholder="Ej. Fin de período, cambio de área..."
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDesactivarModerador(null)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={confirmDesactivar}>
+              Confirmar Desactivación
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

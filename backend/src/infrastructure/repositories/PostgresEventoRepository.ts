@@ -6,7 +6,10 @@ export class PostgresEventoRepository implements EventoRepository {
   constructor(private readonly pool: Pool) {}
 
   async findById(id: string): Promise<Evento | null> {
-    const { rows } = await this.pool.query('SELECT * FROM eventos WHERE id = $1', [id]);
+    const { rows } = await this.pool.query(
+      `SELECT e.*, COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count 
+       FROM tabla_grupo_3_eventos e WHERE e.id = $1`, [id]
+    );
     return rows[0] ?? null;
   }
 
@@ -15,18 +18,19 @@ export class PostgresEventoRepository implements EventoRepository {
     const values: unknown[] = [];
     let idx = 1;
 
-    if (filtros.estado) { conditions.push(`estado = $${idx++}`); values.push(filtros.estado); }
-    if (filtros.tutor_id) { conditions.push(`tutor_id = $${idx++}`); values.push(filtros.tutor_id); }
-    if (filtros.categoria) { conditions.push(`categoria = $${idx++}`); values.push(filtros.categoria); }
-    if (filtros.centro_regional) { conditions.push(`centro_regional = $${idx++}`); values.push(filtros.centro_regional); }
-    if (filtros.tipo_evento) { conditions.push(`tipo_evento = $${idx++}`); values.push(filtros.tipo_evento); }
+    if (filtros.estado) { conditions.push(`e.estado = $${idx++}`); values.push(filtros.estado); }
+    if (filtros.tutor_id) { conditions.push(`e.tutor_id = $${idx++}`); values.push(filtros.tutor_id); }
+    if (filtros.categoria) { conditions.push(`e.categoria = $${idx++}`); values.push(filtros.categoria); }
+    if (filtros.centro_regional) { conditions.push(`e.centro_regional = $${idx++}`); values.push(filtros.centro_regional); }
+    if (filtros.tipo_evento) { conditions.push(`e.tipo_evento = $${idx++}`); values.push(filtros.tipo_evento); }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const limit = filtros.limit ?? 50;
     const offset = ((filtros.page ?? 1) - 1) * limit;
 
     const { rows } = await this.pool.query(
-      `SELECT * FROM eventos ${where} ORDER BY fecha_inicio DESC LIMIT $${idx++} OFFSET $${idx++}`,
+      `SELECT e.*, COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count 
+       FROM tabla_grupo_3_eventos e ${where} ORDER BY e.fecha_inicio DESC LIMIT $${idx++} OFFSET $${idx++}`,
       [...values, limit, offset],
     );
     return rows;
@@ -34,7 +38,8 @@ export class PostgresEventoRepository implements EventoRepository {
 
   async findByTutor(tutor_id: string): Promise<Evento[]> {
     const { rows } = await this.pool.query(
-      'SELECT * FROM eventos WHERE tutor_id = $1 ORDER BY created_at DESC',
+      `SELECT e.*, COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count 
+       FROM tabla_grupo_3_eventos e WHERE e.tutor_id = $1 ORDER BY e.created_at DESC`,
       [tutor_id],
     );
     return rows;
@@ -42,14 +47,15 @@ export class PostgresEventoRepository implements EventoRepository {
 
   async findPendientesAprobacion(): Promise<Evento[]> {
     const { rows } = await this.pool.query(
-      "SELECT * FROM eventos WHERE estado = 'PENDIENTE_APROBACION' ORDER BY created_at ASC",
+      `SELECT e.*, COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count 
+       FROM tabla_grupo_3_eventos e WHERE e.estado = 'PENDIENTE_APROBACION' ORDER BY e.created_at ASC`,
     );
     return rows;
   }
 
   async create(data: CrearEventoDto): Promise<Evento> {
     const { rows } = await this.pool.query(
-      `INSERT INTO eventos (titulo, descripcion, categoria, tipo_actividad, tipo_evento, visibilidad,
+      `INSERT INTO tabla_grupo_3_eventos (titulo, descripcion, categoria, tipo_actividad, tipo_evento, visibilidad,
         estado, centro_regional, fecha_inicio, fecha_fin, hora_inicio, hora_fin, ubicacion, latitud,
         longitud, enlace_virtual, cupo_maximo, duracion_horas, tipo_duracion, requiere_inscripcion,
         portada_url, tutor_id)
@@ -73,15 +79,15 @@ export class PostgresEventoRepository implements EventoRepository {
     const values = campos.map((k) => (data as Record<string, unknown>)[k]);
 
     const { rows } = await this.pool.query(
-      `UPDATE eventos SET ${sets}, updated_at = NOW() WHERE id = $1 RETURNING *`,
+      `UPDATE tabla_grupo_3_eventos SET ${sets}, updated_at = NOW() WHERE id = $1 RETURNING *`,
       [id, ...values],
     );
     return rows[0] ?? null;
   }
 
-  async cambiarEstado(id: string, estado: EstadoEvento, datos?: { aprobado_por?: string; motivo_rechazo?: string }): Promise<Evento | null> {
+  async cambiarEstado(id: string, estado: EstadoEvento, datos?: { aprobado_por?: string | number; motivo_rechazo?: string }): Promise<Evento | null> {
     const { rows } = await this.pool.query(
-      `UPDATE eventos SET estado = $2, aprobado_por = $3, motivo_rechazo = $4, updated_at = NOW()
+      `UPDATE tabla_grupo_3_eventos SET estado = $2, aprobado_por = $3, motivo_rechazo = $4, updated_at = NOW()
        WHERE id = $1 RETURNING *`,
       [id, estado, datos?.aprobado_por ?? null, datos?.motivo_rechazo ?? null],
     );
@@ -89,13 +95,13 @@ export class PostgresEventoRepository implements EventoRepository {
   }
 
   async delete(id: string): Promise<boolean> {
-    const { rowCount } = await this.pool.query('DELETE FROM eventos WHERE id = $1', [id]);
+    const { rowCount } = await this.pool.query('DELETE FROM tabla_grupo_3_eventos WHERE id = $1', [id]);
     return (rowCount ?? 0) > 0;
   }
 
   async contarInscripciones(evento_id: string): Promise<number> {
     const { rows } = await this.pool.query(
-      "SELECT COUNT(*) AS total FROM inscripciones WHERE evento_id = $1 AND estado != 'CANCELADA'",
+      "SELECT COUNT(*) AS total FROM tabla_grupo_3_inscripcion WHERE evento_id = $1 AND estado != 'CANCELADA'",
       [evento_id],
     );
     return parseInt(rows[0]?.total ?? '0', 10);
