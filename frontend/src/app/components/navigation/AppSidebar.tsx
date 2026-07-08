@@ -22,9 +22,10 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
     { icon: Bell,          label: "Notificaciones",  path: "/employees/notifications" },
   ],
   tutor: [
-    { icon: Home,          label: "Panel de gestión", path: "/tutor"              },
-    { icon: Rss,           label: "Muro Social",     path: "/tutor/feed"         },
-    { icon: Bell,          label: "Notificaciones",  path: "/employees/notifications" },
+    { icon: Calendar,      label: "Gestión de eventos", path: "/tutor/eventos"      },
+    { icon: History,       label: "Historial",         path: "/tutor/history"      },
+    { icon: Rss,           label: "Muro Social",       path: "/tutor/feed"         },
+    { icon: Bell,          label: "Notificaciones",    path: "/employees/notifications" },
   ],
   admin: [
     { icon: Shield,        label: "Administración",     path: "/admin/administracion" },

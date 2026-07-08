@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 import { RootLayout } from "./components/layouts/RootLayout";
 import { ProtectedRoute } from "./components/guards/ProtectedRoute";
 
@@ -41,6 +41,7 @@ import { SolicitarEvento } from "./pages/student/SolicitarEvento";
 // Grupo 3 — Tutor
 import { LiveEvent } from "./pages/tutor/LiveEvent";
 import { TutorEventos } from "./pages/tutor/TutorEventos";
+import { TutorHistory } from "./pages/tutor/History";
 
 // VOAE
 import { VOAEDashboard } from "./pages/voae/VOAEDashboard";
@@ -109,13 +110,14 @@ export const router = createBrowserRouter([
       ...maintenanceRoutes("student"),
 
       // ── Tutor ─────────────────────────────────────────────
-      { path: "tutor",                  element: P(<TutorDashboard />) },
+      { path: "tutor",                  element: P(<Navigate to="/tutor/eventos" replace />) },
       { path: "tutor/create-event",     element: P(<CreateEvent />) },
       { path: "tutor/event/:eventId",   element: P(<ManageEvent />) },
       { path: "tutor/reports",          element: P(<TutorReports />) },
       { path: "tutor/ficha",             element: P(<FichaEmpleado />) },
       { path: "tutor/live",              element: P(<LiveEvent />) },
       { path: "tutor/eventos",           element: P(<TutorEventos />) },
+      { path: "tutor/history",           element: P(<TutorHistory />) },
       { path: "tutor/feed",              element: P(<SocialFeed />) },
       ...maintenanceRoutes("tutor"),
 
