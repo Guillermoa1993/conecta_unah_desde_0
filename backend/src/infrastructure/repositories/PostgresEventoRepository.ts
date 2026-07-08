@@ -90,9 +90,18 @@ export class PostgresEventoRepository implements EventoRepository {
   async create(data: CrearEventoDto): Promise<Evento> {
     const defaultEstado = 'BORRADOR';
     
-    // Combinar fecha y hora para los campos timestamp de Postgres
-    const startDateTime = new Date(`${data.fecha_inicio}T${data.hora_inicio || '08:00'}`);
-    const endDateTime = new Date(`${data.fecha_fin}T${data.hora_fin || '17:00'}`);
+    // Parsear fecha y hora de forma segura para evitar NaN por doble concatenación con 'T'
+    const startDateTime = String(data.fecha_inicio).includes('T')
+      ? new Date(data.fecha_inicio)
+      : new Date(`${data.fecha_inicio}T${data.hora_inicio || '08:00'}`);
+
+    const endDateTime = String(data.fecha_fin).includes('T')
+      ? new Date(data.fecha_fin)
+      : new Date(`${data.fecha_fin}T${data.hora_fin || '17:00'}`);
+
+    if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+      throw new Error("Formato de fecha u hora no válido (NaN) al intentar registrar el evento.");
+    }
 
     const { rows } = await this.pool.query(
       `INSERT INTO tabla_grupo_3_eventos (
