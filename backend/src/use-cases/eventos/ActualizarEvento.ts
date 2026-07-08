@@ -12,7 +12,8 @@ export class ActualizarEvento {
       throw new Error('No tienes permiso para editar este evento');
     }
 
-    if (['EN_CURSO', 'FINALIZADO', 'RECHAZADO'].includes(evento.estado)) {
+    const keysToEdit = Object.keys(datos).filter(k => k !== 'estado');
+    if (keysToEdit.length > 0 && ['EN_CURSO', 'EN_CURSO_SALIDA', 'FINALIZADO', 'RECHAZADO'].includes(evento.estado)) {
       throw new Error('No se puede editar un evento en ese estado');
     }
 
