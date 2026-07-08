@@ -664,8 +664,14 @@ export function ManageEvent() {
             </Card>
           ) : (
             <Card className="shadow-sm">
-              <CardContent className="py-12 text-center text-muted-foreground text-sm">
-                {event.estado === "PROGRAMADO"
+              <CardContent className="py-12 text-center text-muted-foreground text-sm font-medium">
+                {event.estado === "BORRADOR"
+                  ? "Este evento aún es un borrador. Debes enviarlo a VOAE y esperar su aprobación para poder habilitar el control de asistencia."
+                  : event.estado === "PENDIENTE_APROBACION"
+                  ? "El evento está en revisión por VOAE. Una vez aprobado, podrás iniciar el control de asistencia."
+                  : event.estado === "RECHAZADO"
+                  ? "Este evento fue rechazado. Corrige los detalles para enviarlo a revisión de nuevo."
+                  : event.estado === "PROGRAMADO"
                   ? "Inicia el evento en la parte superior derecha para habilitar el control de asistencia."
                   : "El evento ha finalizado y el control de asistencia ya no está activo."}
               </CardContent>
