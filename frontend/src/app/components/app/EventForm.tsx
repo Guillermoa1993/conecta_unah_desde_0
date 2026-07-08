@@ -89,8 +89,28 @@ interface EventFormProps {
   onClose: () => void;
 }
 
+function getLocalDatePickerValues(isoString: string): { date: string; time: string } {
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return { date: "", time: "" };
+  
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const date = String(d.getDate()).padStart(2, '0');
+  
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  
+  return {
+    date: `${year}-${month}-${date}`,
+    time: `${hours}:${minutes}`
+  };
+}
+
 function buildFormDefaults(user: { name?: string }, initialEvent?: UniEvent): FormData {
   if (initialEvent) {
+    const startVal = getLocalDatePickerValues(initialEvent.fecha_inicio);
+    const endVal = getLocalDatePickerValues(initialEvent.fecha_fin);
+
     return {
       titulo: initialEvent.titulo,
       categoria: initialEvent.categoria,
@@ -102,10 +122,10 @@ function buildFormDefaults(user: { name?: string }, initialEvent?: UniEvent): Fo
       registro_entrada: initialEvent.tipo_evento === "HORAS_VOAE",
       registro_salida: initialEvent.tipo_evento === "HORAS_VOAE",
       tipo_duracion: (initialEvent.tipo_duracion as "TOTALES" | "DIARIAS") || "TOTALES",
-      fecha_inicio: initialEvent.fecha_inicio.slice(0, 10),
-      fecha_fin: initialEvent.fecha_fin.slice(0, 10),
-      hora_inicio: initialEvent.hora_inicio || initialEvent.fecha_inicio.slice(11, 16),
-      hora_fin: initialEvent.hora_fin || initialEvent.fecha_fin.slice(11, 16),
+      fecha_inicio: startVal.date,
+      fecha_fin: endVal.date,
+      hora_inicio: startVal.time,
+      hora_fin: endVal.time,
       ubicacion: (initialEvent as any).ubicacion || initialEvent.lugar || "",
       enlace_virtual: initialEvent.enlace_virtual || "",
       cupo_maximo: String(initialEvent.cupo_maximo),

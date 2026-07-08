@@ -42,6 +42,7 @@ export interface Evento {
   inscritos_count?: number;
   asistencias_count?: number;
   distribucion_horas?: { categoria: string; horas: number }[];
+  imagenes_adicionales?: string[];
 }
 
 export interface CrearEventoDto {
@@ -66,4 +67,5 @@ export interface CrearEventoDto {
   requiere_inscripcion: boolean;
   portada_url?: string;
   tutor_id: string;
+  imagenes_adicionales?: string[];
 }

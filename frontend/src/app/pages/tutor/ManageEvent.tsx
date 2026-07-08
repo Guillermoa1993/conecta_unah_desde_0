@@ -97,6 +97,42 @@ function formatDate(iso: string) {
   });
 }
 
+function formatLocalEventTimeRange(startIso: string, endIso: string): string {
+  const d1 = new Date(startIso);
+  const d2 = new Date(endIso);
+  if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return "N/A";
+  
+  const dateStr = d1.toLocaleDateString("es-HN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  
+  const pad = (n: number) => String(n).padStart(2, '0');
+  
+  const format12h = (d: Date) => {
+    let hours = d.getHours();
+    const minutes = pad(d.getMinutes());
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${hours}:${minutes} ${ampm}`;
+  };
+
+  const timeStr = `${format12h(d1)} - ${format12h(d2)}`;
+  
+  if (d1.toDateString() !== d2.toDateString()) {
+    const endDateStr = d2.toLocaleDateString("es-HN", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+    return `Del ${dateStr} (${format12h(d1)}) al ${endDateStr} (${format12h(d2)})`;
+  }
+  
+  return `${dateStr} (${timeStr})`;
+}
+
 interface TimelineStepProps {
   label: string;
   isCompleted: boolean;
@@ -778,21 +814,49 @@ export function ManageEvent() {
         </TabsContent>
 
         <TabsContent value="detalle">
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-base text-[#003366]">Ficha Técnica del Evento</CardTitle>
+          <Card className="shadow-sm border-slate-200/80 bg-white">
+            <CardHeader className="border-b border-slate-100 pb-3.5">
+              <CardTitle className="text-base text-[#003366] font-bold">Ficha Técnica del Evento</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 text-sm">
-              <div className="grid sm:grid-cols-2 gap-4">
+            <CardContent className="pt-5 space-y-5 text-sm">
+              <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-6">
                 <div>
-                  <span className="text-xs text-muted-foreground font-medium block">Fecha y Hora</span>
-                  <span className="font-semibold text-slate-800">
-                    {formatDate(event.fecha_inicio)} ({event.hora_inicio} - {event.hora_fin})
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Título del evento</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">{event.titulo}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Categorías / Ámbitos</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">
+                    {event.distribucion_horas && event.distribucion_horas.length > 0 ? (
+                      event.distribucion_horas.map((dh: any) => `${CATEGORY_LABEL[dh.categoria] || dh.categoria} (${dh.horas} hrs)`).join(", ")
+                    ) : (
+                      CATEGORY_LABEL[event.categoria] || event.categoria
+                    )}
                   </span>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground font-medium block">Ubicación / Lugar</span>
-                  <span className="font-semibold text-slate-800 flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Tipo de evento</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">
+                    {event.tipo_evento === "HORAS_VOAE" ? "🎓 Horas VOAE" : "🎉 Recreación"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Fecha y Hora</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">
+                    {formatLocalEventTimeRange(event.fecha_inicio, event.fecha_fin)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Tipo de actividad</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">{event.tipo_actividad || "Presencial"}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Centro regional</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">{event.centro_regional || "Ciudad Universitaria"}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Ubicación / Lugar</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 flex items-center gap-1.5">
                     <MapPin className="size-4 text-[#004B87] shrink-0" />
                     {(() => {
                       const loc = event.lugar || event.ubicacion || "No especificado";
@@ -813,9 +877,50 @@ export function ManageEvent() {
                     })()}
                   </span>
                 </div>
-                <div className="sm:col-span-2">
-                  <span className="text-xs text-muted-foreground font-medium block">Descripción</span>
-                  <p className="text-slate-700 leading-relaxed mt-1">{event.descripcion}</p>
+                {event.tipo_actividad !== "Presencial" && event.enlace_virtual && (
+                  <div>
+                    <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Enlace de acceso</span>
+                    <a
+                      href={event.enlace_virtual}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-[#004B87] hover:underline mt-0.5 block truncate"
+                    >
+                      {event.enlace_virtual}
+                    </a>
+                  </div>
+                )}
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Cupo máximo</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">{event.cupo_maximo || 50} estudiantes</span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Audiencia</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">
+                    {event.audiencia === "TODO_PUBLICO"
+                      ? "Todo público"
+                      : event.audiencia === "SOLO_ESTUDIANTES"
+                        ? "Solo estudiantes"
+                        : "Solo empleados"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Registro de entrada</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">{event.registro_entrada ? "Sí" : "No"}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Registro de salida</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">{event.registro_salida ? "Sí" : "No"}</span>
+                </div>
+                {event.duracion_horas > 0 && (
+                  <div>
+                    <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Horas de duración</span>
+                    <span className="font-semibold text-slate-800 mt-0.5 block">{event.duracion_horas} hrs ({event.tipo_duracion === "TOTALES" ? "totales" : "diarias"})</span>
+                  </div>
+                )}
+                <div className="sm:col-span-2 md:col-span-3 border-t border-slate-100 pt-3">
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Descripción del evento</span>
+                  <p className="text-slate-700 leading-relaxed mt-1 bg-slate-50 p-3 rounded-lg border border-slate-100 whitespace-pre-wrap">{event.descripcion}</p>
                 </div>
               </div>
             </CardContent>

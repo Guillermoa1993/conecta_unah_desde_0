@@ -47,6 +47,7 @@ export class PostgresEventoRepository implements EventoRepository {
       inscritos_count: row.inscritos_count ? parseInt(row.inscritos_count, 10) : 0,
       asistencias_count: row.asistencias_count ? parseInt(row.asistencias_count, 10) : 0,
       distribucion_horas: distribucion,
+      imagenes_adicionales: row.imagenes_adicionales || [],
     };
   }
 
@@ -135,9 +136,9 @@ export class PostgresEventoRepository implements EventoRepository {
       `INSERT INTO tabla_grupo_3_eventos (
         titulo, descripcion, categoria, tipo_actividad, estado,
         fecha_inicio, fecha_fin, lugar, enlace_virtual, cupo_maximo,
-        duracion_horas, imagen_url, tutor_id
+        duracion_horas, imagen_url, tutor_id, imagenes_adicionales
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *`,
       [
         data.titulo,
@@ -152,7 +153,8 @@ export class PostgresEventoRepository implements EventoRepository {
         data.cupo_maximo || 50,
         data.duracion_horas || 0,
         data.portada_url || null,
-        data.tutor_id
+        data.tutor_id,
+        data.imagenes_adicionales || []
       ],
     );
     return this.mapRowToEvento(rows[0]);
@@ -180,6 +182,7 @@ export class PostgresEventoRepository implements EventoRepository {
     if (data.cupo_maximo !== undefined) dbData.cupo_maximo = data.cupo_maximo;
     if (data.duracion_horas !== undefined) dbData.duracion_horas = data.duracion_horas;
     if (data.portada_url !== undefined) dbData.imagen_url = data.portada_url;
+    if (data.imagenes_adicionales !== undefined) dbData.imagenes_adicionales = data.imagenes_adicionales;
 
     const campos = Object.keys(dbData);
     if (!campos.length) return this.findById(id);
