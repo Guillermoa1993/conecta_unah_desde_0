@@ -24,7 +24,6 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
   student: [
    
     { icon: Home,          label: "Dashboard",       path: "/student"          },
-    { icon: Rss,           label: "Muro Social",     path: "/student/feed"     },
     { icon: Bell,          label: "Notificaciones",  path: "/employees/notifications" },
   ],
   tutor: [
