@@ -22,7 +22,7 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
     { icon: Bell,          label: "Notificaciones",  path: "/employees/notifications" },
   ],
   tutor: [
-    { icon: Home,          label: "Dashboard",       path: "/tutor"              },
+    { icon: Home,          label: "Panel de gestión", path: "/tutor"              },
     { icon: Rss,           label: "Muro Social",     path: "/tutor/feed"         },
     { icon: Bell,          label: "Notificaciones",  path: "/employees/notifications" },
   ],
@@ -38,7 +38,7 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
     { icon: History,       label: "Bitácora",           path: "/employees/logs"       },
   ],
   voae: [
-    { icon: Home,           label: "Dashboard",         path: "/voae"             },
+    { icon: Home,           label: "Panel de gestión",   path: "/voae"             },
     { icon: Rss,            label: "Muro Social",       path: "/voae/feed"        },
     { icon: FileText,       label: "Reportes Oficiales",path: "/voae/reports"     },
     { icon: ClipboardList,  label: "Registros",         path: "/voae/records"     },
