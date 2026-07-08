@@ -386,7 +386,7 @@ function EventCard({
                   style={{ backgroundColor: "#004B87" }}
                   onClick={() => setPublishConfirm(true)}
                 >
-                  <Send className="size-3.5" /> Confirmar
+                  <Send className="size-3.5" /> Enviar
                 </Button>
                 <Button
                   size="sm"
