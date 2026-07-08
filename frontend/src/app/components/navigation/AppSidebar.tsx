@@ -41,7 +41,7 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
     { icon: Home,           label: "Panel de gestión",   path: "/voae"             },
     { icon: Rss,            label: "Muro Social",       path: "/voae/feed"        },
     { icon: FileText,       label: "Reportes Oficiales",path: "/voae/reports"     },
-    { icon: ClipboardList,  label: "Registros",         path: "/voae/records"     },
+    { icon: ClipboardList,  label: "Histórico de eventos", path: "/voae/records"     },
     { icon: MapPin,         label: "Centros Regionales",path: "/voae/centros"     },
     { icon: ShieldCheck,    label: "Moderadores",       path: "/voae/moderadores" },
     { icon: Bell,           label: "Notificaciones",    path: "/employees/notifications" },
