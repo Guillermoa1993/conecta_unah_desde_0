@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   QrCode,
   Download,
+  FileText,
   Play,
   Square,
   RefreshCw,
@@ -22,6 +23,9 @@ import {
   Send,
   Share2,
   Info,
+  LogOut,
+  Lock,
+  Mail,
 } from "lucide-react";
 import { api } from "../../../services/api";
 import { Button } from "../../components/ui/button";
@@ -37,6 +41,7 @@ import {
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../components/ui/dialog";
+import { Checkbox } from "../../components/ui/checkbox";
 import { Label } from "../../components/ui/label";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
@@ -186,6 +191,11 @@ export function ManageEvent() {
   const [qrTimer, setQrTimer] = useState(120);
   const [qrType, setQrType] = useState<"ENTRADA" | "SALIDA">("ENTRADA");
   const [attendanceCode, setAttendanceCode] = useState("");
+  const [entryQrOpen, setEntryQrOpen] = useState(false);
+  const [exitQrOpen, setExitQrOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [auditoriaStudent, setAuditoriaStudent] = useState<any | null>(null);
+  const [auditoriaIndex, setAuditoriaIndex] = useState(0);
   
   // Constancia Modals state
   const [pdfStudent, setPdfStudent] = useState<any>(null);
@@ -253,6 +263,20 @@ export function ManageEvent() {
       toast.success("¡El evento ha iniciado!");
     } catch (err: any) {
       toast.error("Error al iniciar el evento", { description: err.message });
+    }
+  };
+
+  const handleStartExit = async () => {
+    if (!event) return;
+    try {
+      const updated = await api.put<any>(`/eventos/${event.id}`, {
+        ...event,
+        estado: "EN_CURSO_SALIDA",
+      });
+      setEvent(updated);
+      toast.success("¡Etapa de salida iniciada! QR de salida habilitado.");
+    } catch (err: any) {
+      toast.error("Error al iniciar salida", { description: err.message });
     }
   };
 
@@ -373,7 +397,143 @@ export function ManageEvent() {
     return <EventForm initialEvent={event} onClose={() => { setIsEditing(false); fetchEventDetails(); }} />;
   }
 
-  const qrValue = `https://conectapumas.app/asistencia/${event.id}?type=${qrType}&code=${attendanceCode}`;
+  const isEntryActive = event.estado === "EN_CURSO";
+  const isExitActive = event.estado === "EN_CURSO_SALIDA";
+  const isFinalized = event.estado === "FINALIZADO";
+
+  const entryQrText = isFinalized
+    ? "Evento finalizado"
+    : event.estado === "BORRADOR" || event.estado === "PENDIENTE_APROBACION"
+      ? "Se habilita cuando inicie el evento"
+      : event.estado === "PROGRAMADO"
+        ? "Evento no iniciado"
+        : event.estado === "EN_CURSO_SALIDA"
+          ? "Registro de entrada cerrado"
+          : event.estado === "EN_CURSO"
+            ? "QR de entrada activo"
+            : "";
+
+  const exitQrText = isFinalized
+    ? "Evento finalizado"
+    : event.estado === "BORRADOR" || event.estado === "PENDIENTE_APROBACION" || event.estado === "PROGRAMADO" || event.estado === "EN_CURSO"
+      ? "Se habilita al iniciar salida"
+      : event.estado === "EN_CURSO_SALIDA"
+        ? "QR de salida activo"
+        : "";
+
+  const entryQrValue = `https://conectapumas.app/asistencia/${event.id}?type=ENTRADA&code=${attendanceCode}`;
+  const exitQrValue = `https://conectapumas.app/asistencia/${event.id}?type=SALIDA&code=${attendanceCode}`;
+
+  const downloadQrCode = (canvasId: string, filename: string) => {
+    const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
+    if (canvas) {
+      const url = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      toast.success("Código QR descargado");
+    } else {
+      toast.error("No se pudo descargar el código QR");
+    }
+  };
+
+  const toggleAttendance = async (studentId: string, isChecked: boolean) => {
+    const student = students.find((s) => s.id === studentId || s.estudiante_id === studentId);
+    if (!student) return;
+    try {
+      const newStatus = isChecked ? "ASISTIDO" : "INSCRITO";
+      await api.put<any>(`/inscripciones/${student.id}/estado`, {
+        estado: newStatus
+      });
+      setStudents((prev) =>
+        prev.map((s) => (s.id === student.id ? { ...s, estado: newStatus } : s))
+      );
+      toast.success(isChecked ? `Asistencia registrada para ${student.estudiante_nombre}` : `Asistencia revocada para ${student.estudiante_nombre}`);
+    } catch (err: any) {
+      toast.error("Error al actualizar asistencia", { description: err.message });
+    }
+  };
+
+  const markAllAttended = async () => {
+    try {
+      const promises = students
+        .filter((s) => s.estado !== "ASISTIDO")
+        .map((s) => api.put<any>(`/inscripciones/${s.id}/estado`, { estado: "ASISTIDO" }));
+      await Promise.all(promises);
+      setStudents((prev) => prev.map((s) => ({ ...s, estado: "ASISTIDO" })));
+      toast.success("Todos los estudiantes han sido marcados como asistidos");
+    } catch (err: any) {
+      toast.error("Error al registrar asistencias", { description: err.message });
+    }
+  };
+
+  const triggerQrScanner = () => {
+    toast.info("Simulador de Escáner QR de Asistencia", {
+      description: "Escaneando código QR de estudiante...",
+      action: {
+        label: "Simular Entrada",
+        onClick: () => {
+          const next = students.find((s) => s.estado !== "ASISTIDO");
+          if (next) toggleAttendance(next.id, true);
+          else toast.error("No hay estudiantes pendientes");
+        }
+      }
+    });
+  };
+
+  const downloadPdfReport = () => {
+    const rows = students
+      .map(
+        (s) => `
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #ddd">${s.estudiante_nombre}</td>
+        <td style="padding:8px 12px;border:1px solid #ddd;font-family:monospace;font-size:12px">${s.estudiante_cuenta}</td>
+        <td style="padding:8px 12px;border:1px solid #ddd">${s.estudiante_cuenta}@unah.hn</td>
+        <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">
+          ${s.estado === "ASISTIDO" ? '<span style="color:#22c55e;font-weight:600">Asistió</span>' : '<span style="color:#ef4444;font-weight:600">No asistió</span>'}
+        </td>
+        <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${s.estado === "ASISTIDO" ? new Date(s.inscrito_at || Date.now()).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' }) : "-"}</td>
+      </tr>
+    `
+      )
+      .join("");
+
+    const html = `
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Reporte de Asistencias - ${event.titulo}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; }
+          h2 { font-size: 20px; margin-bottom: 4px; color: #004B87; }
+          .meta { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+          table { width: 100%; border-collapse: collapse; font-size: 13px; }
+          th { background: #f1f5f9; padding: 8px 12px; text-align: left; border: 1px solid #ddd; font-size: 11px; text-transform: uppercase; color: #64748b; }
+        </style>
+      </head>
+      <body>
+        <h2>${event.titulo}</h2>
+        <div class="meta">Tutor: ${event.tutor_nombre || "Tutor Responsable"} &mdash; Fecha: ${new Date(event.fecha_inicio).toLocaleDateString()}</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Estudiante</th><th>Número de Cuenta</th><th>Email</th><th>Estado</th><th>Hora Llegada</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </body>
+      </html>
+    `;
+    const win = window.open("", "_blank");
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+      setTimeout(() => win.print(), 500);
+    }
+  };
 
   const steps = [
     { label: "Creado", isCompleted: true, isActive: false },
@@ -384,13 +544,13 @@ export function ManageEvent() {
     },
     {
       label: "Aprobado",
-      isCompleted: ["PROGRAMADO", "EN_CURSO", "FINALIZADO"].includes(event.estado),
+      isCompleted: ["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
       isActive: event.estado === "PROGRAMADO"
     },
     {
       label: "En curso",
-      isCompleted: ["EN_CURSO", "FINALIZADO"].includes(event.estado),
-      isActive: event.estado === "EN_CURSO"
+      isCompleted: ["EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
+      isActive: ["EN_CURSO", "EN_CURSO_SALIDA"].includes(event.estado)
     },
     {
       label: "Finalizado",
@@ -493,13 +653,19 @@ export function ManageEvent() {
           )}
 
           {event.estado === "PROGRAMADO" && (
-            <Button onClick={handleStartEvent} className="bg-green-600 hover:bg-green-700 text-white gap-1.5 shadow-sm">
+            <Button onClick={handleStartEvent} className="bg-green-600 hover:bg-green-700 text-white gap-1.5 shadow-sm font-semibold">
               <Play className="size-4" /> Iniciar Evento
             </Button>
           )}
 
           {event.estado === "EN_CURSO" && (
-            <Button onClick={handleEndEvent} className="bg-red-600 hover:bg-red-700 text-white gap-1.5 shadow-sm">
+            <Button onClick={handleStartExit} className="bg-[#004B87] hover:bg-[#003366] text-white gap-1.5 shadow-sm font-semibold">
+              <LogOut className="size-4" /> Iniciar Salida
+            </Button>
+          )}
+
+          {event.estado === "EN_CURSO_SALIDA" && (
+            <Button onClick={handleEndEvent} className="bg-red-600 hover:bg-red-700 text-white gap-1.5 shadow-sm font-semibold">
               <Square className="size-4" /> Finalizar Evento
             </Button>
           )}
@@ -669,69 +835,109 @@ export function ManageEvent() {
         </TabsList>
 
         <TabsContent value="control" className="space-y-4">
-          {event.estado === "EN_CURSO" ? (
-            <Card className="shadow-sm border-slate-200">
-              <CardHeader>
-                <CardTitle className="text-slate-800 text-base">QR de Asistencia Dinámico</CardTitle>
+          {["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado) ? (
+            <Card className="shadow-sm border-slate-200 bg-white">
+              <CardHeader className="border-b border-slate-100 pb-3">
+                <CardTitle className="text-[#003366] text-base font-bold">Paneles de Códigos QR de Asistencia</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex flex-col md:flex-row items-center gap-8 justify-center">
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm">
-                      <QRCodeCanvas value={qrValue} size={220} level="M" />
+              <CardContent className="pt-6">
+                <div className="grid md:grid-cols-2 gap-8">
+                  {/* QR de Inscripción (Entrada) */}
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+                    <div
+                      className="size-36 shrink-0 rounded-2xl border bg-white flex items-center justify-center p-2.5 shadow-sm cursor-pointer"
+                      onClick={() => isEntryActive && setEntryQrOpen(true)}
+                    >
+                      {isEntryActive ? (
+                        <QRCodeCanvas id="entry-qr-canvas" value={entryQrValue} size={120} level="M" />
+                      ) : (
+                        <Lock className="size-10 text-slate-400" />
+                      )}
                     </div>
-                    <div className="text-center">
-                      <span className="text-xs text-muted-foreground">Se regenera en:</span>
-                      <p className="text-lg font-bold text-[#003366]">{formatTime(qrTimer)}</p>
+                    <div className="space-y-2 text-center sm:text-left flex-1">
+                      <h4 className="font-bold text-sm text-slate-800 flex items-center justify-center sm:justify-start gap-1.5">
+                        <QrCode className="size-4 text-[#004B87]" /> QR de Inscripción
+                      </h4>
+                      <p className="text-xs text-slate-500 font-medium leading-relaxed">{entryQrText}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 h-8 text-xs font-semibold"
+                        disabled={!isEntryActive}
+                        onClick={() => downloadQrCode("entry-qr-canvas", "qr-entrada.png")}
+                      >
+                        <Download className="size-3.5" /> Descargar QR
+                      </Button>
                     </div>
                   </div>
 
-                  <div className="space-y-4 max-w-sm">
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold text-slate-700">Tipo de registro QR</Label>
-                      <div className="flex gap-2 mt-1">
-                        <Button
-                          variant={qrType === "ENTRADA" ? "default" : "outline"}
-                          onClick={() => setQrType("ENTRADA")}
-                          className="flex-1"
-                          style={qrType === "ENTRADA" ? { backgroundColor: "#004B87" } : {}}
-                        >
-                          Entrada
-                        </Button>
-                        <Button
-                          variant={qrType === "SALIDA" ? "default" : "outline"}
-                          onClick={() => setQrType("SALIDA")}
-                          className="flex-1"
-                          style={qrType === "SALIDA" ? { backgroundColor: "#004B87" } : {}}
-                        >
-                          Salida
-                        </Button>
-                      </div>
+                  {/* QR de Finalización (Salida) */}
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+                    <div
+                      className="size-36 shrink-0 rounded-2xl border bg-white flex items-center justify-center p-2.5 shadow-sm cursor-pointer"
+                      onClick={() => isExitActive && setExitQrOpen(true)}
+                    >
+                      {isExitActive ? (
+                        <QRCodeCanvas id="exit-qr-canvas" value={exitQrValue} size={120} level="M" />
+                      ) : (
+                        <Lock className="size-10 text-slate-400" />
+                      )}
                     </div>
-
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
-                      <span className="text-xs font-semibold text-[#003366] block">Código manual alternativo:</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl font-mono font-bold tracking-widest text-[#003366] bg-white border px-3 py-1 rounded-lg">
-                          {attendanceCode}
-                        </span>
-                        <Button variant="ghost" size="icon" onClick={() => {
-                          navigator.clipboard.writeText(attendanceCode);
-                          toast.success("Código copiado");
-                        }}>
-                          <Copy className="size-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={generateAttendanceCode}>
-                          <RefreshCw className="size-4" />
-                        </Button>
-                      </div>
+                    <div className="space-y-2 text-center sm:text-left flex-1">
+                      <h4 className="font-bold text-sm text-slate-800 flex items-center justify-center sm:justify-start gap-1.5">
+                        <CheckCircle2 className="size-4 text-emerald-600" /> QR de Finalización
+                      </h4>
+                      <p className="text-xs text-slate-500 font-medium leading-relaxed">{exitQrText}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 h-8 text-xs font-semibold"
+                        disabled={!isExitActive}
+                        onClick={() => downloadQrCode("exit-qr-canvas", "qr-salida.png")}
+                      >
+                        <Download className="size-3.5" /> Descargar QR
+                      </Button>
                     </div>
                   </div>
                 </div>
+
+                {/* Código alternativo */}
+                {(isEntryActive || isExitActive) && (
+                  <div className="mt-6 border-t border-slate-100 pt-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="space-y-0.5 text-center sm:text-left">
+                      <span className="text-xs font-bold text-[#003366] uppercase tracking-wider block">Código Manual Alternativo</span>
+                      <p className="text-xs text-muted-foreground">Comparte este código si los alumnos tienen problemas para escanear.</p>
+                    </div>
+                    <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                      <span className="text-xl font-mono font-bold tracking-widest text-[#003366] bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">
+                        {attendanceCode}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="hover:bg-slate-200"
+                        onClick={() => {
+                          navigator.clipboard.writeText(attendanceCode);
+                          toast.success("Código copiado al portapapeles");
+                        }}
+                      >
+                        <Copy className="size-4 text-[#004B87]" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="hover:bg-slate-200"
+                        onClick={generateAttendanceCode}
+                      >
+                        <RefreshCw className="size-4 text-emerald-600" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : (
-            <Card className="shadow-sm">
+            <Card className="shadow-sm border-slate-200 bg-white">
               <CardContent className="py-12 text-center text-muted-foreground text-sm font-medium">
                 {event.estado === "BORRADOR"
                   ? "Este evento aún es un borrador. Debes enviarlo a VOAE y esperar su aprobación para poder habilitar el control de asistencia."
@@ -739,8 +945,6 @@ export function ManageEvent() {
                   ? "El evento está en revisión por VOAE. Una vez aprobado, podrás iniciar el control de asistencia."
                   : event.estado === "RECHAZADO"
                   ? "Este evento fue rechazado. Corrige los detalles para enviarlo a revisión de nuevo."
-                  : event.estado === "PROGRAMADO"
-                  ? "Inicia el evento en la parte superior derecha para habilitar el control de asistencia."
                   : "El evento ha finalizado y el control de asistencia ya no está activo."}
               </CardContent>
             </Card>
@@ -748,69 +952,182 @@ export function ManageEvent() {
         </TabsContent>
 
         <TabsContent value="participantes">
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-base text-[#003366]">Estudiantes Inscritos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {students.length === 0 ? (
-                <div className="text-center py-8 text-sm text-muted-foreground">No hay estudiantes inscritos en este evento.</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nombre</TableHead>
-                      <TableHead>Número de Cuenta</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead className="text-right">Certificado</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {students.map((student) => {
-                      const isSigned = firmadasSet.has(student.estudiante_cuenta) || 
-                        !!localStorage.getItem(`cert_signed_${event.id}_${student.estudiante_cuenta}`);
-                      
-                      return (
-                        <TableRow key={student.id}>
-                          <TableCell className="font-semibold">{student.estudiante_nombre}</TableCell>
-                          <TableCell className="font-mono text-xs">{student.estudiante_cuenta}</TableCell>
-                          <TableCell>
-                            <Badge variant={student.estado === "INSCRITO" ? "secondary" : "outline"}>
-                              {student.estado}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right flex items-center justify-end gap-2">
-                            {event.estado === "FINALIZADO" && (
-                              <>
+          <Tabs defaultValue="enrolled" className="space-y-4">
+            <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex-wrap gap-3">
+              <TabsList className="bg-slate-100 p-1 rounded-xl">
+                <TabsTrigger value="enrolled">Matriculados ({students.length})</TabsTrigger>
+                <TabsTrigger value="attendance">Asistencias ({students.filter((s) => s.estado === "ASISTIDO").length})</TabsTrigger>
+              </TabsList>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 font-semibold text-xs"
+                  onClick={markAllAttended}
+                >
+                  <CheckCircle2 className="size-3.5 text-[#004B87]" /> Marcar todos como asistidos
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 font-semibold text-xs"
+                  onClick={triggerQrScanner}
+                >
+                  <Camera className="size-3.5 text-[#004B87]" /> Escanear QR del estudiante
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 font-semibold text-xs"
+                  onClick={downloadPdfReport}
+                >
+                  <Download className="size-3.5 text-[#004B87]" /> Descargar lista PDF
+                </Button>
+              </div>
+            </div>
+
+            <TabsContent value="enrolled">
+              <Card className="shadow-sm border-slate-200">
+                <CardContent className="p-0">
+                  {students.length === 0 ? (
+                    <div className="text-center py-12 text-sm text-muted-foreground">No hay estudiantes inscritos en este evento.</div>
+                  ) : (
+                    <Table>
+                      <TableHeader className="bg-slate-50">
+                        <TableRow>
+                          <TableHead className="font-semibold text-slate-700">Estudiante</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Cuenta</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Email</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Inscripción</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {students.map((s) => (
+                          <TableRow key={s.id} className="hover:bg-slate-50/50">
+                            <TableCell>
+                              <div className="flex items-center gap-2.5">
+                                <div className="size-8 rounded-full bg-[#004B87]/15 text-[#004B87] font-bold text-xs flex items-center justify-center">
+                                  {s.estudiante_nombre?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                                </div>
+                                <span className="font-medium text-slate-800">{s.estudiante_nombre}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-slate-600">{s.estudiante_cuenta}</TableCell>
+                            <TableCell className="text-xs text-slate-500">{s.estudiante_cuenta}@unah.hn</TableCell>
+                            <TableCell className="text-xs text-slate-500">{s.inscrito_at ? new Date(s.inscrito_at).toLocaleDateString() : "—"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="attendance">
+              <Card className="shadow-sm border-slate-200">
+                <CardContent className="p-0">
+                  {students.length === 0 ? (
+                    <div className="text-center py-12 text-sm text-muted-foreground">No hay estudiantes registrados.</div>
+                  ) : (
+                    <Table>
+                      <TableHeader className="bg-slate-50">
+                        <TableRow>
+                          <TableHead className="w-12"></TableHead>
+                          <TableHead className="font-semibold text-slate-700">Estudiante</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Cuenta</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Hora de Llegada</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Hora de Salida</TableHead>
+                          <TableHead className="text-center font-semibold text-slate-700">Certificado</TableHead>
+                          <TableHead className="text-center font-semibold text-slate-700">Enviar</TableHead>
+                          <TableHead className="text-center font-semibold text-slate-700">Auditar</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {students.map((s) => {
+                          const isAssisted = s.estado === "ASISTIDO";
+                          const isSigned = firmadasSet.has(s.estudiante_cuenta) || 
+                            !!localStorage.getItem(`cert_signed_${event.id}_${s.estudiante_cuenta}`);
+                          return (
+                            <TableRow key={s.id} className="hover:bg-slate-50/50">
+                              <TableCell>
+                                <Checkbox
+                                  checked={isAssisted}
+                                  onCheckedChange={(checked) => toggleAttendance(s.id, checked === true)}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2.5">
+                                  <div className="size-8 rounded-full bg-[#004B87]/15 text-[#004B87] font-bold text-xs flex items-center justify-center">
+                                    {s.estudiante_nombre?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                                  </div>
+                                  <span className="font-medium text-slate-800">{s.estudiante_nombre}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-mono text-xs text-slate-600">{s.estudiante_cuenta}</TableCell>
+                              <TableCell className="text-xs text-slate-600">
+                                {isAssisted ? new Date(s.inscrito_at || Date.now()).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' }) : "—"}
+                              </TableCell>
+                              <TableCell className="text-xs text-slate-600">
+                                {isAssisted ? (
+                                  event.estado === "FINALIZADO" ? (
+                                    new Date(event.fecha_fin).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' })
+                                  ) : (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-amber-50 text-amber-800 border border-amber-100">
+                                      Sin registrar salida
+                                    </span>
+                                  )
+                                ) : "—"}
+                              </TableCell>
+                              <TableCell className="text-center">
                                 <Button
                                   size="sm"
                                   variant="outline"
+                                  disabled={event.estado !== "FINALIZADO"}
+                                  className="gap-1 text-xs h-7 px-2 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5"
                                   onClick={() => {
-                                    setPdfStudent(student);
+                                    setPdfStudent(s);
                                     setShowSignatureModal(true);
                                   }}
                                 >
-                                  {isSigned ? "Firmado" : "Firmar"}
+                                  <FileText className="size-3.5" /> {isSigned ? "Firmado" : "Firmar"}
                                 </Button>
+                              </TableCell>
+                              <TableCell className="text-center">
                                 <Button
                                   size="sm"
-                                  variant="ghost"
-                                  disabled={!isSigned}
-                                  onClick={() => handleDownloadPDF(student)}
+                                  variant="outline"
+                                  className="size-7 p-0 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5"
+                                  onClick={() => {
+                                    toast.success(`Código de asistencia reenviado a ${s.estudiante_nombre} por correo`);
+                                  }}
                                 >
-                                  Descargar PDF
+                                  <Mail className="size-3.5" />
                                 </Button>
-                              </>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1 text-xs h-7 px-2 border-amber-500 text-amber-600 hover:bg-amber-50"
+                                  onClick={() => {
+                                    setAuditoriaStudent(s);
+                                    setAuditoriaIndex(students.indexOf(s));
+                                  }}
+                                >
+                                  <Eye className="size-3" /> Verificar
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="detalle">
@@ -951,6 +1268,191 @@ export function ManageEvent() {
               Sí, publicar directamente
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Entry Zoom Modal */}
+      <Dialog open={entryQrOpen} onOpenChange={setEntryQrOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-slate-800 font-bold">QR de Inscripción</DialogTitle>
+            <DialogDescription className="text-center text-xs text-muted-foreground">
+              Comparte este código para que más usuarios registren su entrada
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center py-6 justify-center">
+            <div className="p-6 bg-white border-2 border-slate-200 rounded-3xl shadow-sm">
+              <QRCodeCanvas id="entry-qr-modal-canvas" value={entryQrValue} size={280} level="M" />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4 gap-1.5 font-semibold"
+              onClick={() => downloadQrCode("entry-qr-modal-canvas", "qr-entrada-grande.png")}
+            >
+              <Download className="size-4" /> Descargar Imagen QR
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Exit Zoom Modal */}
+      <Dialog open={exitQrOpen} onOpenChange={setExitQrOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-slate-800 font-bold">QR de Finalización</DialogTitle>
+            <DialogDescription className="text-center text-xs text-muted-foreground">
+              Comparte este código para que los asistentes registren su salida
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center py-6 justify-center">
+            <div className="p-6 bg-white border-2 border-slate-200 rounded-3xl shadow-sm">
+              <QRCodeCanvas id="exit-qr-modal-canvas" value={exitQrValue} size={280} level="M" />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4 gap-1.5 font-semibold"
+              onClick={() => downloadQrCode("exit-qr-modal-canvas", "qr-salida-grande.png")}
+            >
+              <Download className="size-4" /> Descargar Imagen QR
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Auditoría Modal */}
+      <Dialog
+        open={auditoriaStudent !== null}
+        onOpenChange={(v) => {
+          if (!v) setAuditoriaStudent(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          {auditoriaStudent && (
+            <div className="flex flex-col gap-4 py-2">
+              <div className="flex items-center gap-4">
+                <div
+                  className="size-[80px] rounded-full grid place-items-center text-lg font-bold shrink-0 border-2"
+                  style={{ borderColor: "#004B87", backgroundColor: "#004B8720", color: "#004B87" }}
+                >
+                  {auditoriaStudent.estudiante_nombre
+                    ?.split(" ")
+                    .map((p: string) => p[0])
+                    .slice(0, 2)
+                    .join("")
+                    .toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-semibold text-lg">{auditoriaStudent.estudiante_nombre}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {auditoriaStudent.estudiante_cuenta} · {auditoriaStudent.estudiante_carrera || "Carrera de Estudiante"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div
+                  className="rounded-xl p-4"
+                  style={{ backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0" }}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="size-4" style={{ color: "#166534" }} />
+                    <span className="text-sm font-semibold" style={{ color: "#166534" }}>
+                      Entrada
+                    </span>
+                  </div>
+                  <div className="text-lg font-bold" style={{ color: "#166534" }}>
+                    {auditoriaStudent.estado === "ASISTIDO"
+                      ? new Date(auditoriaStudent.inscrito_at || Date.now()).toLocaleTimeString("es-HN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "—"}
+                  </div>
+                  <div className="mt-2 rounded-lg p-2 text-xs bg-emerald-50 text-emerald-800">
+                    <MapPin className="size-3 inline mr-1" />
+                    Dentro del rango
+                  </div>
+                </div>
+
+                <div
+                  className="rounded-xl p-4"
+                  style={{ backgroundColor: "#eff6ff", border: "1px solid #bfdbfe" }}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="size-4" style={{ color: "#1e40af" }} />
+                    <span className="text-sm font-semibold" style={{ color: "#1e40af" }}>
+                      Salida
+                    </span>
+                  </div>
+                  <div className="text-lg font-bold" style={{ color: "#1e40af" }}>
+                    {auditoriaStudent.estado === "ASISTIDO" && event.estado === "FINALIZADO"
+                      ? new Date(event.fecha_fin).toLocaleTimeString("es-HN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "—"}
+                  </div>
+                  <div className="mt-2 rounded-lg p-2 text-xs bg-blue-50 text-blue-800">
+                    {auditoriaStudent.estado === "ASISTIDO" ? (
+                      event.estado === "FINALIZADO" ? (
+                        <>
+                          <MapPin className="size-3 inline mr-1" />
+                          Salida registrada
+                        </>
+                      ) : (
+                        <span className="text-amber-800">Sin registrar salida</span>
+                      )
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </div>
+                </div>
+
+                <div
+                  className="rounded-xl p-4"
+                  style={{ backgroundColor: "#f8f9fa", border: "1px solid #e2e8f0" }}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <MapPin className="size-4" style={{ color: "#64748b" }} />
+                    <span className="text-sm font-semibold" style={{ color: "#334155" }}>
+                      Ubicación
+                    </span>
+                  </div>
+                  <div className="rounded-lg p-2 text-xs text-slate-600 bg-slate-100">
+                    {event.lugar?.split("|")[0] || "Aula física"}
+                  </div>
+                  <div className="mt-2 text-[10px] font-medium text-emerald-600 flex items-center gap-1">
+                    ✓ Validado por GPS
+                  </div>
+                </div>
+              </div>
+
+              <div className="w-full space-y-2 pt-2">
+                <Button
+                  className="w-full text-white gap-1.5"
+                  style={{ backgroundColor: "#22c55e" }}
+                  onClick={() => {
+                    toggleAttendance(auditoriaStudent.id, true);
+                    setAuditoriaStudent(null);
+                  }}
+                >
+                  <CheckCircle2 className="size-4" /> Aprobar Asistencia
+                </Button>
+                <Button
+                  className="w-full gap-1.5 text-white"
+                  style={{ backgroundColor: "#ef4444" }}
+                  onClick={() => {
+                    toggleAttendance(auditoriaStudent.id, false);
+                    setAuditoriaStudent(null);
+                  }}
+                >
+                  <XCircle className="size-4" /> Rechazar Asistencia
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

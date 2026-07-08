@@ -7,6 +7,7 @@ export type EstadoEvento =
   | 'PENDIENTE_APROBACION'
   | 'PROGRAMADO'
   | 'EN_CURSO'
+  | 'EN_CURSO_SALIDA'
   | 'FINALIZADO'
   | 'RECHAZADO';
 export type TipoDuracion = 'TOTALES' | 'DIARIAS';

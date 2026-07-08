@@ -9,6 +9,7 @@ export function inscripcionRouter(ctrl: InscripcionController): Router {
   r.get('/evento/:eventoId', autenticar, autorizar('TUTOR', 'VOAE', 'ADMIN'), ctrl.getByEvento);
   r.post('/evento/:eventoId', autenticar, autorizar('ESTUDIANTE'), ctrl.inscribir);
   r.delete('/evento/:eventoId', autenticar, autorizar('ESTUDIANTE'), ctrl.cancelar);
+  r.put('/:id/estado', autenticar, autorizar('TUTOR', 'VOAE', 'ADMIN'), ctrl.cambiarEstado);
 
   return r;
 }

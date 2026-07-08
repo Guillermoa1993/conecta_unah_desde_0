@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { EventoRepository, FiltrosEvento } from '../../domain/repositories/EventoRepository';
-import { Evento, CrearEventoDto, EstadoEvento } from '../../domain/entities/Evento';
+import { Evento, CrearEventoDto, EstadoEvento, TipoEvento } from '../../domain/entities/Evento';
 
 export class PostgresEventoRepository implements EventoRepository {
   constructor(private readonly pool: Pool) {}
@@ -44,7 +44,7 @@ export class PostgresEventoRepository implements EventoRepository {
       descripcion: desc,
       categoria: row.categoria,
       tipo_actividad: row.tipo_actividad,
-      tipo_evento: tipo_evento,
+      tipo_evento: tipo_evento as TipoEvento,
       visibilidad: "PUBLICO",
       estado: row.estado,
       centro_regional: "Ciudad Universitaria", // Centro por defecto ya que no existe columna física en BD
