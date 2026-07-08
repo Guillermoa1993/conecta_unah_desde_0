@@ -4,7 +4,7 @@ import {
   Home, Calendar, QrCode, History, Plus, BarChart3, Users, Settings,
   Shield, FileText, MessageSquare, ChevronDown, ChevronUp,
   GraduationCap, MapPin, Bell, LogOut, Rss, KeyRound, User,
-  Wifi, ShieldCheck, ClipboardList, SendHorizonal,
+  Wifi, ShieldCheck, ClipboardList, SendHorizonal, Database,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
@@ -39,6 +39,7 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
     { icon: Settings, label: "Permisos", path: "/admin/permissions" },
     { icon: Calendar,      label: "Gestión de Eventos", path: "/admin/events"         },
     { icon: MessageSquare, label: "Comentarios",        path: "/admin/comments"       },
+    { icon: Database,      label: "Respaldo",           path: "/admin/backup"         },
     { icon: BarChart3,     label: "Reportes",           path: "/tutor/reports"        },
     { icon: Bell,          label: "Notificaciones",     path: "/employees/notifications" },
     { icon: History,  label: "Bitácora", path: "/employees/logs"    },
