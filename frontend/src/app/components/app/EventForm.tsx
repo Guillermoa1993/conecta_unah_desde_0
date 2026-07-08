@@ -1090,7 +1090,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
               <span className="text-muted-foreground">Categorías:</span>{" "}
               {categoriasHoras
                 .filter((ch) => ch.checked)
-                .map((ch) => CATEGORY_LABEL_LONG[ch.categoria])
+                .map((ch) => `${CATEGORY_LABEL_LONG[ch.categoria]}${data.tipo_evento === "HORAS_VOAE" ? ` (${ch.horas} hrs)` : ""}`)
                 .join(", ") || "—"}
             </div>
             <div>

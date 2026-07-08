@@ -41,6 +41,7 @@ export interface Evento {
   updated_at: Date;
   inscritos_count?: number;
   asistencias_count?: number;
+  distribucion_horas?: { categoria: string; horas: number }[];
 }
 
 export interface CrearEventoDto {

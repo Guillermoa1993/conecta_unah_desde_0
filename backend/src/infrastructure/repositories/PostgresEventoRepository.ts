@@ -6,10 +6,22 @@ export class PostgresEventoRepository implements EventoRepository {
   constructor(private readonly pool: Pool) {}
 
   private mapRowToEvento(row: any): Evento {
+    let desc = row.descripcion || "";
+    let distribucion: any[] = [];
+    if (desc.includes("\n---DISTRIBUCION_HORAS---")) {
+      const parts = desc.split("\n---DISTRIBUCION_HORAS---");
+      desc = parts[0];
+      try {
+        distribucion = JSON.parse(parts[1]);
+      } catch (e) {
+        distribucion = [];
+      }
+    }
+
     return {
       id: String(row.id),
       titulo: row.titulo,
-      descripcion: row.descripcion,
+      descripcion: desc,
       categoria: row.categoria,
       tipo_actividad: row.tipo_actividad,
       tipo_evento: parseFloat(row.duracion_horas) > 0 ? "HORAS_VOAE" : "RECREACION",
@@ -34,6 +46,7 @@ export class PostgresEventoRepository implements EventoRepository {
       updated_at: row.updated_at,
       inscritos_count: row.inscritos_count ? parseInt(row.inscritos_count, 10) : 0,
       asistencias_count: row.asistencias_count ? parseInt(row.asistencias_count, 10) : 0,
+      distribucion_horas: distribucion,
     };
   }
 
@@ -113,6 +126,11 @@ export class PostgresEventoRepository implements EventoRepository {
       throw new Error("Formato de fecha u hora no válido (NaN) al intentar registrar el evento.");
     }
 
+    let finalDesc = data.descripcion || "";
+    if ((data as any).distribucion_horas) {
+      finalDesc += "\n---DISTRIBUCION_HORAS---" + JSON.stringify((data as any).distribucion_horas);
+    }
+
     const { rows } = await this.pool.query(
       `INSERT INTO tabla_grupo_3_eventos (
         titulo, descripcion, categoria, tipo_actividad, estado,
@@ -123,7 +141,7 @@ export class PostgresEventoRepository implements EventoRepository {
       RETURNING *`,
       [
         data.titulo,
-        data.descripcion,
+        finalDesc,
         data.categoria,
         data.tipo_actividad,
         defaultEstado,
@@ -143,7 +161,13 @@ export class PostgresEventoRepository implements EventoRepository {
   async update(id: string, data: Partial<Evento>): Promise<Evento | null> {
     const dbData: Record<string, any> = {};
     if (data.titulo !== undefined) dbData.titulo = data.titulo;
-    if (data.descripcion !== undefined) dbData.descripcion = data.descripcion;
+    if (data.descripcion !== undefined) {
+      let finalDesc = data.descripcion || "";
+      if (data.distribucion_horas !== undefined) {
+        finalDesc += "\n---DISTRIBUCION_HORAS---" + JSON.stringify(data.distribucion_horas);
+      }
+      dbData.descripcion = finalDesc;
+    }
     if (data.categoria !== undefined) dbData.categoria = data.categoria;
     if (data.tipo_actividad !== undefined) dbData.tipo_actividad = data.tipo_actividad;
     if (data.estado !== undefined) dbData.estado = data.estado;

@@ -36,7 +36,7 @@ import {
 } from "../../components/ui/table";
 import { Badge } from "../../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../components/ui/dialog";
 import { Label } from "../../components/ui/label";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
@@ -129,6 +129,22 @@ export function ManageEvent() {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
+
+  const handlePublishDirect = async () => {
+    if (!event) return;
+    try {
+      const updated = await api.put<any>(`/eventos/${event.id}`, {
+        ...event,
+        estado: "PROGRAMADO",
+      });
+      setEvent(updated);
+      toast.success("¡Evento publicado con éxito!");
+      setPublishConfirmOpen(false);
+    } catch (err: any) {
+      toast.error("Error al publicar el evento", { description: err.message });
+    }
+  };
   
   // Controls state
   const [qrTimer, setQrTimer] = useState(120);
@@ -385,13 +401,29 @@ export function ManageEvent() {
               >
                 <Pen className="size-4" /> Editar
               </Button>
-              <Button
-                size="sm"
-                onClick={handleSendToVoae}
-                className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shadow-sm"
-              >
-                <Send className="size-4" /> Enviar a VOAE
-              </Button>
+              {(() => {
+                const isRecreacion = event.tipo_evento === "RECREACION" || event.tipo_evento === "SIN_HORAS" || parseFloat(event.duracion_horas) === 0;
+                if (isRecreacion) {
+                  return (
+                    <Button
+                      size="sm"
+                      onClick={() => setPublishConfirmOpen(true)}
+                      className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shadow-sm font-semibold"
+                    >
+                      <CheckCircle2 className="size-4" /> Publicar
+                    </Button>
+                  );
+                }
+                return (
+                  <Button
+                    size="sm"
+                    onClick={handleSendToVoae}
+                    className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shadow-sm"
+                  >
+                    <Send className="size-4" /> Enviar a VOAE
+                  </Button>
+                );
+              })()}
               <Button
                 variant="outline"
                 size="sm"
@@ -799,6 +831,30 @@ export function ManageEvent() {
           onConfirm={handleConfirmSignature}
         />
       )}
+
+      {/* Direct publish confirmation modal */}
+      <Dialog open={publishConfirmOpen} onOpenChange={setPublishConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 font-bold">¿Estás seguro de publicar este evento?</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground mt-2">
+              Al ser un evento de recreación (sin horas VOAE), no requiere revisión de VOAE y se publicará directamente como programado para los estudiantes.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 mt-4">
+            <Button variant="outline" onClick={() => setPublishConfirmOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="text-white"
+              style={{ backgroundColor: "#004B87" }}
+              onClick={handlePublishDirect}
+            >
+              Sí, publicar directamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
