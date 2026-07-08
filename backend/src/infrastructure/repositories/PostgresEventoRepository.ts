@@ -32,12 +32,16 @@ export class PostgresEventoRepository implements EventoRepository {
       motivo_rechazo: row.motivo_rechazo || undefined,
       created_at: row.created_at,
       updated_at: row.updated_at,
+      inscritos_count: row.inscritos_count ? parseInt(row.inscritos_count, 10) : 0,
+      asistencias_count: row.asistencias_count ? parseInt(row.asistencias_count, 10) : 0,
     };
   }
 
   async findById(id: string): Promise<Evento | null> {
     const { rows } = await this.pool.query(
-      `SELECT e.*, COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count 
+      `SELECT e.*, 
+              COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
+              COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado = 'ASISTIDO'), 0) AS asistencias_count 
        FROM tabla_grupo_3_eventos e WHERE e.id = $1`, [id]
     );
     return rows[0] ? this.mapRowToEvento(rows[0]) : null;
@@ -57,7 +61,9 @@ export class PostgresEventoRepository implements EventoRepository {
     const offset = ((filtros.page ?? 1) - 1) * limit;
 
     const { rows } = await this.pool.query(
-      `SELECT e.*, COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count 
+      `SELECT e.*, 
+              COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
+              COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado = 'ASISTIDO'), 0) AS asistencias_count 
        FROM tabla_grupo_3_eventos e ${where} ORDER BY e.fecha_inicio DESC LIMIT $${idx++} OFFSET $${idx++}`,
       [...values, limit, offset],
     );
@@ -72,7 +78,9 @@ export class PostgresEventoRepository implements EventoRepository {
 
   async findByTutor(tutor_id: string): Promise<Evento[]> {
     const { rows } = await this.pool.query(
-      `SELECT e.*, COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count 
+      `SELECT e.*, 
+              COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
+              COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado = 'ASISTIDO'), 0) AS asistencias_count 
        FROM tabla_grupo_3_eventos e WHERE e.tutor_id = $1 ORDER BY e.created_at DESC`,
       [tutor_id],
     );
@@ -81,7 +89,9 @@ export class PostgresEventoRepository implements EventoRepository {
 
   async findPendientesAprobacion(): Promise<Evento[]> {
     const { rows } = await this.pool.query(
-      `SELECT e.*, COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count 
+      `SELECT e.*, 
+              COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
+              COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado = 'ASISTIDO'), 0) AS asistencias_count 
        FROM tabla_grupo_3_eventos e WHERE e.estado = 'PENDIENTE_APROBACION' ORDER BY e.created_at ASC`,
     );
     return rows.map(r => this.mapRowToEvento(r));

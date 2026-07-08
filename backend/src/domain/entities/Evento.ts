@@ -39,6 +39,8 @@ export interface Evento {
   motivo_rechazo?: string;
   created_at: Date;
   updated_at: Date;
+  inscritos_count?: number;
+  asistencias_count?: number;
 }
 
 export interface CrearEventoDto {
