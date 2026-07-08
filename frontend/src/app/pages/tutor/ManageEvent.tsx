@@ -904,14 +904,7 @@ export function ManageEvent() {
                         : "Solo empleados"}
                   </span>
                 </div>
-                <div>
-                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Registro de entrada</span>
-                  <span className="font-semibold text-slate-800 mt-0.5 block">{event.registro_entrada ? "Sí" : "No"}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Registro de salida</span>
-                  <span className="font-semibold text-slate-800 mt-0.5 block">{event.registro_salida ? "Sí" : "No"}</span>
-                </div>
+
                 {event.duracion_horas > 0 && (
                   <div>
                     <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Horas de duración</span>

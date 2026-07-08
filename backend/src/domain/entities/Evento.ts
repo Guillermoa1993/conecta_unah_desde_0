@@ -43,6 +43,9 @@ export interface Evento {
   asistencias_count?: number;
   distribucion_horas?: { categoria: string; horas: number }[];
   imagenes_adicionales?: string[];
+  audiencia?: string;
+  registro_entrada?: boolean;
+  registro_salida?: boolean;
 }
 
 export interface CrearEventoDto {
@@ -68,4 +71,7 @@ export interface CrearEventoDto {
   portada_url?: string;
   tutor_id: string;
   imagenes_adicionales?: string[];
+  audiencia?: string;
+  registro_entrada?: boolean;
+  registro_salida?: boolean;
 }

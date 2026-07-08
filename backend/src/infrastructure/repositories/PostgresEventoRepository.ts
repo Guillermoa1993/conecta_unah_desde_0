@@ -8,7 +8,23 @@ export class PostgresEventoRepository implements EventoRepository {
   private mapRowToEvento(row: any): Evento {
     let desc = row.descripcion || "";
     let distribucion: any[] = [];
-    if (desc.includes("\n---DISTRIBUCION_HORAS---")) {
+    let audiencia = "TODO_PUBLICO";
+    let registro_entrada = true;
+    let registro_salida = true;
+
+    if (desc.includes("\n---EVENTO_METADATA---")) {
+      const parts = desc.split("\n---EVENTO_METADATA---");
+      desc = parts[0];
+      try {
+        const meta = JSON.parse(parts[1]);
+        distribucion = meta.distribucion_horas || [];
+        audiencia = meta.audiencia || "TODO_PUBLICO";
+        registro_entrada = meta.registro_entrada !== undefined ? meta.registro_entrada : true;
+        registro_salida = meta.registro_salida !== undefined ? meta.registro_salida : true;
+      } catch (e) {
+        distribucion = [];
+      }
+    } else if (desc.includes("\n---DISTRIBUCION_HORAS---")) {
       const parts = desc.split("\n---DISTRIBUCION_HORAS---");
       desc = parts[0];
       try {
@@ -30,8 +46,8 @@ export class PostgresEventoRepository implements EventoRepository {
       centro_regional: "Ciudad Universitaria", // Centro por defecto ya que no existe columna física en BD
       fecha_inicio: row.fecha_inicio,
       fecha_fin: row.fecha_fin,
-      hora_inicio: row.fecha_inicio ? new Date(row.fecha_inicio).toTimeString().slice(0, 5) : "08:00",
-      hora_fin: row.fecha_fin ? new Date(row.fecha_fin).toTimeString().slice(0, 5) : "17:00",
+      hora_inicio: row.fecha_inicio ? row.fecha_inicio.slice(11, 16) : "08:00",
+      hora_fin: row.fecha_fin ? row.fecha_fin.slice(11, 16) : "17:00",
       ubicacion: row.lugar || "",
       enlace_virtual: row.enlace_virtual || "",
       cupo_maximo: row.cupo_maximo || 50,
@@ -48,12 +64,17 @@ export class PostgresEventoRepository implements EventoRepository {
       asistencias_count: row.asistencias_count ? parseInt(row.asistencias_count, 10) : 0,
       distribucion_horas: distribucion,
       imagenes_adicionales: row.imagenes_adicionales || [],
+      audiencia: audiencia,
+      registro_entrada: registro_entrada,
+      registro_salida: registro_salida,
     };
   }
 
   async findById(id: string): Promise<Evento | null> {
     const { rows } = await this.pool.query(
       `SELECT e.*, 
+              TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
+              TO_CHAR(e.fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado = 'ASISTIDO'), 0) AS asistencias_count 
        FROM tabla_grupo_3_eventos e WHERE e.id = $1`, [id]
@@ -76,6 +97,8 @@ export class PostgresEventoRepository implements EventoRepository {
 
     const { rows } = await this.pool.query(
       `SELECT e.*, 
+              TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
+              TO_CHAR(e.fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado = 'ASISTIDO'), 0) AS asistencias_count 
        FROM tabla_grupo_3_eventos e ${where} ORDER BY e.fecha_inicio DESC LIMIT $${idx++} OFFSET $${idx++}`,
@@ -93,6 +116,8 @@ export class PostgresEventoRepository implements EventoRepository {
   async findByTutor(tutor_id: string): Promise<Evento[]> {
     const { rows } = await this.pool.query(
       `SELECT e.*, 
+              TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
+              TO_CHAR(e.fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado = 'ASISTIDO'), 0) AS asistencias_count 
        FROM tabla_grupo_3_eventos e WHERE e.tutor_id = $1 ORDER BY e.created_at DESC`,
@@ -104,6 +129,8 @@ export class PostgresEventoRepository implements EventoRepository {
   async findPendientesAprobacion(): Promise<Evento[]> {
     const { rows } = await this.pool.query(
       `SELECT e.*, 
+              TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
+              TO_CHAR(e.fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado = 'ASISTIDO'), 0) AS asistencias_count 
        FROM tabla_grupo_3_eventos e WHERE e.estado = 'PENDIENTE_APROBACION' ORDER BY e.created_at ASC`,
@@ -114,23 +141,21 @@ export class PostgresEventoRepository implements EventoRepository {
   async create(data: CrearEventoDto): Promise<Evento> {
     const defaultEstado = 'BORRADOR';
     
-    // Parsear fecha y hora de forma segura para evitar NaN por doble concatenación con 'T'
-    const startDateTime = String(data.fecha_inicio).includes('T')
-      ? new Date(data.fecha_inicio)
-      : new Date(`${data.fecha_inicio}T${data.hora_inicio || '08:00'}`);
+    const startDateTime = data.fecha_inicio;
+    const endDateTime = data.fecha_fin;
 
-    const endDateTime = String(data.fecha_fin).includes('T')
-      ? new Date(data.fecha_fin)
-      : new Date(`${data.fecha_fin}T${data.hora_fin || '17:00'}`);
-
-    if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
-      throw new Error("Formato de fecha u hora no válido (NaN) al intentar registrar el evento.");
+    if (!startDateTime || !endDateTime) {
+      throw new Error("Formato de fecha u hora no válido al intentar registrar el evento.");
     }
 
     let finalDesc = data.descripcion || "";
-    if ((data as any).distribucion_horas) {
-      finalDesc += "\n---DISTRIBUCION_HORAS---" + JSON.stringify((data as any).distribucion_horas);
-    }
+    const metadata = {
+      distribucion_horas: (data as any).distribucion_horas,
+      audiencia: (data as any).audiencia,
+      registro_entrada: (data as any).registro_entrada,
+      registro_salida: (data as any).registro_salida,
+    };
+    finalDesc += "\n---EVENTO_METADATA---" + JSON.stringify(metadata);
 
     const { rows } = await this.pool.query(
       `INSERT INTO tabla_grupo_3_eventos (
@@ -139,7 +164,9 @@ export class PostgresEventoRepository implements EventoRepository {
         duracion_horas, imagen_url, tutor_id, imagenes_adicionales
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-      RETURNING *`,
+      RETURNING *,
+                TO_CHAR(fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
+                TO_CHAR(fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin`,
       [
         data.titulo,
         finalDesc,
@@ -165,9 +192,13 @@ export class PostgresEventoRepository implements EventoRepository {
     if (data.titulo !== undefined) dbData.titulo = data.titulo;
     if (data.descripcion !== undefined) {
       let finalDesc = data.descripcion || "";
-      if (data.distribucion_horas !== undefined) {
-        finalDesc += "\n---DISTRIBUCION_HORAS---" + JSON.stringify(data.distribucion_horas);
-      }
+      const metadata = {
+        distribucion_horas: data.distribucion_horas,
+        audiencia: (data as any).audiencia,
+        registro_entrada: data.registro_entrada,
+        registro_salida: data.registro_salida,
+      };
+      finalDesc += "\n---EVENTO_METADATA---" + JSON.stringify(metadata);
       dbData.descripcion = finalDesc;
     }
     if (data.categoria !== undefined) dbData.categoria = data.categoria;
@@ -191,7 +222,10 @@ export class PostgresEventoRepository implements EventoRepository {
     const values = campos.map((k) => dbData[k]);
 
     const { rows } = await this.pool.query(
-      `UPDATE tabla_grupo_3_eventos SET ${sets}, updated_at = NOW() WHERE id = $1 RETURNING *`,
+      `UPDATE tabla_grupo_3_eventos SET ${sets}, updated_at = NOW() WHERE id = $1 
+       RETURNING *,
+                 TO_CHAR(fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
+                 TO_CHAR(fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin`,
       [id, ...values],
     );
     return rows[0] ? this.mapRowToEvento(rows[0]) : null;
@@ -200,7 +234,10 @@ export class PostgresEventoRepository implements EventoRepository {
   async cambiarEstado(id: string, estado: EstadoEvento, datos?: { aprobado_por?: string | number; motivo_rechazo?: string }): Promise<Evento | null> {
     const { rows } = await this.pool.query(
       `UPDATE tabla_grupo_3_eventos SET estado = $2, aprobado_por = $3, motivo_rechazo = $4, updated_at = NOW()
-       WHERE id = $1 RETURNING *`,
+       WHERE id = $1 
+       RETURNING *,
+                 TO_CHAR(fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
+                 TO_CHAR(fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin`,
       [id, estado, datos?.aprobado_por ?? null, datos?.motivo_rechazo ?? null],
     );
     return rows[0] ? this.mapRowToEvento(rows[0]) : null;

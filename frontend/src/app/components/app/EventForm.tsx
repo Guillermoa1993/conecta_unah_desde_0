@@ -90,20 +90,22 @@ interface EventFormProps {
 }
 
 function getLocalDatePickerValues(isoString: string): { date: string; time: string } {
-  const d = new Date(isoString);
-  if (isNaN(d.getTime())) return { date: "", time: "" };
-  
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const date = String(d.getDate()).padStart(2, '0');
-  
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  
-  return {
-    date: `${year}-${month}-${date}`,
-    time: `${hours}:${minutes}`
-  };
+  if (!isoString) return { date: "", time: "" };
+  if (isoString.includes("T")) {
+    const parts = isoString.split("T");
+    return {
+      date: parts[0],
+      time: parts[1].slice(0, 5)
+    };
+  }
+  if (isoString.includes(" ")) {
+    const parts = isoString.split(" ");
+    return {
+      date: parts[0],
+      time: parts[1].slice(0, 5)
+    };
+  }
+  return { date: isoString.slice(0, 10), time: "08:00" };
 }
 
 function buildFormDefaults(user: { name?: string }, initialEvent?: UniEvent): FormData {
