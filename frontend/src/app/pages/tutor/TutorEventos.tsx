@@ -295,12 +295,33 @@ function EventCard({
                 {event.fecha_inicio.slice(11, 16)} — {event.fecha_fin.slice(11, 16)}
               </span>
             </div>
-            {event.lugar && (
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <MapPin className="size-3.5 shrink-0" />
-                <span className="truncate">{event.lugar}</span>
-              </div>
-            )}
+            {(() => {
+              const loc = event.ubicacion || event.lugar;
+              if (!loc) return null;
+              if (loc.includes("|")) {
+                const [bName, bLink] = loc.split("|");
+                return (
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <MapPin className="size-3.5 shrink-0 text-[#004B87]" />
+                    <a
+                      href={bLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#004B87] hover:underline font-semibold truncate"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {bName}
+                    </a>
+                  </div>
+                );
+              }
+              return (
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <MapPin className="size-3.5 shrink-0" />
+                  <span className="truncate">{loc}</span>
+                </div>
+              );
+            })()}
           </div>
           {/* Type badge */}
           <div>

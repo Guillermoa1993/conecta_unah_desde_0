@@ -430,8 +430,25 @@ export function ManageEvent() {
                 </div>
                 <div>
                   <span className="text-xs text-muted-foreground font-medium block">Ubicación / Lugar</span>
-                  <span className="font-semibold text-slate-800 flex items-center gap-1">
-                    <MapPin className="size-4 text-[#004B87]" /> {event.lugar || event.ubicacion || "No especificado"}
+                  <span className="font-semibold text-slate-800 flex items-center gap-1.5">
+                    <MapPin className="size-4 text-[#004B87] shrink-0" />
+                    {(() => {
+                      const loc = event.lugar || event.ubicacion || "No especificado";
+                      if (loc.includes("|")) {
+                        const [bName, bLink] = loc.split("|");
+                        return (
+                          <a
+                            href={bLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[#004B87] hover:underline"
+                          >
+                            {bName}
+                          </a>
+                        );
+                      }
+                      return <span>{loc}</span>;
+                    })()}
                   </span>
                 </div>
                 <div className="sm:col-span-2">

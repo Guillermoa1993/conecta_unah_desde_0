@@ -179,7 +179,23 @@ export function ValidacionEvento() {
         <div className="border-t pt-4 grid grid-cols-2 gap-4 text-xs text-slate-700">
           <div>
             <span className="text-[10px] text-[#717182] uppercase font-bold block">Ubicación / Lugar</span>
-            <span className="font-semibold text-slate-800">{event.lugar || event.ubicacion || "No especificado"}</span>
+            {(() => {
+              const loc = event.lugar || event.ubicacion || "No especificado";
+              if (loc.includes("|")) {
+                const [bName, bLink] = loc.split("|");
+                return (
+                  <a
+                    href={bLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-[#004B87] hover:underline"
+                  >
+                    {bName} (Mapa)
+                  </a>
+                );
+              }
+              return <span className="font-semibold text-slate-800">{loc}</span>;
+            })()}
           </div>
           <div>
             <span className="text-[10px] text-[#717182] uppercase font-bold block">Fecha</span>

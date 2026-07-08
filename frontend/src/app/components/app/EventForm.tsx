@@ -13,6 +13,7 @@ import {
   ChevronDown,
   Send,
   Check,
+  MapPin,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -44,10 +45,48 @@ import {
   type UniEvent,
 } from "../../../lib/mock-data";
 import { useRole } from "../../../lib/role-context";
-import { LocationPicker } from "./LocationPicker";
 import { AnalogTimePicker } from "./AnalogTimePicker";
 import { toast } from "sonner";
 import { cn } from "../../../lib/utils";
+
+const EDIFICIOS_POR_CENTRO: Record<string, { name: string; mapUrl: string }[]> = {
+  "Ciudad Universitaria": [
+    { name: "Alma Mater / Edificio Administrativo", mapUrl: "https://maps.google.com/?q=14.082216,-87.165000" },
+    { name: "Edificio D1 (Ingeniería / Sistemas)", mapUrl: "https://maps.google.com/?q=14.082823,-87.163972" },
+    { name: "Edificio B1 (Ciencias Económicas)", mapUrl: "https://maps.google.com/?q=14.083818,-87.164487" },
+    { name: "Edificio B2 (Aulas)", mapUrl: "https://maps.google.com/?q=14.084128,-87.164305" },
+    { name: "Edificio C1 (Aulas)", mapUrl: "https://maps.google.com/?q=14.083318,-87.163706" },
+    { name: "Edificio C2 (Aulas)", mapUrl: "https://maps.google.com/?q=14.083618,-87.163506" },
+    { name: "Edificio F1 (Ciencias / Física)", mapUrl: "https://maps.google.com/?q=14.082348,-87.163016" },
+    { name: "Edificio J1 (Odontología)", mapUrl: "https://maps.google.com/?q=14.083908,-87.163316" },
+    { name: "Edificio I1 (Ciencias Sociales)", mapUrl: "https://maps.google.com/?q=14.083548,-87.165316" },
+    { name: "Edificio G1 (Aulas)", mapUrl: "https://maps.google.com/?q=14.082248,-87.162316" },
+    { name: "Palacio de los Deportes (Polideportivo)", mapUrl: "https://maps.google.com/?q=14.082000,-87.165500" },
+    { name: "Plaza de las Cuatro Culturas", mapUrl: "https://maps.google.com/?q=14.082834,-87.164845" },
+    { name: "CRAI / Biblioteca Central", mapUrl: "https://maps.google.com/?q=14.082531,-87.165323" },
+  ],
+  "UNAH-VS": [
+    { name: "Edificio 1 (Administración)", mapUrl: "https://maps.google.com/?q=15.525500,-88.028800" },
+    { name: "Edificio 2 (Aulas)", mapUrl: "https://maps.google.com/?q=15.525800,-88.028500" },
+    { name: "Edificio 3 (Aulas)", mapUrl: "https://maps.google.com/?q=15.526200,-88.028200" },
+    { name: "Edificio 4 (Laboratorios)", mapUrl: "https://maps.google.com/?q=15.526500,-88.027800" },
+    { name: "Edificio 5 (Ingeniería)", mapUrl: "https://maps.google.com/?q=15.526800,-88.027500" },
+  ],
+  "CURC": [
+    { name: "Edificio Principal (Aulas y Admin)", mapUrl: "https://maps.google.com/?q=14.444700,-87.625800" },
+    { name: "Auditorio CURC", mapUrl: "https://maps.google.com/?q=14.444900,-87.625500" },
+  ],
+  "CURLA": [
+    { name: "Edificio Central / Administración", mapUrl: "https://maps.google.com/?q=15.772500,-86.852500" },
+    { name: "Agronomía / Aulas", mapUrl: "https://maps.google.com/?q=15.772800,-86.852100" },
+  ],
+  "CURLP": [
+    { name: "Edificio Único de Aulas", mapUrl: "https://maps.google.com/?q=13.310500,-87.171800" }
+  ],
+  "CURVA": [
+    { name: "Edificio de Aulas CURVA", mapUrl: "https://maps.google.com/?q=15.021500,-86.230400" }
+  ]
+};
 
 type FormData = {
   titulo: string;
@@ -197,47 +236,9 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
     }
   };
 
-  function ReadOnlyMap({ lat, lng }: { lat: number; lng: number }) {
-    const mapRef = useRef<HTMLDivElement>(null);
-    const [leaflet, setLeaflet] = useState<typeof import("leaflet") | null>(null);
-
-    useEffect(() => {
-      (async () => {
-        const L = await import("leaflet");
-        await import("leaflet/dist/leaflet.css");
-        delete (L.Icon.Default.prototype as any)._getIconUrl;
-        L.Icon.Default.mergeOptions({
-          iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-          iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-          shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-        });
-        setLeaflet(() => L);
-      })();
-    }, []);
-
-    useEffect(() => {
-      if (!mapRef.current || !leaflet) return;
-      const L = leaflet;
-      const map = L.map(mapRef.current, {
-        center: [lat, lng] as L.LatLngExpression,
-        zoom: 15,
-        zoomControl: true,
-      });
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap contributors",
-      }).addTo(map);
-      L.marker([lat, lng] as L.LatLngExpression, { draggable: false }).addTo(map);
-      return () => {
-        map.remove();
-      };
-    }, [lat, lng, leaflet]);
-
-    return <div ref={mapRef} className="w-full h-[120px] rounded-lg border z-0 mt-2" />;
-  }
-
   const TEXT_RE = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9\s.,:=\-*()+#@!?¿¡"'/_&%]+$/;
   const DESC_RE = /^[^<>{}[\]]*$/;
-  const UBICACION_RE = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9\s,.\-#:=*()+#@!?¿¡"'/_&]+$/;
+  const UBICACION_RE = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9\s,.\-#:=*()+#@!?¿¡"'/_&|%?=+&]+$/;
 
   const validate = (d: FormData): FormErrors => {
     const e: FormErrors = {};
@@ -321,7 +322,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       return words.slice(0, 100).join(" ");
     }
     if (field === "ubicacion")
-      return value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9\s,.\-#:=*()+#@!?¿¡"'/_&]/g, "").slice(0, 200);
+      return value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9\s,.\-#:=*()+#@!?¿¡"'/_&|%?=+&]/g, "").slice(0, 250);
     return value;
   };
 
@@ -800,53 +801,107 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
             {errors.hora_fin && <p className="text-xs mt-0.5 text-red-800">{errors.hora_fin}</p>}
           </div>
         </div>
-        {data.tipo_actividad !== "Virtual" && (
-          <div>
-            <Label>
-              Ubicación física <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              value={data.ubicacion}
-              onChange={(e) => set("ubicacion", e.target.value)}
-              onBlur={() => blur("ubicacion")}
-              placeholder="Ej. Aula Magna, Edificio A1"
-              className={cn("mt-1 h-11", errors.ubicacion && "border-red-500")}
-            />
-            {(() => {
-              const words = data.ubicacion.trim() ? data.ubicacion.trim().split(/\s+/).length : 0;
-              const overLimit = words > 100;
-              const warnLimit = words >= 90 && !overLimit;
-              return (
-                <p
-                  className={cn(
-                    "text-xs mt-0.5",
-                    overLimit
-                      ? "text-red-500"
-                      : warnLimit
-                        ? "text-amber-500"
-                        : "text-muted-foreground",
-                  )}
+        <div>
+          <Label>Centro regional <span className="text-red-500">*</span></Label>
+          <Select
+            value={data.centro_regional}
+            onValueChange={(v) => {
+              setData((prev) => {
+                const firstBuilding = EDIFICIOS_POR_CENTRO[v]?.[0];
+                const nextUbicacion = firstBuilding ? `${firstBuilding.name}|${firstBuilding.mapUrl}` : "";
+                return {
+                  ...prev,
+                  centro_regional: v,
+                  ubicacion: nextUbicacion
+                };
+              });
+            }}
+          >
+            <SelectTrigger className="mt-1 h-11 bg-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CENTROS_REGIONALES.map((cr) => (
+                <SelectItem key={cr} value={cr}>
+                  {cr}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {data.tipo_actividad !== "Virtual" && (() => {
+          const [buildingName, gMapsUrl] = data.ubicacion && data.ubicacion.includes("|")
+            ? data.ubicacion.split("|")
+            : [data.ubicacion || "", ""];
+          const buildings = EDIFICIOS_POR_CENTRO[data.centro_regional] || [];
+
+          return (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div>
+                <Label>
+                  Edificio / Ubicación física <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={buildingName}
+                  onValueChange={(v) => {
+                    const b = buildings.find((x) => x.name === v);
+                    if (b) {
+                      setData((prev) => ({
+                        ...prev,
+                        ubicacion: `${b.name}|${b.mapUrl}`
+                      }));
+                    } else {
+                      setData((prev) => ({
+                        ...prev,
+                        ubicacion: v
+                      }));
+                    }
+                  }}
                 >
-                  {words} / 100 palabras
-                </p>
-              );
-            })()}
-            {errors.ubicacion && <p className="text-xs mt-0.5 text-red-800">{errors.ubicacion}</p>}
-            <div className="mt-3">
-              <LocationPicker
-                lat={data.latitud}
-                lng={data.longitud}
-                onLocationChange={(lat, lng) => {
-                  setData((prev) => ({
-                    ...prev,
-                    latitud: lat,
-                    longitud: lng,
-                  }));
-                }}
-              />
+                  <SelectTrigger className="mt-1 h-11 bg-white">
+                    <SelectValue placeholder="Seleccionar edificio..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {buildings.map((b) => (
+                      <SelectItem key={b.name} value={b.name}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.ubicacion && <p className="text-xs mt-0.5 text-red-800">{errors.ubicacion}</p>}
+              </div>
+
+              {gMapsUrl && (
+                <div className="space-y-2 rounded-lg border border-slate-100 bg-slate-50/50 p-3 shadow-inner">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full gap-1.5 h-11 text-[#004B87] border-[#004B87] hover:bg-slate-50 font-semibold bg-white shadow-sm"
+                    onClick={() => window.open(gMapsUrl, "_blank")}
+                  >
+                    <MapPin className="size-4 text-[#004B87]" /> Ver ubicación en Google Maps
+                  </Button>
+
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                      Enlace de Google Maps (Solo lectura)
+                    </Label>
+                    <Input
+                      type="text"
+                      value={gMapsUrl}
+                      readOnly
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                      className="bg-white cursor-text font-mono text-xs h-9 border-slate-200"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
+
         {data.tipo_actividad !== "Presencial" && (
           <div>
             <Label>
@@ -864,7 +919,8 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
             )}
           </div>
         )}
-        <div className="grid grid-cols-2 gap-4">
+
+        <div className="grid grid-cols-1 gap-4">
           <div>
             <Label>
               Cupo máximo <span className="text-red-500">*</span>
@@ -887,21 +943,6 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
             {errors.cupo_maximo && (
               <p className="text-xs mt-0.5 text-red-800">{errors.cupo_maximo}</p>
             )}
-          </div>
-          <div>
-            <Label>Centro regional</Label>
-            <Select value={data.centro_regional} onValueChange={(v) => set("centro_regional", v)}>
-              <SelectTrigger className="mt-1 h-11">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CENTROS_REGIONALES.map((cr) => (
-                  <SelectItem key={cr} value={cr}>
-                    {cr}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </div>
         {data.tipo_duracion === "DIARIAS" && (
@@ -1137,14 +1178,28 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
             <div>
               <span className="text-muted-foreground">Fin:</span> {data.fecha_fin} {data.hora_fin}
             </div>
-            {data.tipo_actividad !== "Virtual" && (
-              <div>
-                <span className="text-muted-foreground">Ubicación:</span> {data.ubicacion || "—"}
-                {data.latitud && data.longitud && (
-                  <ReadOnlyMap lat={parseFloat(data.latitud)} lng={parseFloat(data.longitud)} />
-                )}
-              </div>
-            )}
+            {data.tipo_actividad !== "Virtual" && (() => {
+              const [bName, bLink] = data.ubicacion && data.ubicacion.includes("|")
+                ? data.ubicacion.split("|")
+                : [data.ubicacion || "—", ""];
+              return (
+                <div>
+                  <span className="text-muted-foreground">Ubicación:</span>{" "}
+                  {bLink ? (
+                    <a
+                      href={bLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#004B87] hover:underline font-semibold"
+                    >
+                      {bName} (Ver en Google Maps)
+                    </a>
+                  ) : (
+                    bName
+                  )}
+                </div>
+              );
+            })()}
             {data.tipo_actividad !== "Presencial" && (
               <div>
                 <span className="text-muted-foreground">Enlace:</span> {data.enlace_virtual || "—"}
