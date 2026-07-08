@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { api } from '../../../services/api';
 
 /* ─── TYPES ─── */
 interface Comment { id: number; author: string; authorInitials: string; text: string; time: string; replyTo?: string; }
@@ -380,6 +381,7 @@ export function SocialFeed({ showOnlySaved=false }:{ showOnlySaved?:boolean }) {
   const [posts,setPosts]=useState<Post[]>(()=>{
     try { const s=localStorage.getItem("cp_posts"); return s ? JSON.parse(s) : [...INITIAL_POSTS]; } catch { return [...INITIAL_POSTS]; }
   });
+  const [dbEvents, setDbEvents] = useState<Post[]>([]);
   const [notifications,setNotifications]=useState<Notification[]>(()=>{
     try { const s=localStorage.getItem("cp_notifications"); return s ? JSON.parse(s) : INITIAL_NOTIFICATIONS; } catch { return INITIAL_NOTIFICATIONS; }
   });
@@ -398,6 +400,54 @@ export function SocialFeed({ showOnlySaved=false }:{ showOnlySaved?:boolean }) {
   useEffect(()=>{ localStorage.setItem("cp_posts",JSON.stringify(posts)); },[posts]);
   useEffect(()=>{ localStorage.setItem("cp_notifications",JSON.stringify(notifications)); },[notifications]);
 
+  useEffect(() => {
+    const fetchDbEvents = async () => {
+      try {
+        const dbEventsData = await api.get<any[]>('/eventos');
+        const approved = dbEventsData.filter(e => e.estado === 'PROGRAMADO' || e.estado === 'EN_CURSO');
+        
+        let myInscriptions: any[] = [];
+        const token = localStorage.getItem("unah_token");
+        const userRaw = localStorage.getItem("unah_usuario");
+        const user = userRaw ? JSON.parse(userRaw) : null;
+        
+        if (token && user && user.rol === 'ESTUDIANTE') {
+          try {
+            myInscriptions = await api.get<any[]>('/inscripciones/mis-inscripciones');
+          } catch {
+            // ignore
+          }
+        }
+
+        const eventPosts: Post[] = approved.map(e => ({
+          id: -e.id_evento, // ID negativo para evitar colisión con mocks
+          author: e.tutor_nombre || "Tutor UNAH",
+          initials: (e.tutor_nombre || "Tutor").split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase(),
+          type: "Evento",
+          scope: e.categoria ? (e.categoria.charAt(0).toUpperCase() + e.categoria.slice(1).toLowerCase()) : "Social",
+          visibility: "Público",
+          time: "Evento Programado",
+          title: e.titulo,
+          desc: e.descripcion || "Sin descripción",
+          tags: [e.categoria || "Evento"],
+          love: 0, like: 0, dislike: 0, haha: 0, wow: 0, sad: 0, angry: 0,
+          comments: [],
+          userReaction: null,
+          saved: false,
+          hidden: false,
+          fecha: e.fecha_inicio ? new Date(e.fecha_inicio).toLocaleDateString() : "",
+          lugar: e.lugar || "UNAH",
+          cupos: e.cupo_maximo || 100,
+          inscrito: myInscriptions.some(ins => String(ins.id_evento) === String(e.id_evento))
+        }));
+        setDbEvents(eventPosts);
+      } catch (err) {
+        console.warn("No se pudieron cargar eventos de la BD para el feed:", err);
+      }
+    };
+    fetchDbEvents();
+  }, []);
+
   const showToast=(msg:string)=>{
     setToast(msg);
     if(toastTimer.current) clearTimeout(toastTimer.current);
@@ -405,7 +455,8 @@ export function SocialFeed({ showOnlySaved=false }:{ showOnlySaved?:boolean }) {
   };
 
   const filtered=()=>{
-    let f=posts.filter(p=>!p.hidden);
+    const allPosts = [...dbEvents, ...posts];
+    let f=allPosts.filter(p=>!p.hidden);
     if(showOnlySaved) f=f.filter(p=>p.saved);
     else if(activeFilter==="Evento") f=f.filter(p=>p.type==="Evento");
     else if(activeFilter==="Publicacion") f=f.filter(p=>p.type==="Publicacion");
@@ -420,6 +471,17 @@ export function SocialFeed({ showOnlySaved=false }:{ showOnlySaved?:boolean }) {
   };
 
   const handleReact=(id:number,type:ActiveReaction)=>{
+    if (id < 0) {
+      setDbEvents(prev=>prev.map(p=>{
+        if(p.id!==id)return p;
+        const u={...p};const was=p.userReaction===type;
+        if(was){(u as any)[type]--;u.userReaction=null;}
+        else{if(p.userReaction)(u as any)[p.userReaction]--;(u as any)[type]++;u.userReaction=type;}
+        return u;
+      }));
+      const e=EMOJIS.find(e=>e.key===type);showToast(`${e?.icon} ${e?.label}`);
+      return;
+    }
     setPosts(prev=>prev.map(p=>{
       if(p.id!==id)return p;
       const u={...p};const was=p.userReaction===type;
@@ -433,15 +495,51 @@ export function SocialFeed({ showOnlySaved=false }:{ showOnlySaved?:boolean }) {
   const handleAddComment=(id:number,text:string,replyTo?:string)=>{
     if(hasSQLi(text)){alert("🚨 Contenido no permitido.");return;}
     if(!isValidInput(text)){alert("⚠️ Caracteres especiales no permitidos.");return;}
+    if (id < 0) {
+      setDbEvents(prev=>prev.map(p=>p.id!==id?p:{...p,comments:[...p.comments,{id:Date.now(),author:"Yo",authorInitials:"YO",text:sanitizeHTML(text),time:"Ahora mismo",replyTo}]}));
+      return;
+    }
     setPosts(prev=>prev.map(p=>p.id!==id?p:{...p,comments:[...p.comments,{id:Date.now(),author:"Yo",authorInitials:"YO",text:sanitizeHTML(text),time:"Ahora mismo",replyTo}]}));
   };
-  const handleHide=(id:number)=>{ setPosts(prev=>prev.map(p=>p.id===id?{...p,hidden:true}:p)); showToast("🚫 Publicación ocultada"); };
+  const handleHide=(id:number)=>{
+    if (id < 0) {
+      setDbEvents(prev=>prev.map(p=>p.id===id?{...p,hidden:true}:p));
+      showToast("🚫 Publicación ocultada");
+      return;
+    }
+    setPosts(prev=>prev.map(p=>p.id===id?{...p,hidden:true}:p)); showToast("🚫 Publicación ocultada");
+  };
   const handleSave=(id:number)=>{
+    if (id < 0) {
+      setDbEvents(prev=>prev.map(p=>p.id===id?{...p,saved:!p.saved}:p));
+      const target = dbEvents.find(p=>p.id===id);
+      showToast(target?.saved?"🔖 Removido":"🔖 Guardado");
+      return;
+    }
     setPosts(prev=>prev.map(p=>p.id===id?{...p,saved:!p.saved}:p));
     showToast(posts.find(p=>p.id===id)?.saved?"🔖 Removido":"🔖 Guardado");
   };
   const handleShare=(id:number)=>{ navigator.clipboard.writeText(`https://conectapumas.unah.hn/post/${id}`).then(()=>showToast("🔗 Enlace copiado")); };
-  const handleInscribir=(id:number)=>{
+  const handleInscribir=async (id:number)=>{
+    if (id < 0) {
+      const realId = -id;
+      try {
+        const target = dbEvents.find(p => p.id === id);
+        if (target?.inscrito) {
+          await api.delete(`/inscripciones/evento/${realId}`);
+          setDbEvents(prev => prev.map(p => p.id === id ? { ...p, inscrito: false } : p));
+          showToast("❌ Inscripción cancelada");
+        } else {
+          await api.post(`/inscripciones/evento/${realId}`, {});
+          setDbEvents(prev => prev.map(p => p.id === id ? { ...p, inscrito: true } : p));
+          showToast("✅ ¡Inscrito al evento!");
+        }
+      } catch (err) {
+        console.error("Error al gestionar inscripción en BD:", err);
+        showToast("❌ Error al gestionar inscripción");
+      }
+      return;
+    }
     setPosts(prev=>prev.map(p=>{if(p.id!==id)return p;const was=p.inscrito;return{...p,inscrito:!was};}));
     showToast(posts.find(p=>p.id===id)?.inscrito?"❌ Desinscrito":"✅ ¡Inscrito al evento!");
   };
