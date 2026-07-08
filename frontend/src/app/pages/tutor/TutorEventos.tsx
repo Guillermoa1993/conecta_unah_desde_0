@@ -148,7 +148,7 @@ function EventCard({
   onEdit: (event: any) => void;
   onRefresh: () => void;
 }) {
-  const inscritos = getEventInscripciones(event.id);
+  const inscritos = event.inscritos_count !== undefined ? event.inscritos_count : getEventInscripciones(event.id);
   const cupo = event.cupo_maximo || 1;
   const pct = Math.min(Math.round((inscritos / cupo) * 100), 100);
   const catColor = (CATEGORY_PLACEHOLDER_COLORS as any)[event.categoria] || "#64748b";
@@ -338,7 +338,7 @@ function EventCard({
           {/* Capacity bar */}
           {cupo > 0 && (
             <div>
-              <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+              <div className="h-1.5 rounded-full bg-slate-200/80 overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all"
                   style={{
@@ -419,7 +419,7 @@ function EventCard({
                 </Button>
               </>
             )}
-            {event.estado === "PROGRAMADO" && (
+            {(event.estado === "PROGRAMADO" || event.estado === "EN_CURSO" || event.estado === "EN_CURSO_SALIDA") && (
               <>
                 <Button
                   size="sm"
