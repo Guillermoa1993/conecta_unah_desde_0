@@ -14,6 +14,7 @@ export function eventoRouter(ctrl: EventoController): Router {
   // Tutor: crear y editar sus eventos
   r.post('/', autenticar, autorizar('TUTOR'), ctrl.create);
   r.put('/:id', autenticar, autorizar('TUTOR', 'ADMIN'), ctrl.update);
+  r.delete('/:id', autenticar, autorizar('TUTOR', 'ADMIN'), ctrl.delete);
 
   // VOAE/Admin: aprobar o rechazar
   r.patch('/:id/aprobar', autenticar, autorizar('VOAE', 'ADMIN'), ctrl.aprobar);

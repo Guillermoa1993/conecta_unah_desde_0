@@ -6,6 +6,7 @@ import { BottomNav } from "./BottomNav";
 import { SidebarProvider } from "../ui/sidebar";
 import { Toaster } from "../ui/sonner";
 import { PermissionsWelcomeModal } from "../permissions/PermissionsWelcomeModal";
+import { RoleProvider } from "../../../lib/role-context";
 
 export function RootLayout() {
   const location = useLocation();
@@ -27,30 +28,32 @@ export function RootLayout() {
 
   if (bypassLayout) {
     return (
-      <>
+      <RoleProvider>
         <Outlet />
         <Toaster />
-      </>
+      </RoleProvider>
     );
   }
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        <AppSidebar />
-        <div className="flex flex-1 flex-col">
-          <AppNavbar />
-          <main className="flex-1 overflow-y-auto bg-[#F4F6F8] p-6 pb-20 md:pb-6">
-            <Outlet />
-          </main>
+    <RoleProvider>
+      <SidebarProvider>
+        <div className="flex min-h-screen w-full">
+          <AppSidebar />
+          <div className="flex flex-1 flex-col">
+            <AppNavbar />
+            <main className="flex-1 overflow-y-auto bg-[#F4F6F8] p-6 pb-20 md:pb-6">
+              <Outlet />
+            </main>
+          </div>
         </div>
-      </div>
-      <BottomNav />
-      <Toaster />
-      <PermissionsWelcomeModal
-        open={showPermModal}
-        onDone={() => setShowPermModal(false)}
-      />
-    </SidebarProvider>
+        <BottomNav />
+        <Toaster />
+        <PermissionsWelcomeModal
+          open={showPermModal}
+          onDone={() => setShowPermModal(false)}
+        />
+      </SidebarProvider>
+    </RoleProvider>
   );
 }

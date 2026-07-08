@@ -24,11 +24,14 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
   student: [
    
     { icon: Home,          label: "Dashboard",       path: "/student"          },
+    { icon: Rss,           label: "Muro Social",     path: "/student/feed"     },
     { icon: Bell,          label: "Notificaciones",  path: "/employees/notifications" },
   ],
   tutor: [
-    { icon: Home,          label: "Dashboard",       path: "/tutor"              },
-    { icon: Bell,          label: "Notificaciones",  path: "/employees/notifications" },
+    { icon: Calendar,      label: "Gestión de eventos", path: "/tutor/eventos"      },
+    { icon: History,       label: "Historial",         path: "/tutor/history"      },
+    { icon: Rss,           label: "Muro Social",       path: "/tutor/feed"         },
+    { icon: Bell,          label: "Notificaciones",    path: "/employees/notifications" },
   ],
   admin: [
     { icon: Shield,        label: "Administración",     path: "/admin/administracion" },
@@ -43,9 +46,10 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
   
   ],
   voae: [
-    { icon: Home,           label: "Dashboard",         path: "/voae"             },
+    { icon: Home,           label: "Panel de gestión",   path: "/voae"             },
+    { icon: Rss,            label: "Muro Social",       path: "/voae/feed"        },
     { icon: FileText,       label: "Reportes Oficiales",path: "/voae/reports"     },
-    { icon: ClipboardList,  label: "Registros",         path: "/voae/records"     },
+    { icon: ClipboardList,  label: "Histórico de eventos", path: "/voae/records"     },
     { icon: MapPin,         label: "Centros Regionales",path: "/voae/centros"     },
     { icon: ShieldCheck,    label: "Moderadores",       path: "/voae/moderadores" },
     { icon: Bell,           label: "Notificaciones",    path: "/employees/notifications" },
@@ -53,6 +57,7 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
   ],
   dev: [
     { icon: Home,          label: "Dashboard Estudiante",path: "/student"        },
+    { icon: Rss,           label: "Muro Social",        path: "/student/feed"   },
     { icon: Calendar,      label: "Eventos",            path: "/student/events" },
     { icon: QrCode,        label: "QR Scanner",         path: "/student/scan"   },
     // Tutor
