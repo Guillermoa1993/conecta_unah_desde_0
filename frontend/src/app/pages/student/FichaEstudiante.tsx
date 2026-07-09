@@ -289,10 +289,22 @@ export function FichaEstudiante() {
 
   const handleSendOtp = async () => {
     setEnviando(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setEnviando(false);
-    setShowOtp(true);
-    toast.success("Se ha enviado un código de verificación a su correo institucional.");
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/otp-registro/enviar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ correo: formData.correo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "No se pudo enviar el código");
+
+      setEnviando(false);
+      setShowOtp(true);
+      toast.success("Se ha enviado un código de verificación a su correo institucional.");
+    } catch (err) {
+      setEnviando(false);
+      toast.error(err instanceof Error ? err.message : "Error al enviar el código");
+    }
   };
 
   const handleVerifySubmit = async (e: React.FormEvent) => {
@@ -303,16 +315,36 @@ export function FichaEstudiante() {
     }
     setEnviando(true);
     // Simular guardado de base de datos
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    console.log("Datos del estudiante enviados a PostgreSQL con Forma 003:", { 
-      ...formData, 
-      telefono: `${codigoPais} ${formData.telefono}`,
-      forma003 
-    });
-    setEnviando(false);
-    setShowConfirmModal(false);
-    setExito(true);
-    toast.success("¡Ficha de estudiante guardada y cuenta verificada correctamente!");
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/registro-estudiante", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: formData.nombre,
+          correo: formData.correo,
+          telefono: `${codigoPais} ${formData.telefono}`,
+          genero: formData.genero,
+          numero_cuenta: formData.cuenta,
+          carrera: formData.carrera,
+          centro_regional: formData.centroRegional,
+          foto_url: formData.foto,
+          biografia: formData.biografia,
+          forma003_base64: forma003,
+          codigoOtp: otpCode,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "No se pudo guardar el registro");
+
+      setEnviando(false);
+      setShowConfirmModal(false);
+      setExito(true);
+      toast.success("¡Ficha de estudiante guardada y cuenta verificada correctamente!");
+    } catch (err) {
+      setEnviando(false);
+      toast.error(err instanceof Error ? err.message : "Error al guardar el registro");
+    }
   };
 
   // Crops the photo region from the uploaded document (Forma 03 or Carnet)
