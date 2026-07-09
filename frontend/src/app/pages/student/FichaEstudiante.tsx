@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
 import { useLocation, useNavigate, useBlocker } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -290,7 +291,7 @@ export function FichaEstudiante() {
   const handleSendOtp = async () => {
     setEnviando(true);
     try {
-      const res = await fetch("http://localhost:5000/api/auth/otp-registro/enviar", {
+      const res = await fetch(`${API_URL}/auth/otp-registro/enviar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ correo: formData.correo }),
@@ -316,7 +317,7 @@ export function FichaEstudiante() {
     setEnviando(true);
     // Simular guardado de base de datos
     try {
-      const res = await fetch("http://localhost:5000/api/auth/registro-estudiante", {
+      const res = await fetch(`${API_URL}/auth/registro-estudiante`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
