@@ -7,11 +7,16 @@ const SELECT_USUARIO = `
          u.id_rol,    r.nombre  AS rol,
          u.id_estado, e.estado,
          u.id_carrera, c.nombre AS carrera,
-         u.microsoft_id, u.otp_code, u.otp_expira
+         u.microsoft_id, u.otp_code, u.otp_expira,
+         p.telefono, p.numero_cuenta, p.id_centro_regional,
+         cr.nombre AS centro_regional,
+         p.genero, p.biografia, p.foto_url, p.forma003_base64
   FROM tabla_grupo_1_usuario u
-  LEFT JOIN tabla_grupo_1_rol            r ON u.id_rol     = r.id_rol
-  LEFT JOIN tabla_grupo_1_estado_usuario e ON u.id_estado  = e.id_estado
-  LEFT JOIN tabla_grupo_1_carreras       c ON u.id_carrera = c.id_carrera
+  LEFT JOIN tabla_grupo_1_rol            r  ON u.id_rol     = r.id_rol
+  LEFT JOIN tabla_grupo_1_estado_usuario e  ON u.id_estado  = e.id_estado
+  LEFT JOIN tabla_grupo_1_carreras       c  ON u.id_carrera = c.id_carrera
+  LEFT JOIN tabla_grupo_1_perfil         p  ON u.id_usuario = p.id_usuario
+  LEFT JOIN tabla_grupo_1_centro_regional cr ON p.id_centro_regional = cr.id_centro_regional
 `;
 
 export class PostgresUsuarioRepository implements UsuarioRepository {
@@ -43,27 +48,57 @@ export class PostgresUsuarioRepository implements UsuarioRepository {
     return rows;
   }
 
-  async create(data: { nombre: string; correo: string; password: string; rol: string; carrera?: string }): Promise<Usuario> {
-    const { rows } = await this.pool.query(
-      `INSERT INTO tabla_grupo_1_usuario (nombre, correo, password, id_rol, id_estado, id_carrera)
-       VALUES (
-         $1, $2, $3,
-         (SELECT id_rol     FROM tabla_grupo_1_rol            WHERE nombre = $4),
-         (SELECT id_estado  FROM tabla_grupo_1_estado_usuario WHERE estado = 'ACTIVO'),
-         (SELECT id_carrera FROM tabla_grupo_1_carreras        WHERE nombre = $5)
-       ) RETURNING id_usuario`,
-      [data.nombre, data.correo, data.password, data.rol, data.carrera ?? null],
-    );
-    return this.findById(rows[0].id_usuario) as Promise<Usuario>;
+  async create(data: {
+    nombre: string; correo: string; password: string; rol: string; carrera?: string;
+    telefono?: string; numero_cuenta?: string; centro_regional?: string;
+    genero?: string; biografia?: string; foto_url?: string; forma003_base64?: string;
+  }): Promise<Usuario> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const usuarioResult = await client.query(
+        `INSERT INTO tabla_grupo_1_usuario (nombre, correo, password, id_rol, id_estado, id_carrera)
+         VALUES (
+           $1, $2, $3,
+           (SELECT id_rol     FROM tabla_grupo_1_rol            WHERE nombre = $4),
+           (SELECT id_estado  FROM tabla_grupo_1_estado_usuario WHERE estado = 'ACTIVO'),
+           (SELECT id_carrera FROM tabla_grupo_1_carreras        WHERE nombre = $5)
+         ) RETURNING id_usuario`,
+        [data.nombre, data.correo, data.password, data.rol, data.carrera ?? null],
+      );
+      const idUsuario = usuarioResult.rows[0].id_usuario;
+
+      await client.query(
+        `INSERT INTO tabla_grupo_1_perfil
+           (id_usuario, telefono, numero_cuenta, id_centro_regional, genero, biografia, foto_url, forma003_base64)
+         VALUES (
+           $1, $2, $3,
+           (SELECT id_centro_regional FROM tabla_grupo_1_centro_regional WHERE codigo = $4),
+           $5, $6, $7, $8
+         )`,
+        [idUsuario, data.telefono ?? null, data.numero_cuenta ?? null, data.centro_regional ?? null,
+         data.genero ?? null, data.biografia ?? null, data.foto_url ?? null, data.forma003_base64 ?? null],
+      );
+
+      await client.query('COMMIT');
+      return this.findById(idUsuario) as Promise<Usuario>;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   async update(id: number, data: Partial<Record<string, unknown>>): Promise<Usuario | null> {
     const allowed = ['nombre', 'correo', 'password', 'microsoft_id', 'otp_code', 'otp_expira'];
     const campos = Object.keys(data).filter((k) => allowed.includes(k));
-    if (!campos.length) return this.findById(id);
-    const sets = campos.map((k, i) => `${k} = $${i + 2}`).join(', ');
-    const values = campos.map((k) => data[k]);
-    await this.pool.query(`UPDATE tabla_grupo_1_usuario SET ${sets} WHERE id_usuario = $1`, [id, ...values]);
+    if (campos.length) {
+      const sets = campos.map((k, i) => `${k} = $${i + 2}`).join(', ');
+      const values = campos.map((k) => data[k]);
+      await this.pool.query(`UPDATE tabla_grupo_1_usuario SET ${sets} WHERE id_usuario = $1`, [id, ...values]);
+    }
     return this.findById(id);
   }
 

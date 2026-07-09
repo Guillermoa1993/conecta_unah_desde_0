@@ -10,6 +10,8 @@ export function authRouter(ctrl: AuthController): Router {
   r.get('/microsoft/callback', ctrl.microsoftCallback);
   r.post('/otp/enviar', ctrl.enviarOtp);
   r.post('/otp/verificar', ctrl.verificarOtp);
+  r.post('/registro-estudiante', ctrl.registrarEstudiante);
+  r.post('/otp-registro/enviar', ctrl.enviarOtpRegistro);
   // Solo disponible fuera de producción
   if (process.env.NODE_ENV !== 'production') {
     r.post('/dev-login', ctrl.devLogin);

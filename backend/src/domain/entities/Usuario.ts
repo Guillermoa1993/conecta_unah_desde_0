@@ -15,6 +15,15 @@ export interface Usuario {
   microsoft_id?: string | null;
   otp_code?: string | null;
   otp_expira?: Date | null;
+  // Datos del perfil (tabla separada, vienen unidos por JOIN)
+  telefono?: string | null;
+  numero_cuenta?: string | null;
+  id_centro_regional?: number | null;
+  centro_regional?: string | null;
+  genero?: string | null;
+  biografia?: string | null;
+  foto_url?: string | null;
+  forma003_base64?: string | null;
 }
 
 export interface UsuarioPublico {
@@ -27,4 +36,11 @@ export interface UsuarioPublico {
   estado?: string;
   id_carrera?: number;
   carrera?: string;
+  telefono?: string | null;
+  numero_cuenta?: string | null;
+  id_centro_regional?: number | null;
+  centro_regional?: string | null;
+  genero?: string | null;
+  biografia?: string | null;
+  foto_url?: string | null;
 }

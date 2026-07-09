@@ -6,6 +6,8 @@ import { EnviarOtp } from '../../use-cases/auth/EnviarOtp';
 import { VerificarOtp } from '../../use-cases/auth/VerificarOtp';
 import { msalClient, AZURE_REDIRECT_URI, AZURE_SCOPES } from '../../infrastructure/auth/msalConfig';
 import { UsuarioRepository } from '../../domain/repositories/UsuarioRepository';
+import { RegistrarEstudiante } from '../../use-cases/auth/RegistrarEstudiante';
+import { EnviarOtpRegistro } from '../../use-cases/auth/EnviarOtpRegistro';
 import jwt from 'jsonwebtoken';
 
 export class AuthController {
@@ -15,6 +17,8 @@ export class AuthController {
     private readonly loginMicrosoftUseCase: LoginMicrosoft,
     private readonly enviarOtpUseCase: EnviarOtp,
     private readonly verificarOtpUseCase: VerificarOtp,
+    private readonly registrarEstudianteUseCase: RegistrarEstudiante,
+    private readonly enviarOtpRegistroUseCase: EnviarOtpRegistro,
     private readonly usuarioRepo?: UsuarioRepository,
   ) {}
 
@@ -55,6 +59,22 @@ export class AuthController {
     try {
       const result = await this.verificarOtpUseCase.execute(req.body);
       res.json(result);
+    } catch (err) { next(err); }
+  };
+
+  registrarEstudiante = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const usuario = await this.registrarEstudianteUseCase.execute(req.body);
+      const { password, forma003_base64, ...pub } = usuario as unknown as Record<string, unknown> & { password: string; forma003_base64: string };
+      res.status(201).json(pub);
+    } catch (err) { next(err); }
+  };
+
+  enviarOtpRegistro = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { correo } = req.body;
+      await this.enviarOtpRegistroUseCase.execute(correo);
+      res.json({ mensaje: 'Código enviado correctamente' });
     } catch (err) { next(err); }
   };
 
