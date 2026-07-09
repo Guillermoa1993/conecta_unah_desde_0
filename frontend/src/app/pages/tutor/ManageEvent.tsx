@@ -761,7 +761,7 @@ export function ManageEvent() {
               {event.enlace_virtual ? (
                 <Button
                   type="button"
-                  className="w-full gap-1.5 h-11 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                  className="w-full gap-1.5 h-11 bg-blue-600 hover:bg-blue-700 text-white shadow-sm font-semibold"
                   onClick={() => window.open(event.enlace_virtual, "_blank")}
                 >
                   <Eye className="size-4" /> Ir a la reunión virtual
@@ -788,32 +788,61 @@ export function ManageEvent() {
                 );
               }
 
+              const isHibrido = event.tipo_actividad === "Híbrido";
+
               return (
                 <div className="rounded-xl border bg-white border-slate-200/80 p-5 flex flex-col justify-between h-52 shadow-sm relative group hover:border-[#004B87]/40 transition-colors">
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-1.5 text-xs text-[#004B87] font-semibold uppercase tracking-wider">
-                      <MapPin className="size-4" /> Ubicación Física
+                      <MapPin className="size-4" /> {isHibrido ? "Ubicación Híbrida" : "Ubicación Física"}
                     </div>
                     <h4 className="font-bold text-lg text-slate-800 line-clamp-2">{bName}</h4>
                     <p className="text-xs text-muted-foreground">{event.centro_regional || "Ciudad Universitaria"}</p>
                   </div>
 
-                  {bLink && (
-                    <Button
-                      type="button"
-                      className="w-full gap-1.5 h-11 text-white shadow-sm transition hover:scale-[1.01]"
-                      style={{ backgroundColor: "#004B87" }}
-                      onClick={() => window.open(bLink, "_blank")}
-                    >
-                      <Share2 className="size-4" /> Ver en Google Maps
-                    </Button>
-                  )}
+                  <div className="flex gap-2">
+                    {bLink && (
+                      <Button
+                        type="button"
+                        className="flex-1 gap-1.5 h-11 text-white shadow-sm transition hover:scale-[1.01] font-semibold text-xs"
+                        style={{ backgroundColor: "#004B87" }}
+                        onClick={() => window.open(bLink, "_blank")}
+                      >
+                        <Share2 className="size-4" /> Google Maps
+                      </Button>
+                    )}
+                    {isHibrido && event.enlace_virtual && (
+                      <Button
+                        type="button"
+                        className="flex-1 gap-1.5 h-11 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition hover:scale-[1.01] font-semibold text-xs"
+                        onClick={() => window.open(event.enlace_virtual, "_blank")}
+                      >
+                        <Eye className="size-4" /> Enlace Virtual
+                      </Button>
+                    )}
+                  </div>
                 </div>
               );
             })()
           )}
         </div>
       </div>
+
+      {/* Galería de imágenes adicionales */}
+      {event.imagenes_adicionales && event.imagenes_adicionales.length > 0 && (
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-3">
+          <h3 className="font-bold text-xs text-[#003366] uppercase tracking-wider flex items-center gap-2">
+            <Camera className="size-4 text-[#004B87]" /> Imágenes Adicionales del Evento
+          </h3>
+          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200">
+            {event.imagenes_adicionales.map((img: string, idx: number) => (
+              <div key={idx} className="relative size-32 rounded-xl overflow-hidden border shrink-0 group hover:border-[#004B87]/50 transition shadow-sm cursor-zoom-in" onClick={() => window.open(img, "_blank")}>
+                <img src={img} alt={`Imagen ${idx + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stepper Timeline */}
       <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-6 shadow-sm">

@@ -823,9 +823,13 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
         </div>
 
         {data.tipo_actividad !== "Virtual" && (() => {
-          const [buildingName, gMapsUrl] = data.ubicacion && data.ubicacion.includes("|")
+          const [fullUbicacion, gMapsUrl] = data.ubicacion && data.ubicacion.includes("|")
             ? data.ubicacion.split("|")
             : [data.ubicacion || "", ""];
+
+          const [buildingName, aulaName] = fullUbicacion.includes(" - ")
+            ? fullUbicacion.split(" - ")
+            : [fullUbicacion, ""];
 
           return (
             <div className="space-y-4 animate-in fade-in duration-200">
@@ -837,11 +841,12 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                   value={buildingName}
                   onChange={(e) => {
                     const val = e.target.value;
+                    const fullLoc = aulaName ? `${val} - ${aulaName}` : val;
                     const query = val ? `${val} ${data.centro_regional}`.trim() : "";
                     const link = query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : "";
                     setData((prev) => ({
                       ...prev,
-                      ubicacion: val ? `${val}|${link}` : ""
+                      ubicacion: val ? `${fullLoc}|${link}` : ""
                     }));
                   }}
                   onBlur={() => blur("ubicacion")}
@@ -849,6 +854,27 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                   className={cn("mt-1 h-11 bg-white", errors.ubicacion && "border-red-500")}
                 />
                 {errors.ubicacion && <p className="text-xs mt-0.5 text-red-800">{errors.ubicacion}</p>}
+              </div>
+
+              <div>
+                <Label>
+                  Aula (Opcional)
+                </Label>
+                <Input
+                  value={aulaName}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const fullLoc = val ? `${buildingName} - ${val}` : buildingName;
+                    const query = buildingName ? `${buildingName} ${data.centro_regional}`.trim() : "";
+                    const link = query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : "";
+                    setData((prev) => ({
+                      ...prev,
+                      ubicacion: buildingName ? `${fullLoc}|${link}` : ""
+                    }));
+                  }}
+                  placeholder="Ej. Aula 101, Cubículo 4, Laboratorio B..."
+                  className="mt-1 h-11 bg-white border-slate-200"
+                />
               </div>
 
               {gMapsUrl && (
