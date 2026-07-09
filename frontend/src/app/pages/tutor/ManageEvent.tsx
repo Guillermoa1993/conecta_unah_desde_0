@@ -196,6 +196,7 @@ export function ManageEvent() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [auditoriaStudent, setAuditoriaStudent] = useState<any | null>(null);
   const [auditoriaIndex, setAuditoriaIndex] = useState(0);
+  const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null);
   
   // Constancia Modals state
   const [pdfStudent, setPdfStudent] = useState<any>(null);
@@ -836,7 +837,7 @@ export function ManageEvent() {
           </h3>
           <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200">
             {event.imagenes_adicionales.map((img: string, idx: number) => (
-              <div key={idx} className="relative size-32 rounded-xl overflow-hidden border shrink-0 group hover:border-[#004B87]/50 transition shadow-sm cursor-zoom-in" onClick={() => window.open(img, "_blank")}>
+              <div key={idx} className="relative size-32 rounded-xl overflow-hidden border shrink-0 group hover:border-[#004B87]/50 transition shadow-sm cursor-zoom-in" onClick={() => setActiveLightboxImg(img)}>
                 <img src={img} alt={`Imagen ${idx + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
               </div>
             ))}
@@ -1447,6 +1448,33 @@ export function ManageEvent() {
                   <XCircle className="size-4" /> Rechazar Asistencia
                 </Button>
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Lightbox Modal */}
+      <Dialog
+        open={activeLightboxImg !== null}
+        onOpenChange={(v) => {
+          if (!v) setActiveLightboxImg(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-4xl p-1 bg-slate-900 border-none shadow-none flex items-center justify-center rounded-2xl overflow-hidden">
+          {activeLightboxImg && (
+            <div className="relative max-h-[85vh] w-full flex items-center justify-center p-2">
+              <img
+                src={activeLightboxImg}
+                alt="Vista ampliada"
+                className="max-h-[80vh] max-w-full object-contain rounded-xl shadow-2xl"
+              />
+              <button
+                type="button"
+                onClick={() => setActiveLightboxImg(null)}
+                className="absolute top-4 right-4 size-9 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white font-bold transition hover:scale-105"
+              >
+                ✕
+              </button>
             </div>
           )}
         </DialogContent>
