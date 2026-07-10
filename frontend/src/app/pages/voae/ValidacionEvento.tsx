@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { CheckCircle2, XCircle, PenLine, RotateCcw, Stamp, ArrowLeft, AlertTriangle, MapPin } from "lucide-react";
+import { CheckCircle2, XCircle, PenLine, RotateCcw, Stamp, ArrowLeft, AlertTriangle, MapPin, Camera, Eye } from "lucide-react";
 import { api } from "../../../services/api";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
@@ -149,108 +149,199 @@ export function ValidacionEvento() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 pb-12">
       <Link
         to="/voae"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition"
       >
-        <ArrowLeft className="size-4" /> Volver a solicitudes pendientes
+        <ArrowLeft className="size-4" /> Volver al panel
       </Link>
 
-      <div>
-        <h1 className="text-xl font-bold text-[#003366]">Validación de Solicitud de Evento</h1>
-        <p className="text-sm text-[#717182]">Revisa la información técnica, firma digitalmente y emite resolución.</p>
+      <div className="flex items-center gap-4">
+        <div className="size-12 rounded-full bg-[#004B87]/15 text-[#004B87] font-bold text-lg flex items-center justify-center">
+          {event.categoria?.slice(0, 2).toUpperCase()}
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-slate-800 leading-tight">{event.titulo}</h1>
+          <p className="text-xs text-slate-500 font-medium">
+            {CATEGORY_LABEL[event.categoria] || event.categoria} · {new Date(event.fecha_inicio).toLocaleDateString("es-HN", { day: "numeric", month: "long", year: "numeric" })} · {event.lugar?.split("|")[0]}
+          </p>
+          <div className="flex items-center gap-1 mt-1 font-semibold text-slate-600 text-xs">
+            <span>Tutor: {event.tutor_nombre}</span>
+            {event.aprobado_por && <span className="text-emerald-600">· Solicitado por: {event.tutor_nombre}</span>}
+          </div>
+        </div>
       </div>
 
-      {/* Info del evento */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
-        {event.imagen_url && (
-          <div className="w-full h-44 rounded-xl overflow-hidden border bg-slate-50 shadow-inner">
+      {/* Grid: Portada + Tarjeta de ubicación (Imagen 133) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Portada */}
+        <div className="md:col-span-2 relative rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm h-60 flex items-center justify-center">
+          {event.imagen_url ? (
             <img src={event.imagen_url} alt="Banner del evento" className="w-full h-full object-cover" />
-          </div>
-        )}
-
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-[#004B87] text-[#FFD100] rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0">
-            {event.categoria[0]}
-          </div>
-          <div>
-            <h2 className="font-bold text-[#003366]">{event.titulo}</h2>
-            <p className="text-xs text-[#717182]">{event.tutor_nombre} · {event.centro_regional}</p>
-          </div>
-          <span className="ml-auto text-xs bg-[#FFD100]/20 border border-[#FFD100]/40 text-[#003366] font-bold px-2.5 py-1 rounded-lg">
-            {event.duracion_horas}h VOAE
-          </span>
+          ) : (
+            <div className="text-slate-400 font-bold flex flex-col items-center gap-2">
+              <span className="text-4xl">AC</span>
+              <span className="text-xs">Imagen por categoría</span>
+            </div>
+          )}
         </div>
 
-        <div className="border-t pt-4 grid grid-cols-2 gap-4 text-xs text-slate-700">
-          <div>
-            <span className="text-[10px] text-[#717182] uppercase font-bold block">Ubicación / Lugar</span>
-            {(() => {
-              const loc = event.lugar || event.ubicacion || "No especificado";
-              if (loc.includes("|")) {
-                const [bName, bCoordsOrLink] = loc.split("|");
-                const href = bCoordsOrLink.startsWith("http")
-                  ? bCoordsOrLink
-                  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bCoordsOrLink)}`;
-                return (
+        {/* Ubicación y Botones */}
+        {(() => {
+          const loc = event.lugar || event.ubicacion || "No especificado";
+          let bName = loc;
+          let bCoordsOrLink = "";
+          if (loc.includes("|")) {
+            [bName, bCoordsOrLink] = loc.split("|");
+          }
+
+          const isVirtual = event.tipo_actividad === "Virtual";
+          const isHybrid = event.tipo_actividad === "Híbrido";
+
+          const mapsHref = bCoordsOrLink
+            ? (bCoordsOrLink.startsWith("http") ? bCoordsOrLink : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bCoordsOrLink)}`)
+            : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bName)}`;
+
+          return (
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between h-60">
+              <div className="space-y-1.5">
+                <div className="text-[10px] font-bold text-[#004B87] uppercase flex items-center gap-1">
+                  <MapPin className="size-3.5 shrink-0" />
+                  {isVirtual ? "Ubicación Virtual" : isHybrid ? "Ubicación Híbrida" : "Ubicación Presencial"}
+                </div>
+                <h3 className="font-bold text-slate-800 text-lg leading-snug">{bName}</h3>
+                <p className="text-xs text-slate-500 font-medium">{event.centro_regional || "Ciudad Universitaria"}</p>
+              </div>
+
+              <div className="space-y-2 mt-4 w-full">
+                {!isVirtual && (
                   <a
-                    href={href}
+                    href={mapsHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold text-[#004B87] hover:underline flex items-center gap-1 mt-0.5"
+                    className="w-full py-2.5 px-3 bg-[#004B87] hover:bg-[#003366] text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
                   >
-                    <MapPin className="size-3.5 text-[#004B87] shrink-0" /> {bName} <span className="text-[10px] text-blue-500 font-normal hover:underline">(Ver mapa)</span>
+                    <MapPin className="size-3.5" /> Google Maps
                   </a>
-                );
-              }
-              return <span className="font-semibold text-slate-800">{loc}</span>;
-            })()}
+                )}
+                {(isVirtual || isHybrid) && event.enlace_virtual && (
+                  <a
+                    href={event.enlace_virtual}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 px-3 bg-[#22c55e] hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <Eye className="size-3.5" /> Enlace Virtual
+                  </a>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Evidencias adicionales */}
+      {event.imagenes_adicionales && event.imagenes_adicionales.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
+          <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5 uppercase text-[#003366]">
+            <Camera className="size-4 text-[#004B87]" /> Imágenes adicionales del evento
+          </h4>
+          <div className="flex gap-3 flex-wrap">
+            {event.imagenes_adicionales.map((img: string, idx: number) => (
+              <a
+                key={idx}
+                href={img}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="border border-slate-200 rounded-xl overflow-hidden size-20 bg-slate-50 hover:opacity-85 transition-opacity shadow-sm flex items-center justify-center shrink-0"
+              >
+                <img src={img} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Ficha Técnica del Evento (Imagen 134) */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
+        <h3 className="font-bold text-[#003366] text-sm border-b pb-2">Ficha Técnica del Evento</h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-y-5 gap-x-6 text-xs text-slate-700">
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Título del evento</span>
+            <span className="font-semibold text-slate-800 text-xs leading-normal block">{event.titulo}</span>
           </div>
           <div>
-            <span className="text-[10px] text-[#717182] uppercase font-bold block">Fecha</span>
-            <span className="font-semibold text-slate-800">
-              {new Date(event.fecha_inicio).toLocaleDateString("es-HN", { day: "numeric", month: "long", year: "numeric" })}
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Categorías / Ámbitos</span>
+            <span className="font-semibold text-slate-800 block">
+              {CATEGORY_LABEL[event.categoria] || event.categoria} ({event.duracion_horas} hrs)
+            </span>
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Tipo de Evento</span>
+            <span className="font-semibold text-slate-800 flex items-center gap-1 block">
+              🎓 {event.duracion_horas > 0 ? "Horas VOAE" : "Recreación / Sin Horas"}
             </span>
           </div>
 
           <div>
-            <span className="text-[10px] text-[#717182] uppercase font-bold block">Cupos / Capacidad</span>
-            <span className="font-semibold text-slate-800">{event.cupo_maximo} estudiantes máximo</span>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Fecha y Hora</span>
+            <span className="font-semibold text-slate-800 block">
+              {new Date(event.fecha_inicio).toLocaleDateString("es-HN", { day: "numeric", month: "long", year: "numeric" })} 
+              {` (${new Date(event.fecha_inicio).toLocaleTimeString("es-HN", { hour: "numeric", minute: "2-digit" })} - ${new Date(event.fecha_fin).toLocaleTimeString("es-HN", { hour: "numeric", minute: "2-digit" })})`}
+            </span>
           </div>
           <div>
-            <span className="text-[10px] text-[#717182] uppercase font-bold block">Tipo de Actividad</span>
-            <span className="font-semibold text-slate-800">{event.tipo_actividad}</span>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Tipo de Actividad</span>
+            <span className="font-semibold text-slate-800 block">{event.tipo_actividad}</span>
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Centro Regional</span>
+            <span className="font-semibold text-slate-800 block">{event.centro_regional || "Ciudad Universitaria"}</span>
           </div>
 
-          <div className="col-span-2">
-            <span className="text-[10px] text-[#717182] uppercase font-bold block">Descripción Técnica</span>
-            <p className="mt-1 leading-relaxed text-slate-600">{event.descripcion}</p>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Ubicación / Lugar</span>
+            <span className="font-semibold text-slate-800 block">{(event.lugar || "").split("|")[0]}</span>
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Enlace de acceso</span>
+            <span className="font-semibold text-slate-800 block truncate">
+              {event.enlace_virtual ? (
+                <a href={event.enlace_virtual} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                  {event.enlace_virtual}
+                </a>
+              ) : (
+                "No aplica"
+              )}
+            </span>
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Cupo máximo</span>
+            <span className="font-semibold text-slate-800 block">{event.cupo_maximo} estudiantes</span>
           </div>
 
-          {event.imagenes_adicionales && event.imagenes_adicionales.length > 0 && (
-            <div className="col-span-2 pt-2 border-t">
-              <span className="text-[10px] text-[#717182] uppercase font-bold block mb-1.5">Imágenes adicionales / Evidencias</span>
-              <div className="flex gap-2.5 flex-wrap">
-                {event.imagenes_adicionales.map((img: string, idx: number) => (
-                  <a
-                    key={idx}
-                    href={img}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="border border-slate-200 rounded-xl overflow-hidden size-20 bg-slate-50 hover:opacity-85 transition-opacity shadow-sm flex items-center justify-center"
-                  >
-                    <img src={img} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Audiencia</span>
+            <span className="font-semibold text-slate-800 block">Todo público / Estudiantes UNAH</span>
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Horas de Duración</span>
+            <span className="font-semibold text-slate-800 block">{event.duracion_horas} hrs (totales)</span>
+          </div>
+        </div>
+
+        <div className="pt-4 border-t">
+          <span className="text-[10px] text-slate-400 font-bold block uppercase mb-1">Descripción del evento</span>
+          <div className="bg-slate-50 p-4 rounded-xl text-slate-650 leading-relaxed font-medium">
+            {event.descripcion}
+          </div>
         </div>
       </div>
 
       {/* Firma digital */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-3">
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-black text-[#003366] flex items-center gap-2">
@@ -284,20 +375,20 @@ export function ValidacionEvento() {
       </div>
 
       {/* Acciones */}
-      <div className="flex gap-4">
+      <div className="flex gap-4 pt-2 justify-end">
         <Button
           variant="outline"
-          className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 h-12 text-sm font-bold rounded-xl"
+          className="px-6 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 h-11 text-xs font-bold rounded-xl"
           onClick={() => setRejectDialogOpen(true)}
         >
-          <XCircle className="size-4 mr-2" /> Rechazar Solicitud
+          <XCircle className="size-4 mr-1.5" /> Rechazar
         </Button>
         <Button
-          className="flex-1 bg-green-600 hover:bg-green-700 h-12 text-sm font-bold rounded-xl text-white disabled:opacity-40"
+          className="px-6 bg-[#22c55e] hover:bg-emerald-600 h-11 text-xs font-bold rounded-xl text-white disabled:opacity-40"
           onClick={() => setApproveDialogOpen(true)}
           disabled={!signatureUrl}
         >
-          <CheckCircle2 className="size-4 mr-2" /> Aprobar e Instalar Evento
+          <CheckCircle2 className="size-4 mr-1.5" /> Aprobar y publicar en muro
         </Button>
       </div>
 
