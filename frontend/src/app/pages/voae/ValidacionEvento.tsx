@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { CheckCircle2, XCircle, PenLine, RotateCcw, Stamp, ArrowLeft, AlertTriangle } from "lucide-react";
+import { CheckCircle2, XCircle, PenLine, RotateCcw, Stamp, ArrowLeft, AlertTriangle, MapPin } from "lucide-react";
 import { api } from "../../../services/api";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
@@ -77,6 +77,7 @@ export function ValidacionEvento() {
   const [signatureUrl, setSignatureUrl] = useState<string|null>(null);
   const [showSigning, setShowSigning] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [motivoRechazo, setMotivoRechazo] = useState("");
 
   const fetchEventDetails = async () => {
@@ -163,6 +164,12 @@ export function ValidacionEvento() {
 
       {/* Info del evento */}
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
+        {event.imagen_url && (
+          <div className="w-full h-44 rounded-xl overflow-hidden border bg-slate-50 shadow-inner">
+            <img src={event.imagen_url} alt="Banner del evento" className="w-full h-full object-cover" />
+          </div>
+        )}
+
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-[#004B87] text-[#FFD100] rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0">
             {event.categoria[0]}
@@ -182,15 +189,18 @@ export function ValidacionEvento() {
             {(() => {
               const loc = event.lugar || event.ubicacion || "No especificado";
               if (loc.includes("|")) {
-                const [bName, bLink] = loc.split("|");
+                const [bName, bCoordsOrLink] = loc.split("|");
+                const href = bCoordsOrLink.startsWith("http")
+                  ? bCoordsOrLink
+                  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bCoordsOrLink)}`;
                 return (
                   <a
-                    href={bLink}
+                    href={href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold text-[#004B87] hover:underline"
+                    className="font-semibold text-[#004B87] hover:underline flex items-center gap-1 mt-0.5"
                   >
-                    {bName} (Mapa)
+                    <MapPin className="size-3.5 text-[#004B87] shrink-0" /> {bName} <span className="text-[10px] text-blue-500 font-normal hover:underline">(Ver mapa)</span>
                   </a>
                 );
               }
@@ -203,10 +213,39 @@ export function ValidacionEvento() {
               {new Date(event.fecha_inicio).toLocaleDateString("es-HN", { day: "numeric", month: "long", year: "numeric" })}
             </span>
           </div>
+
+          <div>
+            <span className="text-[10px] text-[#717182] uppercase font-bold block">Cupos / Capacidad</span>
+            <span className="font-semibold text-slate-800">{event.cupo_maximo} estudiantes máximo</span>
+          </div>
+          <div>
+            <span className="text-[10px] text-[#717182] uppercase font-bold block">Tipo de Actividad</span>
+            <span className="font-semibold text-slate-800">{event.tipo_actividad}</span>
+          </div>
+
           <div className="col-span-2">
             <span className="text-[10px] text-[#717182] uppercase font-bold block">Descripción Técnica</span>
             <p className="mt-1 leading-relaxed text-slate-600">{event.descripcion}</p>
           </div>
+
+          {event.imagenes_adicionales && event.imagenes_adicionales.length > 0 && (
+            <div className="col-span-2 pt-2 border-t">
+              <span className="text-[10px] text-[#717182] uppercase font-bold block mb-1.5">Imágenes adicionales / Evidencias</span>
+              <div className="flex gap-2.5 flex-wrap">
+                {event.imagenes_adicionales.map((img: string, idx: number) => (
+                  <a
+                    key={idx}
+                    href={img}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="border border-slate-200 rounded-xl overflow-hidden size-20 bg-slate-50 hover:opacity-85 transition-opacity shadow-sm flex items-center justify-center"
+                  >
+                    <img src={img} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -255,20 +294,48 @@ export function ValidacionEvento() {
         </Button>
         <Button
           className="flex-1 bg-green-600 hover:bg-green-700 h-12 text-sm font-bold rounded-xl text-white disabled:opacity-40"
-          onClick={handleAprobar}
+          onClick={() => setApproveDialogOpen(true)}
           disabled={!signatureUrl}
         >
           <CheckCircle2 className="size-4 mr-2" /> Aprobar e Instalar Evento
         </Button>
       </div>
 
+      {/* Approve dialog */}
+      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-[#003366] flex items-center gap-1.5 font-bold">
+              ¿Está seguro de aprobar este evento?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 mt-1">
+              Al aprobar esta solicitud, el evento pasará al estado <strong>PROGRAMADO</strong> y estará disponible para que el tutor inicie el registro de asistencia. Los estudiantes podrán inscribirse.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex gap-2">
+            <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+              onClick={() => {
+                setApproveDialogOpen(false);
+                handleAprobar();
+              }}
+            >
+              Confirmar Aprobación
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Reject dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-[#003366]">Rechazar solicitud de evento</DialogTitle>
-            <DialogDescription>
-              Por favor escribe detalladamente los motivos del rechazo. El tutor recibirá una notificación con este motivo para poder corregir su propuesta.
+            <DialogTitle className="text-[#003366] font-bold">¿Está seguro de rechazar esta propuesta?</DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Escribe detalladamente los motivos del rechazo. El tutor recibirá una notificación con este motivo para poder corregir su propuesta.
             </DialogDescription>
           </DialogHeader>
           <div className="py-2">
@@ -279,7 +346,7 @@ export function ValidacionEvento() {
               className="h-12"
             />
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex gap-2">
             <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>Cancelar</Button>
             <Button variant="destructive" onClick={handleRechazar}>Confirmar Rechazo</Button>
           </DialogFooter>
