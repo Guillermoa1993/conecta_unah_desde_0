@@ -172,6 +172,7 @@ export function ManageEvent() {
   const [isEditing, setIsEditing] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [sendVoaeConfirmOpen, setSendVoaeConfirmOpen] = useState(false);
+  const [endEventConfirmOpen, setEndEventConfirmOpen] = useState(false);
 
   const handlePublishDirect = async () => {
     if (!event) return;
@@ -667,7 +668,7 @@ export function ManageEvent() {
           )}
 
           {event.estado === "EN_CURSO_SALIDA" && (
-            <Button onClick={handleEndEvent} className="bg-red-600 hover:bg-red-700 text-white gap-1.5 shadow-sm font-semibold">
+            <Button onClick={() => setEndEventConfirmOpen(true)} className="bg-red-600 hover:bg-red-700 text-white gap-1.5 shadow-sm font-semibold">
               <Square className="size-4" /> Finalizar Evento
             </Button>
           )}
@@ -1038,8 +1039,12 @@ export function ManageEvent() {
                           <TableHead className="font-semibold text-slate-700">Cuenta</TableHead>
                           <TableHead className="font-semibold text-slate-700">Hora de Llegada</TableHead>
                           <TableHead className="font-semibold text-slate-700">Hora de Salida</TableHead>
-                          <TableHead className="text-center font-semibold text-slate-700">Certificado</TableHead>
-                          <TableHead className="text-center font-semibold text-slate-700">Enviar</TableHead>
+                          {event.tipo_evento === "HORAS_VOAE" && (
+                            <>
+                              <TableHead className="text-center font-semibold text-slate-700">Certificado</TableHead>
+                              <TableHead className="text-center font-semibold text-slate-700">Enviar</TableHead>
+                            </>
+                          )}
                           <TableHead className="text-center font-semibold text-slate-700">Auditar</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1079,32 +1084,36 @@ export function ManageEvent() {
                                   )
                                 ) : "—"}
                               </TableCell>
-                              <TableCell className="text-center">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={event.estado !== "FINALIZADO"}
-                                  className="gap-1 text-xs h-7 px-2 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5"
-                                  onClick={() => {
-                                    setPdfStudent(s);
-                                    setShowSignatureModal(true);
-                                  }}
-                                >
-                                  <FileText className="size-3.5" /> {isSigned ? "Firmado" : "Firmar"}
-                                </Button>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="size-7 p-0 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5"
-                                  onClick={() => {
-                                    toast.success(`Código de asistencia reenviado a ${s.estudiante_nombre} por correo`);
-                                  }}
-                                >
-                                  <Mail className="size-3.5" />
-                                </Button>
-                              </TableCell>
+                              {event.tipo_evento === "HORAS_VOAE" && (
+                                <>
+                                  <TableCell className="text-center">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={event.estado !== "FINALIZADO"}
+                                      className="gap-1 text-xs h-7 px-2 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5"
+                                      onClick={() => {
+                                        setPdfStudent(s);
+                                        setShowSignatureModal(true);
+                                      }}
+                                    >
+                                      <FileText className="size-3.5" /> {isSigned ? "Firmado" : "Firmar"}
+                                    </Button>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="size-7 p-0 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5"
+                                      onClick={() => {
+                                        toast.success(`Código de asistencia reenviado a ${s.estudiante_nombre} por correo`);
+                                      }}
+                                    >
+                                      <Mail className="size-3.5" />
+                                    </Button>
+                                  </TableCell>
+                                </>
+                              )}
                               <TableCell className="text-center">
                                 <Button
                                   size="sm"
@@ -1292,6 +1301,32 @@ export function ManageEvent() {
               onClick={async () => {
                 await handleSendToVoae();
                 setSendVoaeConfirmOpen(false);
+              }}
+            >
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* End event confirmation modal */}
+      <Dialog open={endEventConfirmOpen} onOpenChange={setEndEventConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 font-bold">¿Seguro de finalizar el evento?</DialogTitle>
+            <DialogDescription className="text-sm text-slate-500 font-medium mt-2">
+              ¿Está seguro de que desea finalizar este evento? Esta acción registrará las asistencias finales y dará por concluida la actividad.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" className="font-semibold cursor-pointer" onClick={() => setEndEventConfirmOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="text-white font-semibold cursor-pointer bg-red-600 hover:bg-red-700"
+              onClick={async () => {
+                await handleEndEvent();
+                setEndEventConfirmOpen(false);
               }}
             >
               Confirmar
