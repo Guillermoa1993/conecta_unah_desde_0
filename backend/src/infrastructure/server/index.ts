@@ -43,16 +43,21 @@ import { eventoRouter } from '../../interfaces/routes/eventoRoutes';
 import { inscripcionRouter } from '../../interfaces/routes/inscripcionRoutes';
 import { constanciaRouter } from '../../interfaces/routes/constanciaRoutes';
 import { notificacionRouter } from '../../interfaces/routes/notificacionRoutes';
+import { parametrosRouter } from '../../interfaces/routes/parametrosRoutes';
 
 // Middleware
 import { errorMiddleware } from '../../interfaces/middlewares/errorMiddleware';
+import { loadConfig, cfg } from '../config/configService';
+import https from 'https';
+import fs from 'fs';
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT ?? 5000;
 
-app.use(cors({ origin: process.env.FRONTEND_URL ?? '*' }));
+app.use(cors({ origin: (origin, cb) => cb(null, true) })); // CORS dinámico — se re-aplica tras loadConfig
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -96,16 +101,43 @@ app.use('/api/eventos',       eventoRouter(eventoCtrl));
 app.use('/api/inscripciones', inscripcionRouter(inscripcionCtrl));
 app.use('/api/constancias',   constanciaRouter(constanciaCtrl));
 app.use('/api/notificaciones', notificacionRouter(notificacionCtrl));
+app.use('/api/parametros',    parametrosRouter);
 
 // ── Error handler (debe ir al final) ────────────────────────────────────────
 app.use(errorMiddleware);
 
-app.listen(PORT, () => {
-  console.log(`\n🚀 UNAH Conecta API corriendo en http://localhost:${PORT}`);
-  console.log(`   Health:         GET  /api/health`);
-  console.log(`   Auth:           POST /api/auth/login | POST /api/auth/registro`);
-  console.log(`   Eventos:        GET  /api/eventos`);
-  console.log(`   Inscripciones:  POST /api/inscripciones/evento/:id`);
-  console.log(`   Constancias:    GET  /api/constancias/pendientes`);
-  console.log(`   Notificaciones: GET  /api/notificaciones\n`);
+// Carga config de BD y luego arranca el servidor
+loadConfig().then(() => {
+  const PORT = Number(cfg('PORT', '5000'));
+  const sslActivo = cfg('SSL_ACTIVO') === '1';
+  const sslCert   = cfg('SSL_CERTIFICADO', '');
+
+  const banner = (proto: string, port: number) => {
+    console.log(`\n🚀 UNAH Conecta API corriendo en ${proto}://localhost:${port}`);
+    console.log(`   Health:         GET  /api/health`);
+    console.log(`   Auth:           POST /api/auth/login | POST /api/auth/registro`);
+    console.log(`   Eventos:        GET  /api/eventos`);
+    console.log(`   Inscripciones:  POST /api/inscripciones/evento/:id`);
+    console.log(`   Constancias:    GET  /api/constancias/pendientes`);
+    console.log(`   Notificaciones: GET  /api/notificaciones\n`);
+  };
+
+  if (sslActivo && sslCert) {
+    try {
+      // SSL_CERTIFICADO puede ser una ruta a carpeta con key.pem + cert.pem
+      const keyPath  = sslCert.endsWith('.pem') ? sslCert.replace('cert.pem', 'key.pem') : `${sslCert}/key.pem`;
+      const certPath = sslCert.endsWith('.pem') ? sslCert : `${sslCert}/cert.pem`;
+      const credentials = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
+      https.createServer(credentials, app).listen(PORT, () => banner('https', PORT));
+      // También escucha HTTP en PORT+1 para redirigir (opcional)
+    } catch (e: any) {
+      console.warn(`⚠️  SSL configurado pero certificado no encontrado (${e.message}). Arrancando en HTTP.`);
+      app.listen(PORT, () => banner('http', PORT));
+    }
+  } else {
+    app.listen(PORT, () => banner('http', PORT));
+  }
+}).catch(err => {
+  console.error('Error cargando config desde BD:', err);
+  process.exit(1);
 });

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Bell, Mic, Camera, Shield, ChevronRight, RotateCcw, X } from "lucide-react";
+import { Bell, Camera, Shield, ChevronRight, RotateCcw, X } from "lucide-react";
 import { usePermissions, type PermissionState } from "../../../hooks/usePermissions";
 
 interface PermissionsPanelProps {
@@ -78,7 +78,7 @@ function PermissionRow({ icon, label, sublabel, state, onRequest }: PermRow) {
 }
 
 export function PermissionsPanel({ open, onClose, anchorRef }: PermissionsPanelProps) {
-  const { permissions, refresh, requestNotifications, requestMicrophone, requestCamera, requestAll } = usePermissions();
+  const { permissions, refresh, requestNotifications, requestCamera, requestAll } = usePermissions();
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -102,7 +102,6 @@ export function PermissionsPanel({ open, onClose, anchorRef }: PermissionsPanelP
 
   const allGranted =
     permissions.notifications === "granted" &&
-    permissions.microphone === "granted" &&
     permissions.camera === "granted";
 
   return (
@@ -135,12 +134,6 @@ export function PermissionsPanel({ open, onClose, anchorRef }: PermissionsPanelP
           label="Notificaciones"
           state={permissions.notifications}
           onRequest={requestNotifications}
-        />
-        <PermissionRow
-          icon={<Mic className="h-4 w-4" />}
-          label="Micrófono"
-          state={permissions.microphone}
-          onRequest={requestMicrophone}
         />
         <PermissionRow
           icon={<Camera className="h-4 w-4" />}

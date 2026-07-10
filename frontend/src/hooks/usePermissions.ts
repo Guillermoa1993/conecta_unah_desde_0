@@ -4,7 +4,6 @@ export type PermissionState = "granted" | "denied" | "prompt" | "unavailable";
 
 export interface AppPermissions {
   notifications: PermissionState;
-  microphone: PermissionState;
   camera: PermissionState;
 }
 
@@ -20,17 +19,15 @@ async function queryPermission(name: PermissionName): Promise<PermissionState> {
 export function usePermissions() {
   const [permissions, setPermissions] = useState<AppPermissions>({
     notifications: "prompt",
-    microphone: "prompt",
     camera: "prompt",
   });
 
   const refresh = useCallback(async () => {
-    const [notifications, microphone, camera] = await Promise.all([
+    const [notifications, camera] = await Promise.all([
       queryPermission("notifications"),
-      queryPermission("microphone" as PermissionName),
       queryPermission("camera" as PermissionName),
     ]);
-    setPermissions({ notifications, microphone, camera });
+    setPermissions({ notifications, camera });
   }, []);
 
   useEffect(() => {
@@ -43,19 +40,6 @@ export function usePermissions() {
     const state = result === "granted" ? "granted" : result === "denied" ? "denied" : "prompt";
     setPermissions((p) => ({ ...p, notifications: state }));
     return state;
-  }, []);
-
-  const requestMicrophone = useCallback(async (): Promise<PermissionState> => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((t) => t.stop());
-      setPermissions((p) => ({ ...p, microphone: "granted" }));
-      return "granted";
-    } catch {
-      const state = await queryPermission("microphone" as PermissionName);
-      setPermissions((p) => ({ ...p, microphone: state }));
-      return state;
-    }
   }, []);
 
   const requestCamera = useCallback(async (): Promise<PermissionState> => {
@@ -74,10 +58,9 @@ export function usePermissions() {
   const requestAll = useCallback(async () => {
     await Promise.allSettled([
       requestNotifications(),
-      requestMicrophone(),
       requestCamera(),
     ]);
-  }, [requestNotifications, requestMicrophone, requestCamera]);
+  }, [requestNotifications, requestCamera]);
 
-  return { permissions, refresh, requestNotifications, requestMicrophone, requestCamera, requestAll };
+  return { permissions, refresh, requestNotifications, requestCamera, requestAll };
 }

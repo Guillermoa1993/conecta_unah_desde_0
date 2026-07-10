@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { AuthController } from '../controllers/AuthController';
 import { autenticar } from '../middlewares/authMiddleware';
+import { cfg } from '../../infrastructure/config/configService';
 
 export function authRouter(ctrl: AuthController): Router {
   const r = Router();
@@ -12,8 +13,8 @@ export function authRouter(ctrl: AuthController): Router {
   r.post('/otp/verificar', ctrl.verificarOtp);
   r.post('/registro-estudiante', ctrl.registrarEstudiante);
   r.post('/otp-registro/enviar', ctrl.enviarOtpRegistro);
-  // Solo disponible fuera de producción
-  if (process.env.NODE_ENV !== 'production') {
+  // Disponible fuera de producción O cuando MODO_DEV está activo en parámetros
+  if (process.env.NODE_ENV !== 'production' || cfg('MODO_DEV') === '1') {
     r.post('/dev-login', ctrl.devLogin);
   }
   return r;

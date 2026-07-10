@@ -7,10 +7,15 @@ import { SidebarProvider } from "../ui/sidebar";
 import { Toaster } from "../ui/sonner";
 import { PermissionsWelcomeModal } from "../permissions/PermissionsWelcomeModal";
 import { RoleProvider } from "../../../lib/role-context";
+import { Mantenimiento } from "../../pages/Mantenimiento";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
+const ROLES_EXENTOS = ["admin", "dev"];
 
 export function RootLayout() {
   const location = useLocation();
   const [showPermModal, setShowPermModal] = useState(false);
+  const [mantenimiento, setMantenimiento] = useState(false);
 
   useEffect(() => {
     const isActive = sessionStorage.getItem("unah_session_active") === "true";
@@ -20,6 +25,18 @@ export function RootLayout() {
       localStorage.setItem("unah_perms_asked", "true");
     }
   }, [location.pathname]);
+
+  useEffect(() => {
+    fetch(`${API_URL}/parametros/status`)
+      .then(r => r.json())
+      .then(d => setMantenimiento(d.mantenimiento ?? false))
+      .catch(() => setMantenimiento(false));
+  }, [location.pathname]);
+
+  const role = sessionStorage.getItem("unah_role") ?? "";
+  if (mantenimiento && !ROLES_EXENTOS.includes(role)) {
+    return <Mantenimiento />;
+  }
 
   const bypassLayout =
     location.pathname === "/" ||
