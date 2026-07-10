@@ -417,11 +417,13 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       return;
     }
     const calcDuration = (): number => {
-      if (!data.hora_inicio || !data.hora_fin) return 0;
-      const [h1, m1] = data.hora_inicio.split(":").map(Number);
-      const [h2, m2] = data.hora_fin.split(":").map(Number);
-      const diff = h2 * 60 + m2 - (h1 * 60 + m1);
-      return diff > 0 ? Math.round((diff / 60) * 10) / 10 : 0;
+      if (!data.fecha_inicio || !data.fecha_fin || !data.hora_inicio || !data.hora_fin) return 0;
+      const start = new Date(data.fecha_inicio + "T" + data.hora_inicio);
+      const end = new Date(data.fecha_fin + "T" + data.hora_fin);
+      const diffMs = end.getTime() - start.getTime();
+      if (diffMs <= 0) return 0;
+      const diffHours = diffMs / (1000 * 60 * 60);
+      return Math.round(diffHours * 10) / 10;
     };
     const checkedCategorias = categoriasHoras.filter((ch) => ch.checked);
     const primaryCategoria = checkedCategorias.length > 0 ? checkedCategorias[0].categoria : "ACADEMICO";
@@ -436,7 +438,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       tipo_evento: data.tipo_evento === "HORAS_VOAE" ? "HORAS_VOAE" : "RECREACION",
       fecha_inicio: data.fecha_inicio + "T" + data.hora_inicio + ":00",
       fecha_fin: data.fecha_fin + "T" + data.hora_fin + ":00",
-      duracion_horas: data.tipo_evento === "HORAS_VOAE" ? (checkedCategorias.reduce((s, c) => s + c.horas, 0) || calcDuration()) : 0,
+      duracion_horas: calcDuration(),
       cupo_maximo: parseInt(data.cupo_maximo, 10) || 0,
       lugar: data.ubicacion || data.enlace_virtual || "",
       tipo_actividad: data.tipo_actividad,

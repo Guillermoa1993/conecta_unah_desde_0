@@ -159,7 +159,10 @@ function EventCard({
   const [shareQrOpen, setShareQrOpen] = useState(false);
   const navigate = useNavigate();
 
-  const [localPortadaUrl, setLocalPortadaUrl] = useState<string | undefined>(event.portada_url);
+  const [localPortadaUrl, setLocalPortadaUrl] = useState<string | undefined>(event.portada_url || event.imagen_url);
+  useEffect(() => {
+    setLocalPortadaUrl(event.portada_url || event.imagen_url);
+  }, [event.portada_url, event.imagen_url]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const statusStyle = STATUS_BADGE[event.estado] || STATUS_BADGE.BORRADOR;
 
@@ -228,11 +231,23 @@ function EventCard({
                     toast.error("Archivo muy grande", { description: "Máximo 5MB" });
                     return;
                   }
-                  const url = URL.createObjectURL(file);
-                  setLocalPortadaUrl(url);
-                  const idx = EVENTS.findIndex((e) => e.id === event.id);
-                  if (idx !== -1) EVENTS[idx] = { ...EVENTS[idx], portada_url: url };
-                  toast.success("Imagen de portada actualizada");
+                  const reader = new FileReader();
+                  reader.onloadend = async () => {
+                    const base64Img = reader.result as string;
+                    try {
+                      const idToUpdate = event.id_evento || event.id;
+                      await api.put(`/eventos/${idToUpdate}`, {
+                        ...event,
+                        portada_url: base64Img,
+                      });
+                      setLocalPortadaUrl(base64Img);
+                      toast.success("Imagen de portada actualizada y guardada con éxito.");
+                      onRefresh();
+                    } catch (err: any) {
+                      toast.error("Error al guardar la portada", { description: err.message });
+                    }
+                  };
+                  reader.readAsDataURL(file);
                 }}
               />
               <button
