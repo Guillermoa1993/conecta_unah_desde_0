@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
 import { useLocation, useNavigate, useBlocker } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -208,7 +208,11 @@ export function FichaEstudiante() {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    let value = e.target.value;
+    if (e.target.name === "nombre") {
+      value = value.toUpperCase();
+    }
+    setFormData({ ...formData, [e.target.name]: value });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -691,11 +695,16 @@ export function FichaEstudiante() {
       setScanProgress(80);
       setScanStepName("Cotejando coherencia con los datos del perfil del estudiante...");
 
-      // Comparación de nombre tolerante a fallas OCR y diferencias menores (ej: Giancarlos vs Giancarlo)
-      const nameParts = formData.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/\s+/).filter(w => w.length > 2);
-      const normalizedOcrText = cleanText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      
-      // Contar cuántas partes del nombre ingresado se encuentran (parcialmente) en el texto del OCR
+      // Normalizar OCR: colapsar saltos de línea en espacios para mejorar búsqueda de nombres
+      const normalizedOcrText = cleanText
+        .replace(/[\r\n]+/g, " ")
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      const nameParts = formData.nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(/\s+/).filter(w => w.length > 2);
+
       let matchingNameParts = 0;
       nameParts.forEach(part => {
         const corePart = part.length > 4 ? part.substring(0, part.length - 1) : part;
@@ -1273,49 +1282,55 @@ export function FichaEstudiante() {
               </CardHeader>
               <CardContent className="p-6">
                 {/* Selector de Método de Verificación */}
-                <div className="flex bg-slate-100 p-1 rounded-xl mb-6 max-w-md mx-auto gap-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDocumentType('forma003');
-                      setForma003(null);
-                      setForma003Status('idle');
-                      setErrors([]);
-                      setVerDetallesErrores(false);
-                      setSimilarityScore(null);
-                      setValidationDetails(null);
-                      setCroppedDocPhoto(null);
-                      setFaceSimilarityScore(null);
-                    }}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                      documentType === 'forma003'
-                        ? 'bg-white text-[#003366] shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    📄 Forma 03 de Matrícula
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDocumentType('carnet');
-                      setForma003(null);
-                      setForma003Status('idle');
-                      setErrors([]);
-                      setVerDetallesErrores(false);
-                      setSimilarityScore(null);
-                      setValidationDetails(null);
-                      setCroppedDocPhoto(null);
-                      setFaceSimilarityScore(null);
-                    }}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                      documentType === 'carnet'
-                        ? 'bg-white text-[#003366] shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    🪪 Carnet Estudiantil
-                  </button>
+                <div className="text-center mb-6 space-y-2">
+                  <div className="inline-flex items-center gap-1.5 py-1.5 px-4 rounded-lg bg-slate-100 border border-slate-200 text-[#003366] text-xs font-bold select-none">
+                    {documentType === 'forma003' ? '📄 Forma 03 de Matrícula' : '🪪 Carnet Estudiantil'}
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    {documentType === 'forma003' ? (
+                      <>
+                        ¿No cuentas con tu Forma 03?{' '}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDocumentType('carnet');
+                            setForma003(null);
+                            setForma003Status('idle');
+                            setErrors([]);
+                            setVerDetallesErrores(false);
+                            setSimilarityScore(null);
+                            setValidationDetails(null);
+                            setCroppedDocPhoto(null);
+                            setFaceSimilarityScore(null);
+                          }}
+                          className="text-[#004B87] hover:underline font-bold ml-1"
+                        >
+                          Cargar tu carnet estudiantil
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        ¿Prefieres usar tu Forma 03?{' '}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDocumentType('forma003');
+                            setForma003(null);
+                            setForma003Status('idle');
+                            setErrors([]);
+                            setVerDetallesErrores(false);
+                            setSimilarityScore(null);
+                            setValidationDetails(null);
+                            setCroppedDocPhoto(null);
+                            setFaceSimilarityScore(null);
+                          }}
+                          className="text-[#004B87] hover:underline font-bold ml-1"
+                        >
+                          Cargar tu Forma 03 de Matrícula
+                        </button>
+                      </>
+                    )}
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
