@@ -563,6 +563,14 @@ export async function downloadConstanciaPdf(data: ConstanciaData): Promise<void>
     let html = generateConstanciaHtml({ ...data, qr_data_url: qr_data_url || data.qr_data_url });
     html = html.replace(/__ORIGIN__/g, typeof window !== "undefined" ? window.location.origin : "");
     if (typeof window === "undefined") return;
+    const cleanStudentName = (data.estudiante_nombre || "Estudiante").replace(/[^a-zA-Z0-9-_]/g, "_");
+    const cleanEventName = (data.evento_nombre || "Evento").replace(/[^a-zA-Z0-9-_]/g, "_");
+    const pdfTitle = `Certificado-${cleanStudentName}-${cleanEventName}`;
+    const originalTitle = typeof document !== "undefined" ? document.title : "";
+    if (typeof document !== "undefined") {
+      document.title = pdfTitle;
+    }
+
     const iframe = document.createElement("iframe");
     iframe.style.position = "absolute";
     iframe.style.width = "0px";
@@ -579,7 +587,10 @@ export async function downloadConstanciaPdf(data: ConstanciaData): Promise<void>
         iframe.contentWindow?.print();
         setTimeout(() => {
           document.body.removeChild(iframe);
-        }, 1000);
+          if (typeof document !== "undefined") {
+            document.title = originalTitle;
+          }
+        }, 1500);
       }, 500);
     }
   } catch (error) {

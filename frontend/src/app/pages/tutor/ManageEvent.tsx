@@ -575,6 +575,9 @@ export function ManageEvent() {
       </body>
       </html>
     `;
+    const originalTitle = document.title;
+    document.title = pdfTitle;
+
     const iframe = document.createElement("iframe");
     iframe.style.position = "absolute";
     iframe.style.width = "0px";
@@ -591,7 +594,8 @@ export function ManageEvent() {
         iframe.contentWindow?.print();
         setTimeout(() => {
           document.body.removeChild(iframe);
-        }, 1000);
+          document.title = originalTitle;
+        }, 1500);
       }, 500);
     }
   };
