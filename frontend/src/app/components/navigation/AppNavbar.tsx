@@ -44,7 +44,7 @@ export function AppNavbar() {
   const isFeedScreen = location.pathname.startsWith("/student/feed");
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border bg-white px-6 gap-4">
+    <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-white px-6 gap-4">
       <div className="flex items-center gap-4 shrink-0">
         <SidebarTrigger />
         <div>
