@@ -221,3 +221,7 @@
     animation: fadeIn 0.35s ease-out both;
   }
 }
+
+button, a, [role="button"] {
+  cursor: pointer !important;
+}

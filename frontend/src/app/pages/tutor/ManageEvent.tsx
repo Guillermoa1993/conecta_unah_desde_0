@@ -171,6 +171,7 @@ export function ManageEvent() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
+  const [sendVoaeConfirmOpen, setSendVoaeConfirmOpen] = useState(false);
 
   const handlePublishDirect = async () => {
     if (!event) return;
@@ -614,7 +615,7 @@ export function ManageEvent() {
                 return (
                   <Button
                     size="sm"
-                    onClick={handleSendToVoae}
+                    onClick={() => setSendVoaeConfirmOpen(true)}
                     className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shadow-sm"
                   >
                     <Send className="size-4" /> Enviar a VOAE
@@ -1265,6 +1266,33 @@ export function ManageEvent() {
               onClick={handlePublishDirect}
             >
               Sí, publicar directamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send to VOAE confirmation modal */}
+      <Dialog open={sendVoaeConfirmOpen} onOpenChange={setSendVoaeConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 font-bold">Confirmar envío a VOAE</DialogTitle>
+            <DialogDescription className="text-sm text-slate-500 font-medium mt-2">
+              ¿Está seguro de que desea enviar este evento a VOAE para revisión? Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" className="font-semibold" onClick={() => setSendVoaeConfirmOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="text-white font-semibold"
+              style={{ backgroundColor: "#004B87" }}
+              onClick={async () => {
+                await handleSendToVoae();
+                setSendVoaeConfirmOpen(false);
+              }}
+            >
+              Confirmar
             </Button>
           </DialogFooter>
         </DialogContent>

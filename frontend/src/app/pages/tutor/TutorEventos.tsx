@@ -168,14 +168,15 @@ function EventCard({
 
   const handlePublish = async () => {
     try {
-      const newEstado = event.tipo_evento === "RECREACION" ? "PROGRAMADO" : "PENDIENTE_APROBACION";
+      const isRecreacion = event.tipo_evento === "RECREACION" || event.tipo_evento === "SIN_HORAS" || parseFloat(event.duracion_horas || "0") === 0;
+      const newEstado = isRecreacion ? "PROGRAMADO" : "PENDIENTE_APROBACION";
       const payload = {
         ...event,
         estado: newEstado
       };
       await api.put(`/eventos/${event.id_evento || event.id}`, payload);
       toast.success(
-        event.tipo_evento === "RECREACION"
+        isRecreacion
           ? "¡Evento publicado automáticamente!"
           : "¡Evento enviado a VOAE para revisión!"
       );
@@ -552,23 +553,27 @@ function EventCard({
       <Dialog open={publishConfirm} onOpenChange={setPublishConfirm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>¿Estás seguro de publicar este evento?</DialogTitle>
-            <DialogDescription>
-              {event.tipo_evento === "RECREACION"
-                ? "El evento se publicará directamente como Activo."
-                : "El evento se enviará a VOAE para su revisión."}
+            <DialogTitle className="text-slate-800 font-bold">
+              {event.tipo_evento === "RECREACION" || event.tipo_evento === "SIN_HORAS"
+                ? "¿Estás seguro de publicar este evento?"
+                : "Confirmar envío a VOAE"}
+            </DialogTitle>
+            <DialogDescription className="text-sm mt-2 text-slate-500 font-medium">
+              {event.tipo_evento === "RECREACION" || event.tipo_evento === "SIN_HORAS"
+                ? "El evento se publicará directamente de forma inmediata y estará visible para todos los estudiantes."
+                : "¿Está seguro de que desea enviar este evento a VOAE para revisión? Esta acción no se puede deshacer."}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setPublishConfirm(false)}>
+          <DialogFooter className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" className="font-semibold" onClick={() => setPublishConfirm(false)}>
               Cancelar
             </Button>
             <Button
-              className="text-white"
+              className="text-white font-semibold"
               style={{ backgroundColor: "#004B87" }}
               onClick={handlePublish}
             >
-              Sí, publicar
+              Confirmar
             </Button>
           </DialogFooter>
         </DialogContent>
