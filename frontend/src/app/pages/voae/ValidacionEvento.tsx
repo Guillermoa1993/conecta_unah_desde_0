@@ -303,7 +303,7 @@ export function ValidacionEvento() {
 
           <div>
             <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Ubicación / Lugar</span>
-            <span className="font-semibold text-slate-800 block">{(event.lugar || "").split("|")[0]}</span>
+            <span className="font-semibold text-slate-800 block">{(event.lugar || event.ubicacion || "").split("|")[0] || "No especificado"}</span>
           </div>
           <div>
             <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Enlace de acceso</span>
