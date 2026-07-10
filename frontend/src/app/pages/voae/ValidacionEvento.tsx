@@ -78,6 +78,7 @@ export function ValidacionEvento() {
   const [showSigning, setShowSigning] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string|null>(null);
   const [motivoRechazo, setMotivoRechazo] = useState("");
 
   const fetchEventDetails = async () => {
@@ -249,15 +250,13 @@ export function ValidacionEvento() {
           </h4>
           <div className="flex gap-3 flex-wrap">
             {event.imagenes_adicionales.map((img: string, idx: number) => (
-              <a
+              <div
                 key={idx}
-                href={img}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="border border-slate-200 rounded-xl overflow-hidden size-20 bg-slate-50 hover:opacity-85 transition-opacity shadow-sm flex items-center justify-center shrink-0"
+                onClick={() => setSelectedImage(img)}
+                className="border border-slate-200 rounded-xl overflow-hidden size-20 bg-slate-50 hover:opacity-85 transition-opacity shadow-sm flex items-center justify-center shrink-0 cursor-pointer"
               >
                 <img src={img} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
-              </a>
+              </div>
             ))}
           </div>
         </div>
@@ -274,8 +273,12 @@ export function ValidacionEvento() {
           </div>
           <div>
             <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Categorías / Ámbitos</span>
-            <span className="font-semibold text-slate-800 block">
-              {CATEGORY_LABEL[event.categoria] || event.categoria} ({event.duracion_horas} hrs)
+            <span className="font-semibold text-slate-800 block leading-normal">
+              {event.distribucion_horas && event.distribucion_horas.length > 0 ? (
+                event.distribucion_horas.map((dh: any) => `${CATEGORY_LABEL[dh.categoria] || dh.categoria} (${dh.horas} hrs)`).join(", ")
+              ) : (
+                `${CATEGORY_LABEL[event.categoria] || event.categoria} (${event.duracion_horas} hrs)`
+              )}
             </span>
           </div>
           <div>
@@ -303,7 +306,24 @@ export function ValidacionEvento() {
 
           <div>
             <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Ubicación / Lugar</span>
-            <span className="font-semibold text-slate-800 block">{(event.lugar || event.ubicacion || "").split("|")[0] || "No especificado"}</span>
+            {(() => {
+              const loc = event.lugar || event.ubicacion || "No especificado";
+              const [bName, bCoordsOrLink] = loc.split("|");
+              const href = bCoordsOrLink
+                ? (bCoordsOrLink.startsWith("http") ? bCoordsOrLink : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bCoordsOrLink)}`)
+                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bName)}`;
+
+              return (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 mt-0.5"
+                >
+                  <MapPin className="size-3.5 shrink-0 text-[#004B87]" /> {bName || "No especificado"}
+                </a>
+              );
+            })()}
           </div>
           <div>
             <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Enlace de acceso</span>
@@ -441,6 +461,17 @@ export function ValidacionEvento() {
             <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>Cancelar</Button>
             <Button variant="destructive" onClick={handleRechazar}>Confirmar Rechazo</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Lightbox dialog */}
+      <Dialog open={selectedImage !== null} onOpenChange={(v) => !v && setSelectedImage(null)}>
+        <DialogContent className="max-w-3xl p-1 bg-black/10 border-none flex items-center justify-center">
+          {selectedImage && (
+            <div className="relative w-full max-h-[80vh] flex items-center justify-center bg-transparent">
+              <img src={selectedImage} alt="Vista ampliada" className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-lg" />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
