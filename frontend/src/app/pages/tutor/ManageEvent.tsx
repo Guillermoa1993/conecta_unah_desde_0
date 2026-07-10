@@ -171,6 +171,7 @@ export function ManageEvent() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
+  const [sendVoaeConfirmOpen, setSendVoaeConfirmOpen] = useState(false);
 
   const handlePublishDirect = async () => {
     if (!event) return;
@@ -196,6 +197,7 @@ export function ManageEvent() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [auditoriaStudent, setAuditoriaStudent] = useState<any | null>(null);
   const [auditoriaIndex, setAuditoriaIndex] = useState(0);
+  const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null);
   
   // Constancia Modals state
   const [pdfStudent, setPdfStudent] = useState<any>(null);
@@ -613,7 +615,7 @@ export function ManageEvent() {
                 return (
                   <Button
                     size="sm"
-                    onClick={handleSendToVoae}
+                    onClick={() => setSendVoaeConfirmOpen(true)}
                     className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shadow-sm"
                   >
                     <Send className="size-4" /> Enviar a VOAE
@@ -752,7 +754,7 @@ export function ManageEvent() {
             <div className="rounded-xl border bg-blue-50/50 border-blue-200/80 p-5 flex flex-col justify-between h-52 shadow-sm">
               <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs text-blue-600 font-semibold uppercase tracking-wider">
-                  <Camera className="size-4" /> Modalidad Virtual
+                  <Eye className="size-4" /> Modalidad Virtual
                 </div>
                 <h4 className="font-bold text-lg text-slate-800">Evento por Videoconferencia</h4>
                 <p className="text-xs text-muted-foreground">Se transmitirá de forma digital</p>
@@ -836,7 +838,7 @@ export function ManageEvent() {
           </h3>
           <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200">
             {event.imagenes_adicionales.map((img: string, idx: number) => (
-              <div key={idx} className="relative size-32 rounded-xl overflow-hidden border shrink-0 group hover:border-[#004B87]/50 transition shadow-sm cursor-zoom-in" onClick={() => window.open(img, "_blank")}>
+              <div key={idx} className="relative size-32 rounded-xl overflow-hidden border shrink-0 group hover:border-[#004B87]/50 transition shadow-sm cursor-zoom-in" onClick={() => setActiveLightboxImg(img)}>
                 <img src={img} alt={`Imagen ${idx + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
               </div>
             ))}
@@ -845,15 +847,17 @@ export function ManageEvent() {
       )}
 
       {/* Stepper Timeline */}
-      <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center justify-between relative max-w-3xl mx-auto">
-          {/* Connector Line behind steps */}
-          <div className="absolute left-6 right-6 top-4 h-[2px] bg-slate-200 -z-0" />
-          {steps.map((step, idx) => (
-            <TimelineStep key={idx} label={step.label} isCompleted={step.isCompleted} isActive={step.isActive} />
-          ))}
+      {event.tipo_evento === "HORAS_VOAE" && (
+        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center justify-between relative max-w-3xl mx-auto">
+            {/* Connector Line behind steps */}
+            <div className="absolute left-6 right-6 top-4 h-[2px] bg-slate-200 -z-0" />
+            {steps.map((step, idx) => (
+              <TimelineStep key={idx} label={step.label} isCompleted={step.isCompleted} isActive={step.isActive} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Tabs list (Control de asistencia, Participantes, Detalle) */}
       <Tabs defaultValue="control" className="space-y-4">
@@ -1167,29 +1171,31 @@ export function ManageEvent() {
                   <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Centro regional</span>
                   <span className="font-semibold text-slate-800 mt-0.5 block">{event.centro_regional || "Ciudad Universitaria"}</span>
                 </div>
-                <div>
-                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Ubicación / Lugar</span>
-                  <span className="font-semibold text-slate-800 mt-0.5 flex items-center gap-1.5">
-                    <MapPin className="size-4 text-[#004B87] shrink-0" />
-                    {(() => {
-                      const loc = event.lugar || event.ubicacion || "No especificado";
-                      if (loc.includes("|")) {
-                        const [bName, bLink] = loc.split("|");
-                        return (
-                          <a
-                            href={bLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[#004B87] hover:underline"
-                          >
-                            {bName}
-                          </a>
-                        );
-                      }
-                      return <span>{loc}</span>;
-                    })()}
-                  </span>
-                </div>
+                {event.tipo_actividad !== "Virtual" && (
+                  <div>
+                    <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Ubicación / Lugar</span>
+                    <span className="font-semibold text-slate-800 mt-0.5 flex items-center gap-1.5">
+                      <MapPin className="size-4 text-[#004B87] shrink-0" />
+                      {(() => {
+                        const loc = event.lugar || event.ubicacion || "No especificado";
+                        if (loc.includes("|")) {
+                          const [bName, bLink] = loc.split("|");
+                          return (
+                            <a
+                              href={bLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[#004B87] hover:underline"
+                            >
+                              {bName}
+                            </a>
+                          );
+                        }
+                        return <span>{loc}</span>;
+                      })()}
+                    </span>
+                  </div>
+                )}
                 {event.tipo_actividad !== "Presencial" && event.enlace_virtual && (
                   <div>
                     <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Enlace de acceso</span>
@@ -1262,6 +1268,33 @@ export function ManageEvent() {
               onClick={handlePublishDirect}
             >
               Sí, publicar directamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send to VOAE confirmation modal */}
+      <Dialog open={sendVoaeConfirmOpen} onOpenChange={setSendVoaeConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 font-bold">Confirmar envío a VOAE</DialogTitle>
+            <DialogDescription className="text-sm text-slate-500 font-medium mt-2">
+              ¿Está seguro de que desea enviar este evento a VOAE para revisión? Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" className="font-semibold" onClick={() => setSendVoaeConfirmOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="text-white font-semibold"
+              style={{ backgroundColor: "#004B87" }}
+              onClick={async () => {
+                await handleSendToVoae();
+                setSendVoaeConfirmOpen(false);
+              }}
+            >
+              Confirmar
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1447,6 +1480,33 @@ export function ManageEvent() {
                   <XCircle className="size-4" /> Rechazar Asistencia
                 </Button>
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Lightbox Modal */}
+      <Dialog
+        open={activeLightboxImg !== null}
+        onOpenChange={(v) => {
+          if (!v) setActiveLightboxImg(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-4xl p-1 bg-slate-900 border-none shadow-none flex items-center justify-center rounded-2xl overflow-hidden">
+          {activeLightboxImg && (
+            <div className="relative max-h-[85vh] w-full flex items-center justify-center p-2">
+              <img
+                src={activeLightboxImg}
+                alt="Vista ampliada"
+                className="max-h-[80vh] max-w-full object-contain rounded-xl shadow-2xl"
+              />
+              <button
+                type="button"
+                onClick={() => setActiveLightboxImg(null)}
+                className="absolute top-4 right-4 size-9 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white font-bold transition hover:scale-105"
+              >
+                ✕
+              </button>
             </div>
           )}
         </DialogContent>

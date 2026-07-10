@@ -325,7 +325,12 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
     setErrors(errs);
   };
 
-  const step1Complete = data.titulo.trim().length > 0 && data.descripcion.trim().length > 0;
+  const step1Complete =
+    data.titulo.trim().length > 0 &&
+    data.descripcion.trim().length > 0 &&
+    (data.tipo_evento !== "HORAS_VOAE" ||
+      (categoriasHoras.filter((ch) => ch.checked).length > 0 &&
+        categoriasHoras.filter((ch) => ch.checked).every((ch) => ch.horas > 0)));
 
   const step2Complete = step2RequiredFields().every((f) => {
     const v = data[f];
@@ -339,6 +344,23 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
   const handleNext = () => {
     const errs = validate(data);
     setErrors(errs);
+    if (currentStep === 1 && data.tipo_evento === "HORAS_VOAE") {
+      const checkedCats = categoriasHoras.filter((c) => c.checked);
+      if (checkedCats.length === 0) {
+        toast.error("Debes seleccionar al menos una Categoría / Ámbito.");
+        return;
+      }
+      const hasInvalidHours = checkedCats.some((c) => c.horas <= 0);
+      if (hasInvalidHours) {
+        toast.error("Todas las categorías seleccionadas deben tener asignada al menos 1 hora.");
+        return;
+      }
+      const totalAll = checkedCats.reduce((s, c) => s + c.horas, 0);
+      if (totalAll > 60) {
+        toast.error("El total de horas acumuladas no puede exceder las 60 horas.");
+        return;
+      }
+    }
     const currentFields =
       currentStep === 1 ? (["titulo", "descripcion"] as (keyof FormData)[]) : step2RequiredFields();
     setTouched((prev) => {
@@ -364,6 +386,23 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
     e.preventDefault();
     const errs = validate(data);
     setErrors(errs);
+    if (data.tipo_evento === "HORAS_VOAE") {
+      const checkedCats = categoriasHoras.filter((c) => c.checked);
+      if (checkedCats.length === 0) {
+        toast.error("Debes seleccionar al menos una Categoría / Ámbito.");
+        return;
+      }
+      const hasInvalidHours = checkedCats.some((c) => c.horas <= 0);
+      if (hasInvalidHours) {
+        toast.error("Todas las categorías seleccionadas deben tener asignada al menos 1 hora.");
+        return;
+      }
+      const totalAll = checkedCats.reduce((s, c) => s + c.horas, 0);
+      if (totalAll > 60) {
+        toast.error("El total de horas acumuladas no puede exceder las 60 horas.");
+        return;
+      }
+    }
     const allFields = step2RequiredFields();
     allFields.push("titulo", "descripcion");
     setTouched((prev) => {
@@ -377,16 +416,14 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       toast.error("Corrige los campos marcados en rojo");
       return;
     }
-    if (!categoriasHoras.some((ch) => ch.checked)) {
-      toast.error("Selecciona al menos una categoría / ámbito");
-      return;
-    }
     const calcDuration = (): number => {
-      if (!data.hora_inicio || !data.hora_fin) return 0;
-      const [h1, m1] = data.hora_inicio.split(":").map(Number);
-      const [h2, m2] = data.hora_fin.split(":").map(Number);
-      const diff = h2 * 60 + m2 - (h1 * 60 + m1);
-      return diff > 0 ? Math.round((diff / 60) * 10) / 10 : 0;
+      if (!data.fecha_inicio || !data.fecha_fin || !data.hora_inicio || !data.hora_fin) return 0;
+      const start = new Date(data.fecha_inicio + "T" + data.hora_inicio);
+      const end = new Date(data.fecha_fin + "T" + data.hora_fin);
+      const diffMs = end.getTime() - start.getTime();
+      if (diffMs <= 0) return 0;
+      const diffHours = diffMs / (1000 * 60 * 60);
+      return Math.round(diffHours * 10) / 10;
     };
     const checkedCategorias = categoriasHoras.filter((ch) => ch.checked);
     const primaryCategoria = checkedCategorias.length > 0 ? checkedCategorias[0].categoria : "ACADEMICO";
@@ -401,7 +438,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       tipo_evento: data.tipo_evento === "HORAS_VOAE" ? "HORAS_VOAE" : "RECREACION",
       fecha_inicio: data.fecha_inicio + "T" + data.hora_inicio + ":00",
       fecha_fin: data.fecha_fin + "T" + data.hora_fin + ":00",
-      duracion_horas: data.tipo_evento === "HORAS_VOAE" ? (checkedCategorias.reduce((s, c) => s + c.horas, 0) || calcDuration()) : 0,
+      duracion_horas: calcDuration(),
       cupo_maximo: parseInt(data.cupo_maximo, 10) || 0,
       lugar: data.ubicacion || data.enlace_virtual || "",
       tipo_actividad: data.tipo_actividad,
@@ -624,6 +661,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                   .filter((ch) => ch.checked)
                   .map((ch) => {
                     const exceededCat = ch.horas > 15;
+                    const isZero = ch.horas <= 0;
                     const allChecked = categoriasHoras.filter((c) => c.checked);
                     const totalAll = allChecked.reduce((s, c) => s + c.horas, 0);
                     const totalExceeded = totalAll > 60;
@@ -648,10 +686,11 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                               )
                             );
                           }}
-                          className={cn("h-8 w-16 text-sm", (exceededCat || totalExceeded) && "border-red-400")}
+                          className={cn("h-8 w-16 text-sm", (exceededCat || totalExceeded || isZero) && "border-red-400")}
                           placeholder="hrs"
                         />
                         {exceededCat && <span className="text-[10px] text-red-500">máx 15</span>}
+                        {isZero && <span className="text-[10px] text-red-500 font-medium">requerido</span>}
                       </div>
                     );
                   })

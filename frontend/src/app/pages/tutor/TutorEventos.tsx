@@ -153,26 +153,32 @@ function EventCard({
   const pct = Math.min(Math.round((inscritos / cupo) * 100), 100);
   const catColor = (CATEGORY_PLACEHOLDER_COLORS as any)[event.categoria] || "#64748b";
   const isConHoras = event.tipo_evento === "HORAS_VOAE";
+  const isRecreacion = event.tipo_evento === "RECREACION" || event.tipo_evento === "SIN_HORAS" || parseFloat(event.duracion_horas || "0") === 0;
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [rejectModal, setRejectModal] = useState(false);
   const [publishConfirm, setPublishConfirm] = useState(false);
   const [shareQrOpen, setShareQrOpen] = useState(false);
+  const [cancelVoaeConfirm, setCancelVoaeConfirm] = useState(false);
   const navigate = useNavigate();
 
-  const [localPortadaUrl, setLocalPortadaUrl] = useState<string | undefined>(event.portada_url);
+  const [localPortadaUrl, setLocalPortadaUrl] = useState<string | undefined>(event.portada_url || event.imagen_url);
+  useEffect(() => {
+    setLocalPortadaUrl(event.portada_url || event.imagen_url);
+  }, [event.portada_url, event.imagen_url]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const statusStyle = STATUS_BADGE[event.estado] || STATUS_BADGE.BORRADOR;
 
   const handlePublish = async () => {
     try {
-      const newEstado = event.tipo_evento === "RECREACION" ? "PROGRAMADO" : "PENDIENTE_APROBACION";
+      const isRecreacion = event.tipo_evento === "RECREACION" || event.tipo_evento === "SIN_HORAS" || parseFloat(event.duracion_horas || "0") === 0;
+      const newEstado = isRecreacion ? "PROGRAMADO" : "PENDIENTE_APROBACION";
       const payload = {
         ...event,
         estado: newEstado
       };
       await api.put(`/eventos/${event.id_evento || event.id}`, payload);
       toast.success(
-        event.tipo_evento === "RECREACION"
+        isRecreacion
           ? "¡Evento publicado automáticamente!"
           : "¡Evento enviado a VOAE para revisión!"
       );
@@ -180,6 +186,21 @@ function EventCard({
       onRefresh();
     } catch (err: any) {
       toast.error("Error al publicar el evento", { description: err.message });
+    }
+  };
+
+  const handleCancelRequest = async () => {
+    try {
+      const payload = {
+        ...event,
+        estado: "BORRADOR"
+      };
+      await api.put(`/eventos/${event.id_evento || event.id}`, payload);
+      toast.success("Solicitud de aprobación cancelada. El evento ha vuelto a Borradores.");
+      setCancelVoaeConfirm(false);
+      onRefresh();
+    } catch (err: any) {
+      toast.error("Error al cancelar la solicitud", { description: err.message });
     }
   };
 
@@ -228,11 +249,23 @@ function EventCard({
                     toast.error("Archivo muy grande", { description: "Máximo 5MB" });
                     return;
                   }
-                  const url = URL.createObjectURL(file);
-                  setLocalPortadaUrl(url);
-                  const idx = EVENTS.findIndex((e) => e.id === event.id);
-                  if (idx !== -1) EVENTS[idx] = { ...EVENTS[idx], portada_url: url };
-                  toast.success("Imagen de portada actualizada");
+                  const reader = new FileReader();
+                  reader.onloadend = async () => {
+                    const base64Img = reader.result as string;
+                    try {
+                      const idToUpdate = event.id_evento || event.id;
+                      await api.put(`/eventos/${idToUpdate}`, {
+                        ...event,
+                        portada_url: base64Img,
+                      });
+                      setLocalPortadaUrl(base64Img);
+                      toast.success("Imagen de portada actualizada y guardada con éxito.");
+                      onRefresh();
+                    } catch (err: any) {
+                      toast.error("Error al guardar la portada", { description: err.message });
+                    }
+                  };
+                  reader.readAsDataURL(file);
                 }}
               />
               <button
@@ -295,7 +328,8 @@ function EventCard({
                 {event.fecha_inicio.slice(11, 16)} — {event.fecha_fin.slice(11, 16)}
               </span>
             </div>
-            {(() => {
+            {/* Ubicación Física */}
+            {event.tipo_actividad !== "Virtual" && (() => {
               const loc = event.ubicacion || event.lugar;
               if (!loc) return null;
               if (loc.includes("|")) {
@@ -322,6 +356,22 @@ function EventCard({
                 </div>
               );
             })()}
+
+            {/* Acceso a Reunión Virtual */}
+            {event.tipo_actividad !== "Presencial" && event.enlace_virtual && (
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <Eye className="size-3.5 shrink-0 text-emerald-600" />
+                <a
+                  href={event.enlace_virtual}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-emerald-600 hover:underline font-semibold truncate"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Ir a reunión virtual
+                </a>
+              </div>
+            )}
           </div>
           {/* Type badge */}
           <div>
@@ -401,13 +451,21 @@ function EventCard({
                 >
                   <Pencil className="size-3.5" /> Editar
                 </Button>
-                <Button
+                 <Button
                   size="sm"
                   className="gap-1 text-xs h-8 text-white shadow-sm"
                   style={{ backgroundColor: "#004B87" }}
                   onClick={() => setPublishConfirm(true)}
                 >
-                  <Send className="size-3.5" /> Enviar
+                  {isRecreacion ? (
+                    <>
+                      <Megaphone className="size-3.5" /> Publicar
+                    </>
+                  ) : (
+                    <>
+                      <Send className="size-3.5" /> Enviar
+                    </>
+                  )}
                 </Button>
                 <Button
                   size="sm"
@@ -440,13 +498,23 @@ function EventCard({
                 </Button>
               </>
             )}
-            {event.estado === "PENDIENTE_APROBACION" && (
-              <Button asChild size="sm" variant="outline" className="gap-1 text-xs h-8">
-                <Link to={`/tutor/event/${event.id_evento || event.id}`}>
-                  <Eye className="size-3.5" /> Ver detalle
-                </Link>
-              </Button>
-            )}
+             {event.estado === "PENDIENTE_APROBACION" && (
+               <>
+                 <Button asChild size="sm" variant="outline" className="gap-1 text-xs h-8">
+                   <Link to={`/tutor/event/${event.id_evento || event.id}`}>
+                     <Eye className="size-3.5" /> Ver detalle
+                   </Link>
+                 </Button>
+                 <Button
+                   size="sm"
+                   variant="ghost"
+                   className="gap-1 text-xs h-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50 cursor-pointer"
+                   onClick={() => setCancelVoaeConfirm(true)}
+                 >
+                   <XCircle className="size-3.5" /> Cancelar solicitud
+                 </Button>
+               </>
+             )}
             {event.estado === "FINALIZADO" && (
               <Button asChild size="sm" variant="outline" className="gap-1 text-xs h-8">
                 <Link to={`/tutor/event/${event.id_evento || event.id}`}>
@@ -520,23 +588,51 @@ function EventCard({
       <Dialog open={publishConfirm} onOpenChange={setPublishConfirm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>¿Estás seguro de publicar este evento?</DialogTitle>
-            <DialogDescription>
-              {event.tipo_evento === "RECREACION"
-                ? "El evento se publicará directamente como Activo."
-                : "El evento se enviará a VOAE para su revisión."}
+            <DialogTitle className="text-slate-800 font-bold">
+              {event.tipo_evento === "RECREACION" || event.tipo_evento === "SIN_HORAS"
+                ? "Confirmar publicación"
+                : "Confirmar envío a VOAE"}
+            </DialogTitle>
+            <DialogDescription className="text-sm mt-2 text-slate-500 font-medium">
+              {event.tipo_evento === "RECREACION" || event.tipo_evento === "SIN_HORAS"
+                ? "¿Está seguro de que desea publicar este evento? Esta acción hará el evento visible inmediatamente."
+                : "¿Está seguro de que desea enviar este evento a VOAE para revisión? Esta acción no se puede deshacer."}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setPublishConfirm(false)}>
+          <DialogFooter className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" className="font-semibold" onClick={() => setPublishConfirm(false)}>
               Cancelar
             </Button>
             <Button
-              className="text-white"
+              className="text-white font-semibold"
               style={{ backgroundColor: "#004B87" }}
               onClick={handlePublish}
             >
-              Sí, publicar
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel VOAE Request Confirmation Modal */}
+      <Dialog open={cancelVoaeConfirm} onOpenChange={setCancelVoaeConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 font-bold">¿Seguro de cancelar la solicitud?</DialogTitle>
+            <DialogDescription className="text-sm mt-2 text-slate-500 font-medium">
+              Esta acción retirará el evento de la revisión de VOAE y lo devolverá a tus borradores para que puedas editarlo.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" className="font-semibold cursor-pointer" onClick={() => setCancelVoaeConfirm(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="text-white font-semibold cursor-pointer"
+              style={{ backgroundColor: "#d97706" }}
+              onClick={handleCancelRequest}
+            >
+              Sí, cancelar solicitud
             </Button>
           </DialogFooter>
         </DialogContent>
