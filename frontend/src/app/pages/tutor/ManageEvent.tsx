@@ -847,15 +847,17 @@ export function ManageEvent() {
       )}
 
       {/* Stepper Timeline */}
-      <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center justify-between relative max-w-3xl mx-auto">
-          {/* Connector Line behind steps */}
-          <div className="absolute left-6 right-6 top-4 h-[2px] bg-slate-200 -z-0" />
-          {steps.map((step, idx) => (
-            <TimelineStep key={idx} label={step.label} isCompleted={step.isCompleted} isActive={step.isActive} />
-          ))}
+      {event.tipo_evento === "HORAS_VOAE" && (
+        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center justify-between relative max-w-3xl mx-auto">
+            {/* Connector Line behind steps */}
+            <div className="absolute left-6 right-6 top-4 h-[2px] bg-slate-200 -z-0" />
+            {steps.map((step, idx) => (
+              <TimelineStep key={idx} label={step.label} isCompleted={step.isCompleted} isActive={step.isActive} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Tabs list (Control de asistencia, Participantes, Detalle) */}
       <Tabs defaultValue="control" className="space-y-4">
