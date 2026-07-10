@@ -310,7 +310,8 @@ function EventCard({
                 {event.fecha_inicio.slice(11, 16)} — {event.fecha_fin.slice(11, 16)}
               </span>
             </div>
-            {(() => {
+            {/* Ubicación Física */}
+            {event.tipo_actividad !== "Virtual" && (() => {
               const loc = event.ubicacion || event.lugar;
               if (!loc) return null;
               if (loc.includes("|")) {
@@ -337,6 +338,22 @@ function EventCard({
                 </div>
               );
             })()}
+
+            {/* Acceso a Reunión Virtual */}
+            {event.tipo_actividad !== "Presencial" && event.enlace_virtual && (
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <Eye className="size-3.5 shrink-0 text-emerald-600" />
+                <a
+                  href={event.enlace_virtual}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-emerald-600 hover:underline font-semibold truncate"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Ir a reunión virtual
+                </a>
+              </div>
+            )}
           </div>
           {/* Type badge */}
           <div>

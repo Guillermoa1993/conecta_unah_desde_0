@@ -753,7 +753,7 @@ export function ManageEvent() {
             <div className="rounded-xl border bg-blue-50/50 border-blue-200/80 p-5 flex flex-col justify-between h-52 shadow-sm">
               <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs text-blue-600 font-semibold uppercase tracking-wider">
-                  <Camera className="size-4" /> Modalidad Virtual
+                  <Eye className="size-4" /> Modalidad Virtual
                 </div>
                 <h4 className="font-bold text-lg text-slate-800">Evento por Videoconferencia</h4>
                 <p className="text-xs text-muted-foreground">Se transmitirá de forma digital</p>
@@ -1168,29 +1168,31 @@ export function ManageEvent() {
                   <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Centro regional</span>
                   <span className="font-semibold text-slate-800 mt-0.5 block">{event.centro_regional || "Ciudad Universitaria"}</span>
                 </div>
-                <div>
-                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Ubicación / Lugar</span>
-                  <span className="font-semibold text-slate-800 mt-0.5 flex items-center gap-1.5">
-                    <MapPin className="size-4 text-[#004B87] shrink-0" />
-                    {(() => {
-                      const loc = event.lugar || event.ubicacion || "No especificado";
-                      if (loc.includes("|")) {
-                        const [bName, bLink] = loc.split("|");
-                        return (
-                          <a
-                            href={bLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[#004B87] hover:underline"
-                          >
-                            {bName}
-                          </a>
-                        );
-                      }
-                      return <span>{loc}</span>;
-                    })()}
-                  </span>
-                </div>
+                {event.tipo_actividad !== "Virtual" && (
+                  <div>
+                    <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Ubicación / Lugar</span>
+                    <span className="font-semibold text-slate-800 mt-0.5 flex items-center gap-1.5">
+                      <MapPin className="size-4 text-[#004B87] shrink-0" />
+                      {(() => {
+                        const loc = event.lugar || event.ubicacion || "No especificado";
+                        if (loc.includes("|")) {
+                          const [bName, bLink] = loc.split("|");
+                          return (
+                            <a
+                              href={bLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[#004B87] hover:underline"
+                            >
+                              {bName}
+                            </a>
+                          );
+                        }
+                        return <span>{loc}</span>;
+                      })()}
+                    </span>
+                  </div>
+                )}
                 {event.tipo_actividad !== "Presencial" && event.enlace_virtual && (
                   <div>
                     <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Enlace de acceso</span>
