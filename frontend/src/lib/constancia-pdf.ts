@@ -71,12 +71,16 @@ export function generateConstanciaHtml(data: ConstanciaData): string {
     .toUpperCase();
   const initialsLine = `${voaeInitials || "MC"}/Yadira Flores`;
 
+  const cleanStudentName = (data.estudiante_nombre || "Estudiante").replace(/[^a-zA-Z0-9-_]/g, "_");
+  const cleanEventName = (data.evento_nombre || "Evento").replace(/[^a-zA-Z0-9-_]/g, "_");
+  const pdfTitle = `Certificado-${cleanStudentName}-${cleanEventName}`;
+
   return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Constancia - ${data.estudiante_nombre}</title>
+  <title>${pdfTitle}</title>
   <style>
     @page {
       size: A4 portrait;

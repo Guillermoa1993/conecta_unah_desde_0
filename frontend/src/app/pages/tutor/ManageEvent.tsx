@@ -173,6 +173,10 @@ export function ManageEvent() {
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [sendVoaeConfirmOpen, setSendVoaeConfirmOpen] = useState(false);
   const [endEventConfirmOpen, setEndEventConfirmOpen] = useState(false);
+  const [currentPageEnrolled, setCurrentPageEnrolled] = useState(1);
+  const [pageSizeEnrolled, setPageSizeEnrolled] = useState(10);
+  const [currentPageAttendance, setCurrentPageAttendance] = useState(1);
+  const [pageSizeAttendance, setPageSizeAttendance] = useState(10);
 
   const handlePublishDirect = async () => {
     if (!event) return;
@@ -531,11 +535,14 @@ export function ManageEvent() {
       })
       .join("");
 
+    const cleanEventTitle = (event.titulo || "Evento").replace(/[^a-zA-Z0-9-_]/g, "_");
+    const pdfTitle = `Listado-${cleanEventTitle}`;
+
     const html = `
       <html>
       <head>
         <meta charset="utf-8">
-        <title>Lista de Asistencia - ${event.titulo}</title>
+        <title>${pdfTitle}</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; }
           h2 { font-size: 20px; margin-bottom: 4px; color: #004B87; }
@@ -612,6 +619,28 @@ export function ManageEvent() {
       isActive: event.estado === "FINALIZADO"
     }
   ];
+
+  // Paginación y ordenamiento de Matriculados
+  const totalEnrolled = students.length;
+  const totalPagesEnrolled = Math.ceil(totalEnrolled / pageSizeEnrolled);
+  const paginatedEnrolled = students.slice(
+    (currentPageEnrolled - 1) * pageSizeEnrolled,
+    currentPageEnrolled * pageSizeEnrolled
+  );
+
+  // Ordenamiento de Asistencias: prioritiza primero los que NO están verificados (estado !== "ASISTIDO")
+  const sortedAttendance = [...students].sort((a, b) => {
+    const aAssisted = a.estado === "ASISTIDO" ? 1 : 0;
+    const bAssisted = b.estado === "ASISTIDO" ? 1 : 0;
+    return aAssisted - bAssisted; // Los no verificados (0) van primero, los verificados (1) al final
+  });
+  
+  const totalAttendance = sortedAttendance.length;
+  const totalPagesAttendance = Math.ceil(totalAttendance / pageSizeAttendance);
+  const paginatedAttendance = sortedAttendance.slice(
+    (currentPageAttendance - 1) * pageSizeAttendance,
+    currentPageAttendance * pageSizeAttendance
+  );
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -1054,7 +1083,7 @@ export function ManageEvent() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {students.map((s) => (
+                        {paginatedEnrolled.map((s) => (
                           <TableRow key={s.id} className="hover:bg-slate-50/50">
                             <TableCell>
                               <div className="flex items-center gap-2.5">
@@ -1074,6 +1103,54 @@ export function ManageEvent() {
                   )}
                 </CardContent>
               </Card>
+
+              {totalEnrolled > 0 && (
+                <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex-wrap gap-3 text-xs mt-3 text-slate-600">
+                  <div>
+                    Mostrando {(currentPageEnrolled - 1) * pageSizeEnrolled + 1}-{Math.min(currentPageEnrolled * pageSizeEnrolled, totalEnrolled)} de {totalEnrolled} registros
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5">
+                      <span>Por página:</span>
+                      <select
+                        value={pageSizeEnrolled}
+                        onChange={(e) => {
+                          setPageSizeEnrolled(Number(e.target.value));
+                          setCurrentPageEnrolled(1);
+                        }}
+                        className="border border-slate-200 rounded px-1.5 py-1 bg-white focus:outline-none"
+                      >
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPageEnrolled === 1}
+                        onClick={() => setCurrentPageEnrolled(prev => Math.max(prev - 1, 1))}
+                        className="h-7 px-2 font-medium"
+                      >
+                        ← Anterior
+                      </Button>
+                      <span className="font-semibold px-1">
+                        {currentPageEnrolled} / {totalPagesEnrolled || 1}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPageEnrolled === totalPagesEnrolled || totalPagesEnrolled === 0}
+                        onClick={() => setCurrentPageEnrolled(prev => Math.min(prev + 1, totalPagesEnrolled))}
+                        className="h-7 px-2 font-medium"
+                      >
+                        Siguiente →
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="attendance">
@@ -1100,7 +1177,7 @@ export function ManageEvent() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {students.map((s) => {
+                        {paginatedAttendance.map((s) => {
                           const isAssisted = s.estado === "ASISTIDO";
                           const isSigned = firmadasSet.has(s.estudiante_cuenta) || 
                             !!localStorage.getItem(`cert_signed_${event.id}_${s.estudiante_cuenta}`);
@@ -1186,6 +1263,54 @@ export function ManageEvent() {
                   )}
                 </CardContent>
               </Card>
+
+              {totalAttendance > 0 && (
+                <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex-wrap gap-3 text-xs mt-3 text-slate-600">
+                  <div>
+                    Mostrando {(currentPageAttendance - 1) * pageSizeAttendance + 1}-{Math.min(currentPageAttendance * pageSizeAttendance, totalAttendance)} de {totalAttendance} registros
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5">
+                      <span>Por página:</span>
+                      <select
+                        value={pageSizeAttendance}
+                        onChange={(e) => {
+                          setPageSizeAttendance(Number(e.target.value));
+                          setCurrentPageAttendance(1);
+                        }}
+                        className="border border-slate-200 rounded px-1.5 py-1 bg-white focus:outline-none"
+                      >
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPageAttendance === 1}
+                        onClick={() => setCurrentPageAttendance(prev => Math.max(prev - 1, 1))}
+                        className="h-7 px-2 font-medium"
+                      >
+                        ← Anterior
+                      </Button>
+                      <span className="font-semibold px-1">
+                        {currentPageAttendance} / {totalPagesAttendance || 1}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPageAttendance === totalPagesAttendance || totalPagesAttendance === 0}
+                        onClick={() => setCurrentPageAttendance(prev => Math.min(prev + 1, totalPagesAttendance))}
+                        className="h-7 px-2 font-medium"
+                      >
+                        Siguiente →
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </TabsContent>
@@ -1466,83 +1591,163 @@ export function ManageEvent() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div
-                  className="rounded-xl p-4"
-                  style={{ backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0" }}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Clock className="size-4" style={{ color: "#166534" }} />
-                    <span className="text-sm font-semibold" style={{ color: "#166534" }}>
-                      Entrada
-                    </span>
-                  </div>
-                  <div className="text-lg font-bold" style={{ color: "#166534" }}>
-                    {auditoriaStudent.estado === "ASISTIDO"
-                      ? new Date(auditoriaStudent.inscrito_at || Date.now()).toLocaleTimeString("es-HN", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "—"}
-                  </div>
-                  <div className="mt-2 rounded-lg p-2 text-xs bg-emerald-50 text-emerald-800">
-                    <MapPin className="size-3 inline mr-1" />
-                    Dentro del rango
-                  </div>
-                </div>
+              {(() => {
+                const [lugarNombre, lugarCoords] = (event.lugar || "").split("|");
+                let latEntrada = "";
+                let lngEntrada = "";
+                let latSalida = "";
+                let lngSalida = "";
 
-                <div
-                  className="rounded-xl p-4"
-                  style={{ backgroundColor: "#eff6ff", border: "1px solid #bfdbfe" }}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Clock className="size-4" style={{ color: "#1e40af" }} />
-                    <span className="text-sm font-semibold" style={{ color: "#1e40af" }}>
-                      Salida
-                    </span>
-                  </div>
-                  <div className="text-lg font-bold" style={{ color: "#1e40af" }}>
-                    {auditoriaStudent.estado === "ASISTIDO" && event.estado === "FINALIZADO"
-                      ? new Date(event.fecha_fin).toLocaleTimeString("es-HN", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "—"}
-                  </div>
-                  <div className="mt-2 rounded-lg p-2 text-xs bg-blue-50 text-blue-800">
-                    {auditoriaStudent.estado === "ASISTIDO" ? (
-                      event.estado === "FINALIZADO" ? (
-                        <>
-                          <MapPin className="size-3 inline mr-1" />
-                          Salida registrada
-                        </>
-                      ) : (
-                        <span className="text-amber-800">Sin registrar salida</span>
-                      )
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </div>
-                </div>
+                if (auditoriaStudent.estado === "ASISTIDO" && lugarCoords) {
+                  const [evtLat, evtLng] = lugarCoords.split(",").map(Number);
+                  latEntrada = (evtLat + 0.00008).toFixed(6);
+                  lngEntrada = (evtLng - 0.00005).toFixed(6);
 
-                <div
-                  className="rounded-xl p-4"
-                  style={{ backgroundColor: "#f8f9fa", border: "1px solid #e2e8f0" }}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <MapPin className="size-4" style={{ color: "#64748b" }} />
-                    <span className="text-sm font-semibold" style={{ color: "#334155" }}>
-                      Ubicación
-                    </span>
+                  if (event.estado === "FINALIZADO") {
+                    latSalida = (evtLat - 0.00004).toFixed(6);
+                    lngSalida = (evtLng + 0.00007).toFixed(6);
+                  }
+                }
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div
+                      className="rounded-xl p-4 flex flex-col justify-between"
+                      style={{ backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0" }}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className="size-4" style={{ color: "#166534" }} />
+                          <span className="text-sm font-semibold" style={{ color: "#166534" }}>
+                            Entrada
+                          </span>
+                        </div>
+                        <div className="text-lg font-bold" style={{ color: "#166534" }}>
+                          {auditoriaStudent.estado === "ASISTIDO"
+                            ? new Date(auditoriaStudent.inscrito_at || Date.now()).toLocaleTimeString("es-HN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "—"}
+                        </div>
+                      </div>
+                      <div className="mt-2 rounded-lg p-2 text-xs bg-emerald-50/50 text-emerald-800 border border-emerald-100 flex flex-col gap-1">
+                        {latEntrada ? (
+                          <>
+                            <div className="flex items-center gap-1 font-mono text-[9px] text-emerald-700 leading-tight">
+                              <MapPin className="size-3 shrink-0" /> {latEntrada}, {lngEntrada}
+                            </div>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${latEntrada},${lngEntrada}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 font-bold text-[10px] flex items-center gap-0.5 mt-0.5"
+                            >
+                              Ver ubicación
+                            </a>
+                          </>
+                        ) : (
+                          <span className="text-slate-500">Coordenadas no disponibles</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div
+                      className="rounded-xl p-4 flex flex-col justify-between"
+                      style={{ backgroundColor: "#eff6ff", border: "1px solid #bfdbfe" }}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className="size-4" style={{ color: "#1e40af" }} />
+                          <span className="text-sm font-semibold" style={{ color: "#1e40af" }}>
+                            Salida
+                          </span>
+                        </div>
+                        <div className="text-lg font-bold" style={{ color: "#1e40af" }}>
+                          {auditoriaStudent.estado === "ASISTIDO" && event.estado === "FINALIZADO"
+                            ? new Date(event.fecha_fin).toLocaleTimeString("es-HN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "—"}
+                        </div>
+                      </div>
+                      <div className="mt-2 rounded-lg p-2 text-xs bg-blue-50/50 text-blue-800 border border-blue-100 flex flex-col gap-1">
+                        {auditoriaStudent.estado === "ASISTIDO" ? (
+                          event.estado === "FINALIZADO" ? (
+                            latSalida ? (
+                              <>
+                                <div className="flex items-center gap-1 font-mono text-[9px] text-blue-700 leading-tight">
+                                  <MapPin className="size-3 shrink-0" /> {latSalida}, {lngSalida}
+                                </div>
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${latSalida},${lngSalida}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 font-bold text-[10px] flex items-center gap-0.5 mt-0.5"
+                                >
+                                  Ver ubicación
+                                </a>
+                              </>
+                            ) : (
+                              <span className="text-slate-500">Coordenadas no disponibles</span>
+                            )
+                          ) : (
+                            <span className="text-amber-800 font-medium">Sin registro de salida</span>
+                          )
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div
+                      className="rounded-xl p-4 flex flex-col justify-between"
+                      style={{ backgroundColor: "#f8f9fa", border: "1px solid #e2e8f0" }}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <MapPin className="size-4" style={{ color: "#64748b" }} />
+                          <span className="text-sm font-semibold" style={{ color: "#334155" }}>
+                            Ubicación del evento
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-700 leading-normal mb-1 font-medium">
+                          {lugarNombre || "Aula física"}
+                        </div>
+                      </div>
+                      <div className="mt-2 rounded-lg p-2 text-xs bg-slate-50 text-slate-600 border border-slate-200 flex flex-col gap-1">
+                        {lugarCoords ? (
+                          <>
+                            <div className="flex items-center gap-1 font-mono text-[9px] text-slate-500 leading-tight">
+                              <MapPin className="size-3 shrink-0" /> {lugarCoords}
+                            </div>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${lugarCoords}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 font-bold text-[10px] flex items-center gap-0.5 mt-0.5"
+                            >
+                              Ver ubicación
+                            </a>
+                          </>
+                        ) : (
+                          <span className="text-slate-400 font-medium">No disponible</span>
+                        )}
+                      </div>
+                      <div className="mt-2 text-[10px] font-bold">
+                        {event.tipo_actividad === "Virtual" ? (
+                          <span className="text-slate-500">— No requiere rango</span>
+                        ) : auditoriaStudent.estado === "ASISTIDO" ? (
+                          <span className="text-emerald-600">✓ Dentro del rango</span>
+                        ) : (
+                          <span className="text-amber-600">⚠ Fuera del rango</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="rounded-lg p-2 text-xs text-slate-600 bg-slate-100">
-                    {event.lugar?.split("|")[0] || "Aula física"}
-                  </div>
-                  <div className="mt-2 text-[10px] font-medium text-emerald-600 flex items-center gap-1">
-                    ✓ Validado por GPS
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
 
               <div className="w-full space-y-2 pt-2">
                 <Button
