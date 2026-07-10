@@ -559,14 +559,24 @@ export async function downloadConstanciaPdf(data: ConstanciaData): Promise<void>
     let html = generateConstanciaHtml({ ...data, qr_data_url: qr_data_url || data.qr_data_url });
     html = html.replace(/__ORIGIN__/g, typeof window !== "undefined" ? window.location.origin : "");
     if (typeof window === "undefined") return;
-    const win = window.open("", "_blank");
-    if (win) {
-      win.document.write(html);
-      win.document.close();
-      win.focus();
-      setTimeout(() => win.print(), 500);
-    } else {
-      console.warn("No se pudo abrir ventana para el PDF (posible bloqueo de popups)");
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0px";
+    iframe.style.height = "0px";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document || iframe.contentDocument;
+    if (doc) {
+      doc.write(html);
+      doc.close();
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+      }, 500);
     }
   } catch (error) {
     console.error("Error generando PDF:", error);
