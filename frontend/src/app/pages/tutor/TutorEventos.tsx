@@ -618,9 +618,9 @@ function EventCard({
       <Dialog open={cancelVoaeConfirm} onOpenChange={setCancelVoaeConfirm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-slate-800 font-bold">Cancelar Solicitud de Aprobación</DialogTitle>
+            <DialogTitle className="text-slate-800 font-bold">¿Seguro de cancelar la solicitud?</DialogTitle>
             <DialogDescription className="text-sm mt-2 text-slate-500 font-medium">
-              ¿Está seguro de que desea cancelar la solicitud de aprobación de este evento y devolverlo a Borradores? El evento ya no estará visible para VOAE.
+              Esta acción retirará el evento de la revisión de VOAE y lo devolverá a tus borradores para que puedas editarlo.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 justify-end mt-4">
