@@ -153,10 +153,12 @@ function EventCard({
   const pct = Math.min(Math.round((inscritos / cupo) * 100), 100);
   const catColor = (CATEGORY_PLACEHOLDER_COLORS as any)[event.categoria] || "#64748b";
   const isConHoras = event.tipo_evento === "HORAS_VOAE";
+  const isRecreacion = event.tipo_evento === "RECREACION" || event.tipo_evento === "SIN_HORAS" || parseFloat(event.duracion_horas || "0") === 0;
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [rejectModal, setRejectModal] = useState(false);
   const [publishConfirm, setPublishConfirm] = useState(false);
   const [shareQrOpen, setShareQrOpen] = useState(false);
+  const [cancelVoaeConfirm, setCancelVoaeConfirm] = useState(false);
   const navigate = useNavigate();
 
   const [localPortadaUrl, setLocalPortadaUrl] = useState<string | undefined>(event.portada_url || event.imagen_url);
@@ -184,6 +186,21 @@ function EventCard({
       onRefresh();
     } catch (err: any) {
       toast.error("Error al publicar el evento", { description: err.message });
+    }
+  };
+
+  const handleCancelRequest = async () => {
+    try {
+      const payload = {
+        ...event,
+        estado: "BORRADOR"
+      };
+      await api.put(`/eventos/${event.id_evento || event.id}`, payload);
+      toast.success("Solicitud de aprobación cancelada. El evento ha vuelto a Borradores.");
+      setCancelVoaeConfirm(false);
+      onRefresh();
+    } catch (err: any) {
+      toast.error("Error al cancelar la solicitud", { description: err.message });
     }
   };
 
@@ -434,13 +451,21 @@ function EventCard({
                 >
                   <Pencil className="size-3.5" /> Editar
                 </Button>
-                <Button
+                 <Button
                   size="sm"
                   className="gap-1 text-xs h-8 text-white shadow-sm"
                   style={{ backgroundColor: "#004B87" }}
                   onClick={() => setPublishConfirm(true)}
                 >
-                  <Send className="size-3.5" /> Enviar
+                  {isRecreacion ? (
+                    <>
+                      <Megaphone className="size-3.5" /> Publicar
+                    </>
+                  ) : (
+                    <>
+                      <Send className="size-3.5" /> Enviar
+                    </>
+                  )}
                 </Button>
                 <Button
                   size="sm"
@@ -473,13 +498,23 @@ function EventCard({
                 </Button>
               </>
             )}
-            {event.estado === "PENDIENTE_APROBACION" && (
-              <Button asChild size="sm" variant="outline" className="gap-1 text-xs h-8">
-                <Link to={`/tutor/event/${event.id_evento || event.id}`}>
-                  <Eye className="size-3.5" /> Ver detalle
-                </Link>
-              </Button>
-            )}
+             {event.estado === "PENDIENTE_APROBACION" && (
+               <>
+                 <Button asChild size="sm" variant="outline" className="gap-1 text-xs h-8">
+                   <Link to={`/tutor/event/${event.id_evento || event.id}`}>
+                     <Eye className="size-3.5" /> Ver detalle
+                   </Link>
+                 </Button>
+                 <Button
+                   size="sm"
+                   variant="ghost"
+                   className="gap-1 text-xs h-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50 cursor-pointer"
+                   onClick={() => setCancelVoaeConfirm(true)}
+                 >
+                   <XCircle className="size-3.5" /> Cancelar solicitud
+                 </Button>
+               </>
+             )}
             {event.estado === "FINALIZADO" && (
               <Button asChild size="sm" variant="outline" className="gap-1 text-xs h-8">
                 <Link to={`/tutor/event/${event.id_evento || event.id}`}>
@@ -555,12 +590,12 @@ function EventCard({
           <DialogHeader>
             <DialogTitle className="text-slate-800 font-bold">
               {event.tipo_evento === "RECREACION" || event.tipo_evento === "SIN_HORAS"
-                ? "¿Estás seguro de publicar este evento?"
+                ? "Confirmar publicación"
                 : "Confirmar envío a VOAE"}
             </DialogTitle>
             <DialogDescription className="text-sm mt-2 text-slate-500 font-medium">
               {event.tipo_evento === "RECREACION" || event.tipo_evento === "SIN_HORAS"
-                ? "El evento se publicará directamente de forma inmediata y estará visible para todos los estudiantes."
+                ? "¿Está seguro de que desea publicar este evento? Esta acción hará el evento visible inmediatamente."
                 : "¿Está seguro de que desea enviar este evento a VOAE para revisión? Esta acción no se puede deshacer."}
             </DialogDescription>
           </DialogHeader>
@@ -574,6 +609,30 @@ function EventCard({
               onClick={handlePublish}
             >
               Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel VOAE Request Confirmation Modal */}
+      <Dialog open={cancelVoaeConfirm} onOpenChange={setCancelVoaeConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 font-bold">Cancelar Solicitud de Aprobación</DialogTitle>
+            <DialogDescription className="text-sm mt-2 text-slate-500 font-medium">
+              ¿Está seguro de que desea cancelar la solicitud de aprobación de este evento y devolverlo a Borradores? El evento ya no estará visible para VOAE.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" className="font-semibold cursor-pointer" onClick={() => setCancelVoaeConfirm(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="text-white font-semibold cursor-pointer"
+              style={{ backgroundColor: "#d97706" }}
+              onClick={handleCancelRequest}
+            >
+              Sí, cancelar solicitud
             </Button>
           </DialogFooter>
         </DialogContent>
