@@ -486,33 +486,63 @@ export function ManageEvent() {
   };
 
   const downloadPdfReport = () => {
+    const ubicacionLabel = (v: boolean | undefined | null) => {
+      if (v === true) return "✓";
+      if (v === false) return "⚠";
+      return "—";
+    };
+
     const rows = students
-      .map(
-        (s) => `
-      <tr>
-        <td style="padding:8px 12px;border:1px solid #ddd">${s.estudiante_nombre}</td>
-        <td style="padding:8px 12px;border:1px solid #ddd;font-family:monospace;font-size:12px">${s.estudiante_cuenta}</td>
-        <td style="padding:8px 12px;border:1px solid #ddd">${s.estudiante_cuenta}@unah.hn</td>
-        <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">
-          ${s.estado === "ASISTIDO" ? '<span style="color:#22c55e;font-weight:600">Asistió</span>' : '<span style="color:#ef4444;font-weight:600">No asistió</span>'}
-        </td>
-        <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${s.estado === "ASISTIDO" ? new Date(s.inscrito_at || Date.now()).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' }) : "-"}</td>
-      </tr>
-    `
-      )
+      .map((s) => {
+        const isAssisted = s.estado === "ASISTIDO";
+        const horaLlegada = isAssisted
+          ? new Date(s.inscrito_at || Date.now()).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' })
+          : "-";
+        const horaSalida = isAssisted
+          ? (event.estado === "FINALIZADO"
+              ? new Date(event.fecha_fin || Date.now()).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' })
+              : "Sin salida")
+          : "-";
+
+        let entValid = s.ubicacion_entrada_validada;
+        let salValid = s.ubicacion_salida_validada;
+        if (isAssisted && event.tipo_actividad !== "Virtual") {
+          if (entValid === undefined || entValid === null) entValid = true;
+          if ((salValid === undefined || salValid === null) && event.estado === "FINALIZADO") salValid = true;
+        }
+
+        const ubicacionStr = event.tipo_actividad === "Virtual"
+          ? "E:— S:—"
+          : `E:${ubicacionLabel(entValid)} S:${ubicacionLabel(salValid)}`;
+
+        return `
+          <tr>
+            <td style="padding:8px 12px;border:1px solid #ddd">${s.estudiante_nombre}</td>
+            <td style="padding:8px 12px;border:1px solid #ddd;font-family:monospace;font-size:12px">${s.estudiante_cuenta}</td>
+            <td style="padding:8px 12px;border:1px solid #ddd">${s.estudiante_cuenta}@unah.hn</td>
+            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">
+              ${isAssisted ? '<span style="color:#22c55e;font-weight:600">Asistió</span>' : '<span style="color:#ef4444;font-weight:600">No asistió</span>'}
+            </td>
+            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${horaLlegada}</td>
+            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${horaSalida}</td>
+            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${ubicacionStr}</td>
+          </tr>
+        `;
+      })
       .join("");
 
     const html = `
       <html>
       <head>
         <meta charset="utf-8">
-        <title>Reporte de Asistencias - ${event.titulo}</title>
+        <title>Lista de Asistencia - ${event.titulo}</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; }
           h2 { font-size: 20px; margin-bottom: 4px; color: #004B87; }
           .meta { font-size: 13px; color: #64748b; margin-bottom: 20px; }
           table { width: 100%; border-collapse: collapse; font-size: 13px; }
           th { background: #f1f5f9; padding: 8px 12px; text-align: left; border: 1px solid #ddd; font-size: 11px; text-transform: uppercase; color: #64748b; }
+          td { padding: 8px 12px; border: 1px solid #ddd; }
         </style>
       </head>
       <body>
@@ -521,11 +551,20 @@ export function ManageEvent() {
         <table>
           <thead>
             <tr>
-              <th>Estudiante</th><th>Número de Cuenta</th><th>Email</th><th>Estado</th><th>Hora Llegada</th>
+              <th>Estudiante</th>
+              <th>No. Cuenta</th>
+              <th>Email</th>
+              <th style="text-align:center">Estado</th>
+              <th style="text-align:center">Hora llegada</th>
+              <th style="text-align:center">Hora salida</th>
+              <th style="text-align:center">Ubicación</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
+        <div style="margin-top:20px;font-size:11px;color:#94a3b8;text-align:center">
+          Generado el ${new Date().toLocaleDateString()} — Conecta Pumas
+        </div>
       </body>
       </html>
     `;
