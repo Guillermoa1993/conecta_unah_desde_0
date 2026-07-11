@@ -7,6 +7,7 @@ export type EstadoEvento =
   | 'PENDIENTE_APROBACION'
   | 'PROGRAMADO'
   | 'EN_CURSO'
+  | 'EN_CURSO_SALIDA'
   | 'FINALIZADO'
   | 'RECHAZADO';
 export type TipoDuracion = 'TOTALES' | 'DIARIAS';
@@ -41,6 +42,11 @@ export interface Evento {
   updated_at: Date;
   inscritos_count?: number;
   asistencias_count?: number;
+  distribucion_horas?: { categoria: string; horas: number }[];
+  imagenes_adicionales?: string[];
+  audiencia?: string;
+  registro_entrada?: boolean;
+  registro_salida?: boolean;
 }
 
 export interface CrearEventoDto {
@@ -65,4 +71,8 @@ export interface CrearEventoDto {
   requiere_inscripcion: boolean;
   portada_url?: string;
   tutor_id: string;
+  imagenes_adicionales?: string[];
+  audiencia?: string;
+  registro_entrada?: boolean;
+  registro_salida?: boolean;
 }

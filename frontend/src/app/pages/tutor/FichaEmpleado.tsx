@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, useBlocker } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -204,7 +204,11 @@ export function FichaEmpleado() {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    let value = e.target.value;
+    if (e.target.name === "nombre") {
+      value = value.toUpperCase();
+    }
+    setFormData({ ...formData, [e.target.name]: value });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -292,39 +296,45 @@ export function FichaEmpleado() {
     toast.success("Se ha enviado un código de verificación a su correo institucional.");
   };
 
-  const handleVerifySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleVerifySubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (otpCode.length < 4) {
       toast.error("Por favor ingrese el código completo.");
       return;
     }
     setEnviando(true);
-    // Simular guardado de base de datos
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    console.log("Datos del empleado enviados a PostgreSQL con Carnet verificado:", {
-      ...formData,
-      telefono: `${codigoPais} ${formData.telefono}`,
-      forma003
-    });
-    setEnviando(false);
-    setShowConfirmModal(false);
-    setExito(true);
-    toast.success("¡Ficha de empleado guardada y cuenta verificada correctamente!");
+    try {
+      // Simular guardado de base de datos
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      console.log("Datos del empleado enviados a PostgreSQL con Carnet verificado:", {
+        ...formData,
+        telefono: `${codigoPais} ${formData.telefono}`,
+        forma003
+      });
+      setEnviando(false);
+      setShowConfirmModal(false);
+      setShowOtp(false);
+      toast.success("¡Ficha de empleado guardada y cuenta verificada correctamente!");
+      navigate("/", { state: { email: formData.correo } });
+    } catch (err) {
+      setEnviando(false);
+      toast.error("Ocurrió un error al guardar los datos. Intenta de nuevo.");
+    }
   };
 
-  // Crops the photo region from the uploaded employee card (Photo is on the left)
+  // Crops the photo region from the uploaded employee card (Photo is on the right)
   const cropDocumentPhoto = (base64: string): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d')!;
-        
-        // Employee card photo region: ~4% to 42% width, ~25% to 80% height (left side)
-        let cropX = img.naturalWidth * 0.04;
-        let cropY = img.naturalHeight * 0.25;
-        let cropW = img.naturalWidth * 0.38;
-        let cropH = img.naturalHeight * 0.55;
+
+        // Employee card photo region: ~70% to 95% width, ~8% to 58% height (right-aligned)
+        let cropX = img.naturalWidth * 0.70;
+        let cropY = img.naturalHeight * 0.08;
+        let cropW = img.naturalWidth * 0.25;
+        let cropH = img.naturalHeight * 0.50;
         
         canvas.width = 120;
         canvas.height = 150;
@@ -372,11 +382,11 @@ export function FichaEmpleado() {
         ctx.drawImage(img, 0, 0, sampleW, sampleH);
         const data = ctx.getImageData(0, 0, sampleW, sampleH).data;
 
-        // 1. Región de la Foto de Perfil (costado izquierdo: X: 4% - 42%, Y: 25% - 80%)
-        const photoX = Math.round(0.04 * sampleW);
-        const photoY = Math.round(0.25 * sampleH);
-        const photoW = Math.round(0.38 * sampleW);
-        const photoH = Math.round(0.55 * sampleH);
+        // 1. Región de la Foto de Perfil (costado derecho: X: 70% - 95%, Y: 8% - 58%)
+        const photoX = Math.round(0.70 * sampleW);
+        const photoY = Math.round(0.08 * sampleH);
+        const photoW = Math.round(0.25 * sampleW);
+        const photoH = Math.round(0.50 * sampleH);
         let photoSum = 0;
         let photoSqSum = 0;
         let photoCount = 0;
@@ -397,11 +407,11 @@ export function FichaEmpleado() {
         const photoVariance = (photoSqSum / (photoCount || 1)) - (photoMean * photoMean);
         const photoDetected = photoVariance > 250;
 
-        // 2. Región del Código QR (abajo a la derecha: X: 65% - 98%, Y: 65% - 98%)
-        const qrX = Math.round(0.65 * sampleW);
-        const qrY = Math.round(0.65 * sampleH);
-        const qrW = Math.round(0.33 * sampleW);
-        const qrH = Math.round(0.33 * sampleH);
+        // 2. Región del Código o Sello/Logo (arriba a la izquierda: X: 4% - 22%, Y: 8% - 40%)
+        const qrX = Math.round(0.04 * sampleW);
+        const qrY = Math.round(0.08 * sampleH);
+        const qrW = Math.round(0.18 * sampleW);
+        const qrH = Math.round(0.32 * sampleH);
         let qrTransitions = 0;
         let qrRowsChecked = 0;
 
@@ -425,14 +435,14 @@ export function FichaEmpleado() {
         const avgQrTransitions = qrTransitions / (qrRowsChecked || 1);
         const qrDetected = (avgQrTransitions > 3.0);
 
-        // 3. Región de Estructura / Código de barras (bottom center-left)
+        // 3. Región de Estructura (Y: 38% - 90%, X: 4% - 66%)
         let tableLinesCount = 0;
-        const startY = Math.round(sampleH * 0.70);
+        const startY = Math.round(sampleH * 0.38);
         const endY = Math.round(sampleH * 0.90);
         for (let y = startY; y < endY; y += 2) {
           let darkPixels = 0;
           let totalInRow = 0;
-          for (let x = Math.round(sampleW * 0.25); x < Math.round(sampleW * 0.65); x++) {
+          for (let x = Math.round(sampleW * 0.05); x < Math.round(sampleW * 0.65); x++) {
             const idx = (y * sampleW + x) * 4;
             if (idx < data.length) {
               const r = data[idx], g = data[idx+1], b = data[idx+2];
@@ -581,16 +591,19 @@ export function FichaEmpleado() {
 
       // Paso 4: Validar coincidencia de datos del empleado registrados
       setScanProgress(80);
-      setScanStepName("Cotejando coherencia con los datos del perfil del empleado...");
 
-      // Comparación de nombre tolerante a fallas OCR y diferencias menores (ej: Giancarlos vs Giancarlo)
-      const nameParts = formData.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/\s+/).filter(w => w.length > 2);
-      const normalizedOcrText = cleanText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      
-      // Contar cuántas partes del nombre ingresado se encuentran (parcialmente) en el texto del OCR
+      // Normalizar OCR: colapsar saltos de línea en espacios para mejorar búsqueda de nombres
+      const normalizedOcrText = cleanText
+        .replace(/[\r\n]+/g, " ")
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      const nameParts = formData.nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(/\s+/).filter(w => w.length > 2);
+
       let matchingNameParts = 0;
       nameParts.forEach(part => {
-        // Remover la última letra por si acaso hay plurales/errores tipográficos como Giancarlo vs Giancarlos
         const corePart = part.length > 4 ? part.substring(0, part.length - 1) : part;
         if (normalizedOcrText.includes(part) || normalizedOcrText.includes(corePart)) {
           matchingNameParts++;

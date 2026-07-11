@@ -35,6 +35,7 @@ import { CommentsReview } from "./pages/admin/CommentsReview";
 import { Roles } from "./pages/admin/Roles";
 import { Permissions } from "./pages/admin/Permissions";
 import { BackupRestore } from "./pages/admin/BackupRestore";
+import { Parametros } from "./pages/admin/Parametros";
 
 // Grupo 3 — Student
 import { SolicitarEvento } from "./pages/student/SolicitarEvento";
@@ -131,7 +132,8 @@ export const router = createBrowserRouter([
       { path: "admin/comments",         element: P(<CommentsReview />) },
       { path: "admin/roles",            element: P(<Roles />) },
       { path: "admin/permissions",      element: P(<Permissions />) },
-      { path: "admin/backup",           element: P(<BackupRestore />) },
+      { path: "admin/backup",            element: P(<BackupRestore />) },
+      { path: "admin/parametros",        element: P(<Parametros />) },
       ...maintenanceRoutes("admin"),
 
       // ── VOAE ──────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { cfg } from '../../infrastructure/config/configService';
 
 export interface JwtPayload {
   id: number;
@@ -25,7 +26,7 @@ export function autenticar(req: Request, res: Response, next: NextFunction) {
 
   try {
     const token = header.slice(7);
-    const secret = process.env.JWT_SECRET ?? 'dev-secret-change-in-prod';
+    const secret = cfg('JWT_SECRET', 'dev-secret-change-in-prod');
     req.usuario = jwt.verify(token, secret) as JwtPayload;
     next();
   } catch {

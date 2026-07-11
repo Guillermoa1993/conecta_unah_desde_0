@@ -7,6 +7,10 @@ interface AsistenciaInfo {
   salida?: string;
   lat: number;
   lng: number;
+  latEntrada?: number;
+  lngEntrada?: number;
+  latSalida?: number;
+  lngSalida?: number;
   estadoVerificacion: 'Pendiente de verificación' | 'Verificado';
 }
 interface Evento {
@@ -208,7 +212,7 @@ export const AvailableEvents: React.FC = () => {
       );
       const alEscanearExitoso = (textoDecodificado: string) => {
         if (scannerRef.current) {
-          scannerRef.current.clear().catch(err => console.error("Error al limpiar la cámara", err));
+          scannerRef.current.clear().catch((err: any) => console.error("Error al limpiar la cámara", err));
         }
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition((position) => {
@@ -238,7 +242,7 @@ export const AvailableEvents: React.FC = () => {
           });
         }
       };
-      scannerRef.current.render(alEscanearExitoso, (error) => {});
+      scannerRef.current.render(alEscanearExitoso, (error: any) => {});
       const escanearTextosEspanol = () => {
         const btnCambiarCamara = document.getElementById('html5-qrcode-button-camera-permission');
         if (btnCambiarCamara) btnCambiarCamara.innerText = "Conceder permiso de cámara";
@@ -253,7 +257,7 @@ export const AvailableEvents: React.FC = () => {
     }
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.clear().catch(err => console.error("Error al limpiar recursos de cámara", err));
+        scannerRef.current.clear().catch((err: any) => console.error("Error al limpiar recursos de cámara", err));
       }
     };
   }, [escanerQR]);
@@ -437,7 +441,7 @@ export const AvailableEvents: React.FC = () => {
                     {/* Botón de Entrada QR */}
                     {mostrarBotonEntrada(evento) && (
                       <button
-                        onClick={() => setEscanerQR({ abierto: true, eventoId: evento.EVENTO_ID, tipo: 'activar entrada' })}
+                        onClick={() => setEscanerQR({ abierto: true, eventoId: evento.EVENTO_ID, tipo: 'entrada' })}
                         className="bg-[#004a8b] text-white hover:bg-[#003d73] px-5 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
                       >
                         📷 Entrada QR
@@ -446,7 +450,7 @@ export const AvailableEvents: React.FC = () => {
                     {/* Botón de Salida QR */}
                     {mostrarBotonSalida(evento) && (
                       <button
-                        onClick={() => setEscanerQR({ abierto: true, eventoId: evento.EVENTO_ID, tipo: 'activar salida' })}
+                        onClick={() => setEscanerQR({ abierto: true, eventoId: evento.EVENTO_ID, tipo: 'salida' })}
                         className="bg-[#004a8b] text-white hover:bg-[#003d73] px-5 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
                       >
                         📷 Salida QR

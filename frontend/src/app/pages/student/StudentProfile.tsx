@@ -4,7 +4,7 @@ import type { TipoReaccionPumita } from '../../../types';
 import { pumitasService, type Pumita } from '../../../services/pumitas.service';
 
 interface PerfilProps {
-  rolSimulado: string;
+  rolSimulado?: string;
   subScreen?: string;
   setSubScreen?: React.Dispatch<React.SetStateAction<string>>;
 }

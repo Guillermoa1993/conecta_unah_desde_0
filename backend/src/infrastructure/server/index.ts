@@ -21,6 +21,8 @@ import { RegistrarUsuario } from '../../use-cases/auth/RegistrarUsuario';
 import { LoginMicrosoft } from '../../use-cases/auth/LoginMicrosoft';
 import { EnviarOtp } from '../../use-cases/auth/EnviarOtp';
 import { VerificarOtp } from '../../use-cases/auth/VerificarOtp';
+import { RegistrarEstudiante } from '../../use-cases/auth/RegistrarEstudiante';
+import { EnviarOtpRegistro } from '../../use-cases/auth/EnviarOtpRegistro';
 import { CrearEvento } from '../../use-cases/eventos/CrearEvento';
 import { ObtenerEventos } from '../../use-cases/eventos/ObtenerEventos';
 import { ObtenerEventoPorId } from '../../use-cases/eventos/ObtenerEventoPorId';
@@ -58,17 +60,21 @@ import { notificacionRouter } from '../../interfaces/routes/notificacionRoutes';
 import { estadoRouter } from '../../interfaces/routes/estadoRoutes';
 import { pumitaRouter } from '../../interfaces/routes/pumitaRoutes';
 import { perfilReaccionRouter } from '../../interfaces/routes/perfilReaccionRoutes';
+import { parametrosRouter } from '../../interfaces/routes/parametrosRoutes';
 
 // Middleware
 import { errorMiddleware } from '../../interfaces/middlewares/errorMiddleware';
+import { loadConfig, cfg } from '../config/configService';
+import https from 'https';
+import fs from 'fs';
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT ?? 5000;
 
-app.use(cors({ origin: process.env.FRONTEND_URL ?? '*' }));
-app.use(express.json({ limit: '5mb' }));
+app.use(cors({ origin: (origin, cb) => cb(null, true) })); // CORS dinámico — se re-aplica tras loadConfig
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ── Repositorios ────────────────────────────────────────────────────────────
 const healthRepo       = new PostgresHealthRepository();
@@ -87,6 +93,8 @@ const registrarUC      = new RegistrarUsuario(usuarioRepo);
 const loginMicrosoftUC = new LoginMicrosoft(usuarioRepo);
 const enviarOtpUC      = new EnviarOtp(usuarioRepo);
 const verificarOtpUC   = new VerificarOtp(usuarioRepo);
+const registrarEstudianteUC = new RegistrarEstudiante(usuarioRepo);
+const enviarOtpRegistroUC   = new EnviarOtpRegistro(usuarioRepo);
 const crearEventoUC    = new CrearEvento(eventoRepo);
 const obtenerEventosUC = new ObtenerEventos(eventoRepo);
 const obtenerEventoUC  = new ObtenerEventoPorId(eventoRepo);
@@ -107,7 +115,7 @@ const listarReaccionesRecibidasUC = new ListarReaccionesRecibidas(reaccionRepo);
 
 // ── Controllers ─────────────────────────────────────────────────────────────
 const healthCtrl       = new HealthController(new GetHealthReport(healthRepo));
-const authCtrl         = new AuthController(loginUC, registrarUC, loginMicrosoftUC, enviarOtpUC, verificarOtpUC, usuarioRepo);
+const authCtrl         = new AuthController(loginUC, registrarUC, loginMicrosoftUC, enviarOtpUC, verificarOtpUC, registrarEstudianteUC, enviarOtpRegistroUC, usuarioRepo);
 const eventoCtrl       = new EventoController(crearEventoUC, obtenerEventosUC, obtenerEventoUC, actualizarUC, aprobarUC, eventoRepo);
 const inscripcionCtrl  = new InscripcionController(inscribirUC, cancelarInscUC, inscripcionRepo);
 const constanciaCtrl   = new ConstanciaController(constanciaUC, constanciaRepo);
@@ -126,17 +134,42 @@ app.use('/api/notificaciones', notificacionRouter(notificacionCtrl));
 app.use('/api/estados', estadoRouter(estadoCtrl));
 app.use('/api/pumitas', pumitaRouter(pumitaCtrl));
 app.use('/api/perfil/reacciones', perfilReaccionRouter(perfilReaccionCtrl));
+app.use('/api/parametros',    parametrosRouter);
 
 // ── Error handler (debe ir al final) ────────────────────────────────────────
 app.use(errorMiddleware);
 
-app.listen(PORT, () => {
-  console.log(`\n🚀 UNAH Conecta API corriendo en http://localhost:${PORT}`);
-  console.log(`   Health:         GET  /api/health`);
-  console.log(`   Auth:           POST /api/auth/login | POST /api/auth/registro`);
-  console.log(`   Eventos:        GET  /api/eventos`);
-  console.log(`   Inscripciones:  POST /api/inscripciones/evento/:id`);
-  console.log(`   Constancias:    GET  /api/constancias/pendientes`);
-  console.log(`   Perfil:         POST /api/perfil/reacciones | GET /api/perfil/reacciones/recibidas`);
-  console.log(`   Notificaciones: GET  /api/notificaciones\n`);
+// Carga config de BD y luego arranca el servidor
+loadConfig().then(() => {
+  const PORT = Number(cfg('PORT', '5000'));
+  const sslActivo = cfg('SSL_ACTIVO') === '1';
+  const sslCert   = cfg('SSL_CERTIFICADO', '');
+
+  const banner = (proto: string, port: number) => {
+    console.log(`\n🚀 UNAH Conecta API corriendo en ${proto}://localhost:${port}`);
+    console.log(`   Health:         GET  /api/health`);
+    console.log(`   Auth:           POST /api/auth/login | POST /api/auth/registro`);
+    console.log(`   Eventos:        GET  /api/eventos`);
+    console.log(`   Inscripciones:  POST /api/inscripciones/evento/:id`);
+    console.log(`   Constancias:    GET  /api/constancias/pendientes`);
+    console.log(`   Perfil:         POST /api/perfil/reacciones | GET /api/perfil/reacciones/recibidas`);
+    console.log(`   Notificaciones: GET  /api/notificaciones\n`);
+  };
+
+  if (sslActivo && sslCert) {
+    try {
+      const keyPath  = sslCert.endsWith('.pem') ? sslCert.replace('cert.pem', 'key.pem') : `${sslCert}/key.pem`;
+      const certPath = sslCert.endsWith('.pem') ? sslCert : `${sslCert}/cert.pem`;
+      const credentials = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
+      https.createServer(credentials, app).listen(PORT, () => banner('https', PORT));
+    } catch (e: any) {
+      console.warn(`⚠️  SSL configurado pero certificado no encontrado (${e.message}). Arrancando en HTTP.`);
+      app.listen(PORT, () => banner('http', PORT));
+    }
+  } else {
+    app.listen(PORT, () => banner('http', PORT));
+  }
+}).catch(err => {
+  console.error('Error cargando config desde BD:', err);
+  process.exit(1);
 });

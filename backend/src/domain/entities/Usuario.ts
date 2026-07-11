@@ -16,6 +16,15 @@ export interface Usuario {
   otp_code?: string | null;
   otp_expira?: Date | null;
   permite_reacciones_perfil: boolean;
+  // Datos del perfil (tabla separada, vienen unidos por JOIN)
+  telefono?: string | null;
+  numero_cuenta?: string | null;
+  id_centro_regional?: number | null;
+  centro_regional?: string | null;
+  genero?: string | null;
+  biografia?: string | null;
+  foto_url?: string | null;
+  forma003_base64?: string | null;
 }
 
 export interface UsuarioPublico {
@@ -29,4 +38,11 @@ export interface UsuarioPublico {
   id_carrera?: number;
   carrera?: string;
   permite_reacciones_perfil: boolean;
+  telefono?: string | null;
+  numero_cuenta?: string | null;
+  id_centro_regional?: number | null;
+  centro_regional?: string | null;
+  genero?: string | null;
+  biografia?: string | null;
+  foto_url?: string | null;
 }

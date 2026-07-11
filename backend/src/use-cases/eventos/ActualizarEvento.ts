@@ -12,7 +12,27 @@ export class ActualizarEvento {
       throw new Error('No tienes permiso para editar este evento');
     }
 
-    if (['EN_CURSO', 'FINALIZADO', 'RECHAZADO'].includes(evento.estado)) {
+    const coreFields: (keyof Evento)[] = [
+      'titulo', 'descripcion', 'categoria', 'tipo_actividad', 'tipo_evento',
+      'fecha_inicio', 'fecha_fin', 'ubicacion', 'enlace_virtual', 'cupo_maximo',
+      'duracion_horas', 'tipo_duracion'
+    ];
+    
+    const isActuallyChangingDetails = coreFields.some(key => {
+      if (datos[key] === undefined) return false;
+      const val1 = datos[key];
+      const val2 = evento[key];
+      if (!val1 && !val2) return false;
+      if (key === 'fecha_inicio' || key === 'fecha_fin') {
+        return new Date(val1 as string).getTime() !== new Date(val2 as string).getTime();
+      }
+      if (key === 'cupo_maximo' || key === 'duracion_horas') {
+        return Number(val1) !== Number(val2);
+      }
+      return val1 !== val2;
+    });
+
+    if (isActuallyChangingDetails && ['EN_CURSO', 'EN_CURSO_SALIDA', 'FINALIZADO', 'RECHAZADO'].includes(evento.estado)) {
       throw new Error('No se puede editar un evento en ese estado');
     }
 
