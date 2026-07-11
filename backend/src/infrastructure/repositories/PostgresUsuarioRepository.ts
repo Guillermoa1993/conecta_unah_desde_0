@@ -7,7 +7,8 @@ const SELECT_USUARIO = `
          u.id_rol,    r.nombre  AS rol,
          u.id_estado, e.estado,
          u.id_carrera, c.nombre AS carrera,
-         u.microsoft_id, u.otp_code, u.otp_expira
+         u.microsoft_id, u.otp_code, u.otp_expira,
+         u.permite_reacciones_perfil
   FROM tabla_grupo_1_usuario u
   LEFT JOIN tabla_grupo_1_rol            r ON u.id_rol     = r.id_rol
   LEFT JOIN tabla_grupo_1_estado_usuario e ON u.id_estado  = e.id_estado

@@ -15,6 +15,7 @@ export interface Usuario {
   microsoft_id?: string | null;
   otp_code?: string | null;
   otp_expira?: Date | null;
+  permite_reacciones_perfil: boolean;
 }
 
 export interface UsuarioPublico {
@@ -27,4 +28,5 @@ export interface UsuarioPublico {
   estado?: string;
   id_carrera?: number;
   carrera?: string;
+  permite_reacciones_perfil: boolean;
 }
