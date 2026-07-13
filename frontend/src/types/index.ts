@@ -13,6 +13,7 @@ export interface Usuario {
   centro_regional?: string;
   telefono?: string;
   foto_url?: string;
+  permite_reacciones_perfil?: boolean;
   created_at: string;
 }
 
@@ -163,6 +164,23 @@ export interface Notificacion {
   leida: boolean;
   evento_id?: string;
   created_at: string;
+}
+
+export type TipoReaccionPumita = 'APOYO' | 'FELICITACION' | 'SALUDO' | 'RUGIDO_PUMA';
+
+export interface ReaccionPumita {
+  id_reaccion: number;
+  id_emisor: number;
+  id_receptor: number;
+  tipo: TipoReaccionPumita;
+  fecha_creacion: string;
+  emisor_nombre?: string;
+  emisor_foto_url: string | null;
+}
+
+export interface RespuestaEnviarReaccion {
+  mensaje: string;
+  reaccion: ReaccionPumita;
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────

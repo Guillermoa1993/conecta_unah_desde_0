@@ -1,4 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { reaccionesService } from '../../../services/reacciones.service';
+import type { TipoReaccionPumita } from '../../../types';
+import { pumitasService, type Pumita } from '../../../services/pumitas.service';
 
 interface PerfilProps {
   rolSimulado?: string;
@@ -62,69 +65,21 @@ const perfilInicial: PerfilData = {
 type EstadoPumita = 'Conectado' | 'Pendiente' | 'Sugerido';
 
 interface PumitaData {
+  id_usuario: number;
+  id_conexion: number | null;
   nombre: string;
   carrera: string;
   avatar: string;
   estado: EstadoPumita;
   biografia: string;
   activo: boolean;
+  solicitudEnviada?: boolean;
 }
 
 const notificacionesRecientes = [
   { icon: 'fa-user-plus', texto: 'Lucía Pineda quiere unirse a tu red', tiempo: 'Hace 3 h', leida: false, tipo: 'solicitud', nombre: 'Lucía Pineda' },
   { icon: 'fa-calendar-check', texto: 'Tutoría de Finanzas confirmada', tiempo: 'Hace 10 min', leida: false, tipo: 'general' },
   { icon: 'fa-bookmark', texto: 'Nuevo evento guardado en tu perfil', tiempo: 'Hace 1 h', leida: true, tipo: 'general' },
-];
-
-const pumitas: PumitaData[] = [
-  {
-    nombre: 'Andrea Mejía',
-    carrera: 'Ingeniería en Sistemas',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200',
-    estado: 'Conectado',
-    activo: true,
-    biografia: 'Estudiante de sistemas enfocada en desarrollo web, comunidades tecnológicas y mentorías entre compañeros.',
-  },
-  {
-    nombre: 'Carlos Rivera',
-    carrera: 'Tutor de Contabilidad',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200',
-    estado: 'Conectado',
-    activo: false,
-    biografia: 'Tutor académico con experiencia apoyando a estudiantes en contabilidad financiera y análisis de costos.',
-  },
-  {
-    nombre: 'Lucía Pineda',
-    carrera: 'Administración',
-    avatar: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&q=80&w=200',
-    estado: 'Pendiente',
-    activo: true,
-    biografia: 'Participa en grupos de liderazgo estudiantil y proyectos de innovación para emprendimientos universitarios.',
-  },
-  {
-    nombre: 'Marco Zelaya',
-    carrera: 'Mercadotecnia',
-    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=200',
-    estado: 'Sugerido',
-    activo: false,
-    biografia: 'Interesado en investigación de mercados, comunicación digital y actividades culturales dentro de la UNAH.',
-  },
-  {
-    nombre: 'Gabriela Santos',
-    carrera: 'Psicología',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200',
-    estado: 'Conectado',
-    activo: true,
-    biografia: 'Apoya actividades de bienestar estudiantil y orientación para nuevos ingresos.',
-  },
-  {
-    nombre: 'Diego Alvarado',
-    carrera: 'Economía',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
-    estado: 'Sugerido',
-    activo: false,
-    biografia: 'Colabora en análisis de datos, tutorías de estadística y debates académicos de economía aplicada.',
-  },
 ];
 
 const reaccionesPumita = ['👍 Apoyo', '🎉 Felicitación', '👋 Saludo', '🐾 Rugido Puma'];
@@ -209,9 +164,49 @@ export const Perfil: React.FC<PerfilProps> = ({ rolSimulado }) => {
   const [mostrarRedPumita, setMostrarRedPumita] = useState(false);
   const [mostrarAgregarPumita, setMostrarAgregarPumita] = useState(false);
   const [busquedaAgregarPumita, setBusquedaAgregarPumita] = useState('');
-  const [solicitudesPendientes, setSolicitudesPendientes] = useState<PumitaData[]>(
-    pumitas.filter((pumita) => pumita.estado === 'Pendiente')
-  );
+  const [pumitas, setPumitas] = useState<PumitaData[]>([]);
+  const [cargandoPumitas, setCargandoPumitas] = useState(true);
+  const [solicitudesPendientes, setSolicitudesPendientes] = useState<PumitaData[]>([]);
+  
+
+  const cargarPumitas = async () => {
+    try {
+      const [conexiones, pendientes, sugeridos, enviadas] = await Promise.all([
+        pumitasService.listarConexiones(),
+        pumitasService.listarPendientes(),
+        pumitasService.listarSugeridos(),
+        pumitasService.listarEnviadas(),
+      ]);
+
+      const mapearAPumitaData = (item: Pumita, estado: EstadoPumita, solicitudEnviada = false): PumitaData => ({
+        id_usuario: item.id_usuario,
+        id_conexion: item.id_conexion,
+        nombre: item.nombre,
+        carrera: '',
+        avatar: `https://ui-avatars.com/api/?background=003366&color=fff&name=${encodeURIComponent(item.nombre)}`,
+        estado,
+        biografia: '',
+        activo: true,
+        solicitudEnviada,
+      });
+
+      const conectadas = conexiones.map((c) => mapearAPumitaData(c, 'Conectado'));
+      const pendientesMapeadas = pendientes.map((p) => mapearAPumitaData(p, 'Pendiente'));
+      const sugeridasMapeadas = sugeridos.map((s) => mapearAPumitaData(s, 'Sugerido'));
+      const enviadasMapeadas = enviadas.map((e) => mapearAPumitaData(e, 'Sugerido', true));
+
+      setPumitas([...conectadas, ...pendientesMapeadas, ...sugeridasMapeadas, ...enviadasMapeadas]);
+      setSolicitudesPendientes(pendientesMapeadas);
+    } catch (error) {
+      console.error('No se pudieron cargar las conexiones Pumitas reales', error);
+    } finally {
+      setCargandoPumitas(false);
+    }
+  };
+
+  useEffect(() => {
+    cargarPumitas();
+  }, []);
   const [solicitudesEnviadas, setSolicitudesEnviadas] = useState<string[]>([]);
   const [pumitasAceptados, setPumitasAceptados] = useState<string[]>([]);
   const [dejadosDeSeguir, setDejadosDeSeguir] = useState<string[]>([]);
@@ -242,6 +237,10 @@ export const Perfil: React.FC<PerfilProps> = ({ rolSimulado }) => {
   const [eventoSeleccionado, setEventoSeleccionado] = useState<EventoGuardado | null>(null);
   const [fotoPerfil, setFotoPerfil] = useState<string | null>(null);
   const [efectoReaccion, setEfectoReaccion] = useState('');
+  const [mensajeEstadoReaccion, setMensajeEstadoReaccion] = useState('');
+  const [tipoMensajeEstadoReaccion, setTipoMensajeEstadoReaccion] = useState<'exito' | 'aviso'>('exito');
+  const [timeoutMensajeEstadoReaccion, setTimeoutMensajeEstadoReaccion] = useState<number | null>(null);
+  const audioReaccionActual = useRef<HTMLAudioElement | null>(null);
 
   const iniciarEdicion = () => {
     setBorrador(perfil);
@@ -268,33 +267,67 @@ export const Perfil: React.FC<PerfilProps> = ({ rolSimulado }) => {
   const fotoPerfilActual =
     fotoPerfil || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400';
 
-  const enviarSolicitudPumita = (nombre: string) => {
-    setSolicitudesEnviadas((actuales) => (actuales.includes(nombre) ? actuales : [...actuales, nombre]));
+  const enviarSolicitudPumita = async (pumita: PumitaData) => {
+    try {
+      await pumitasService.enviarSolicitud(pumita.id_usuario);
+      mostrarMensajeEstadoReaccion('Solicitud enviada correctamente.', 'exito');
+      await cargarPumitas();
+    } catch (error) {
+      console.error('No se pudo enviar la solicitud', error);
+      mostrarMensajeEstadoReaccion('No se pudo enviar la solicitud.', 'aviso');
+    }
   };
 
-  const cancelarSolicitudPumita = (nombre: string) => {
-    setSolicitudesEnviadas((actuales) => actuales.filter((solicitud) => solicitud !== nombre));
+  const cancelarSolicitudPumita = async (pumita: PumitaData) => {
+    if (!pumita.id_conexion) return;
+    try {
+      await pumitasService.eliminar(pumita.id_conexion);
+      mostrarMensajeEstadoReaccion('Solicitud cancelada.', 'exito');
+      await cargarPumitas();
+    } catch (error) {
+      console.error('No se pudo cancelar la solicitud', error);
+      mostrarMensajeEstadoReaccion('No se pudo cancelar la solicitud.', 'aviso');
+    }
   };
 
-  const aceptarSolicitudPumita = (nombre: string) => {
-    setSolicitudesPendientes((actuales) => actuales.filter((pumita) => pumita.nombre !== nombre));
-    setPumitasAceptados((actuales) => (actuales.includes(nombre) ? actuales : [...actuales, nombre]));
-    setSolicitudNotificacion(null);
-    setNotificacionesPerfil((actuales) =>
-      actuales.map((notificacion) =>
-        notificacion.nombre === nombre ? { ...notificacion, leida: true, texto: `Aceptaste la solicitud de ${nombre}` } : notificacion
-      )
-    );
+  const aceptarSolicitudPumita = async (pumita: PumitaData) => {
+    if (!pumita.id_conexion) return;
+    try {
+      await pumitasService.aceptar(pumita.id_conexion);
+      setSolicitudNotificacion(null);
+      setNotificacionesPerfil((actuales) =>
+        actuales.map((notificacion) =>
+          notificacion.nombre === pumita.nombre
+            ? { ...notificacion, leida: true, texto: `Aceptaste la solicitud de ${pumita.nombre}` }
+            : notificacion
+        )
+      );
+      mostrarMensajeEstadoReaccion('Solicitud aceptada.', 'exito');
+      await cargarPumitas();
+    } catch (error) {
+      console.error('No se pudo aceptar la solicitud', error);
+      mostrarMensajeEstadoReaccion('No se pudo aceptar la solicitud.', 'aviso');
+    }
   };
 
-  const rechazarSolicitudPumita = (nombre: string) => {
-    setSolicitudesPendientes((actuales) => actuales.filter((pumita) => pumita.nombre !== nombre));
-    setSolicitudNotificacion(null);
-    setNotificacionesPerfil((actuales) =>
-      actuales.map((notificacion) =>
-        notificacion.nombre === nombre ? { ...notificacion, leida: true, texto: `Rechazaste la solicitud de ${nombre}` } : notificacion
-      )
-    );
+  const rechazarSolicitudPumita = async (pumita: PumitaData) => {
+    if (!pumita.id_conexion) return;
+    try {
+      await pumitasService.eliminar(pumita.id_conexion);
+      setSolicitudNotificacion(null);
+      setNotificacionesPerfil((actuales) =>
+        actuales.map((notificacion) =>
+          notificacion.nombre === pumita.nombre
+            ? { ...notificacion, leida: true, texto: `Rechazaste la solicitud de ${pumita.nombre}` }
+            : notificacion
+        )
+      );
+      mostrarMensajeEstadoReaccion('Solicitud rechazada.', 'exito');
+      await cargarPumitas();
+    } catch (error) {
+      console.error('No se pudo rechazar la solicitud', error);
+      mostrarMensajeEstadoReaccion('No se pudo rechazar la solicitud.', 'aviso');
+    }
   };
 
   const abrirPerfilPumita = (pumita: PumitaData) => {
@@ -318,7 +351,26 @@ export const Perfil: React.FC<PerfilProps> = ({ rolSimulado }) => {
     ].slice(0, 5));
   };
 
-  const enviarReaccionPumita = (nombre: string, reaccion: string) => {
+  const mostrarMensajeEstadoReaccion = (mensaje: string, tipo: 'exito' | 'aviso') => {
+    if (timeoutMensajeEstadoReaccion) window.clearTimeout(timeoutMensajeEstadoReaccion);
+    setMensajeEstadoReaccion(mensaje);
+    setTipoMensajeEstadoReaccion(tipo);
+    const timeoutId = window.setTimeout(() => {
+      setMensajeEstadoReaccion('');
+      setTimeoutMensajeEstadoReaccion(null);
+    }, 3500);
+    setTimeoutMensajeEstadoReaccion(timeoutId);
+  };
+
+  const obtenerTipoReaccionBackend = (reaccion: string): TipoReaccionPumita => {
+    if (reaccion.includes('Rugido')) return 'RUGIDO_PUMA';
+    if (reaccion.includes('Felicit')) return 'FELICITACION';
+    if (reaccion.includes('Saludo')) return 'SALUDO';
+    return 'APOYO';
+  };
+
+  const enviarReaccionPumita = async (receptor: PumitaData, reaccion: string) => {
+    const nombre = receptor.nombre;
     setMensajePerfilPumita(`${reaccion} enviada a ${nombre}`);
     setMostrarMenuReaccionesPumita(false);
     mostrarEfectoReaccion(reaccion);
@@ -332,11 +384,27 @@ export const Perfil: React.FC<PerfilProps> = ({ rolSimulado }) => {
       },
       ...actuales,
     ].slice(0, 5));
+
+    try {
+      await reaccionesService.enviarReaccion(receptor.id_usuario, obtenerTipoReaccionBackend(reaccion));
+      mostrarMensajeEstadoReaccion('Reacción enviada correctamente.', 'exito');
+    } catch (error) {
+      console.error('No se pudo guardar la reacción Pumita', error);
+      mostrarMensajeEstadoReaccion('La reacción se mostró localmente, pero aún no pudo guardarse.', 'aviso');
+    }
   };
 
-  const dejarDeSeguirPumita = (nombre: string) => {
-    setDejadosDeSeguir((actuales) => (actuales.includes(nombre) ? actuales : [...actuales, nombre]));
-    setPumitaPorDejar(null);
+  const dejarDeSeguirPumita = async (pumita: PumitaData) => {
+    if (!pumita.id_conexion) return;
+    try {
+      await pumitasService.eliminar(pumita.id_conexion);
+      setPumitaPorDejar(null);
+      mostrarMensajeEstadoReaccion('Dejaste de seguir a este Pumita.', 'exito');
+      await cargarPumitas();
+    } catch (error) {
+      console.error('No se pudo dejar de seguir', error);
+      mostrarMensajeEstadoReaccion('No se pudo completar la acción.', 'aviso');
+    }
   };
 
   const volverASeguirPumita = (nombre: string) => {
@@ -387,6 +455,19 @@ export const Perfil: React.FC<PerfilProps> = ({ rolSimulado }) => {
           ? 'rugido'
           : '';
     if (!efecto) return;
+    if (audioReaccionActual.current) {
+      audioReaccionActual.current.pause();
+      audioReaccionActual.current.currentTime = 0;
+    }
+    const sonidoPorReaccion: Record<string, string> = {
+      rugido: '/sounds/rugido-puma.mp3.wav',
+      confeti: '/sounds/felicitacion-puma.wav',
+      saludo: '/sounds/saludo-puma.wav',
+      apoyo: '/sounds/apoyo-puma.wav',
+    };
+    const audio = new Audio(sonidoPorReaccion[efecto]);
+    audioReaccionActual.current = audio;
+    audio.play().catch((error) => console.warn('No se pudo reproducir el sonido', error));
     setEfectoReaccion(efecto);
     window.setTimeout(() => setEfectoReaccion(''), 2000);
   };
@@ -956,7 +1037,7 @@ return (
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {pumitas.slice(0, 4).map((pumita) => {
+            {pumitasConectadas.slice(0, 4).map((pumita) => {
               const dejadoDeSeguir = dejadosDeSeguir.includes(pumita.nombre);
               const estadoVisual = pumitasAceptados.includes(pumita.nombre) ? 'Conectado' : pumita.estado;
 
@@ -1010,43 +1091,77 @@ return (
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {pumitas.map((pumita) => {
-                  const dejadoDeSeguir = dejadosDeSeguir.includes(pumita.nombre);
-                  const estadoVisual = pumitasAceptados.includes(pumita.nombre) ? 'Conectado' : pumita.estado;
+               {pumitas.map((pumita) => (
+                  <article key={`red-${pumita.nombre}`} className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                    <img src={pumita.avatar} alt={pumita.nombre} className="w-12 h-12 rounded-full object-cover border border-gray-200" />
+                    <div className="min-w-0 flex-1">
+                      <h5 className="font-bold text-[#003366] truncate">{pumita.nombre}</h5>
+                      <p className="text-xs text-[#5b6472] truncate">{pumita.carrera}</p>
+                      <span className={`inline-flex mt-2 px-2 py-0.5 rounded-full border text-[11px] font-bold ${obtenerEstiloEstadoPumita(pumita.estado)}`}>
+                        {pumita.solicitudEnviada ? 'Solicitud enviada' : pumita.estado}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => abrirPerfilPumita(pumita)}
+                        className="px-3 py-2 rounded-lg bg-[#F4F6F8] border border-gray-200 text-xs font-bold text-[#003366] hover:bg-[#FFD100] transition-colors"
+                      >
+                        Ver perfil
+                      </button>
 
-                  return (
-                    <article key={`red-${pumita.nombre}`} className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-                      <img src={pumita.avatar} alt={pumita.nombre} className="w-12 h-12 rounded-full object-cover border border-gray-200" />
-                      <div className="min-w-0 flex-1">
-                        <h5 className="font-bold text-[#003366] truncate">{pumita.nombre}</h5>
-                        <p className="text-xs text-[#5b6472] truncate">{pumita.carrera}</p>
-                        <span className={`inline-flex mt-2 px-2 py-0.5 rounded-full border text-[11px] font-bold ${dejadoDeSeguir ? 'bg-gray-100 text-[#5b6472] border-gray-200' : obtenerEstiloEstadoPumita(estadoVisual)}`}>
-                          {dejadoDeSeguir ? 'Sin seguir' : estadoVisual}
-                        </span>
-                      </div>
-                      <div className="flex gap-2">
+                      {pumita.estado === 'Conectado' && (
                         <button
                           type="button"
-                          onClick={() => abrirPerfilPumita(pumita)}
-                          className="px-3 py-2 rounded-lg bg-[#F4F6F8] border border-gray-200 text-xs font-bold text-[#003366] hover:bg-[#FFD100] transition-colors"
+                          onClick={() => setPumitaPorDejar(pumita)}
+                          className="px-3 py-2 rounded-lg border border-[#DC2626]/20 text-xs font-bold text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors"
                         >
-                          Ver perfil
+                          Dejar de seguir
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => (dejadoDeSeguir ? volverASeguirPumita(pumita.nombre) : setPumitaPorDejar(pumita))}
-                          className={`px-3 py-2 rounded-lg border text-xs font-bold transition-colors ${
-                            dejadoDeSeguir
-                              ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
-                              : 'border-[#DC2626]/20 text-[#DC2626] hover:bg-[#DC2626]/10'
-                          }`}
-                        >
-                          {dejadoDeSeguir ? 'Volver a seguir' : 'Dejar de seguir'}
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })}
+                      )}
+
+                      {pumita.estado === 'Pendiente' && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => rechazarSolicitudPumita(pumita)}
+                            className="px-3 py-2 rounded-lg border border-[#DC2626]/20 text-xs font-bold text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors"
+                          >
+                            Rechazar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => aceptarSolicitudPumita(pumita)}
+                            className="px-3 py-2 rounded-lg bg-[#FFD100] text-xs font-bold text-[#003366] hover:bg-[#FFDE47] transition-colors"
+                          >
+                            Aceptar
+                          </button>
+                        </>
+                      )}
+
+                      {pumita.estado === 'Sugerido' && (
+                        pumita.solicitudEnviada ? (
+                          <button
+                            type="button"
+                            onClick={() => cancelarSolicitudPumita(pumita)}
+                            className="px-3 py-2 rounded-lg border border-[#DC2626]/20 text-xs font-bold text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors"
+                          >
+                            Cancelar solicitud
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => enviarSolicitudPumita(pumita)}
+                            className="px-3 py-2 rounded-lg bg-[#FFD100] text-xs font-bold text-[#003366] hover:bg-[#FFDE47] transition-colors"
+                          >
+                            Agregar
+                          </button>
+                        )
+                      )}
+                    </div>
+                  </article>
+                ))}
+              
               </div>
             </div>
           )}
@@ -1223,14 +1338,14 @@ return (
           <div className="grid grid-cols-2 gap-3 mt-5">
             <button
               type="button"
-              onClick={() => rechazarSolicitudPumita(solicitudNotificacion.nombre)}
+              onClick={() => rechazarSolicitudPumita(solicitudNotificacion)}
               className="rounded-lg border border-[#DC2626]/20 bg-white py-3 text-sm font-bold text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors"
             >
               Rechazar
             </button>
             <button
               type="button"
-              onClick={() => aceptarSolicitudPumita(solicitudNotificacion.nombre)}
+              onClick={() => aceptarSolicitudPumita(solicitudNotificacion)}
               className="rounded-lg bg-[#FFD100] py-3 text-sm font-bold text-[#003366] hover:bg-[#FFDE47] transition-colors"
             >
               Aceptar
@@ -1481,6 +1596,17 @@ return (
                 {mensajePerfilPumita}
               </p>
             )}
+            {mensajeEstadoReaccion && (
+              <p
+                className={`mt-2 w-full rounded-lg border px-4 py-2 text-xs font-semibold ${
+                  tipoMensajeEstadoReaccion === 'exito'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border-amber-200 bg-amber-50 text-amber-700'
+                }`}
+              >
+                {mensajeEstadoReaccion}
+              </p>
+            )}
 
             {perteneceARedPumita(pumitaSeleccionada) ? (
               <div className="mt-6 w-full space-y-3">
@@ -1500,7 +1626,7 @@ return (
                           <button
                             key={`perfil-${pumitaSeleccionada.nombre}-${reaccion}`}
                             type="button"
-                            onClick={() => enviarReaccionPumita(pumitaSeleccionada.nombre, reaccion)}
+                            onClick={() => enviarReaccionPumita(pumitaSeleccionada, reaccion)}
                             className="rounded-lg px-3 py-2 text-left text-sm font-bold text-[#003366] hover:bg-[#FFD100]/20 transition-colors"
                           >
                             {reaccion}
@@ -1515,20 +1641,20 @@ return (
               <div className="mt-6 w-full space-y-3">
                 <button
                   type="button"
-                  onClick={() => enviarSolicitudPumita(pumitaSeleccionada.nombre)}
-                  disabled={solicitudesEnviadas.includes(pumitaSeleccionada.nombre)}
+                  onClick={() => enviarSolicitudPumita(pumitaSeleccionada)}
+                  disabled={pumitaSeleccionada.solicitudEnviada}
                   className={`w-full font-bold py-3 rounded-lg transition-colors ${
-                    solicitudesEnviadas.includes(pumitaSeleccionada.nombre)
+                    pumitaSeleccionada.solicitudEnviada
                       ? 'bg-[#F4F6F8] text-[#5b6472] border border-gray-200 cursor-not-allowed'
                       : 'bg-[#FFD100] text-[#003366] hover:bg-[#FFDE47]'
                   }`}
                 >
-                  {solicitudesEnviadas.includes(pumitaSeleccionada.nombre) ? 'Solicitud enviada' : 'Agregar Pumita'}
+                  {pumitaSeleccionada.solicitudEnviada ? 'Solicitud enviada' : 'Agregar Pumita'}
                 </button>
-                {solicitudesEnviadas.includes(pumitaSeleccionada.nombre) && (
+                {pumitaSeleccionada.solicitudEnviada && (
                   <button
                     type="button"
-                    onClick={() => cancelarSolicitudPumita(pumitaSeleccionada.nombre)}
+                    onClick={() => cancelarSolicitudPumita(pumitaSeleccionada)}
                     className="w-full rounded-lg border border-[#DC2626]/20 py-3 text-sm font-bold text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors"
                   >
                     Cancelar solicitud
@@ -1581,7 +1707,7 @@ return (
             </button>
             <button
               type="button"
-              onClick={() => dejarDeSeguirPumita(pumitaPorDejar.nombre)}
+              onClick={() => dejarDeSeguirPumita(pumitaPorDejar)}
               className="rounded-lg bg-[#DC2626] py-3 text-sm font-bold text-white hover:bg-[#DC2626]/90 transition-colors"
             >
               Confirmar
@@ -1789,14 +1915,14 @@ return (
                     <div className="flex flex-col sm:flex-row gap-2">
                       <button
                         type="button"
-                        onClick={() => rechazarSolicitudPumita(pumita.nombre)}
+                        onClick={() => rechazarSolicitudPumita(pumita)}
                         className="rounded-lg border border-[#DC2626]/20 px-3 py-2 text-[11px] font-bold text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors"
                       >
                         Rechazar
                       </button>
                       <button
                         type="button"
-                        onClick={() => aceptarSolicitudPumita(pumita.nombre)}
+                        onClick={() => aceptarSolicitudPumita(pumita)}
                         className="rounded-lg bg-[#FFD100] px-3 py-2 text-[11px] font-bold text-[#003366] hover:bg-[#FFDE47] transition-colors"
                       >
                         Aceptar
@@ -1810,7 +1936,7 @@ return (
             <section className="space-y-3">
               <h4 className="text-sm font-bold text-[#003366]">Resultados</h4>
               {sugerenciasPumitas.map((pumita) => {
-                const solicitudLocal = solicitudesEnviadas.includes(pumita.nombre);
+                const solicitudLocal = Boolean(pumita.solicitudEnviada);
                 const estadoResultado = solicitudLocal ? 'Solicitud enviada' : pumita.estado;
 
                 return (
@@ -1831,7 +1957,7 @@ return (
                       {solicitudLocal ? (
                         <button
                           type="button"
-                          onClick={() => cancelarSolicitudPumita(pumita.nombre)}
+                          onClick={() => cancelarSolicitudPumita(pumita)}
                           className="px-3 py-2 rounded-lg border border-[#DC2626]/20 text-xs font-bold text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors"
                         >
                           Cancelar solicitud
@@ -1839,7 +1965,7 @@ return (
                       ) : (
                         <button
                           type="button"
-                          onClick={() => enviarSolicitudPumita(pumita.nombre)}
+                          onClick={() => enviarSolicitudPumita(pumita)}
                           className="px-3 py-2 rounded-lg bg-[#FFD100] text-xs font-bold text-[#003366] hover:bg-[#FFDE47] transition-colors"
                         >
                           Agregar

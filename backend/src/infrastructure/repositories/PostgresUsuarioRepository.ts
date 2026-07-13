@@ -8,6 +8,8 @@ const SELECT_USUARIO = `
          u.id_estado, e.estado,
          u.id_carrera, c.nombre AS carrera,
          u.microsoft_id, u.otp_code, u.otp_expira,
+u.microsoft_id, u.otp_code, u.otp_expira,
+         u.permite_reacciones_perfil,
          p.telefono, p.numero_cuenta, p.id_centro_regional,
          cr.nombre AS centro_regional,
          p.genero, p.biografia, p.foto_url, p.forma003_base64
