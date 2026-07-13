@@ -105,10 +105,6 @@ export function ValidacionEvento() {
   };
 
   const handleAprobar = async () => {
-    if (!signatureUrl) {
-      toast.error("Primero debes firmar digitalmente");
-      return;
-    }
     if (!event) return;
     try {
       await api.patch(`/eventos/${event.id}/aprobar`);
@@ -178,8 +174,8 @@ export function ValidacionEvento() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Portada */}
         <div className="md:col-span-2 relative rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm h-60 flex items-center justify-center">
-          {event.imagen_url ? (
-            <img src={event.imagen_url} alt="Banner del evento" className="w-full h-full object-cover" />
+          {event.portada_url || event.imagen_url ? (
+            <img src={event.portada_url || event.imagen_url} alt="Banner del evento" className="w-full h-full object-cover" />
           ) : (
             <div className="text-slate-400 font-bold flex flex-col items-center gap-2">
               <span className="text-4xl">AC</span>
@@ -360,40 +356,6 @@ export function ValidacionEvento() {
         </div>
       </div>
 
-      {/* Firma digital */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-black text-[#003366] flex items-center gap-2">
-              <PenLine className="h-4 w-4 text-[#004B87]"/>Firma digital del coordinador VOAE
-            </h3>
-            <p className="text-xs text-[#717182]">Requerida antes de proceder con la aprobación</p>
-          </div>
-          {signatureUrl && <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">Firmado ✓</span>}
-        </div>
-
-        {signatureUrl ? (
-          <div className="space-y-2">
-            <div className="border border-dashed border-[#004B87]/20 rounded-xl p-3 bg-gray-50">
-              <img src={signatureUrl} alt="Firma" className="h-20 w-auto mx-auto opacity-80"/>
-            </div>
-            <button onClick={()=>{setSignatureUrl(null);setShowSigning(true);}}
-              className="text-xs text-[#717182] underline hover:text-[#003366] transition-colors">
-              Volver a firmar
-            </button>
-          </div>
-        ) : showSigning ? (
-          <DigitalCanvas onSigned={handleSign}/>
-        ) : (
-          <button onClick={()=>setShowSigning(true)}
-            className="w-full py-8 border-2 border-dashed border-[#004B87]/30 rounded-xl hover:border-[#004B87] hover:bg-blue-50/30 transition-all group">
-            <PenLine className="h-8 w-8 text-gray-300 group-hover:text-[#004B87] mx-auto mb-2 transition-colors"/>
-            <p className="text-sm font-semibold text-[#717182] group-hover:text-[#003366]">Haz clic aquí para firmar</p>
-            <p className="text-xs text-gray-400">Traza tu firma digital en pantalla</p>
-          </button>
-        )}
-      </div>
-
       {/* Acciones */}
       <div className="flex gap-4 pt-2 justify-end">
         <Button
@@ -404,9 +366,8 @@ export function ValidacionEvento() {
           <XCircle className="size-4 mr-1.5" /> Rechazar
         </Button>
         <Button
-          className="px-6 bg-[#22c55e] hover:bg-emerald-600 h-11 text-xs font-bold rounded-xl text-white disabled:opacity-40"
+          className="px-6 bg-[#22c55e] hover:bg-emerald-600 h-11 text-xs font-bold rounded-xl text-white"
           onClick={() => setApproveDialogOpen(true)}
-          disabled={!signatureUrl}
         >
           <CheckCircle2 className="size-4 mr-1.5" /> Aprobar y publicar en muro
         </Button>
