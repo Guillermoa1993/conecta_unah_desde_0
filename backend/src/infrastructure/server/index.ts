@@ -20,6 +20,7 @@ import { EnviarOtp } from '../../use-cases/auth/EnviarOtp';
 import { VerificarOtp } from '../../use-cases/auth/VerificarOtp';
 import { RegistrarEstudiante } from '../../use-cases/auth/RegistrarEstudiante';
 import { EnviarOtpRegistro } from '../../use-cases/auth/EnviarOtpRegistro';
+import { RegistrarEmpleado } from '../../use-cases/auth/RegistrarEmpleado';
 import { CrearEvento } from '../../use-cases/eventos/CrearEvento';
 import { ObtenerEventos } from '../../use-cases/eventos/ObtenerEventos';
 import { ObtenerEventoPorId } from '../../use-cases/eventos/ObtenerEventoPorId';
@@ -77,6 +78,7 @@ const enviarOtpUC      = new EnviarOtp(usuarioRepo);
 const verificarOtpUC   = new VerificarOtp(usuarioRepo);
 const registrarEstudianteUC = new RegistrarEstudiante(usuarioRepo);
 const enviarOtpRegistroUC   = new EnviarOtpRegistro(usuarioRepo);
+const registrarEmpleadoUC   = new RegistrarEmpleado(usuarioRepo);
 const crearEventoUC    = new CrearEvento(eventoRepo);
 const obtenerEventosUC = new ObtenerEventos(eventoRepo);
 const obtenerEventoUC  = new ObtenerEventoPorId(eventoRepo);
@@ -88,7 +90,7 @@ const constanciaUC     = new GestionarConstancia(constanciaRepo, eventoRepo, not
 
 // ── Controllers ─────────────────────────────────────────────────────────────
 const healthCtrl       = new HealthController(new GetHealthReport(healthRepo));
-const authCtrl         = new AuthController(loginUC, registrarUC, loginMicrosoftUC, enviarOtpUC, verificarOtpUC, registrarEstudianteUC, enviarOtpRegistroUC, usuarioRepo);
+const authCtrl         = new AuthController(loginUC, registrarUC, loginMicrosoftUC, enviarOtpUC, verificarOtpUC, registrarEstudianteUC, enviarOtpRegistroUC, registrarEmpleadoUC, usuarioRepo);
 const eventoCtrl       = new EventoController(crearEventoUC, obtenerEventosUC, obtenerEventoUC, actualizarUC, aprobarUC, eventoRepo);
 const inscripcionCtrl  = new InscripcionController(inscribirUC, cancelarInscUC, inscripcionRepo);
 const constanciaCtrl   = new ConstanciaController(constanciaUC, constanciaRepo);

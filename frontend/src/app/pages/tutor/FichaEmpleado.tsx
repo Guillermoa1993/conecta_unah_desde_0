@@ -290,10 +290,22 @@ export function FichaEmpleado() {
 
   const handleSendOtp = async () => {
     setEnviando(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setEnviando(false);
-    setShowOtp(true);
-    toast.success("Se ha enviado un código de verificación a su correo institucional.");
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/otp-registro/enviar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ correo: formData.correo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "No se pudo enviar el código");
+
+      setEnviando(false);
+      setShowOtp(true);
+      toast.success("Se ha enviado un código de verificación a su correo institucional.");
+    } catch (err) {
+      setEnviando(false);
+      toast.error(err instanceof Error ? err.message : "Error al enviar el código");
+    }
   };
 
   const handleVerifySubmit = async (e?: React.FormEvent) => {
@@ -304,13 +316,26 @@ export function FichaEmpleado() {
     }
     setEnviando(true);
     try {
-      // Simular guardado de base de datos
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      console.log("Datos del empleado enviados a PostgreSQL con Carnet verificado:", {
-        ...formData,
-        telefono: `${codigoPais} ${formData.telefono}`,
-        forma003
+      const res = await fetch("http://localhost:5000/api/auth/registro-empleado", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: formData.nombre,
+          correo: formData.correo,
+          telefono: `${codigoPais} ${formData.telefono}`,
+          genero: formData.genero,
+          numeroEmpleado: formData.numeroEmpleado,
+          facultad: formData.facultad,
+          centroRegional: formData.centroRegional,
+          foto_url: formData.foto,
+          forma003_base64: forma003,
+          codigoOtp: otpCode,
+        }),
       });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "No se pudo guardar el registro");
+
       setEnviando(false);
       setShowConfirmModal(false);
       setShowOtp(false);
@@ -318,7 +343,7 @@ export function FichaEmpleado() {
       navigate("/", { state: { email: formData.correo } });
     } catch (err) {
       setEnviando(false);
-      toast.error("Ocurrió un error al guardar los datos. Intenta de nuevo.");
+      toast.error(err instanceof Error ? err.message : "Ocurrió un error al guardar los datos. Intenta de nuevo.");
     }
   };
 

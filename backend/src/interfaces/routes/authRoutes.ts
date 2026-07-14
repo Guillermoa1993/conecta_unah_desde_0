@@ -12,6 +12,7 @@ export function authRouter(ctrl: AuthController): Router {
   r.post('/otp/enviar', ctrl.enviarOtp);
   r.post('/otp/verificar', ctrl.verificarOtp);
   r.post('/registro-estudiante', ctrl.registrarEstudiante);
+  r.post('/registro-empleado', ctrl.registrarEmpleado);
   r.post('/otp-registro/enviar', ctrl.enviarOtpRegistro);
   // Disponible fuera de producción O cuando MODO_DEV está activo en parámetros
   if (process.env.NODE_ENV !== 'production' || cfg('MODO_DEV') === '1') {

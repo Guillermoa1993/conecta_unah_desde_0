@@ -24,6 +24,9 @@ export interface Usuario {
   biografia?: string | null;
   foto_url?: string | null;
   forma003_base64?: string | null;
+  numero_empleado?: string | null;
+  id_departamento?: number | null;
+  departamento?: string | null;
 }
 
 export interface UsuarioPublico {
@@ -43,4 +46,7 @@ export interface UsuarioPublico {
   genero?: string | null;
   biografia?: string | null;
   foto_url?: string | null;
+  numero_empleado?: string | null;
+  id_departamento?: number | null;
+  departamento?: string | null;
 }
