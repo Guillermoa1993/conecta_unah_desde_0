@@ -364,8 +364,8 @@ export function FichaEstudiante() {
 
       setEnviando(false);
       setShowConfirmModal(false);
-      setExito(true);
       toast.success("¡Ficha de estudiante guardada y cuenta verificada correctamente!");
+      navigate("/", { state: { email: formData.correo } });
     } catch (err) {
       setEnviando(false);
       toast.error(err instanceof Error ? err.message : "Error al guardar el registro");
