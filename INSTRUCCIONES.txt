@@ -1,0 +1,197 @@
+========================================================================
+       INSTRUCCIONES — UNAH CONECTA PUMAS (Proyecto Final Unificado)
+========================================================================
+
+DESCRIPCIÓN
+-----------
+Plataforma web para gestión de eventos universitarios.
+Roles: Estudiante | Tutor | VOAE | Admin | Dev (preview)
+
+Base de datos: PostgreSQL en Render.com (en la nube — sin configuración local)
+  Host:     dpg-d931mbugvqtc739qj7h0-a.virginia-postgres.render.com
+  DB:       unah_conecta2
+  Usuario:  unah_conecta2_user
+
+ESTRUCTURA DEL PROYECTO
+-----------------------
+proyecto-final/
+├── backend/          API REST — Express.js + TypeScript (Clean Architecture)
+├── frontend/         App React — Vite + TypeScript + Tailwind + shadcn/ui
+├── docker-compose.yml
+└── INSTRUCCIONES.txt
+
+========================================================================
+ MÉTODO 1: LOCAL SIN DOCKER (más rápido para desarrollo)
+========================================================================
+
+REQUISITOS: Node.js 18+ (https://nodejs.org)
+
+── BACKEND ──────────────────────────────────────────────────────────────
+
+1. Abrir terminal en la carpeta backend/:
+   cd backend
+
+2. Instalar dependencias:
+   npm install
+
+3. Copiar el archivo de ejemplo y rellenar la contraseña real:
+   copy .env.example .env        (Windows)
+   cp .env.example .env          (Mac/Linux)
+
+   Editar backend/.env y reemplazar PASSWORD con la contraseña real
+   que te dará el líder del Grupo 1:
+     DATABASE_URL=postgresql://unah_conecta2_user:PASSWORD@dpg-d931mbugvqtc739qj7h0-a.virginia-postgres.render.com/unah_conecta2
+     PORT=5000
+     JWT_SECRET=...
+
+4. (Solo la primera vez) Inicializar las tablas en la BD:
+   npm run db:init
+
+   Verás:
+     ✅ Conectado a: unah_conecta2
+     ✔ tabla_grupo_1_rol
+     ✔ tabla_grupo_1_estado_usuario
+     ✔ tabla_grupo_1_carreras
+     ✔ tabla_grupo_1_tipo_notificacion
+     ✔ tabla_grupo_1_usuario
+     ✔ tabla_grupo_1_notificaciones
+     ✔ tabla_grupo_1_sesion
+     ✔ tabla_grupo_1_bitacora
+     ✔ tabla_grupo_1_parametros
+     ✅ Base de datos inicializada correctamente.
+
+5. Iniciar el servidor:
+   npm run dev
+
+   El backend queda en: http://localhost:5000
+   Health check:        http://localhost:5000/api/health
+
+── FRONTEND ─────────────────────────────────────────────────────────────
+
+1. Abrir OTRA terminal en la carpeta frontend/:
+   cd frontend
+
+2. Instalar dependencias:
+   npm install
+
+3. El archivo frontend/.env ya apunta al backend:
+     VITE_API_URL=http://localhost:5000/api
+
+4. Iniciar la app:
+   npm run dev
+
+   El frontend queda en: http://localhost:5185
+
+========================================================================
+ MÉTODO 2: CON DOCKER (recomendado para producción / demo)
+========================================================================
+
+REQUISITOS: Docker Desktop (https://www.docker.com/products/docker-desktop)
+
+Antes de iniciar con Docker, crea backend/.env con las credenciales reales
+(ver paso 3 del Método 1). Docker Compose las lee automáticamente.
+
+── PRODUCCIÓN ───────────────────────────────────────────────────────────
+
+Desde la raíz del proyecto:
+
+  docker compose up --build
+
+Servicios disponibles:
+  Frontend  → http://localhost:5173
+  Backend   → http://localhost:5000
+  Adminer   → http://localhost:8080
+
+── DESARROLLO (hot-reload) ──────────────────────────────────────────────
+
+  docker compose --profile dev up --build
+
+Los cambios en el código se reflejan automáticamente sin reiniciar.
+
+── SOLO BACKEND ─────────────────────────────────────────────────────────
+
+  docker compose up backend --build
+
+========================================================================
+ ADMINER — VISUALIZADOR DE BASE DE DATOS
+========================================================================
+
+URL:      http://localhost:8080
+
+Credenciales:
+  Sistema:    PostgreSQL
+  Servidor:   dpg-d931mbugvqtc739qj7h0-a.virginia-postgres.render.com
+  Usuario:    unah_conecta2_user
+  Contraseña: (pedir al líder del Grupo 1 — no se guarda en el repo)
+  Base de datos: unah_conecta2
+
+========================================================================
+ ROLES Y ACCESO EN EL FRONTEND
+========================================================================
+
+Al ingresar a http://localhost:5185:
+
+  Estudiante  → ver eventos, inscribirse, escanear QR, historial de horas
+  Tutor       → crear eventos, ver mis eventos, evento en vivo, reportes
+  VOAE        → aprobar/rechazar eventos, gestionar constancias, moderadores
+  Admin       → gestión de usuarios, roles, permisos, configuración del sistema
+  Dev         → acceso a todas las rutas (modo de preview para desarrollo)
+
+========================================================================
+ ENDPOINTS DEL BACKEND
+========================================================================
+
+GET    /api/health
+POST   /api/auth/login
+POST   /api/auth/registro
+GET    /api/auth/me
+
+GET    /api/eventos                    (lista con filtros)
+GET    /api/eventos/mis-eventos        (tutor autenticado)
+GET    /api/eventos/pendientes         (VOAE/Admin)
+GET    /api/eventos/:id
+POST   /api/eventos                    (crear — tutor)
+PUT    /api/eventos/:id
+PATCH  /api/eventos/:id/aprobar        (VOAE/Admin)
+PATCH  /api/eventos/:id/rechazar       (VOAE/Admin)
+
+POST   /api/inscripciones/evento/:id   (estudiante)
+DELETE /api/inscripciones/evento/:id   (cancelar)
+GET    /api/inscripciones/mis-inscripciones
+
+POST   /api/asistencia/qr              (escanear QR)
+POST   /api/asistencia/manual/evento/:id
+
+GET    /api/constancias/mis-constancias
+GET    /api/constancias/pendientes
+POST   /api/constancias/evento/:id
+PATCH  /api/constancias/:id/aprobar
+PATCH  /api/constancias/:id/rechazar
+
+GET    /api/notificaciones
+GET    /api/notificaciones/no-leidas
+PATCH  /api/notificaciones/:id/leer
+PATCH  /api/notificaciones/leer-todas
+
+Autenticación: header  Authorization: Bearer <token>
+
+========================================================================
+ SOLUCIÓN DE PROBLEMAS COMUNES
+========================================================================
+
+Error "cannot connect to database":
+  → Verificar que backend/.env tenga DATABASE_URL correcto
+  → La BD de Render requiere conexión a internet
+
+Error "Port 5000 already in use":
+  → Cambiar PORT=5001 en backend/.env y VITE_API_URL en frontend/.env
+
+Error "npm: command not found":
+  → Instalar Node.js desde https://nodejs.org
+
+Error al ejecutar db:init (tabla ya existe):
+  → Normal — las sentencias son CREATE TABLE IF NOT EXISTS, no falla
+
+Frontend no se conecta al backend:
+  → Verificar que VITE_API_URL en frontend/.env sea http://localhost:5000/api
+  → Confirmar que el backend esté corriendo primero
