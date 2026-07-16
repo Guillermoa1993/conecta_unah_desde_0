@@ -19,45 +19,7 @@ interface EmpleadoFormData {
   foto: string | null;
 }
 
-const UNAH_DEPARTAMENTOS = [
-  // Departamentos Académicos
-  "Departamento de Informática Administrativa",
-  "Departamento de Matemática y Física",
-  "Departamento de Ciencias de la Computación",
-  "Departamento de Ingeniería Civil",
-  "Departamento de Ingeniería Eléctrica e Industrial",
-  "Departamento de Química e Ingeniería Química",
-  "Departamento de Biología",
-  "Departamento de Medicina",
-  "Departamento de Odontología",
-  "Departamento de Ciencias Jurídicas",
-  "Departamento de Ciencias Económicas",
-  "Departamento de Ciencias Sociales",
-  "Departamento de Trabajo Social",
-  "Departamento de Historia y Geografía",
-  "Departamento de Filosofía",
-  "Departamento de Letras",
-  "Departamento de Arte",
-  "Departamento de Ciencias Espaciales",
-  // Dependencias Administrativas
-  "Vicerrectoría Académica",
-  "Vicerrectoría de Orientación y Asuntos Estudiantiles (VOAE)",
-  "Dirección de Docencia",
-  "Dirección de Investigación Científica y Postgrado (DICYP)",
-  "Dirección de Vinculación Universidad-Sociedad",
-  "Secretaría General",
-  "Dirección de Planificación y Evaluación de la Educación Superior",
-  "Unidad de Tecnología Educativa e Innovación Pedagógica (UTEIP)",
-  "Sistema de Administración de Documentos (SINADOC)",
-  "Dirección Ejecutiva de Gestión de Recursos Humanos",
-  "Dirección de Finanzas",
-  "Dirección de Servicios Generales",
-  "Auditoría Interna",
-  "Unidad de Comunicación Institucional",
-  "Biblioteca y Servicios de Información",
-  "Bienestar Universitario",
-  "Otra Dependencia / Área Administrativa",
-];
+
 
 
 export function FichaEmpleado() {
@@ -68,6 +30,7 @@ export function FichaEmpleado() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1); // 1: Personales, 2: Laborales, 3: Foto, 4: Verificación
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
+  const [departamentos, setDepartamentos] = useState<{ id_departamento: number; nombre: string; facultad: string }[]>([]);
   const [otpCode, setOtpCode] = useState("");
   const [showTerms, setShowTerms] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -86,6 +49,17 @@ export function FichaEmpleado() {
   // Local email split states
   const [correoUsuario, setCorreoUsuario] = useState("");
   const [correoDominio, setCorreoDominio] = useState("@unah.edu.hn");
+
+  useEffect(() => {
+    setFormData((prev) => ({ ...prev, correo: `${correoUsuario.trim()}${correoDominio}` }));
+  }, [correoUsuario, correoDominio]);
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/catalogos/departamentos")
+      .then((res) => res.json())
+      .then((data) => setDepartamentos(data))
+      .catch(() => toast.error("No se pudieron cargar los departamentos"));
+  }, []);
 
   useEffect(() => {
     setFormData((prev) => ({ ...prev, correo: `${correoUsuario.trim()}${correoDominio}` }));
@@ -1026,10 +1000,10 @@ export function FichaEmpleado() {
                       onChange={handleChange}
                       className="w-full h-11 px-3 rounded-lg bg-slate-50 border border-slate-200 text-[#003366] text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD100]/50 focus:border-[#FFD100] font-medium"
                     >
-                      <option value="">Selecciona tu departamento / dependencia...</option>
-                      {UNAH_DEPARTAMENTOS.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
+                      <option value="">Selecciona tu departamento...</option>
+                      {departamentos.map((d) => (
+                        <option key={d.id_departamento} value={d.nombre}>
+                          {d.nombre}
                         </option>
                       ))}
                     </select>

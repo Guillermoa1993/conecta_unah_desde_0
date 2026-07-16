@@ -22,37 +22,6 @@ interface StudentFormData {
   biografia: string;
 }
 
-const UNAH_CARRERAS = [
-  "Ingeniería en Sistemas",
-  "Ingeniería Civil",
-  "Ingeniería Industrial",
-  "Ingeniería Química",
-  "Ingeniería Eléctrica",
-  "Ingeniería Mecánica",
-  "Licenciatura en Informática Administrativa",
-  "Licenciatura en Administración de Empresas",
-  "Licenciatura en Contaduría Pública",
-  "Licenciatura en Economía",
-  "Licenciatura en Psicología",
-  "Licenciatura en Pedagogía",
-  "Licenciatura en Periodismo",
-  "Licenciatura en Derecho",
-  "Doctorado en Medicina y Cirugía",
-  "Licenciatura en Enfermería",
-  "Licenciatura en Odontología",
-  "Licenciatura en Microbiología",
-  "Licenciatura en Nutrición",
-  "Licenciatura en Química y Farmacia",
-  "Licenciatura en Trabajo Social",
-  "Licenciatura en Sociología",
-  "Licenciatura en Historia",
-  "Licenciatura en Lenguas Extranjeras",
-  "Licenciatura en Letras",
-  "Licenciatura en Filosofía",
-  "Licenciatura en Antropología",
-  "Licenciatura en Música",
-  "Licenciatura en Arquitectura",
-];
 
 export function FichaEstudiante() {
   const location = useLocation();
@@ -62,6 +31,7 @@ export function FichaEstudiante() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1); // 1: Personales, 2: Académicos, 3: Foto, 4: Verificación
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
+  const [carreras, setCarreras] = useState<{ id_carrera: number; nombre: string; facultad: string }[]>([]);
   const [otpCode, setOtpCode] = useState("");
   const [showTerms, setShowTerms] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -85,6 +55,13 @@ export function FichaEstudiante() {
   useEffect(() => {
     setFormData((prev) => ({ ...prev, correo: `${correoUsuario.trim()}${correoDominio}` }));
   }, [correoUsuario, correoDominio]);
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/catalogos/carreras")
+      .then((res) => res.json())
+      .then((data) => setCarreras(data))
+      .catch(() => toast.error("No se pudieron cargar las carreras"));
+  }, []);
 
   // Camera states and handlers
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -1136,11 +1113,11 @@ export function FichaEstudiante() {
                       className="w-full h-11 px-3 rounded-lg bg-slate-50 border border-slate-200 text-[#003366] text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD100]/50 focus:border-[#FFD100] font-medium"
                     >
                       <option value="">Selecciona tu carrera...</option>
-                      {UNAH_CARRERAS.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
+                      {carreras.map((c) => (
+                        <option key={c.id_carrera} value={c.nombre}>
+                        {c.nombre}
                         </option>
-                      ))}
+                        ))}
                     </select>
                   </div>
                 </div>

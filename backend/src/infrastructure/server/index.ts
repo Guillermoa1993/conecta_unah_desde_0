@@ -33,6 +33,7 @@ import { GestionarConstancia } from '../../use-cases/constancias/GestionarConsta
 // Controllers
 import { HealthController } from '../../interfaces/controllers/HealthController';
 import { AuthController } from '../../interfaces/controllers/AuthController';
+import { CatalogoController } from '../../interfaces/controllers/CatalogoController';
 import { EventoController } from '../../interfaces/controllers/EventoController';
 import { InscripcionController } from '../../interfaces/controllers/InscripcionController';
 import { ConstanciaController } from '../../interfaces/controllers/ConstanciaController';
@@ -40,6 +41,7 @@ import { NotificacionController } from '../../interfaces/controllers/Notificacio
 
 // Routes
 import { authRouter } from '../../interfaces/routes/authRoutes';
+import { catalogoRouter } from '../../interfaces/routes/catalogoRoutes';
 import { eventoRouter } from '../../interfaces/routes/eventoRoutes';
 import { inscripcionRouter } from '../../interfaces/routes/inscripcionRoutes';
 import { constanciaRouter } from '../../interfaces/routes/constanciaRoutes';
@@ -91,6 +93,7 @@ const constanciaUC     = new GestionarConstancia(constanciaRepo, eventoRepo, not
 // ── Controllers ─────────────────────────────────────────────────────────────
 const healthCtrl       = new HealthController(new GetHealthReport(healthRepo));
 const authCtrl         = new AuthController(loginUC, registrarUC, loginMicrosoftUC, enviarOtpUC, verificarOtpUC, registrarEstudianteUC, enviarOtpRegistroUC, registrarEmpleadoUC, usuarioRepo);
+const catalogoCtrl      = new CatalogoController(pool);
 const eventoCtrl       = new EventoController(crearEventoUC, obtenerEventosUC, obtenerEventoUC, actualizarUC, aprobarUC, eventoRepo);
 const inscripcionCtrl  = new InscripcionController(inscribirUC, cancelarInscUC, inscripcionRepo);
 const constanciaCtrl   = new ConstanciaController(constanciaUC, constanciaRepo);
@@ -99,6 +102,7 @@ const notificacionCtrl = new NotificacionController(notificacionRepo);
 // ── Rutas ───────────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => healthCtrl.handle(req, res));
 app.use('/api/auth',          authRouter(authCtrl));
+app.use('/api/catalogos',     catalogoRouter(catalogoCtrl));
 app.use('/api/eventos',       eventoRouter(eventoCtrl));
 app.use('/api/inscripciones', inscripcionRouter(inscripcionCtrl));
 app.use('/api/constancias',   constanciaRouter(constanciaCtrl));
