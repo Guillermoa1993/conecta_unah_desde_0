@@ -870,6 +870,43 @@ export function FichaEstudiante() {
   };
 
 
+  // Determina si un paso destino es navegable desde el paso actual
+  const canNavigateToStep = (targetStep: number): boolean => {
+    if (targetStep === step) return false; // ya estamos aquí
+    if (targetStep < step) return true;    // siempre se puede volver atrás
+    // Para avanzar, cada paso intermedio debe ser válido
+    for (let s = step; s < targetStep; s++) {
+      if (s === 1 && !isStep1Valid()) return false;
+      if (s === 2 && !isStep2Valid()) return false;
+      if (s === 3 && !isStep3Valid()) return false;
+      if (s === 4 && !isStep4Valid()) return false;
+    }
+    return true;
+  };
+
+  const handleStepClick = (targetStep: number) => {
+    // Si es el paso actual, no hacer nada
+    if (targetStep === step) return;
+
+    // Si es un paso anterior, navegar libremente sin validación
+    if (targetStep < step) {
+      setStep(targetStep as 1 | 2 | 3 | 4);
+      return;
+    }
+
+    // Si es un paso futuro, validar pasos intermedios
+    if (!canNavigateToStep(targetStep)) {
+      const msgs: Record<number, string> = {
+        2: "Completa los datos personales antes de continuar.",
+        3: "Completa los datos académicos antes de continuar.",
+        4: "Carga tu fotografía antes de continuar.",
+      };
+      toast.error(msgs[targetStep] ?? "Completa el paso actual primero.");
+      return;
+    }
+    setStep(targetStep as 1 | 2 | 3 | 4);
+  };
+
   const stepProgressBar = (
     <div className="flex items-center justify-between max-w-lg mx-auto mb-8 relative px-2">
       {/* Background Line */}
@@ -885,24 +922,44 @@ export function FichaEstudiante() {
         { label: "Académico", num: 2 },
         { label: "Fotografía", num: 3 },
         { label: "Forma 003", num: 4 }
-      ].map((s) => (
-        <div key={s.num} className="flex flex-col items-center z-10">
-          <div 
-            className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${
-              step >= s.num 
-                ? "bg-[#004B87] text-white shadow-md shadow-[#004B87]/20" 
-                : "bg-white text-slate-400 border-2 border-slate-200"
+      ].map((s) => {
+        const isActive = step >= s.num;
+        const isCurrent = step === s.num;
+        return (
+          <button
+            key={s.num}
+            type="button"
+            onClick={() => handleStepClick(s.num)}
+            title={
+              isCurrent
+                ? `Paso ${s.num}: ${s.label} (actual)`
+                : s.num < step
+                ? `Volver al Paso ${s.num}: ${s.label}`
+                : `Ir al Paso ${s.num}: ${s.label}`
+            }
+            className={`flex flex-col items-center z-10 bg-transparent border-0 p-0 transition-transform ${
+              isCurrent
+                ? "cursor-default"
+                : "cursor-pointer hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[#FFD100] focus:ring-offset-2 rounded-full"
             }`}
           >
-            {s.num}
-          </div>
-          <span className={`text-[10px] font-bold mt-1 tracking-wider uppercase ${
-            step >= s.num ? "text-[#004B87]" : "text-slate-400"
-          }`}>
-            {s.label}
-          </span>
-        </div>
-      ))}
+            <div 
+              className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${
+                isActive
+                  ? "bg-[#004B87] text-white shadow-md shadow-[#004B87]/20" 
+                  : "bg-white text-slate-400 border-2 border-slate-200"
+              } ${!isCurrent ? "hover:shadow-lg hover:shadow-[#004B87]/30" : ""}`}
+            >
+              {s.num}
+            </div>
+            <span className={`text-[10px] font-bold mt-1 tracking-wider uppercase ${
+              isActive ? "text-[#004B87]" : "text-slate-400"
+            }`}>
+              {s.label}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 
