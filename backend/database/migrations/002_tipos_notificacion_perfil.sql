@@ -1,0 +1,3 @@
+INSERT INTO tabla_grupo_1_tipo_notificacion (nombre)
+VALUES ('SOLICITUD_PUMITA'), ('EVENTO_DISPONIBLE')
+ON CONFLICT DO NOTHING;

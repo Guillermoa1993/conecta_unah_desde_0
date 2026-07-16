@@ -12,13 +12,12 @@ const ROL_MAP: Record<string, string> = {
 };
 
 const ROL_PATH: Record<string, string> = {
-  student: '/student',
+  student: '/student/feed',
   tutor:   '/tutor',
   admin:   '/admin',
   voae:    '/voae',
-  dev:     '/student',
+  dev:     '/student/feed',
 };
-
 export function AuthCallback() {
   const [params] = useSearchParams();
   const navigate = useNavigate();

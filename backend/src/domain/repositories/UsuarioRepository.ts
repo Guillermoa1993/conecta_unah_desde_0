@@ -20,5 +20,11 @@ export interface UsuarioRepository {
     forma003_base64?: string;
   }): Promise<Usuario>;
   update(id: number, data: Partial<Usuario>): Promise<Usuario | null>;
+  actualizarPerfil(id: number, data: {
+    telefono?: string;
+    genero?: string;
+    biografia?: string;
+    foto_url?: string;
+  }): Promise<Usuario | null>;
   delete(id: number): Promise<boolean>;
 }
