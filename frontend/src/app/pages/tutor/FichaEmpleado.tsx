@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, useBlocker } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -19,59 +19,7 @@ interface EmpleadoFormData {
   foto: string | null;
 }
 
-const UNAH_DEPARTAMENTOS = [
-  // Departamentos Académicos
-  "Departamento de Informática Administrativa",
-  "Departamento de Matemática y Física",
-  "Departamento de Ciencias de la Computación",
-  "Departamento de Ingeniería Civil",
-  "Departamento de Ingeniería Eléctrica e Industrial",
-  "Departamento de Química e Ingeniería Química",
-  "Departamento de Biología",
-  "Departamento de Medicina",
-  "Departamento de Odontología",
-  "Departamento de Ciencias Jurídicas",
-  "Departamento de Ciencias Económicas",
-  "Departamento de Ciencias Sociales",
-  "Departamento de Trabajo Social",
-  "Departamento de Historia y Geografía",
-  "Departamento de Filosofía",
-  "Departamento de Letras",
-  "Departamento de Arte",
-  "Departamento de Ciencias Espaciales",
-  // Dependencias Administrativas
-  "Vicerrectoría Académica",
-  "Vicerrectoría de Orientación y Asuntos Estudiantiles (VOAE)",
-  "Dirección de Docencia",
-  "Dirección de Investigación Científica y Postgrado (DICYP)",
-  "Dirección de Vinculación Universidad-Sociedad",
-  "Secretaría General",
-  "Dirección de Planificación y Evaluación de la Educación Superior",
-  "Unidad de Tecnología Educativa e Innovación Pedagógica (UTEIP)",
-  "Sistema de Administración de Documentos (SINADOC)",
-  "Dirección Ejecutiva de Gestión de Recursos Humanos",
-  "Dirección de Finanzas",
-  "Dirección de Servicios Generales",
-  "Auditoría Interna",
-  "Unidad de Comunicación Institucional",
-  "Biblioteca y Servicios de Información",
-  "Bienestar Universitario",
-  "Otra Dependencia / Área Administrativa",
-];
 
-const UNAH_FACULTADES = [
-  "Facultad de Ciencias",
-  "Facultad de Ingeniería",
-  "Facultad de Ciencias Médicas",
-  "Facultad de Ciencias Económicas, Administrativas y Contables",
-  "Facultad de Ciencias Jurídicas",
-  "Facultad de Ciencias Sociales",
-  "Facultad de Humanidades y Artes",
-  "Facultad de Odontología",
-  "Facultad de Química y Farmacia",
-  "Facultad de Ciencias Espaciales",
-  "Otra Dependencia / Dirección"
-];
 
 
 export function FichaEmpleado() {
@@ -80,9 +28,9 @@ export function FichaEmpleado() {
   const isRegistro = location.pathname.includes("/registro");
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1); // 1: Personales, 2: Laborales, 3: Foto, 4: Verificación
-  const [selectedFacultad, setSelectedFacultad] = useState("");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
+  const [departamentos, setDepartamentos] = useState<{ id_departamento: number; nombre: string; facultad: string }[]>([]);
   const [otpCode, setOtpCode] = useState("");
   const [showTerms, setShowTerms] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -101,6 +49,17 @@ export function FichaEmpleado() {
   // Local email split states
   const [correoUsuario, setCorreoUsuario] = useState("");
   const [correoDominio, setCorreoDominio] = useState("@unah.edu.hn");
+
+  useEffect(() => {
+    setFormData((prev) => ({ ...prev, correo: `${correoUsuario.trim()}${correoDominio}` }));
+  }, [correoUsuario, correoDominio]);
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/catalogos/departamentos")
+      .then((res) => res.json())
+      .then((data) => setDepartamentos(data))
+      .catch(() => toast.error("No se pudieron cargar los departamentos"));
+  }, []);
 
   useEffect(() => {
     setFormData((prev) => ({ ...prev, correo: `${correoUsuario.trim()}${correoDominio}` }));
@@ -242,32 +201,12 @@ export function FichaEmpleado() {
     }
   };
 
-  // Function to validate if the email prefix is legitimate/real
-  const isEmailLegitimate = (prefix: string) => {
-    const clean = prefix.trim().toLowerCase();
-    if (clean.length < 3) return false;
-    const regex = /^[a-zA-Z0-9]+([._-][a-zA-Z0-9]+)*$/;
-    if (!regex.test(clean)) return false;
-    
-    // Exclude common fake/dummy prefixes
-    const blacklisted = ["asdf", "test", "prueba", "fake", "correo", "admin", "usuario", "12345", "123456", "qwerty", "temp", "temporal"];
-    if (blacklisted.some(item => clean.includes(item))) return false;
-    
-    return true;
-  };
-
   // Validaciones antes de avanzar de paso
   const isStep1Valid = () => {
-    const correoValido = formData.correo.trim().toLowerCase().endsWith("@unah.edu.hn") && 
-                         correoUsuario.trim() !== "" && 
-                         isEmailLegitimate(correoUsuario);
-    const telefonoValido = formData.telefono.trim().length === 8;
-    // Nombre debe tener al menos 3 palabras
-    const nombrePalabras = formData.nombre.trim().split(/\s+/).filter(w => w.length > 0);
-    const nombreValido = nombrePalabras.length >= 3;
+    const correoValido = formData.correo.trim().toLowerCase().endsWith("@unah.edu.hn") && correoUsuario.trim() !== "";
     return (
-      nombreValido &&
-      telefonoValido &&
+      formData.nombre.trim() !== "" &&
+      formData.telefono.trim() !== "" &&
       correoValido &&
       formData.genero !== ""
     );
@@ -277,7 +216,6 @@ export function FichaEmpleado() {
     return (
       formData.numeroEmpleado.trim() !== "" &&
       formData.facultad !== "" &&
-      selectedFacultad !== "" &&
       formData.centroRegional !== ""
     );
   };
@@ -653,18 +591,6 @@ export function FichaEmpleado() {
       // Paso 4: Validar coincidencia de datos del empleado registrados
       setScanProgress(80);
 
-      // Validar que el nombre tenga al menos 3 palabras antes de continuar
-      const nombrePalabrasVerify = formData.nombre.trim().split(/\s+/).filter(w => w.length > 0);
-      if (nombrePalabrasVerify.length < 3) {
-        detectedErrors.push(
-          `El nombre "${formData.nombre}" no contiene los 3 nombres/apellidos requeridos (tiene ${nombrePalabrasVerify.length}). Regresa al Paso 1 y corrige el nombre.`
-        );
-        setErrors(detectedErrors);
-        setForma003Status('failed');
-        toast.error("El nombre completo debe tener al menos 3 palabras.");
-        return;
-      }
-
       // Normalizar OCR: colapsar saltos de línea en espacios para mejorar búsqueda de nombres
       const normalizedOcrText = cleanText
         .replace(/[\r\n]+/g, " ")
@@ -911,7 +837,7 @@ export function FichaEmpleado() {
               <CardContent className="p-6 space-y-4">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
-                    Nombre Completo <span className="text-rose-500 text-[10px] font-semibold normal-case">(Mínimo 3 nombres)</span>
+                    Nombre Completo
                   </label>
                   <Input
                     type="text"
@@ -920,22 +846,8 @@ export function FichaEmpleado() {
                     placeholder="Ej. Juan Carlos Pérez López"
                     value={formData.nombre}
                     onChange={handleChange}
-                    className={`h-11 rounded-lg bg-slate-50 focus-visible:ring-[#FFD100] text-[#003366] ${
-                      formData.nombre && formData.nombre.trim().split(/\s+/).filter(w => w.length > 0).length < 3
-                        ? "border-red-400 focus-visible:ring-red-400"
-                        : formData.nombre.trim().split(/\s+/).filter(w => w.length > 0).length >= 3
-                        ? "border-emerald-400"
-                        : "border-slate-200"
-                    }`}
+                    className="h-11 rounded-lg bg-slate-50 focus-visible:ring-[#FFD100] border-slate-200 text-[#003366]"
                   />
-                  {formData.nombre && formData.nombre.trim().split(/\s+/).filter(w => w.length > 0).length < 3 && (
-                    <p className="text-xs text-red-500 font-medium mt-1">
-                      ⚠ Ingresa al menos 3 nombres/apellidos ({formData.nombre.trim().split(/\s+/).filter(w => w.length > 0).length}/3)
-                    </p>
-                  )}
-                  {formData.nombre.trim().split(/\s+/).filter(w => w.length > 0).length >= 3 && (
-                    <p className="text-xs text-emerald-600 font-medium mt-1">✓ Nombre completo válido</p>
-                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -965,68 +877,49 @@ export function FichaEmpleado() {
                         name="telefono"
                         required
                         placeholder="99999999"
-                        maxLength={8}
                         value={formData.telefono}
                         onChange={(e) => {
-                          const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
-                          e.target.value = digits;
+                          e.target.value = e.target.value.replace(/\D/g, "");
                           handleChange(e);
                         }}
-                        className={`h-11 flex-1 rounded-lg bg-slate-50 focus-visible:ring-[#FFD100] border-slate-200 text-[#003366] ${
-                          formData.telefono && formData.telefono.length !== 8
-                            ? "border-red-400 focus-visible:ring-red-400"
-                            : formData.telefono.length === 8
-                            ? "border-emerald-400"
-                            : ""
-                        }`}
+                        className="h-11 flex-1 rounded-lg bg-slate-50 focus-visible:ring-[#FFD100] border-slate-200 text-[#003366]"
                       />
                     </div>
-                    {formData.telefono && formData.telefono.length !== 8 && (
-                      <p className="text-xs text-red-500 font-medium mt-1">
-                        ⚠ El número debe tener exactamente 8 dígitos ({formData.telefono.length}/8)
-                      </p>
-                    )}
-                    {formData.telefono.length === 8 && (
-                      <p className="text-xs text-emerald-600 font-medium mt-1">✓ Número válido</p>
-                    )}
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
-                    Correo Institucional <span className="text-slate-400 text-[10px] normal-case font-normal">(Solo la parte antes del @)</span>
+                    Correo Institucional
                   </label>
-                  <div className={`flex items-center rounded-lg border bg-slate-50 overflow-hidden transition-colors ${
-                    correoUsuario && !isEmailLegitimate(correoUsuario)
-                      ? "border-red-400 focus-within:ring-2 focus-within:ring-red-300"
-                      : correoUsuario && isEmailLegitimate(correoUsuario)
-                      ? "border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-300"
-                      : "border-slate-200 focus-within:ring-2 focus-within:ring-[#FFD100]/50"
-                  }`}>
+                  <div className="flex gap-2">
                     <Input
                       type="text"
                       required
                       placeholder="nombre.apellido"
                       value={correoUsuario}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/[\s@]/g, "");
-                        setCorreoUsuario(val);
-                      }}
-                      className="h-11 flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-[#003366] font-medium"
+                      onChange={(e) => setCorreoUsuario(e.target.value)}
+                      className={`h-11 flex-1 rounded-lg bg-slate-50 focus-visible:ring-[#FFD100] border-slate-200 text-[#003366] ${
+                        correoUsuario && !(correoDominio === "@unah.hn" || correoDominio === "@unah.edu.hn")
+                          ? "border-red-400 focus-visible:ring-red-400"
+                          : correoUsuario
+                          ? "border-emerald-400"
+                          : ""
+                      }`}
                     />
-                    <span className="h-11 pr-4 pl-1 text-[#004B87] text-sm font-bold flex items-center select-none whitespace-nowrap bg-slate-50">
-                      @unah.edu.hn
-                    </span>
+                    <select
+                      value={correoDominio}
+                      onChange={(e) => setCorreoDominio(e.target.value)}
+                      className="h-11 px-3 rounded-lg bg-slate-50 border border-slate-200 text-[#003366] text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD100]/50 focus:border-[#FFD100] font-bold"
+                    >
+                      <option value="@unah.edu.hn">@unah.edu.hn (Personal / Empleado)</option>
+                    </select>
                   </div>
-                  {correoUsuario && !isEmailLegitimate(correoUsuario) && (
-                    <p className="text-xs text-red-500 font-medium flex items-center gap-1">
-                      ⚠ Correo inválido: usa solo letras, números, puntos o guiones (ej: juan.perez)
-                    </p>
+                  {formData.correo && !formData.correo.toLowerCase().endsWith("@unah.edu.hn") && (
+                    <p className="text-xs text-red-500 font-medium">⚠ El correo debe terminar en @unah.edu.hn</p>
                   )}
-                  {correoUsuario && isEmailLegitimate(correoUsuario) && (
-                    <p className="text-xs text-emerald-600 font-medium flex items-center gap-1">
-                      ✓ Tu correo será: <span className="font-bold">{correoUsuario}@unah.edu.hn</span>
-                    </p>
+                  {formData.correo && formData.correo.toLowerCase().endsWith("@unah.edu.hn") && correoUsuario && (
+                    <p className="text-xs text-emerald-600 font-medium">✓ Correo institucional válido: {formData.correo}</p>
                   )}
                 </div>
 
@@ -1098,25 +991,6 @@ export function FichaEmpleado() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
-                      Facultad
-                    </label>
-                    <select
-                      name="selectedFacultad"
-                      required
-                      value={selectedFacultad}
-                      onChange={(e) => setSelectedFacultad(e.target.value)}
-                      className="w-full h-11 px-3 rounded-lg bg-slate-50 border border-slate-200 text-[#003366] text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD100]/50 focus:border-[#FFD100] font-medium"
-                    >
-                      <option value="">Selecciona tu facultad...</option>
-                      {UNAH_FACULTADES.map((f) => (
-                        <option key={f} value={f}>
-                          {f}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
                       Departamento / Dependencia
                     </label>
                     <select
@@ -1126,10 +1000,10 @@ export function FichaEmpleado() {
                       onChange={handleChange}
                       className="w-full h-11 px-3 rounded-lg bg-slate-50 border border-slate-200 text-[#003366] text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD100]/50 focus:border-[#FFD100] font-medium"
                     >
-                      <option value="">Selecciona tu departamento / dependencia...</option>
-                      {UNAH_DEPARTAMENTOS.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
+                      <option value="">Selecciona tu departamento...</option>
+                      {departamentos.map((d) => (
+                        <option key={d.id_departamento} value={d.nombre}>
+                          {d.nombre}
                         </option>
                       ))}
                     </select>

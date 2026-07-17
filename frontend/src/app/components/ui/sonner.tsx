@@ -3,18 +3,13 @@
 import { useTheme } from "next-themes";
 import { Toaster as Sonner, ToasterProps } from "sonner";
 
-const Toaster = ({ position = "top-center", ...props }: ToasterProps) => {
+const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme();
 
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
-      position={position}
-      richColors
-      expand
-      duration={4000}
-      closeButton
       style={
         {
           "--normal-bg": "var(--popover)",

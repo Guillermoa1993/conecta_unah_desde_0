@@ -8,11 +8,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar";
+import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { SidebarTrigger } from "../ui/sidebar";
 import { useNavigate, useLocation } from "react-router";
-import { authService } from "../../../services/auth.service";
 import { useState, useRef } from "react";
 import { PermissionsPanel } from "../permissions/PermissionsPanel";
 import { usePermissions } from "../../../hooks/usePermissions";
@@ -34,12 +33,6 @@ export function AppNavbar() {
   const permDeniedOrPending = Object.values(permissions).some(
     (s) => s === "denied" || s === "prompt"
   );
-
-  const usuario = authService.getUsuarioGuardado();
-  const nombreMostrar = usuario?.nombre || "Usuario Puma";
-  const iniciales = usuario?.nombre
-    ? usuario.nombre.split(/\s+/).slice(0, 2).map(n => n[0]).join("").toUpperCase()
-    : "UP";
 
   const getRoleName = () => {
     const userType = sessionStorage.getItem("unah_user_type");
@@ -114,22 +107,13 @@ export function AppNavbar() {
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="gap-2 px-2 hover:bg-slate-100/80 rounded-lg">
-                <Avatar className="h-8 w-8 border border-[#004B87]/20">
-                  {usuario?.foto_url && (
-                    <AvatarImage 
-                      src={usuario.foto_url} 
-                      alt={nombreMostrar} 
-                      className="object-cover"
-                    />
-                  )}
-                  <AvatarFallback className="bg-[#004B87] text-white text-xs font-bold">
-                    {iniciales}
+              <Button variant="ghost" className="gap-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-[#004B87] text-white">
+                    <User className="h-4 w-4" />
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-semibold text-[#004B87] max-w-[150px] truncate">
-                  {nombreMostrar}
-                </span>
+                <span className="text-sm font-medium text-[#004B87]">Usuario Puma</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
