@@ -110,7 +110,7 @@ export const AvailableEvents: React.FC = () => {
           salida: ev.ASISTENCIA.salida || undefined,
           lat: ev.ASISTENCIA.lat || 14.0818,
           lng: ev.ASISTENCIA.lng || -87.2068,
-          estadoVerificacion: ev.ASISTENCIA.estadoVerificacion === 'Verificado' ? 'Verificado' : 'Pendiente de verificación'
+          estadoVerificacion: (ev.ASISTENCIA.estadoVerificacion === 'Verificado' ? 'Verificado' : 'Pendiente de verificación') as 'Pendiente de verificación' | 'Verificado'
         } : undefined
       }));
       setEventos(mapped);

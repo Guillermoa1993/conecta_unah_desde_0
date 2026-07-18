@@ -230,24 +230,29 @@ const [borrador, setBorrador] = useState<PerfilData>(() => mapearUsuarioAPerfil(
 useEffect(() => {
   if (usuario) setPerfil(mapearUsuarioAPerfil(usuario));
 }, [usuario]);
- const { notificaciones: notificacionesReales, marcarLeida: marcarNotificacionLeidaAPI } = useNotificaciones();
+  const { notificaciones: notificacionesReales, marcarLeida: marcarNotificacionLeidaAPI } = useNotificaciones();
+  const [notificacionesPerfil, setNotificacionesPerfil] = useState<NotificacionPerfil[]>([]);
 
-const notificacionesPerfil: NotificacionPerfil[] = notificacionesReales
-  .filter((n) => TIPOS_VISIBLES_EN_PERFIL.includes(n.tipo))
-  .map((n) => ({
-    id: n.id,
-    icon: ICONO_POR_TIPO_NOTIFICACION[n.tipo] ?? 'fa-bell',
-    texto: n.mensaje,
-    tiempo: tiempoRelativoNotificacion(n.created_at),
-    leida: n.leida,
-    tipo:
-      n.tipo === 'REACCION_PUMITA' ? 'reaccion' :
-      n.tipo === 'SOLICITUD_PUMITA' ? 'solicitud' :
-      n.tipo === 'EVENTO_DISPONIBLE' ? 'evento' :
-      'general',
-    nombre: n.emisor_nombre,
-    referenciaId: n.referencia_id,
-  }));
+  useEffect(() => {
+    const mapped: NotificacionPerfil[] = notificacionesReales
+      .filter((n) => TIPOS_VISIBLES_EN_PERFIL.includes(n.tipo))
+      .map((n) => ({
+        id: n.id,
+        icon: ICONO_POR_TIPO_NOTIFICACION[n.tipo] ?? 'fa-bell',
+        texto: n.mensaje,
+        tiempo: tiempoRelativoNotificacion(n.created_at),
+        leida: n.leida,
+        tipo:
+          n.tipo === 'REACCION_PUMITA' ? 'reaccion' as const :
+          n.tipo === 'SOLICITUD_PUMITA' ? 'solicitud' as const :
+          n.tipo === 'EVENTO_DISPONIBLE' ? 'evento' as const :
+          'general' as const,
+        nombre: n.emisor_nombre,
+        referenciaId: n.referencia_id,
+      }));
+    setNotificacionesPerfil(mapped);
+  }, [notificacionesReales]);
+
   const [mostrarNotificaciones, setMostrarNotificaciones] = useState(false);
   const [mostrarHistorialNotificaciones, setMostrarHistorialNotificaciones] = useState(false);
   const [busquedaNotificaciones, setBusquedaNotificaciones] = useState('');
@@ -508,11 +513,12 @@ useEffect(() => {
     mostrarEfectoReaccion('rugido');
     setNotificacionesPerfil((actuales) => [
       {
+        id: Math.random().toString(),
         icon: 'fa-paw',
         texto: `Rugido Puma enviado a ${nombre}`,
         tiempo: 'Ahora',
         leida: false,
-        tipo: 'reaccion',
+        tipo: 'reaccion' as const,
       },
       ...actuales,
     ].slice(0, 5));
@@ -543,11 +549,12 @@ useEffect(() => {
     mostrarEfectoReaccion(reaccion);
     setNotificacionesPerfil((actuales) => [
       {
+        id: Math.random().toString(),
         icon: reaccion.includes('Rugido') ? 'fa-paw' : 'fa-face-smile',
         texto: `${reaccion} enviada a ${nombre}`,
         tiempo: 'Ahora',
         leida: false,
-        tipo: 'reaccion',
+        tipo: 'reaccion' as const,
       },
       ...actuales,
     ].slice(0, 5));

@@ -155,8 +155,8 @@ export type TipoNotificacion =
   | 'CONSTANCIA_EMITIDA'
   | 'RECORDATORIO'
   | 'SISTEMA'
-  | 'REACCION_PUMITA';
-    'SOLICITUD_PUMITA'
+  | 'REACCION_PUMITA'
+  | 'SOLICITUD_PUMITA'
   | 'EVENTO_DISPONIBLE';
 
 export interface Notificacion {
