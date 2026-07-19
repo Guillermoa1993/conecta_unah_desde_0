@@ -89,6 +89,18 @@ export class AuthController {
     } catch (err) { next(err); }
   };
 
+  verificarCorreoExistente = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const correo = req.query.correo as string;
+      if (!correo) {
+        res.status(400).json({ error: 'Correo requerido' });
+        return;
+      }
+      const usuario = await this.usuarioRepo!.findByCorreo(correo);
+      res.json({ existe: !!usuario });
+    } catch (err) { next(err); }
+  };
+
   microsoftLogin = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authUrl = await getMsalClient().getAuthCodeUrl({

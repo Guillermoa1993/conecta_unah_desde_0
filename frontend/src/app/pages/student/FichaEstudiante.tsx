@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { toast } from "sonner";
 import { User, GraduationCap, Camera, CheckCircle2, Save, FileText, ArrowLeft, ArrowRight, ClipboardCheck, Scan, ShieldCheck, ShieldAlert, RefreshCw, AlertTriangle, Fingerprint, FileSignature, HelpCircle, Layers } from "lucide-react";
 import Tesseract from "tesseract.js";
+import * as faceapi from '@vladmandic/face-api';
 
 
 interface StudentFormData {
@@ -20,6 +21,26 @@ interface StudentFormData {
   centroRegional: string;
   foto: string | null;
   biografia: string;
+}
+
+const PAISES_TELEFONO: Record<string, { digitos: number; conGuion: boolean }> = {
+  "+504": { digitos: 8, conGuion: true },  // Honduras: 8888-7777
+  "+503": { digitos: 8, conGuion: true },  // El Salvador
+  "+502": { digitos: 8, conGuion: true },  // Guatemala
+  "+505": { digitos: 8, conGuion: true },  // Nicaragua
+  "+506": { digitos: 8, conGuion: true },  // Costa Rica
+  "+507": { digitos: 8, conGuion: true },  // Panamá
+  "+1": { digitos: 10, conGuion: false }, // Estados Unidos
+  "+52": { digitos: 10, conGuion: false }, // México
+  "+34": { digitos: 9, conGuion: false },  // España
+  "+57": { digitos: 10, conGuion: false }, // Colombia
+};
+
+function formatearTelefono(digitos: string, conGuion: boolean): string {
+  if (conGuion && digitos.length > 4) {
+    return `${digitos.slice(0, 4)}-${digitos.slice(4)}`;
+  }
+  return digitos;
 }
 
 const UNAH_CARRERAS = [
@@ -65,6 +86,7 @@ export function FichaEstudiante() {
   const [otpCode, setOtpCode] = useState("");
   const [showTerms, setShowTerms] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [carreras, setCarreras] = useState<{ id_carrera: number; nombre: string; facultad: string }[]>([]);
 
   const [formData, setFormData] = useState<StudentFormData>({
     nombre: "",
@@ -81,10 +103,33 @@ export function FichaEstudiante() {
   // Local email split states
   const [correoUsuario, setCorreoUsuario] = useState("");
   const [correoDominio, setCorreoDominio] = useState("@unah.hn");
+  const [correoYaExiste, setCorreoYaExiste] = useState(false);
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/catalogos/carreras")
+      .then((res) => res.json())
+      .then((data) => setCarreras(data))
+      .catch(() => toast.error("No se pudieron cargar las carreras"));
+  }, []);
 
   useEffect(() => {
     setFormData((prev) => ({ ...prev, correo: `${correoUsuario.trim()}${correoDominio}` }));
   }, [correoUsuario, correoDominio]);
+
+  useEffect(() => {
+    if (!correoUsuario || !isEmailLegitimate(correoUsuario)) {
+      setCorreoYaExiste(false);
+      return;
+    }
+    const timeoutId = setTimeout(() => {
+      fetch(`http://localhost:5000/api/auth/verificar-correo?correo=${encodeURIComponent(formData.correo)}`)
+        .then((res) => res.json())
+        .then((data) => setCorreoYaExiste(data.existe))
+        .catch(() => setCorreoYaExiste(false));
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [formData.correo]);
 
   // Camera states and handlers
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -139,8 +184,8 @@ export function FichaEstudiante() {
           setCroppedDocPhoto(null);
           setFaceSimilarityScore(null);
           toast.success(
-            documentType === 'forma003' 
-              ? "Forma 03 capturada correctamente." 
+            documentType === 'forma003'
+              ? "Forma 03 capturada correctamente."
               : "Carnet capturado correctamente."
           );
         }
@@ -161,6 +206,17 @@ export function FichaEstudiante() {
   const [similarityScore, setSimilarityScore] = useState<number | null>(null);
   const [scanProgress, setScanProgress] = useState(0);
   const [scanStepName, setScanStepName] = useState("");
+
+  useEffect(() => {
+    Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+    ]).catch(() => {
+      toast.error("No se pudieron cargar los modelos de verificación facial.");
+    });
+  }, []);
+
   const [validationDetails, setValidationDetails] = useState<{
     aspectRatio: number;
     aspectRatioOk: boolean;
@@ -174,6 +230,7 @@ export function FichaEstudiante() {
     dataMatchStatus: { label: string; ok: boolean; val?: string }[];
     faceMatchScore?: number;
     faceMatchOk?: boolean;
+    docTieneFoto?: boolean;
   } | null>(null);
 
   const [enviando, setEnviando] = useState(false);
@@ -237,20 +294,20 @@ export function FichaEstudiante() {
     if (clean.length < 3) return false;
     const regex = /^[a-zA-Z0-9]+([._-][a-zA-Z0-9]+)*$/;
     if (!regex.test(clean)) return false;
-    
+
     // Exclude common fake/dummy prefixes
     const blacklisted = ["asdf", "test", "prueba", "fake", "correo", "admin", "usuario", "12345", "123456", "qwerty", "temp", "temporal"];
     if (blacklisted.some(item => clean.includes(item))) return false;
-    
+
     return true;
   };
 
   // Validaciones antes de avanzar de paso
   const isStep1Valid = () => {
-    const correoValido = formData.correo.trim().toLowerCase().endsWith("@unah.hn") && 
-                         correoUsuario.trim() !== "" && 
-                         isEmailLegitimate(correoUsuario);
-    const telefonoValido = formData.telefono.trim().length === 8;
+    const correoValido = formData.correo.trim().toLowerCase().endsWith("@unah.hn") &&
+      correoUsuario.trim() !== "" &&
+      isEmailLegitimate(correoUsuario);
+    const telefonoValido = formData.telefono.trim().length === PAISES_TELEFONO[codigoPais].digitos;
     // Nombre debe tener al menos 3 palabras
     const nombrePalabras = formData.nombre.trim().split(/\s+/).filter(w => w.length > 0);
     const nombreValido = nombrePalabras.length >= 3;
@@ -258,7 +315,8 @@ export function FichaEstudiante() {
       nombreValido &&
       telefonoValido &&
       correoValido &&
-      formData.genero !== ""
+      formData.genero !== "" &&
+      !correoYaExiste
     );
   };
 
@@ -379,9 +437,9 @@ export function FichaEstudiante() {
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d')!;
-        
+
         let cropX = 0, cropY = 0, cropW = 0, cropH = 0;
-        
+
         if (type === 'forma003') {
           // Forma 03 photo region: ~4% to 15% width, ~15% to 45% height (left)
           cropX = img.naturalWidth * 0.04;
@@ -395,16 +453,61 @@ export function FichaEstudiante() {
           cropW = img.naturalWidth * 0.25;
           cropH = img.naturalHeight * 0.50;
         }
-        
+
         canvas.width = 120;
         canvas.height = 150;
-        
+
         ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, 120, 150);
         resolve(canvas.toDataURL('image/jpeg'));
       };
       img.onerror = () => resolve("");
       img.src = base64;
     });
+  };
+
+  const MODEL_URL = "https://vladmandic.github.io/face-api/model";
+
+  const cargarImagenElemento = (base64: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("No se pudo cargar la imagen para el cotejo facial."));
+      img.src = base64;
+    });
+  };
+
+  const compararRostros = async (
+    fotoPerfilBase64: string,
+    fotoDocumentoBase64: string
+  ): Promise<{ docTieneFoto: boolean; coincide: boolean; similitud: number }> => {
+    const opciones = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 });
+
+    const imgPerfil = await cargarImagenElemento(fotoPerfilBase64);
+    const rostroPerfil = await faceapi
+      .detectSingleFace(imgPerfil, opciones)
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    if (!rostroPerfil) {
+      throw new Error("No se detectó un rostro claro en tu fotografía de perfil. Vuelve a tomarla con buena luz.");
+    }
+
+    const imgDocumento = await cargarImagenElemento(fotoDocumentoBase64);
+    const rostroDocumento = await faceapi
+      .detectSingleFace(imgDocumento, opciones)
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    if (!rostroDocumento) {
+      return { docTieneFoto: false, coincide: true, similitud: 0 };
+    }
+
+    const distancia = faceapi.euclideanDistance(rostroPerfil.descriptor, rostroDocumento.descriptor);
+    const coincide = distancia < 0.6;
+    const similitud = Math.max(0, Math.round((1 - distancia) * 100));
+
+    return { docTieneFoto: true, coincide, similitud };
   };
 
   // Analiza la imagen con Canvas API para verificar la estructura visual y proporciones
@@ -429,7 +532,7 @@ export function FichaEstudiante() {
         // Proporciones:
         // - Forma 03 oficial tiene formato landscape (~2.22). Aceptamos entre 1.6 y 2.6
         // - Carnet tiene formato landscape (~1.58). Aceptamos entre 1.2 y 1.9
-        const aspectRatioOk = type === 'forma003' 
+        const aspectRatioOk = type === 'forma003'
           ? (aspectRatio >= 1.6 && aspectRatio <= 2.6)
           : (aspectRatio >= 1.2 && aspectRatio <= 1.9);
 
@@ -461,7 +564,7 @@ export function FichaEstudiante() {
           for (let x = photoX; x < photoX + photoW; x++) {
             const idx = (y * sampleW + x) * 4;
             if (idx < data.length) {
-              const r = data[idx], g = data[idx+1], b = data[idx+2];
+              const r = data[idx], g = data[idx + 1], b = data[idx + 2];
               const val = (r + g + b) / 3;
               photoSum += val;
               photoSqSum += val * val;
@@ -489,7 +592,7 @@ export function FichaEstudiante() {
           for (let x = qrX; x < qrX + qrW; x++) {
             const idx = (y * sampleW + x) * 4;
             if (idx < data.length) {
-              const r = data[idx], g = data[idx+1], b = data[idx+2];
+              const r = data[idx], g = data[idx + 1], b = data[idx + 2];
               const val = (r + g + b) / 3 > 128 ? 1 : 0;
               if (prevVal !== -1 && val !== prevVal) {
                 rowTransitions++;
@@ -515,7 +618,7 @@ export function FichaEstudiante() {
           for (let x = Math.round(sampleW * 0.05); x < Math.round(sampleW * 0.95); x++) {
             const idx = (y * sampleW + x) * 4;
             if (idx < data.length) {
-              const r = data[idx], g = data[idx+1], b = data[idx+2];
+              const r = data[idx], g = data[idx + 1], b = data[idx + 2];
               const brightness = (r + g + b) / 3;
               if (brightness < 160) {
                 darkPixels++;
@@ -532,17 +635,17 @@ export function FichaEstudiante() {
 
         const layoutScore = type === 'forma003'
           ? Math.round(
-              (aspectScore * 0.25) +
-              (photoDetected ? 25 : Math.min(25, photoVariance / 10)) +
-              (qrDetected ? 25 : Math.min(25, avgQrTransitions * 4)) +
-              (tablesDetected ? 25 : Math.min(25, tableLinesCount * 6))
-            )
+            (aspectScore * 0.25) +
+            (photoDetected ? 25 : Math.min(25, photoVariance / 10)) +
+            (qrDetected ? 25 : Math.min(25, avgQrTransitions * 4)) +
+            (tablesDetected ? 25 : Math.min(25, tableLinesCount * 6))
+          )
           : Math.round(
-              (aspectScore * 0.30) +
-              (photoDetected ? 40 : Math.min(40, photoVariance / 6)) +
-              (qrDetected ? 15 : Math.min(15, avgQrTransitions * 4)) +
-              (tablesDetected ? 15 : Math.min(15, tableLinesCount * 6))
-            );
+            (aspectScore * 0.30) +
+            (photoDetected ? 40 : Math.min(40, photoVariance / 6)) +
+            (qrDetected ? 15 : Math.min(15, avgQrTransitions * 4)) +
+            (tablesDetected ? 15 : Math.min(15, tableLinesCount * 6))
+          );
 
         resolve({
           aspectRatio,
@@ -574,8 +677,8 @@ export function FichaEstudiante() {
   const handleVerifyForma003 = async () => {
     if (!forma003) {
       toast.error(
-        documentType === 'forma003' 
-          ? "Por favor cargue el comprobante de matrícula (Forma 003)." 
+        documentType === 'forma003'
+          ? "Por favor cargue el comprobante de matrícula (Forma 003)."
           : "Por favor cargue la imagen de su Carnet Estudiantil."
       );
       return;
@@ -744,13 +847,13 @@ export function FichaEstudiante() {
           matchingNameParts++;
         }
       });
-      
+
       const nameMatchOk = nameParts.length > 0 ? (matchingNameParts >= Math.min(2, nameParts.length)) : true;
 
       // Comparación de cuenta estricta
       const accountClean = formData.cuenta.trim().replace(/\D/g, '');
       const ocrDigitsOnly = normalizedOcrText.replace(/\D/g, '');
-      
+
       // Coincide si está en el OCR, o si es una de las cuentas de prueba de la demo (20181001234 o 20241001234)
       let accountMatchOk = false;
       if (accountClean === "20181001234" || accountClean === "20241001234") {
@@ -768,6 +871,7 @@ export function FichaEstudiante() {
       });
       const careerMatchOk = careerWords.length > 0 ? (careerMatches >= 1) : true;
 
+
       let dataMatchCount = 0;
       if (accountMatchOk) dataMatchCount++;
 
@@ -778,14 +882,23 @@ export function FichaEstudiante() {
           `Número de Cuenta incorrecto: la cuenta ingresada (${formData.cuenta}) no se pudo constatar en el documento.`
         );
       }
+      // Comparación de centro regional (buscando palabras clave en el OCR)
+      const centroClean = formData.centroRegional.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const centroWords = centroClean.split(/\s+/).filter(w => w.length > 3);
+      let centroMatches = 0;
+      centroWords.forEach(word => {
+        if (normalizedOcrText.includes(word)) centroMatches++;
+      });
+      const centroMatchOk = centroWords.length > 0 ? (centroMatches >= 1) : true;
 
       // Paso 5: Cotejo Facial Biométrico (Requisito Crítico)
       setScanProgress(90);
       setScanStepName("Realizando cotejo facial biométrico con foto de perfil...");
-      
+
       let faceMatchScore = 0;
-      let faceMatchOk = false;
+      let faceMatchOk = true;
       let croppedPhotoUrl = "";
+      let docTieneFoto = true;
 
       if (analysis.photoDetected && formData.foto) {
         setScanStepName("Extrayendo fotografía del documento cargado...");
@@ -794,22 +907,27 @@ export function FichaEstudiante() {
         await new Promise(r => setTimeout(r, 600));
 
         setScanStepName("Analizando similitud facial y patrones biométricos...");
-        faceMatchScore = Math.round(92 + (formData.nombre.length % 5) + Math.random() * 1.2);
-        faceMatchOk = faceMatchScore >= 85;
-        setFaceSimilarityScore(faceMatchScore);
+        let docTieneFoto = true;
+        try {
+          const resultado = await compararRostros(formData.foto, croppedPhotoUrl);
+          faceMatchScore = resultado.similitud;
+          faceMatchOk = resultado.coincide;
+          docTieneFoto = resultado.docTieneFoto;
+          setFaceSimilarityScore(faceMatchScore);
+
+          if (resultado.docTieneFoto && !resultado.coincide) {
+            detectedErrors.push(
+              `Verificación Facial: la foto de perfil no coincide biométricamente con la imagen del documento (similitud: ${resultado.similitud}%). Esto no bloquea el registro, pero se recomienda revisar.`
+            );
+          }
+        } catch (err: any) {
+          setFaceSimilarityScore(0);
+          detectedErrors.push(err.message || "Error al comparar rostros.");
+        }
         await new Promise(r => setTimeout(r, 600));
       } else {
         setCroppedDocPhoto(null);
         setFaceSimilarityScore(0);
-        detectedErrors.push(
-          "No se detectó un rostro en el documento para realizar el cotejo facial."
-        );
-      }
-
-      if (!faceMatchOk && analysis.photoDetected) {
-        detectedErrors.push(
-          "Verificación Facial incorrecta: la foto de perfil no coincide biométricamente con la imagen extraída del documento."
-        );
       }
 
       // Calcular puntaje de similitud ponderado final
@@ -826,7 +944,8 @@ export function FichaEstudiante() {
       const dMatchStatus = [
         { label: "Número de Cuenta", ok: accountMatchOk, val: formData.cuenta },
         { label: "Nombre de Estudiante", ok: nameMatchOk, val: formData.nombre },
-        { label: "Carrera Universitaria", ok: careerMatchOk, val: formData.carrera }
+        { label: "Carrera Universitaria", ok: careerMatchOk, val: formData.carrera },
+        { label: "Centro Regional", ok: centroMatchOk, val: formData.centroRegional }
       ];
 
       setValidationDetails({
@@ -841,12 +960,12 @@ export function FichaEstudiante() {
         keywordsStatus,
         dataMatchStatus: dMatchStatus,
         faceMatchScore,
-        faceMatchOk
+        faceMatchOk,
+        docTieneFoto
       });
 
       // El documento se aprueba si cumple la estructura (layout, foto, qr, tablas), el número de cuenta y la foto biométrica facial
-      const shouldApprove = analysis.aspectRatioOk && analysis.photoDetected && analysis.qrDetected && analysis.tablesDetected && accountMatchOk && faceMatchOk;
-
+      const shouldApprove = analysis.aspectRatioOk && analysis.qrDetected && analysis.tablesDetected && accountMatchOk && nameMatchOk;
       if (shouldApprove) {
         setErrors([]);
         setForma003Status('verified');
@@ -912,11 +1031,11 @@ export function FichaEstudiante() {
       {/* Background Line */}
       <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-slate-200 -translate-y-1/2 z-0" />
       {/* Active Fill Line */}
-      <div 
-        className="absolute top-1/2 left-0 h-0.5 bg-[#004B87] -translate-y-1/2 transition-all duration-300 z-0" 
+      <div
+        className="absolute top-1/2 left-0 h-0.5 bg-[#004B87] -translate-y-1/2 transition-all duration-300 z-0"
         style={{ width: `${((step - 1) / 3) * 100}%` }}
       />
-      
+
       {[
         { label: "Personal", num: 1 },
         { label: "Académico", num: 2 },
@@ -934,27 +1053,24 @@ export function FichaEstudiante() {
               isCurrent
                 ? `Paso ${s.num}: ${s.label} (actual)`
                 : s.num < step
-                ? `Volver al Paso ${s.num}: ${s.label}`
-                : `Ir al Paso ${s.num}: ${s.label}`
+                  ? `Volver al Paso ${s.num}: ${s.label}`
+                  : `Ir al Paso ${s.num}: ${s.label}`
             }
-            className={`flex flex-col items-center z-10 bg-transparent border-0 p-0 transition-transform ${
-              isCurrent
+            className={`flex flex-col items-center z-10 bg-transparent border-0 p-0 transition-transform ${isCurrent
                 ? "cursor-default"
                 : "cursor-pointer hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[#FFD100] focus:ring-offset-2 rounded-full"
-            }`}
+              }`}
           >
-            <div 
-              className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${
-                isActive
-                  ? "bg-[#004B87] text-white shadow-md shadow-[#004B87]/20" 
+            <div
+              className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${isActive
+                  ? "bg-[#004B87] text-white shadow-md shadow-[#004B87]/20"
                   : "bg-white text-slate-400 border-2 border-slate-200"
-              } ${!isCurrent ? "hover:shadow-lg hover:shadow-[#004B87]/30" : ""}`}
+                } ${!isCurrent ? "hover:shadow-lg hover:shadow-[#004B87]/30" : ""}`}
             >
               {s.num}
             </div>
-            <span className={`text-[10px] font-bold mt-1 tracking-wider uppercase ${
-              isActive ? "text-[#004B87]" : "text-slate-400"
-            }`}>
+            <span className={`text-[10px] font-bold mt-1 tracking-wider uppercase ${isActive ? "text-[#004B87]" : "text-slate-400"
+              }`}>
               {s.label}
             </span>
           </button>
@@ -1034,7 +1150,7 @@ export function FichaEstudiante() {
               <CardContent className="p-6 space-y-4">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
-                    Nombre Completo <span className="text-rose-500 text-[10px] font-semibold normal-case">(Mínimo 3 nombres)</span>
+                    Nombre Completo <span className="text-rose-500 text-[10px] font-semibold normal-case"></span>
                   </label>
                   <Input
                     type="text"
@@ -1042,14 +1158,19 @@ export function FichaEstudiante() {
                     required
                     placeholder="Ej. Juan Carlos Pérez López"
                     value={formData.nombre}
-                    onChange={handleChange}
-                    className={`h-11 rounded-lg bg-slate-50 focus-visible:ring-[#FFD100] text-[#003366] ${
-                      formData.nombre && formData.nombre.trim().split(/\s+/).filter(w => w.length > 0).length < 3
+                    onChange={(e) => {
+                      const soloLetras = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, "");
+                      handleChange({
+                        ...e,
+                        target: { ...e.target, name: "nombre", value: soloLetras },
+                      } as React.ChangeEvent<HTMLInputElement>);
+                    }}
+                    className={`h-11 rounded-lg bg-slate-50 focus-visible:ring-[#FFD100] text-[#003366] ${formData.nombre && formData.nombre.trim().split(/\s+/).filter(w => w.length > 0).length < 3
                         ? "border-red-400 focus-visible:ring-red-400"
                         : formData.nombre.trim().split(/\s+/).filter(w => w.length > 0).length >= 3
-                        ? "border-emerald-400"
-                        : "border-slate-200"
-                    }`}
+                          ? "border-emerald-400"
+                          : "border-slate-200"
+                      }`}
                   />
                   {formData.nombre && formData.nombre.trim().split(/\s+/).filter(w => w.length > 0).length < 3 && (
                     <p className="text-xs text-red-500 font-medium mt-1">
@@ -1087,29 +1208,29 @@ export function FichaEstudiante() {
                         type="text"
                         name="telefono"
                         required
-                        placeholder="99999999"
-                        maxLength={8}
-                        value={formData.telefono}
+                        placeholder={PAISES_TELEFONO[codigoPais].conGuion ? "9999-9999" : "9999999999"}
+                        maxLength={PAISES_TELEFONO[codigoPais].digitos + (PAISES_TELEFONO[codigoPais].conGuion ? 1 : 0)}
+                        value={formatearTelefono(formData.telefono, PAISES_TELEFONO[codigoPais].conGuion)}
                         onChange={(e) => {
-                          const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
-                          e.target.value = digits;
-                          handleChange(e);
+                          const maxDigitos = PAISES_TELEFONO[codigoPais].digitos;
+                          const digits = e.target.value.replace(/\D/g, "").slice(0, maxDigitos);
+                          const fakeEvent = { ...e, target: { ...e.target, name: "telefono", value: digits } };
+                          handleChange(fakeEvent as React.ChangeEvent<HTMLInputElement>);
                         }}
-                        className={`h-11 flex-1 rounded-lg bg-slate-50 focus-visible:ring-[#FFD100] border-slate-200 text-[#003366] ${
-                          formData.telefono && formData.telefono.length !== 8
+                        className={`h-11 flex-1 rounded-lg bg-slate-50 focus-visible:ring-[#FFD100] border-slate-200 text-[#003366] ${formData.telefono && formData.telefono.length !== PAISES_TELEFONO[codigoPais].digitos
                             ? "border-red-400 focus-visible:ring-red-400"
-                            : formData.telefono.length === 8
-                            ? "border-emerald-400"
-                            : ""
-                        }`}
+                            : formData.telefono.length === PAISES_TELEFONO[codigoPais].digitos
+                              ? "border-emerald-400"
+                              : ""
+                          }`}
                       />
                     </div>
-                    {formData.telefono && formData.telefono.length !== 8 && (
+                    {formData.telefono && formData.telefono.length !== PAISES_TELEFONO[codigoPais].digitos && (
                       <p className="text-xs text-red-500 font-medium mt-1">
-                        ⚠ El número debe tener exactamente 8 dígitos ({formData.telefono.length}/8)
+                        ⚠ El número debe tener exactamente {PAISES_TELEFONO[codigoPais].digitos} dígitos ({formData.telefono.length}/{PAISES_TELEFONO[codigoPais].digitos})
                       </p>
                     )}
-                    {formData.telefono.length === 8 && (
+                    {formData.telefono.length === PAISES_TELEFONO[codigoPais].digitos && (
                       <p className="text-xs text-emerald-600 font-medium mt-1">✓ Número válido</p>
                     )}
                   </div>
@@ -1117,38 +1238,44 @@ export function FichaEstudiante() {
 
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
-                    Correo Institucional <span className="text-slate-400 text-[10px] normal-case font-normal">(Solo la parte antes del @)</span>
+                    Correo Institucional <span className="text-slate-400 text-[10px] normal-case font-normal"></span>
                   </label>
-                  <div className={`flex items-center rounded-lg border bg-slate-50 overflow-hidden transition-colors ${
-                    correoUsuario && !isEmailLegitimate(correoUsuario)
-                      ? "border-red-400 focus-within:ring-2 focus-within:ring-red-300"
-                      : correoUsuario && isEmailLegitimate(correoUsuario)
-                      ? "border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-300"
-                      : "border-slate-200 focus-within:ring-2 focus-within:ring-[#FFD100]/50"
-                  }`}>
-                    <Input
-                      type="text"
-                      required
-                      placeholder="nombre.apellido"
-                      value={correoUsuario}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/[\s@]/g, "");
-                        setCorreoUsuario(val);
-                      }}
-                      className="h-11 flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-[#003366] font-medium"
-                    />
-                    <span className="h-11 pr-4 pl-1 text-[#004B87] text-sm font-bold flex items-center select-none whitespace-nowrap bg-slate-50">
+                  <div className="flex items-center gap-2">
+                    <div className={`flex-1 rounded-lg border bg-slate-50 overflow-hidden transition-colors ${correoUsuario && !isEmailLegitimate(correoUsuario)
+                        ? "border-red-400 focus-within:ring-2 focus-within:ring-red-300"
+                        : correoUsuario && isEmailLegitimate(correoUsuario)
+                          ? "border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-300"
+                          : "border-slate-200 focus-within:ring-2 focus-within:ring-[#FFD100]/50"
+                      }`}>
+                      <Input
+                        type="text"
+                        required
+                        placeholder="nombre.apellido"
+                        value={correoUsuario}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[\s@]/g, "");
+                          setCorreoUsuario(val);
+                        }}
+                        className="h-11 w-full border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-[#003366] font-medium"
+                      />
+                    </div>
+                    <div className="h-11 px-3 rounded-lg border border-slate-200 bg-slate-100 text-[#004B87] text-sm font-bold flex items-center select-none whitespace-nowrap">
                       @unah.hn
-                    </span>
+                    </div>
                   </div>
                   {correoUsuario && !isEmailLegitimate(correoUsuario) && (
                     <p className="text-xs text-red-500 font-medium flex items-center gap-1">
                       ⚠ Correo inválido: usa solo letras, números, puntos o guiones (ej: juan.perez)
                     </p>
                   )}
-                  {correoUsuario && isEmailLegitimate(correoUsuario) && (
+                  {correoUsuario && isEmailLegitimate(correoUsuario) && !correoYaExiste && (
                     <p className="text-xs text-emerald-600 font-medium flex items-center gap-1">
-                      ✓ Tu correo será: <span className="font-bold">{correoUsuario}@unah.hn</span>
+                      ✓ Tu correo es: <span className="font-bold">{correoUsuario}@unah.hn</span>
+                    </p>
+                  )}
+                  {correoYaExiste && (
+                    <p className="text-xs text-red-600 font-bold flex items-center gap-1">
+                      ⚠ Este correo ya está enrolado. Intenta iniciar sesión en su lugar.
                     </p>
                   )}
                 </div>
@@ -1165,11 +1292,10 @@ export function FichaEstudiante() {
                     ].map((opt) => (
                       <label
                         key={opt.value}
-                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer text-sm font-medium transition-all select-none ${
-                          formData.genero === opt.value
+                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer text-sm font-medium transition-all select-none ${formData.genero === opt.value
                             ? "border-[#FFD100] bg-[#FFD100]/5 text-[#e8920a] font-bold"
                             : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600"
-                        }`}
+                          }`}
                       >
                         <input
                           type="radio"
@@ -1220,22 +1346,20 @@ export function FichaEstudiante() {
                       }}
                       className="h-11 rounded-lg bg-slate-50 focus-visible:ring-[#FFD100] border-slate-200 text-[#003366] font-medium tracking-widest placeholder:tracking-normal placeholder:font-normal placeholder:text-slate-400/70"
                     />
-                     <div className="grid grid-cols-2 gap-3 mt-2">
-                      <div className={`p-2 rounded-lg border text-center transition-all duration-200 ${
-                        formData.cuenta.length >= 4 
-                          ? "bg-[#004B87]/5 border-[#004B87]/20 text-[#004B87]" 
+                    <div className="grid grid-cols-2 gap-3 mt-2">
+                      <div className={`p-2 rounded-lg border text-center transition-all duration-200 ${formData.cuenta.length >= 4
+                          ? "bg-[#004B87]/5 border-[#004B87]/20 text-[#004B87]"
                           : "bg-slate-50 border-slate-200 text-slate-400"
-                      }`}>
+                        }`}>
                         <span className="block text-[9px] uppercase tracking-wider font-bold text-slate-500 mb-0.5">Año de Ingreso</span>
                         <span className="font-mono text-sm tracking-wider font-bold">
                           {formData.cuenta.substring(0, 4) || "AAAA"}
                         </span>
                       </div>
-                      <div className={`p-2 rounded-lg border text-center transition-all duration-200 ${
-                        formData.cuenta.length > 4 
-                          ? "bg-emerald-50 border-emerald-200 text-emerald-800" 
+                      <div className={`p-2 rounded-lg border text-center transition-all duration-200 ${formData.cuenta.length > 4
+                          ? "bg-emerald-50 border-emerald-200 text-emerald-800"
                           : "bg-slate-50 border-slate-200 text-slate-400"
-                      }`}>
+                        }`}>
                         <span className="block text-[9px] uppercase tracking-wider font-bold text-slate-500 mb-0.5">Correlativo / Identificador</span>
                         <span className="font-mono text-sm tracking-wider font-bold">
                           {formData.cuenta.substring(4, 11) || "NNNNNNN"}
@@ -1258,9 +1382,9 @@ export function FichaEstudiante() {
                       className="w-full h-11 px-3 rounded-lg bg-slate-50 border border-slate-200 text-[#003366] text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD100]/50 focus:border-[#FFD100] font-medium"
                     >
                       <option value="">Selecciona tu carrera...</option>
-                      {UNAH_CARRERAS.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
+                      {carreras.map((c) => (
+                        <option key={c.id_carrera} value={c.nombre}>
+                          {c.nombre}
                         </option>
                       ))}
                     </select>
@@ -1384,14 +1508,13 @@ export function FichaEstudiante() {
           <div style={{ display: step === 4 ? 'block' : 'none' }}>
             <Card key="step-4" className="border border-slate-200 shadow-sm rounded-xl overflow-hidden animate-fade-in">
               <CardHeader className="bg-slate-50/50 border-b border-slate-100 flex flex-row items-center gap-3 py-4 px-6">
-                <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold transition-all ${
-                  forma003Status === 'verified' ? 'bg-emerald-100 text-emerald-600' :
-                  forma003Status === 'failed' ? 'bg-rose-100 text-rose-600' :
-                  'bg-slate-100 text-[#004B87]'
-                }`}>
+                <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold transition-all ${forma003Status === 'verified' ? 'bg-emerald-100 text-emerald-600' :
+                    forma003Status === 'failed' ? 'bg-rose-100 text-rose-600' :
+                      'bg-slate-100 text-[#004B87]'
+                  }`}>
                   {forma003Status === 'verified' ? <ShieldCheck className="h-4 w-4" /> :
-                   forma003Status === 'failed' ? <ShieldAlert className="h-4 w-4" /> :
-                   <Scan className="h-4 w-4" />}
+                    forma003Status === 'failed' ? <ShieldAlert className="h-4 w-4" /> :
+                      <Scan className="h-4 w-4" />}
                 </div>
                 <div className="flex-1">
                   <CardTitle className="text-base font-bold text-[#003366]">
@@ -1460,9 +1583,8 @@ export function FichaEstudiante() {
                   {/* LEFT: Upload + Preview with Layout Overlays (col-span-7) */}
                   <div className="lg:col-span-7 space-y-4">
                     <div
-                      className={`relative rounded-xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center min-h-[280px] overflow-hidden cursor-pointer group ${
-                        forma003 ? 'border-slate-200 bg-slate-900/5' : 'border-slate-200 bg-slate-50 hover:border-[#004B87]/40 hover:bg-[#004B87]/5'
-                      }`}
+                      className={`relative rounded-xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center min-h-[280px] overflow-hidden cursor-pointer group ${forma003 ? 'border-slate-200 bg-slate-900/5' : 'border-slate-200 bg-slate-50 hover:border-[#004B87]/40 hover:bg-[#004B87]/5'
+                        }`}
                       onClick={() => !forma003 && document.getElementById('forma003-upload')?.click()}
                     >
                       {forma003 ? (
@@ -1472,17 +1594,16 @@ export function FichaEstudiante() {
                             alt="Documento"
                             className="max-h-72 object-contain rounded-lg"
                           />
-                          
+
                           {/* Visual Layout Overlays (only when not scanning and we have results) */}
                           {forma003Status !== 'scanning' && validationDetails && (
                             <div className="absolute inset-0 pointer-events-none">
                               {/* Photo Bounding Box */}
-                              <div 
-                                className={`absolute border-2 rounded ${
-                                  validationDetails.photoDetected 
-                                    ? 'border-emerald-500 bg-emerald-500/10' 
+                              <div
+                                className={`absolute border-2 rounded ${validationDetails.photoDetected
+                                    ? 'border-emerald-500 bg-emerald-500/10'
                                     : 'border-rose-500 bg-rose-500/10'
-                                }`}
+                                  }`}
                                 style={{
                                   left: documentType === 'forma003' ? '4%' : '70%',
                                   top: documentType === 'forma003' ? '15%' : '8%',
@@ -1490,20 +1611,18 @@ export function FichaEstudiante() {
                                   height: documentType === 'forma003' ? '30%' : '50%'
                                 }}
                               >
-                                <span className={`absolute -top-5 left-0 text-[8px] font-bold px-1 rounded uppercase text-white ${
-                                  validationDetails.photoDetected ? 'bg-emerald-500' : 'bg-rose-500'
-                                }`}>
+                                <span className={`absolute -top-5 left-0 text-[8px] font-bold px-1 rounded uppercase text-white ${validationDetails.photoDetected ? 'bg-emerald-500' : 'bg-rose-500'
+                                  }`}>
                                   Foto: {validationDetails.photoDetected ? 'OK' : 'No Det.'}
                                 </span>
                               </div>
 
                               {/* QR / Barcode Bounding Box */}
-                              <div 
-                                className={`absolute border-2 rounded ${
-                                  validationDetails.qrDetected 
-                                    ? 'border-emerald-500 bg-emerald-500/10' 
+                              <div
+                                className={`absolute border-2 rounded ${validationDetails.qrDetected
+                                    ? 'border-emerald-500 bg-emerald-500/10'
                                     : 'border-rose-500 bg-rose-500/10'
-                                }`}
+                                  }`}
                                 style={{
                                   left: documentType === 'forma003' ? '84%' : '4%',
                                   top: documentType === 'forma003' ? '15%' : '8%',
@@ -1511,20 +1630,18 @@ export function FichaEstudiante() {
                                   height: documentType === 'forma003' ? '30%' : '32%'
                                 }}
                               >
-                                <span className={`absolute -top-5 right-0 text-[8px] font-bold px-1 rounded uppercase text-white ${
-                                  validationDetails.qrDetected ? 'bg-emerald-500' : 'bg-rose-500'
-                                }`}>
+                                <span className={`absolute -top-5 right-0 text-[8px] font-bold px-1 rounded uppercase text-white ${validationDetails.qrDetected ? 'bg-emerald-500' : 'bg-rose-500'
+                                  }`}>
                                   {documentType === 'forma003' ? 'QR' : 'Sello'}: {validationDetails.qrDetected ? 'OK' : 'No Det.'}
                                 </span>
                               </div>
 
                               {/* Structure/Tables Bounding Box */}
-                              <div 
-                                className={`absolute border-2 border-dashed rounded ${
-                                  validationDetails.tablesDetected 
-                                    ? 'border-emerald-500 bg-emerald-500/5' 
+                              <div
+                                className={`absolute border-2 border-dashed rounded ${validationDetails.tablesDetected
+                                    ? 'border-emerald-500 bg-emerald-500/5'
                                     : 'border-rose-500 bg-rose-500/5'
-                                }`}
+                                  }`}
                                 style={{
                                   left: documentType === 'forma003' ? '2%' : '4%',
                                   top: documentType === 'forma003' ? '50%' : '38%',
@@ -1532,9 +1649,8 @@ export function FichaEstudiante() {
                                   height: documentType === 'forma003' ? '43%' : '52%'
                                 }}
                               >
-                                <span className={`absolute top-1 left-2 text-[8px] font-bold px-1 rounded uppercase text-white ${
-                                  validationDetails.tablesDetected ? 'bg-emerald-500' : 'bg-rose-500'
-                                }`}>
+                                <span className={`absolute top-1 left-2 text-[8px] font-bold px-1 rounded uppercase text-white ${validationDetails.tablesDetected ? 'bg-emerald-500' : 'bg-rose-500'
+                                  }`}>
                                   {documentType === 'forma003' ? 'Tablas Asignaturas' : 'Campos de Texto'} ({validationDetails.tablesDetected ? 'OK' : 'No Det.'})
                                 </span>
                               </div>
@@ -1552,7 +1668,7 @@ export function FichaEstudiante() {
                                 <span className="h-8 w-8 border-3 border-[#004B87] border-t-transparent rounded-full animate-spin flex-shrink-0" />
                                 <span className="text-sm font-bold text-[#003366]">{scanStepName}</span>
                                 <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-1">
-                                  <div 
+                                  <div
                                     className="bg-gradient-to-r from-[#004B87] to-[#FFD100] h-full transition-all duration-300"
                                     style={{ width: `${scanProgress}%` }}
                                   />
@@ -1612,8 +1728,8 @@ export function FichaEstudiante() {
                             setCroppedDocPhoto(null);
                             setFaceSimilarityScore(null);
                             toast.success(
-                              documentType === 'forma003' 
-                                ? "Forma 03 cargada correctamente." 
+                              documentType === 'forma003'
+                                ? "Forma 03 cargada correctamente."
                                 : "Carnet cargado correctamente."
                             );
                           };
@@ -1640,10 +1756,10 @@ export function FichaEstudiante() {
                       {forma003 && (
                         <button
                           type="button"
-                          onClick={() => { 
-                            setForma003(null); 
-                            setForma003Status('idle'); 
-                            setErrors([]); 
+                          onClick={() => {
+                            setForma003(null);
+                            setForma003Status('idle');
+                            setErrors([]);
                             setVerDetallesErrores(false);
                             setSimilarityScore(null);
                             setValidationDetails(null);
@@ -1711,18 +1827,16 @@ export function FichaEstudiante() {
                     )}
 
                     {similarityScore !== null && (
-                      <div className={`rounded-xl border p-5 space-y-4 shadow-sm ${
-                        forma003Status === 'verified' 
-                          ? 'border-emerald-200 bg-emerald-50/50' 
+                      <div className={`rounded-xl border p-5 space-y-4 shadow-sm ${forma003Status === 'verified'
+                          ? 'border-emerald-200 bg-emerald-50/50'
                           : 'border-rose-200 bg-rose-50/50'
-                      }`}>
+                        }`}>
                         {/* Score Circle & Title */}
                         <div className="flex items-center gap-4 border-b border-slate-100 pb-3">
-                          <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white ${
-                            forma003Status === 'verified' 
-                              ? 'bg-emerald-500 shadow-md shadow-emerald-200' 
+                          <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white ${forma003Status === 'verified'
+                              ? 'bg-emerald-500 shadow-md shadow-emerald-200'
                               : 'bg-rose-500 shadow-md shadow-rose-200'
-                          }`}>
+                            }`}>
                             {forma003Status === 'verified' ? (
                               <ShieldCheck className="h-6 w-6" />
                             ) : (
@@ -1734,8 +1848,8 @@ export function FichaEstudiante() {
                               {forma003Status === 'verified' ? 'Documento Aprobado' : 'Documento Rechazado'}
                             </h4>
                             <p className="text-[11px] text-slate-500 leading-tight">
-                              {forma003Status === 'verified' 
-                                ? 'La información del documento coincide exitosamente con su perfil.' 
+                              {forma003Status === 'verified'
+                                ? 'La información del documento coincide exitosamente con su perfil.'
                                 : 'No se pudo validar el documento debido a inconsistencias de datos.'}
                             </p>
                           </div>
@@ -1758,17 +1872,53 @@ export function FichaEstudiante() {
                           </div>
                         )}
 
+                        {/* Checklist de datos del formulario cotejados contra el documento */}
+                        {validationDetails && (
+                          <div className="bg-white border border-slate-100 rounded-lg p-3 space-y-2">
+                            <span className="text-[10px] font-bold text-slate-600 block uppercase tracking-wider">
+                              Cotejo de tus datos contra el documento:
+                            </span>
+                            <div className="space-y-1.5">
+                              {validationDetails.dataMatchStatus.map((item, i) => (
+                                <div
+                                  key={i}
+                                  className={`flex items-center justify-between gap-2 text-[11px] font-medium px-2 py-1.5 rounded-md ${item.ok ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-600"
+                                    }`}
+                                >
+                                  <span className="flex items-center gap-1.5">
+                                    {item.ok ? (
+                                      <ShieldCheck className="h-3.5 w-3.5 flex-shrink-0" />
+                                    ) : (
+                                      <ShieldAlert className="h-3.5 w-3.5 flex-shrink-0" />
+                                    )}
+                                    {item.label}
+                                  </span>
+                                  <span className="text-right truncate max-w-[45%]" title={item.val}>
+                                    {item.val || "—"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Face match visual verification */}
                         <div className="space-y-2 pt-1 border-t border-slate-100">
                           <div className="flex justify-between font-bold text-slate-700 text-xs">
-                            <span>Verificación Biométrica Facial</span>
+                            <span>Verificación Biométrica Facial (informativa)</span>
                             {validationDetails && (
-                              <span className={validationDetails.faceMatchOk ? "text-emerald-600 font-bold" : "text-rose-600 font-bold"}>
-                                {validationDetails.faceMatchOk ? `Coincide (${validationDetails.faceMatchScore}%)` : "No Coincide"}
+                              <span className={
+                                validationDetails.docTieneFoto === false
+                                  ? "text-amber-600 font-bold"
+                                  : validationDetails.faceMatchOk ? "text-emerald-600 font-bold" : "text-rose-600 font-bold"
+                              }>
+                                {validationDetails.docTieneFoto === false
+                                  ? "No se detectó rostro en el documento (no aplica)"
+                                  : validationDetails.faceMatchOk ? `Coincide (${validationDetails.faceMatchScore}%)` : `No coincide (${validationDetails.faceMatchScore}%)`}
                               </span>
                             )}
                           </div>
-                          
+
                           {formData.foto && croppedDocPhoto ? (
                             <div className="flex items-center justify-center gap-4 bg-white p-2.5 rounded-lg border border-slate-100">
                               <div className="flex flex-col items-center">
@@ -1808,13 +1958,12 @@ export function FichaEstudiante() {
                       type="button"
                       onClick={handleVerifyForma003}
                       disabled={!forma003 || forma003Status === 'scanning'}
-                      className={`w-full h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${
-                        forma003Status === 'verified'
+                      className={`w-full h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${forma003Status === 'verified'
                           ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-200'
                           : forma003Status === 'failed'
-                          ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-rose-200'
-                          : 'bg-[#004B87] hover:bg-[#003366] text-white shadow-[#004B87]/20'
-                      }`}
+                            ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-rose-200'
+                            : 'bg-[#004B87] hover:bg-[#003366] text-white shadow-[#004B87]/20'
+                        }`}
                     >
                       {forma003Status === 'scanning' ? (
                         <><RefreshCw className="h-4 w-4 animate-spin" /> Escaneando...</>
@@ -1828,6 +1977,7 @@ export function FichaEstudiante() {
                   </div>
                 </div>
               </CardContent>
+
             </Card>
           </div>
 
@@ -1899,30 +2049,30 @@ export function FichaEstudiante() {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 my-4">
                 {/* Fotografía y Forma 003 lado izquierdo */}
                 <div className="md:col-span-4 flex flex-col gap-4 items-center">
-                    <div className="flex flex-col gap-4 items-center">
-                      <div className="flex flex-col items-center">
-                        <div className="h-28 w-24 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden shadow-inner">
-                          {formData.foto ? (
-                            <img src={formData.foto} alt="Perfil" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="h-full flex items-center justify-center text-slate-400 text-xs">Sin foto</div>
-                          )}
-                        </div>
-                        <span className="text-[9px] text-slate-400 mt-1 font-bold uppercase">Foto Perfil</span>
+                  <div className="flex flex-col gap-4 items-center">
+                    <div className="flex flex-col items-center">
+                      <div className="h-28 w-24 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden shadow-inner">
+                        {formData.foto ? (
+                          <img src={formData.foto} alt="Perfil" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-slate-400 text-xs">Sin foto</div>
+                        )}
                       </div>
-                      
-                      <div className="flex flex-col items-center">
-                        <div className="h-20 w-32 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden shadow-inner flex items-center justify-center">
-                          {forma003 ? (
-                            <img src={forma003} alt="Forma 003" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="h-full flex items-center justify-center text-slate-400 text-xs">Sin doc</div>
-                          )}
-                        </div>
-                        <span className="text-[9px] text-slate-400 mt-1 font-bold uppercase">Forma 003</span>
-                      </div>
+                      <span className="text-[9px] text-slate-400 mt-1 font-bold uppercase">Foto Perfil</span>
                     </div>
-                  
+
+                    <div className="flex flex-col items-center">
+                      <div className="h-20 w-32 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden shadow-inner flex items-center justify-center">
+                        {forma003 ? (
+                          <img src={forma003} alt="Forma 003" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-slate-400 text-xs">Sin doc</div>
+                        )}
+                      </div>
+                      <span className="text-[9px] text-slate-400 mt-1 font-bold uppercase">Forma 003</span>
+                    </div>
+                  </div>
+
                   <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold py-1 px-2.5 rounded-full flex items-center gap-1.5 uppercase tracking-wider">
                     <ShieldCheck className="h-3.5 w-3.5" />
                     Forma 003 Validada
@@ -1965,25 +2115,25 @@ export function FichaEstudiante() {
               </div>
 
 
-          <DialogFooter className="gap-2 sm:gap-0 mt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowConfirmModal(false)}
-              className="px-4 border-slate-200 text-slate-600 hover:bg-slate-100 font-bold"
-              disabled={enviando}
-            >
-              Cerrar y Editar
-            </Button>
-            <Button
-              type="button"
-              onClick={() => { setAcceptTerms(false); setShowTerms(true); }}
-              disabled={enviando}
-              className="px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-2"
-            >
-              {enviando ? "Enviando..." : "Confirmar y Enviar Código"}
-            </Button>
-          </DialogFooter>
+              <DialogFooter className="gap-2 sm:gap-0 mt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowConfirmModal(false)}
+                  className="px-4 border-slate-200 text-slate-600 hover:bg-slate-100 font-bold"
+                  disabled={enviando}
+                >
+                  Cerrar y Editar
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => { setAcceptTerms(false); setShowTerms(true); }}
+                  disabled={enviando}
+                  className="px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-2"
+                >
+                  {enviando ? "Enviando..." : "Confirmar y Enviar Código"}
+                </Button>
+              </DialogFooter>
             </div>
           ) : (
             <div key="otp" className="animate-fade-in">
@@ -2116,10 +2266,10 @@ export function FichaEstudiante() {
             </DialogTitle>
           </DialogHeader>
           <div className="relative aspect-video bg-slate-900 rounded-lg overflow-hidden my-4 border border-slate-200">
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
               className="w-full h-full object-cover"
             />
             {/* Guide overlay */}
