@@ -168,7 +168,7 @@ export function VOAEDashboard() {
                 </div>
                 <Button asChild size="sm" variant="outline" className="border-slate-300">
                   <Link to={`/voae/events/${ev.id}/validar`}>
-                    <Eye className="size-3.5 mr-1" /> Ver detalles
+                    <Eye className="size-3.5 mr-1" /> Ver validaciones
                   </Link>
                 </Button>
               </div>

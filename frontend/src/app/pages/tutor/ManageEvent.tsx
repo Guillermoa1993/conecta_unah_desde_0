@@ -28,6 +28,7 @@ import {
   Mail,
 } from "lucide-react";
 import { api } from "../../../services/api";
+import { VoaeDrawer } from "../../components/app/VoaeDrawer";
 import { Button } from "../../components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import {
@@ -205,6 +206,7 @@ export function ManageEvent() {
   const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null);
   
   // Constancia Modals state
+  const [voaeDrawerOpen, setVoaeDrawerOpen] = useState(false);
   const [pdfStudent, setPdfStudent] = useState<any>(null);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [firmadasSet, setFirmadasSet] = useState<Set<string>>(new Set());
@@ -1508,9 +1510,9 @@ export function ManageEvent() {
             </Button>
             <Button
               className="text-white font-semibold cursor-pointer bg-red-600 hover:bg-red-700"
-              onClick={async () => {
-                await handleEndEvent();
+              onClick={() => {
                 setEndEventConfirmOpen(false);
+                setVoaeDrawerOpen(true);
               }}
             >
               Confirmar
@@ -1518,6 +1520,31 @@ export function ManageEvent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* VoaeDrawer for event finalization & audit submission */}
+      {event && (
+        <VoaeDrawer
+          open={voaeDrawerOpen}
+          onClose={() => setVoaeDrawerOpen(false)}
+          tutorName={event.tutor_nombre || "Profesor UNAH"}
+          eventTitle={event.titulo}
+          eventDate={event.fecha_inicio ? new Date(event.fecha_inicio).toLocaleDateString("es-HN") : "N/A"}
+          totalAsistentes={students.filter((s: any) => s.estado === "ASISTIDO" || s.estado === "PRESENTE").length}
+          horasPorEstudiante={event.duracion_horas || 1}
+          asistentesList={students.map((s: any) => ({
+            id: String(s.id || s.id_inscripcion),
+            studentName: s.nombre_estudiante || s.nombre || s.studentName || "Estudiante",
+            studentId: s.numero_cuenta || s.cuenta || s.studentId || "202110000",
+            attended: s.estado === "ASISTIDO" || s.estado === "PRESENTE",
+            fotoUrl: s.fotoUrl || s.avatar
+          }))}
+          eventId={String(event.id || eventId)}
+          eventObj={event}
+          onSubmitted={() => {
+            fetchEventDetails();
+          }}
+        />
+      )}
 
       {/* QR Entry Zoom Modal */}
       <Dialog open={entryQrOpen} onOpenChange={setEntryQrOpen}>
