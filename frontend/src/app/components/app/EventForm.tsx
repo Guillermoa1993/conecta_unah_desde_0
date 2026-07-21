@@ -452,7 +452,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       tutor_responsable: data.tutor_responsable,
       tipo_duracion: data.tipo_duracion,
       distribucion_horas: distribucion,
-      estado: isEdit ? initialEvent?.estado : "BORRADOR"
+      estado: isEdit ? (initialEvent?.estado || "PENDIENTE_APROBACION") : (data.tipo_evento === "SIN_HORAS" ? "PROGRAMADO" : "PENDIENTE_APROBACION")
     };
 
     (async () => {
@@ -462,7 +462,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
           toast.success("¡Cambios guardados con éxito!");
         } else {
           await api.post('/eventos', payload);
-          toast.success("¡Evento guardado como borrador!");
+          toast.success(data.tipo_evento === "SIN_HORAS" ? "¡Evento publicado con éxito!" : "¡Propuesta enviada a VOAE para aprobación!");
         }
         onClose();
       } catch (err: any) {

@@ -57,8 +57,9 @@ export function VOAEDashboard() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const data = await api.get<any[]>("/eventos");
-        setEvents(data);
+        setLoading(true);
+        const data = await api.get<any[]>("/eventos?limit=200");
+        setEvents(data || []);
       } catch (err) {
         console.error("Error al cargar eventos en VOAE Dashboard:", err);
       } finally {
@@ -71,7 +72,7 @@ export function VOAEDashboard() {
   const pendingEvents = useMemo(
     () =>
       events
-        .filter((e) => e.estado === "PENDIENTE_APROBACION")
+        .filter((e) => e.estado === "PENDIENTE_APROBACION" || String(e.estado).trim().toUpperCase() === "PENDIENTE_APROBACION")
         .sort((a, b) => new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime()),
     [events]
   );
@@ -79,17 +80,20 @@ export function VOAEDashboard() {
   const closedEvents = useMemo(
     () =>
       events
-        .filter((e) => e.estado === "FINALIZADO")
+        .filter((e) => e.estado === "FINALIZADO" || String(e.estado).trim().toUpperCase() === "FINALIZADO")
         .sort((a, b) => new Date(b.fecha_fin || "").getTime() - new Date(a.fecha_fin || "").getTime()),
     [events]
   );
 
   const approvedEvents = useMemo(
-    () => events.filter((e) => ["PROGRAMADO", "EN_CURSO", "FINALIZADO"].includes(e.estado)),
+    () => events.filter((e) => ["PROGRAMADO", "EN_CURSO", "FINALIZADO"].includes(String(e.estado).trim().toUpperCase())),
     [events]
   );
 
-  const rejectedEvents = useMemo(() => events.filter((e) => e.estado === "RECHAZADO"), [events]);
+  const rejectedEvents = useMemo(
+    () => events.filter((e) => e.estado === "RECHAZADO" || String(e.estado).trim().toUpperCase() === "RECHAZADO"),
+    [events]
+  );
 
   if (loading) {
     return (
