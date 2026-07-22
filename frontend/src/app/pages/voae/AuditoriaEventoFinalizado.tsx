@@ -512,6 +512,18 @@ export function AuditoriaEventoFinalizado() {
           </DialogHeader>
 
           <div className="space-y-4 py-2 text-xs">
+            {/* Header Logos UNAH + VOAE (Punto 1) */}
+            <div className="flex items-center justify-between border-b pb-3 bg-slate-50/50 p-3 rounded-xl border border-slate-200">
+              <div className="flex items-center gap-3">
+                <img src="/logo-unah.png" alt="UNAH" className="h-10 w-auto object-contain" />
+                <img src="/logo-voae.png" alt="VOAE" className="h-10 w-auto object-contain" />
+              </div>
+              <div className="text-right text-[11px] text-slate-500 font-mono">
+                <div className="font-bold text-[#003366]">UNAH - VOAE</div>
+                <div>Tel: 22166100 Ext. 100304</div>
+              </div>
+            </div>
+
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-2 gap-2 font-medium text-slate-700">
               <div><strong>Evento:</strong> {event.titulo}</div>
               <div><strong>Ámbito VOAE:</strong> {categoriaNombre}</div>
@@ -554,8 +566,112 @@ export function AuditoriaEventoFinalizado() {
           </div>
 
           <DialogFooter>
-            <Button onClick={() => window.print()} className="bg-[#003366] text-white font-semibold text-xs gap-1.5">
-              <Printer className="size-4" /> Imprimir reporte
+            <Button
+              onClick={() => {
+                const cleanEventName = (event.titulo || "Evento").replace(/[^a-zA-Z0-9-_]/g, "_");
+                const pdfTitle = `Reporte_Cumplimiento_${cleanEventName}`;
+                const originalTitle = document.title;
+                document.title = pdfTitle;
+                const origin = window.location.origin;
+
+                const rowsHtml = asistentes.map((st) => {
+                  const stAccount = st.numero_cuenta || st.cuenta || "20211000000";
+                  const stEmail = st.correo || `${stAccount}@unah.hn`;
+                  const stCareer = st.carrera || st.estudiante_carrera || "Ingeniería en Sistemas";
+                  const stName = st.nombre_estudiante || st.nombre || "Estudiante";
+
+                  return `
+                    <tr>
+                      <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">${stName}</td>
+                      <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace;">${stAccount}</td>
+                      <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace;">${stEmail}</td>
+                      <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${stCareer}</td>
+                      <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #003366;">${event.duracion_horas || 1.0}h</td>
+                      <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: bold; color: #059669;">Cumplido ✓</td>
+                    </tr>
+                  `;
+                }).join("");
+
+                const printHtml = `
+                  <!DOCTYPE html>
+                  <html>
+                  <head>
+                    <meta charset="utf-8">
+                    <title>${pdfTitle}</title>
+                    <style>
+                      @page { size: A4 portrait; margin: 15mm; }
+                      body { font-family: Arial, sans-serif; font-size: 10pt; color: #0f172a; margin: 0; padding: 0; }
+                      .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #003366; padding-bottom: 12px; margin-bottom: 20px; }
+                      .title { text-align: center; font-size: 15pt; font-weight: bold; color: #003366; text-transform: uppercase; margin-bottom: 15px; }
+                      .info-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 9.5pt; }
+                      table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt; }
+                      th { background: #003366; color: white; padding: 8px; text-align: left; }
+                    </style>
+                  </head>
+                  <body>
+                    <div class="header">
+                      <div style="display: flex; align-items: center; gap: 12px;">
+                        <img src="${origin}/logo-unah.png" style="height: 55px;" />
+                        <img src="${origin}/logo-voae.png" style="height: 55px;" />
+                      </div>
+                      <div style="text-align: right; font-size: 8.5pt; color: #64748b;">
+                        <div><strong>Tel:</strong> 22166100 Ext. 100304</div>
+                        <div><strong>VOAE UNAH</strong></div>
+                      </div>
+                    </div>
+
+                    <div class="title">REPORTE DE CUMPLIMIENTO DEL EVENTO</div>
+
+                    <div class="info-box">
+                      <div><strong>Evento:</strong> ${event.titulo}</div>
+                      <div><strong>Ámbito VOAE:</strong> ${categoriaNombre}</div>
+                      <div><strong>Fecha:</strong> ${event.fecha_inicio ? new Date(event.fecha_inicio).toLocaleDateString("es-HN") : "N/A"}</div>
+                      <div><strong>Total Acreditados:</strong> ${asistentes.length} de ${inscripciones.length}</div>
+                    </div>
+
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Estudiante</th>
+                          <th>No. Cuenta</th>
+                          <th>Correo institucional</th>
+                          <th>Carrera</th>
+                          <th style="text-align:center;">Horas (${categoriaNombre})</th>
+                          <th style="text-align:right;">Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${rowsHtml}
+                      </tbody>
+                    </table>
+                  </body>
+                  </html>
+                `;
+
+                const iframe = document.createElement("iframe");
+                iframe.style.position = "absolute";
+                iframe.style.width = "0px";
+                iframe.style.height = "0px";
+                iframe.style.border = "none";
+                document.body.appendChild(iframe);
+
+                const doc = iframe.contentWindow?.document || iframe.contentDocument;
+                if (doc) {
+                  doc.write(printHtml);
+                  doc.close();
+                  setTimeout(() => {
+                    iframe.contentWindow?.focus();
+                    iframe.contentWindow?.print();
+                    setTimeout(() => {
+                      document.body.removeChild(iframe);
+                      document.title = originalTitle;
+                    }, 1000);
+                  }, 500);
+                }
+              }}
+              className="bg-[#003366] hover:bg-[#002244] text-white font-semibold text-xs gap-1.5"
+            >
+              <Printer className="size-4" /> Imprimir reporte PDF
             </Button>
           </DialogFooter>
         </DialogContent>

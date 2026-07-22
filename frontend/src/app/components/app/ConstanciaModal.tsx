@@ -331,7 +331,7 @@ export function PdfModal({
         if (!v) onCerrar();
       }}
     >
-      <AlertDialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <AlertDialogContent className="max-w-4xl w-[92vw] max-h-[92vh] overflow-y-auto">
         <AlertDialogHeader className="border-b pb-4 mb-4">
           <div className="flex items-start justify-between">
             <div>
