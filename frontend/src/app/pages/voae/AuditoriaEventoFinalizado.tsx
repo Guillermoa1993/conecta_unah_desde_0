@@ -205,7 +205,7 @@ export function AuditoriaEventoFinalizado() {
   }
 
   const asistentes = inscripciones.filter((i) => i.estado === "ASISTIDO" || i.estado === "PRESENTE" || i.asistio);
-  const rechazados = inscripciones.filter((i) => i.estado === "NO_ASISTIO" || i.estado === "CANCELADO");
+  const rechazados = inscripciones.filter((i) => i.estado === "NO_ASISTIO" || i.estado === "CANCELADO" || i.estado === "RECHAZADO");
   const pendientes = inscripciones.filter((i) => i.estado === "PENDIENTE" || i.estado === "INSCRITO");
 
   const handleSaveSignature = (dataUrl: string) => {
@@ -214,6 +214,24 @@ export function AuditoriaEventoFinalizado() {
     setShowSigningModal(false);
     toast.success("Firma registrada y aplicada automáticamente a todas las constancias");
   };
+
+  const handleAprobarEstudiante = (stId: string, name: string) => {
+    setInscripciones((prev) =>
+      prev.map((item) => (item.id === stId ? { ...item, estado: "ASISTIDO", asistio: true } : item))
+    );
+    toast.success(`Asistencia aprobada para ${name}`);
+    setAuditStudent(null);
+  };
+
+  const handleRechazarEstudiante = (stId: string, name: string) => {
+    setInscripciones((prev) =>
+      prev.map((item) => (item.id === stId ? { ...item, estado: "RECHAZADO", asistio: false } : item))
+    );
+    toast.error(`Asistencia rechazada para ${name}`);
+    setAuditStudent(null);
+  };
+
+  const categoriaNombre = CATEGORY_LABEL[event.categoria] || event.categoria || "Académico";
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-fade-in pb-12">
@@ -259,7 +277,7 @@ export function AuditoriaEventoFinalizado() {
               <h1 className="text-2xl font-bold text-[#003366]">{event.titulo}</h1>
               <div className="flex items-center gap-3 text-xs text-slate-500 mt-1 flex-wrap font-medium">
                 <span className="px-2 py-0.5 rounded-full text-white font-semibold text-[11px]" style={{ backgroundColor: CATEGORY_COLORS[event.categoria] || "#003366" }}>
-                  {CATEGORY_LABEL[event.categoria] || event.categoria}
+                  {categoriaNombre}
                 </span>
                 <span>• {event.ubicacion || event.lugar || "Ciudad Universitaria"}</span>
                 <span>• {event.fecha_inicio ? new Date(event.fecha_inicio).toLocaleDateString("es-HN") : "N/A"}</span>
@@ -305,7 +323,7 @@ export function AuditoriaEventoFinalizado() {
 
           <div className="bg-white p-3 rounded-xl border border-slate-200/60 shadow-2xs">
             <span className="text-slate-400 font-medium block">Horas Acreditar</span>
-            <span className="font-bold text-[#003366] text-sm">{event.duracion_horas || 1.0} hrs VOAE</span>
+            <span className="font-bold text-[#003366] text-sm">{event.duracion_horas || 1.0} hrs VOAE ({categoriaNombre})</span>
           </div>
 
           <div className="bg-white p-3 rounded-xl border border-slate-200/60 shadow-2xs">
@@ -346,7 +364,7 @@ export function AuditoriaEventoFinalizado() {
           </Button>
         </div>
 
-        {/* Tabla de Asistentes */}
+        {/* Tabla de Asistentes (Punto 1: agregada columna Carrera después de Correo institucional) */}
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
@@ -354,6 +372,7 @@ export function AuditoriaEventoFinalizado() {
                 <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Estudiante</th>
                 <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Cuenta</th>
                 <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Correo institucional</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Carrera</th>
                 <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Inscripción</th>
                 <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Estado</th>
                 <th className="text-center px-4 py-3 text-xs font-bold text-slate-700">Certificado</th>
@@ -363,7 +382,7 @@ export function AuditoriaEventoFinalizado() {
             <tbody className="divide-y divide-slate-100 bg-white">
               {inscripciones.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-xs text-slate-400 font-medium">
+                  <td colSpan={8} className="px-4 py-8 text-center text-xs text-slate-400 font-medium">
                     No hay estudiantes registrados en este evento aún.
                   </td>
                 </tr>
@@ -373,6 +392,7 @@ export function AuditoriaEventoFinalizado() {
                   const studentName = student.nombre_estudiante || student.nombre || student.studentName || "Estudiante UNAH";
                   const studentAccount = student.numero_cuenta || student.cuenta || student.studentId || "20211000000";
                   const studentEmail = student.correo || `${studentAccount}@unah.hn`;
+                  const studentCareer = student.carrera || student.estudiante_carrera || "Ingeniería en Sistemas";
                   const inscripDate = student.created_at ? new Date(student.created_at).toLocaleDateString("es-HN") : "2026-06-09";
 
                   return (
@@ -396,13 +416,16 @@ export function AuditoriaEventoFinalizado() {
                       {/* Cuenta */}
                       <td className="px-4 py-3 text-xs font-mono text-slate-600">{studentAccount}</td>
 
-                      {/* Correo institucional (Columna solicitada) */}
+                      {/* Correo institucional */}
                       <td className="px-4 py-3 text-xs text-slate-500 font-mono">{studentEmail}</td>
+
+                      {/* Carrera (Punto 1: Agregado después de Correo institucional) */}
+                      <td className="px-4 py-3 text-xs text-slate-600 font-medium">{studentCareer}</td>
 
                       {/* Inscripción */}
                       <td className="px-4 py-3 text-xs text-slate-500">{inscripDate}</td>
 
-                      {/* Estado (Renombrada de 'Estado tutor' a 'Estado') */}
+                      {/* Estado */}
                       <td className="px-4 py-3">
                         <span
                           className={`text-[11px] px-2.5 py-1 rounded-full font-semibold ${
@@ -435,7 +458,7 @@ export function AuditoriaEventoFinalizado() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setAuditStudent(student)}
+                          onClick={() => setAuditStudent({ ...student, studentCareer, studentEmail, studentAccount, studentName })}
                           className="border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5 text-xs h-7 font-semibold gap-1"
                         >
                           <Eye className="size-3.5" /> Auditar
@@ -468,9 +491,9 @@ export function AuditoriaEventoFinalizado() {
         </DialogContent>
       </Dialog>
 
-      {/* ── MODAL 2: Reporte de Cumplimiento ── */}
+      {/* ── MODAL 2: Reporte de Cumplimiento (Punto 2: Correo, Carrera y "Horas acreditadas (Ámbito)") ── */}
       <Dialog open={showReportModal} onOpenChange={setShowReportModal}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="text-[#003366] font-bold text-lg flex items-center gap-2">
               <FileCheck className="size-5 text-blue-600" /> Reporte de Cumplimiento del Evento
@@ -483,30 +506,40 @@ export function AuditoriaEventoFinalizado() {
           <div className="space-y-4 py-2 text-xs">
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-2 gap-2 font-medium text-slate-700">
               <div><strong>Evento:</strong> {event.titulo}</div>
-              <div><strong>Horas VOAE:</strong> {event.duracion_horas || 1.0} horas</div>
+              <div><strong>Ámbito VOAE:</strong> {categoriaNombre}</div>
               <div><strong>Fecha:</strong> {event.fecha_inicio ? new Date(event.fecha_inicio).toLocaleDateString("es-HN") : "N/A"}</div>
               <div><strong>Acreditados:</strong> {asistentes.length} de {inscripciones.length}</div>
             </div>
 
-            <div className="border rounded-xl overflow-hidden max-h-60 overflow-y-auto">
+            <div className="border rounded-xl overflow-hidden max-h-72 overflow-y-auto">
               <table className="w-full text-xs">
                 <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0">
                   <tr>
-                    <th className="p-2 text-left">Estudiante</th>
-                    <th className="p-2 text-left">No. Cuenta</th>
-                    <th className="p-2 text-center">Horas Acreditadas</th>
-                    <th className="p-2 text-right">Estado</th>
+                    <th className="p-2.5 text-left">Estudiante</th>
+                    <th className="p-2.5 text-left">No. Cuenta</th>
+                    <th className="p-2.5 text-left">Correo institucional</th>
+                    <th className="p-2.5 text-left">Carrera</th>
+                    <th className="p-2.5 text-center">Horas acreditadas ({categoriaNombre})</th>
+                    <th className="p-2.5 text-right">Estado</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {asistentes.map((st) => (
-                    <tr key={st.id}>
-                      <td className="p-2 font-semibold text-slate-800">{st.nombre_estudiante || st.nombre || "Estudiante"}</td>
-                      <td className="p-2 font-mono text-slate-600">{st.numero_cuenta || st.cuenta || "20211000000"}</td>
-                      <td className="p-2 text-center font-bold text-[#003366]">{event.duracion_horas || 1.0}h</td>
-                      <td className="p-2 text-right text-emerald-600 font-bold">Cumplido ✓</td>
-                    </tr>
-                  ))}
+                  {asistentes.map((st) => {
+                    const stAccount = st.numero_cuenta || st.cuenta || "20211000000";
+                    const stEmail = st.correo || `${stAccount}@unah.hn`;
+                    const stCareer = st.carrera || st.estudiante_carrera || "Ingeniería en Sistemas";
+
+                    return (
+                      <tr key={st.id} className="hover:bg-slate-50">
+                        <td className="p-2.5 font-semibold text-slate-800">{st.nombre_estudiante || st.nombre || "Estudiante"}</td>
+                        <td className="p-2.5 font-mono text-slate-600">{stAccount}</td>
+                        <td className="p-2.5 font-mono text-slate-500">{stEmail}</td>
+                        <td className="p-2.5 text-slate-600">{stCareer}</td>
+                        <td className="p-2.5 text-center font-bold text-[#003366]">{event.duracion_horas || 1.0}h</td>
+                        <td className="p-2.5 text-right text-emerald-600 font-bold">Cumplido ✓</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -556,56 +589,94 @@ export function AuditoriaEventoFinalizado() {
         </DialogContent>
       </Dialog>
 
-      {/* ── MODAL 4: Auditar Marcado de Entrada y Salida del Estudiante ── */}
+      {/* ── MODAL 4: Auditar Marcado de Entrada y Salida (Punto 3: Diseño idéntico a Imagen 159) ── */}
       <Dialog open={!!auditStudent} onOpenChange={() => setAuditStudent(null)}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-[#003366] font-bold text-lg flex items-center gap-2">
-              <Eye className="size-5 text-blue-600" /> Auditoría de Asistencia Digital
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Detalle de marcas de tiempo y coordenadas GPS del estudiante.
-            </DialogDescription>
-          </DialogHeader>
-
+        <DialogContent className="sm:max-w-xl rounded-2xl p-6">
           {auditStudent && (
-            <div className="space-y-4 py-2 text-xs">
-              <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border">
-                <div className="size-10 rounded-full bg-[#003366] text-white flex items-center justify-center font-bold text-sm">
-                  {(auditStudent.nombre_estudiante || auditStudent.nombre || "E").charAt(0)}
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-800 text-sm">{auditStudent.nombre_estudiante || auditStudent.nombre || "Estudiante"}</h4>
-                  <span className="text-slate-500 font-mono">Cuenta: {auditStudent.numero_cuenta || auditStudent.cuenta || "20211000000"}</span>
+            <div className="space-y-6">
+              {/* Header con foto de perfil grande, nombre y datos (Imagen 159) */}
+              <div className="flex items-center gap-4">
+                {auditStudent.fotoUrl || auditStudent.avatar ? (
+                  <img
+                    src={auditStudent.fotoUrl || auditStudent.avatar}
+                    alt=""
+                    className="size-20 rounded-full object-cover border-2 border-[#003366] shrink-0"
+                  />
+                ) : (
+                  <div className="size-20 rounded-full bg-amber-100 text-amber-800 border-2 border-[#003366] flex items-center justify-center font-bold text-2xl shrink-0">
+                    {(auditStudent.studentName || "S").split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
+                  </div>
+                )}
+                <div className="space-y-1 min-w-0">
+                  <h3 className="font-bold text-slate-900 text-xl truncate">{auditStudent.studentName}</h3>
+                  <p className="text-sm font-medium text-slate-500">
+                    {auditStudent.studentAccount} • {auditStudent.studentCareer}
+                  </p>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
-                  <div className="flex items-center justify-between font-bold text-emerald-900">
-                    <span>⏱️ Marca de Entrada</span>
-                    <span>{auditStudent.hora_entrada || "08:05 AM"}</span>
+              {/* Grid de 3 Tarjetas: Entrada, Salida, Ubicación (Imagen 159) */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                {/* Panel 1 - Entrada */}
+                <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 flex flex-col justify-between space-y-2">
+                  <div className="flex items-center gap-1.5 font-bold text-emerald-800 text-xs">
+                    <Clock className="size-4 text-emerald-600" />
+                    <span>Entrada</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-emerald-700 text-[11px]">
-                    <MapPin className="size-3.5 text-emerald-600" />
-                    <span>Ubicación GPS: {event.ubicacion || event.lugar || "Edificio I1, CU"} (Rango válido ✓)</span>
+                  <div className="text-lg font-bold text-emerald-900">
+                    {auditStudent.hora_entrada || "06:11 p. m."}
                   </div>
-                </div>
-
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
-                  <div className="flex items-center justify-between font-bold text-emerald-900">
-                    <span>⏱️ Marca de Salida</span>
-                    <span>{auditStudent.hora_salida || "11:00 AM"}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-emerald-700 text-[11px]">
-                    <MapPin className="size-3.5 text-emerald-600" />
-                    <span>Ubicación GPS: {event.ubicacion || event.lugar || "Edificio I1, CU"} (Rango válido ✓)</span>
+                  <div className="bg-emerald-100/60 rounded-lg p-2 text-[11px] text-emerald-800 font-medium">
+                    <MapPin className="size-3 inline mr-1 text-emerald-600" />
+                    {auditStudent.ubicacion_entrada || "Coordenadas no disponibles"}
                   </div>
                 </div>
 
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 text-xs">
-                  <strong>📍 Verificación Geográfica:</strong> El estudiante realizó ambas marcas dentro del radio de 50 metros del lugar oficial del evento.
+                {/* Panel 2 - Salida */}
+                <div className="bg-blue-50/80 border border-blue-200 rounded-2xl p-4 flex flex-col justify-between space-y-2">
+                  <div className="flex items-center gap-1.5 font-bold text-blue-800 text-xs">
+                    <Clock className="size-4 text-blue-600" />
+                    <span>Salida</span>
+                  </div>
+                  <div className="text-lg font-bold text-blue-900">
+                    {auditStudent.hora_salida || "08:11 p. m."}
+                  </div>
+                  <div className="bg-blue-100/60 rounded-lg p-2 text-[11px] text-blue-800 font-medium">
+                    <MapPin className="size-3 inline mr-1 text-blue-600" />
+                    {auditStudent.ubicacion_salida || "Coordenadas no disponibles"}
+                  </div>
                 </div>
+
+                {/* Panel 3 - Ubicación del evento */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col justify-between space-y-2">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-700 text-xs">
+                    <MapPin className="size-4 text-slate-500" />
+                    <span>Ubicación del evento</span>
+                  </div>
+                  <div className="text-xs font-semibold text-slate-800 truncate">
+                    {event.ubicacion || event.lugar || "No disponible"}
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-[11px] font-bold text-amber-800">
+                    ⚠️ Fuera del rango
+                  </div>
+                </div>
+              </div>
+
+              {/* Botones Inferiores de Acción (Imagen 159) */}
+              <div className="space-y-2.5 pt-2">
+                <Button
+                  onClick={() => handleAprobarEstudiante(auditStudent.id, auditStudent.studentName)}
+                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold h-11 rounded-xl text-sm gap-2 shadow-xs transition-colors"
+                >
+                  <CheckCircle2 className="size-5" /> Aprobar
+                </Button>
+                <Button
+                  onClick={() => handleRechazarEstudiante(auditStudent.id, auditStudent.studentName)}
+                  variant="outline"
+                  className="w-full border-rose-500 text-rose-600 hover:bg-rose-50 font-bold h-11 rounded-xl text-sm gap-2 transition-colors"
+                >
+                  <XCircle className="size-5" /> Rechazar
+                </Button>
               </div>
             </div>
           )}
@@ -645,7 +716,7 @@ export function AuditoriaEventoFinalizado() {
                 </p>
                 <p className="text-xs text-slate-600">
                   Por participar y completar exitosamente el evento <strong>"{event.titulo}"</strong> acreditando{" "}
-                  <strong>{event.duracion_horas || 1.0} horas VOAE</strong> en la categoría de {CATEGORY_LABEL[event.categoria] || event.categoria}.
+                  <strong>{event.duracion_horas || 1.0} horas VOAE</strong> en la categoría de {categoriaNombre}.
                 </p>
               </div>
 
