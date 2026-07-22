@@ -45,6 +45,12 @@ const CATEGORY_COLORS: Record<string, string> = {
   SOCIAL: "#7c3aed",
 };
 
+function formatLugar(lugarStr?: string): string {
+  if (!lugarStr) return "Ciudad Universitaria";
+  const nombre = lugarStr.split("|")[0].trim();
+  return nombre || "Ciudad Universitaria";
+}
+
 function DigitalCanvas({ onSigned }: { onSigned: (dataUrl: string) => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
@@ -279,7 +285,7 @@ export function AuditoriaEventoFinalizado() {
                 <span className="px-2 py-0.5 rounded-full text-white font-semibold text-[11px]" style={{ backgroundColor: CATEGORY_COLORS[event.categoria] || "#003366" }}>
                   {categoriaNombre}
                 </span>
-                <span>• {event.ubicacion || event.lugar || "Ciudad Universitaria"}</span>
+                <span>• {formatLugar(event.ubicacion || event.lugar)}</span>
                 <span>• {event.fecha_inicio ? new Date(event.fecha_inicio).toLocaleDateString("es-HN") : "N/A"}</span>
               </div>
             </div>
@@ -628,7 +634,7 @@ export function AuditoriaEventoFinalizado() {
                   </div>
                   <div className="bg-emerald-100/60 rounded-lg p-2 text-[11px] text-emerald-800 font-medium">
                     <MapPin className="size-3 inline mr-1 text-emerald-600" />
-                    {auditStudent.ubicacion_entrada || "Coordenadas no disponibles"}
+                    {auditStudent.ubicacion_entrada ? formatLugar(auditStudent.ubicacion_entrada) : "Coordenadas no disponibles"}
                   </div>
                 </div>
 
@@ -643,7 +649,7 @@ export function AuditoriaEventoFinalizado() {
                   </div>
                   <div className="bg-blue-100/60 rounded-lg p-2 text-[11px] text-blue-800 font-medium">
                     <MapPin className="size-3 inline mr-1 text-blue-600" />
-                    {auditStudent.ubicacion_salida || "Coordenadas no disponibles"}
+                    {auditStudent.ubicacion_salida ? formatLugar(auditStudent.ubicacion_salida) : "Coordenadas no disponibles"}
                   </div>
                 </div>
 
@@ -653,8 +659,8 @@ export function AuditoriaEventoFinalizado() {
                     <MapPin className="size-4 text-slate-500" />
                     <span>Ubicación del evento</span>
                   </div>
-                  <div className="text-xs font-semibold text-slate-800 truncate">
-                    {event.ubicacion || event.lugar || "No disponible"}
+                  <div className="text-xs font-semibold text-slate-800 truncate" title={formatLugar(event.ubicacion || event.lugar)}>
+                    {formatLugar(event.ubicacion || event.lugar)}
                   </div>
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-[11px] font-bold text-amber-800">
                     ⚠️ Fuera del rango
