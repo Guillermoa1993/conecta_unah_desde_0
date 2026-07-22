@@ -22,6 +22,8 @@ import {
 import { api } from "../../../services/api";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
+import { PdfModal } from "../../components/app/ConstanciaModal";
+import { downloadConstanciaPdf, MESES } from "../../../lib/constancia-pdf";
 import {
   Dialog,
   DialogContent,
@@ -689,68 +691,65 @@ export function AuditoriaEventoFinalizado() {
         </DialogContent>
       </Dialog>
 
-      {/* ── MODAL 5: Vista Previa de Certificado con Firma y Sello Automáticos ── */}
-      <Dialog open={!!certStudent} onOpenChange={() => setCertStudent(null)}>
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle className="text-[#003366] font-bold text-lg flex items-center gap-2">
-              <Stamp className="size-5 text-emerald-600" /> Certificado Acreditado VOAE
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Vista previa del documento acreditativo oficial con firma y sello institucionales.
-            </DialogDescription>
-          </DialogHeader>
+      {/* ── MODAL 5: Vista Previa de Constancia de Participación Oficial (Imágenes 162 y 163) ── */}
+      {certStudent && (
+        <PdfModal
+          estudiante={{
+            estudiante_nombre: certStudent.nombre_estudiante || certStudent.nombre || "Estudiante",
+            estudiante_id: certStudent.numero_cuenta || certStudent.cuenta || "20211000000",
+            estudiante_carrera: certStudent.carrera || certStudent.estudiante_carrera || "Ingeniería en Sistemas",
+            estudiante_foto_url: certStudent.fotoUrl || certStudent.avatar,
+          }}
+          event={{
+            titulo: event.titulo,
+            fecha_inicio: event.fecha_inicio || new Date().toISOString(),
+            duracion_horas: event.duracion_horas || 1.0,
+            categoria: event.categoria,
+            tutor_nombre: event.tutor_nombre || "Prof. Responsable",
+          }}
+          user={{
+            name: "Lic. Roberto Fiallos",
+            cargo: "Vicerrector",
+            departamento: "Orientación y Asuntos Estudiantiles",
+            codigo_firma: "ART.202606-18-S-CU",
+            firma_url: signatureUrl || undefined,
+          }}
+          signatureDataURL={signatureUrl}
+          yaFirmado={!!signatureUrl}
+          stampKey={1}
+          onCerrar={() => setCertStudent(null)}
+          onAbrirFirma={() => {
+            setCertStudent(null);
+            setShowSigningModal(true);
+          }}
+          onDownloadPDF={() => {
+            const stName = certStudent.nombre_estudiante || certStudent.nombre || "Estudiante";
+            const stAccount = certStudent.numero_cuenta || certStudent.cuenta || "20211000000";
+            const stCareer = certStudent.carrera || certStudent.estudiante_carrera || "Ingeniería en Sistemas";
+            const now = new Date();
 
-          {certStudent && (
-            <div className="p-6 bg-amber-50/40 border-4 border-double border-[#003366] rounded-2xl text-center space-y-4 relative overflow-hidden">
-              <div className="flex justify-between items-center border-b border-amber-200 pb-3">
-                <img src="/puma_final.png" alt="UNAH" className="h-10 object-contain" />
-                <span className="text-[10px] font-mono text-slate-500">VOAE-CERT-2026-004</span>
-              </div>
-
-              <div>
-                <h3 className="text-[#003366] font-extrabold text-lg tracking-wide uppercase">
-                  UNIVERSIDAD NACIONAL AUTÓNOMA DE HONDURAS
-                </h3>
-                <h4 className="text-xs font-semibold text-slate-600 mt-1">Vicerrectoría de Orientación y Asuntos Estudiantiles (VOAE)</h4>
-              </div>
-
-              <div className="py-2 space-y-2">
-                <p className="text-xs text-slate-600">Otorga el presente certificado a:</p>
-                <p className="text-base font-extrabold text-slate-900 underline decoration-[#003366]">
-                  {certStudent.nombre_estudiante || certStudent.nombre || "Estudiante"}
-                </p>
-                <p className="text-xs text-slate-600">
-                  Por participar y completar exitosamente el evento <strong>"{event.titulo}"</strong> acreditando{" "}
-                  <strong>{event.duracion_horas || 1.0} horas VOAE</strong> en la categoría de {categoriaNombre}.
-                </p>
-              </div>
-
-              {/* Firma y Sello Automáticos */}
-              <div className="pt-4 flex items-center justify-around border-t border-amber-200">
-                <div className="text-center space-y-1">
-                  {signatureUrl ? (
-                    <img src={signatureUrl} alt="Firma VOAE" className="h-10 mx-auto object-contain" />
-                  ) : (
-                    <div className="h-10 flex items-center justify-center text-[10px] text-purple-700 font-bold italic border-b border-purple-400">
-                      Lic. Roberto Fiallos (VOAE)
-                    </div>
-                  )}
-                  <span className="text-[10px] font-bold text-slate-700 block">Firma Autorizada VOAE</span>
-                </div>
-
-                <div className="text-center">
-                  <div className="size-14 rounded-full border-2 border-emerald-600 bg-emerald-50 flex flex-col items-center justify-center p-1 text-[8px] font-bold text-emerald-800 shadow-xs">
-                    <Stamp className="size-4 text-emerald-600" />
-                    <span>SELLO OFICIAL</span>
-                    <span>VOAE UNAH</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            downloadConstanciaPdf({
+              estudiante_nombre: stName,
+              estudiante_carrera: stCareer,
+              estudiante_cuenta: stAccount,
+              tutor_nombre: event.tutor_nombre || "Prof. Responsable",
+              evento_nombre: event.titulo,
+              evento_mes_anio: event.fecha_inicio ? new Date(event.fecha_inicio).toLocaleDateString("es-HN") : "2026",
+              horas: event.duracion_horas || 1.0,
+              categoria: event.categoria,
+              voae_nombre: "Lic. Roberto Fiallos",
+              voae_cargo: "Vicerrector",
+              voae_departamento: "Orientación y Asuntos Estudiantiles",
+              voae_codigo: "ART.202606-18-S-CU",
+              voae_firma_url: signatureUrl || undefined,
+              fecha_dia: now.getDate(),
+              fecha_mes: MESES[now.getMonth()],
+              fecha_anio: now.getFullYear(),
+            });
+          }}
+          onSealComplete={() => {}}
+        />
+      )}
     </div>
   );
 }
