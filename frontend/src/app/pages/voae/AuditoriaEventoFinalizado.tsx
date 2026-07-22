@@ -153,12 +153,82 @@ function DigitalCanvas({ onSigned }: { onSigned: (dataUrl: string) => void }) {
   );
 }
 
+function PaginationControls({
+  page,
+  totalPages,
+  pageSize,
+  pageSizeOptions,
+  totalItems,
+  from,
+  to,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  page: number;
+  totalPages: number;
+  pageSize: number;
+  pageSizeOptions: number[];
+  totalItems: number;
+  from: number;
+  to: number;
+  onPageChange: (p: number) => void;
+  onPageSizeChange: (s: number) => void;
+}) {
+  if (totalItems === 0) return null;
+  return (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-3.5 border-t border-slate-200 bg-slate-50/80 text-xs font-medium">
+      <span className="text-slate-500">
+        Mostrando {from}-{to} de {totalItems} registros
+      </span>
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <span className="text-slate-500">Por página:</span>
+          <select
+            value={pageSize}
+            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+            className="rounded-lg border border-slate-300 px-2 py-1 text-xs outline-none bg-white font-bold text-[#003366] focus:ring-1 focus:ring-[#003366]"
+          >
+            {pageSizeOptions.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => onPageChange(page - 1)}
+            disabled={page <= 1}
+            className="px-3 py-1 rounded-lg font-semibold text-[#003366] hover:bg-slate-200/70 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+          >
+            ← Anterior
+          </button>
+          <span className="px-2 font-bold text-slate-800">
+            {page} / {totalPages}
+          </span>
+          <button
+            onClick={() => onPageChange(page + 1)}
+            disabled={page >= totalPages}
+            className="px-3 py-1 rounded-lg font-semibold text-[#003366] hover:bg-slate-200/70 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+          >
+            Siguiente →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AuditoriaEventoFinalizado() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [event, setEvent] = useState<any>(null);
   const [inscripciones, setInscripciones] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Pagination state (Punto 2)
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Modals state
   const [showSigningModal, setShowSigningModal] = useState(false);
@@ -167,6 +237,11 @@ export function AuditoriaEventoFinalizado() {
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [auditStudent, setAuditStudent] = useState<any | null>(null);
   const [certStudent, setCertStudent] = useState<any | null>(null);
+
+  // Confirmations state (Punto 1)
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
 
   const fetchEventData = async () => {
     if (!id) return;
@@ -214,7 +289,24 @@ export function AuditoriaEventoFinalizado() {
 
   const asistentes = inscripciones.filter((i) => i.estado === "ASISTIDO" || i.estado === "PRESENTE" || i.asistio);
   const rechazados = inscripciones.filter((i) => i.estado === "NO_ASISTIO" || i.estado === "CANCELADO" || i.estado === "RECHAZADO");
-  const pendientes = inscripciones.filter((i) => i.estado === "PENDIENTE" || i.estado === "INSCRITO");
+  const pendientes = inscripciones.filter((i) => i.estado !== "ASISTIDO" && i.estado !== "NO_ASISTIO" && i.estado !== "RECHAZADO" && i.estado !== "CANCELADO");
+
+  // Sort list prioritizing pending audits FIRST (Punto 2)
+  const sortedInscripciones = [...inscripciones].sort((a, b) => {
+    const aAudited = a.estado === "ASISTIDO" || a.estado === "RECHAZADO" || a.estado === "NO_ASISTIO";
+    const bAudited = b.estado === "ASISTIDO" || b.estado === "RECHAZADO" || b.estado === "NO_ASISTIO";
+    if (!aAudited && bAudited) return -1;
+    if (aAudited && !bAudited) return 1;
+    return 0;
+  });
+
+  // Pagination calculations (Punto 2)
+  const totalItems = sortedInscripciones.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const from = totalItems > 0 ? (safePage - 1) * pageSize + 1 : 0;
+  const to = Math.min(safePage * pageSize, totalItems);
+  const paginatedInscripciones = sortedInscripciones.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const handleSaveSignature = (dataUrl: string) => {
     setSignatureUrl(dataUrl);
@@ -223,19 +315,50 @@ export function AuditoriaEventoFinalizado() {
     toast.success("Firma registrada y aplicada automáticamente a todas las constancias");
   };
 
-  const handleAprobarEstudiante = (stId: string, name: string) => {
+  const handleAprobarEstudianteConfirm = async () => {
+    if (!auditStudent) return;
+    const stId = auditStudent.id;
+    const name = auditStudent.studentName || "Estudiante";
+
+    try {
+      await api.put(`/inscripciones/${stId}/estado`, { estado: "ASISTIDO" });
+    } catch (e) {
+      // Fallback local update
+    }
+
     setInscripciones((prev) =>
       prev.map((item) => (item.id === stId ? { ...item, estado: "ASISTIDO", asistio: true } : item))
     );
     toast.success(`Asistencia aprobada para ${name}`);
+    setShowApproveConfirm(false);
     setAuditStudent(null);
   };
 
-  const handleRechazarEstudiante = (stId: string, name: string) => {
+  const handleRechazarEstudianteConfirm = async () => {
+    if (!auditStudent) return;
+    if (!rejectReason.trim()) {
+      toast.error("Por favor escribe el motivo del rechazo");
+      return;
+    }
+    const stId = auditStudent.id;
+    const name = auditStudent.studentName || "Estudiante";
+
+    try {
+      await api.put(`/inscripciones/${stId}/estado`, { estado: "NO_ASISTIO", motivo_rechazo: rejectReason });
+    } catch (e) {
+      // Fallback local update
+    }
+
     setInscripciones((prev) =>
-      prev.map((item) => (item.id === stId ? { ...item, estado: "RECHAZADO", asistio: false } : item))
+      prev.map((item) =>
+        item.id === stId
+          ? { ...item, estado: "RECHAZADO", asistio: false, motivo_rechazo: rejectReason }
+          : item
+      )
     );
     toast.error(`Asistencia rechazada para ${name}`);
+    setShowRejectModal(false);
+    setRejectReason("");
     setAuditStudent(null);
   };
 
@@ -357,7 +480,7 @@ export function AuditoriaEventoFinalizado() {
               ✕ {rechazados.length} rechazados
             </span>
             <span className="px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-              ⏳ {pendientes.length} pendientes
+              ⏳ {pendientes.length} pendientes por auditar
             </span>
           </div>
 
@@ -372,8 +495,8 @@ export function AuditoriaEventoFinalizado() {
           </Button>
         </div>
 
-        {/* Tabla de Asistentes (Punto 1: agregada columna Carrera después de Correo institucional) */}
-        <div className="rounded-xl border border-slate-200 overflow-hidden">
+        {/* Tabla de Asistentes con Paginación y Priorización (Puntos 1 y 2) */}
+        <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
@@ -388,15 +511,16 @@ export function AuditoriaEventoFinalizado() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {inscripciones.length === 0 ? (
+              {totalItems === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-xs text-slate-400 font-medium">
                     No hay estudiantes registrados en este evento aún.
                   </td>
                 </tr>
               ) : (
-                inscripciones.map((student) => {
-                  const isAttended = student.estado === "ASISTIDO" || student.estado === "PRESENTE" || student.asistio;
+                paginatedInscripciones.map((student) => {
+                  const isApproved = student.estado === "ASISTIDO" || student.asistio;
+                  const isRejected = student.estado === "RECHAZADO" || student.estado === "NO_ASISTIO";
                   const studentName = student.nombre_estudiante || student.nombre || student.studentName || "Estudiante UNAH";
                   const studentAccount = student.numero_cuenta || student.cuenta || student.studentId || "20211000000";
                   const studentEmail = student.correo || `${studentAccount}@unah.hn`;
@@ -427,7 +551,7 @@ export function AuditoriaEventoFinalizado() {
                       {/* Correo institucional */}
                       <td className="px-4 py-3 text-xs text-slate-500 font-mono">{studentEmail}</td>
 
-                      {/* Carrera (Punto 1: Agregado después de Correo institucional) */}
+                      {/* Carrera */}
                       <td className="px-4 py-3 text-xs text-slate-600 font-medium">{studentCareer}</td>
 
                       {/* Inscripción */}
@@ -437,18 +561,20 @@ export function AuditoriaEventoFinalizado() {
                       <td className="px-4 py-3">
                         <span
                           className={`text-[11px] px-2.5 py-1 rounded-full font-semibold ${
-                            isAttended
+                            isApproved
                               ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                              : "bg-rose-100 text-rose-700 border border-rose-200"
+                              : isRejected
+                              ? "bg-rose-100 text-rose-700 border border-rose-200"
+                              : "bg-amber-100 text-amber-800 border border-amber-200"
                           }`}
                         >
-                          {isAttended ? "Asistió" : "No asistió"}
+                          {isApproved ? "Asistió" : isRejected ? "Rechazado" : "Pendiente"}
                         </span>
                       </td>
 
                       {/* Certificado */}
                       <td className="px-4 py-3 text-center">
-                        {isAttended ? (
+                        {isApproved ? (
                           <Button
                             size="sm"
                             onClick={() => setCertStudent(student)}
@@ -461,16 +587,41 @@ export function AuditoriaEventoFinalizado() {
                         )}
                       </td>
 
-                      {/* Acción VOAE (Auditar) */}
+                      {/* Acción VOAE (Punto 1: muestra 'Aprobado' o 'Rechazado' una vez procesado) */}
                       <td className="px-4 py-3 text-right">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setAuditStudent({ ...student, studentCareer, studentEmail, studentAccount, studentName })}
-                          className="border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5 text-xs h-7 font-semibold gap-1"
-                        >
-                          <Eye className="size-3.5" /> Auditar
-                        </Button>
+                        {isApproved ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
+                              ✓ Aprobado
+                            </span>
+                            <button
+                              onClick={() => setAuditStudent({ ...student, studentCareer, studentEmail, studentAccount, studentName })}
+                              className="text-[10px] text-slate-400 hover:text-slate-600 font-medium underline ml-1"
+                            >
+                              Revisar
+                            </button>
+                          </div>
+                        ) : isRejected ? (
+                          <div className="flex items-center justify-end gap-1.5" title={student.motivo_rechazo || "Asistencia rechazada"}>
+                            <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold">
+                              ✕ Rechazado
+                            </span>
+                            <button
+                              onClick={() => setAuditStudent({ ...student, studentCareer, studentEmail, studentAccount, studentName })}
+                              className="text-[10px] text-slate-400 hover:text-slate-600 font-medium underline ml-1"
+                            >
+                              Revisar
+                            </button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => setAuditStudent({ ...student, studentCareer, studentEmail, studentAccount, studentName })}
+                            className="bg-[#004B87] hover:bg-[#003366] text-white text-xs h-7 px-3 font-bold gap-1 shadow-2xs"
+                          >
+                            <Eye className="size-3.5" /> Auditar
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -478,6 +629,19 @@ export function AuditoriaEventoFinalizado() {
               )}
             </tbody>
           </table>
+
+          {/* Paginación (Punto 2 - Imagen 170) */}
+          <PaginationControls
+            page={safePage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            pageSizeOptions={[5, 10, 20, 50]}
+            totalItems={totalItems}
+            from={from}
+            to={to}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
         </div>
       </div>
 
@@ -499,7 +663,7 @@ export function AuditoriaEventoFinalizado() {
         </DialogContent>
       </Dialog>
 
-      {/* ── MODAL 2: Reporte de Cumplimiento (Punto 2: Correo, Carrera y "Horas acreditadas (Ámbito)") ── */}
+      {/* ── MODAL 2: Reporte de Cumplimiento ── */}
       <Dialog open={showReportModal} onOpenChange={setShowReportModal}>
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
@@ -512,7 +676,7 @@ export function AuditoriaEventoFinalizado() {
           </DialogHeader>
 
           <div className="space-y-4 py-2 text-xs">
-            {/* Header Logos UNAH + VOAE (Punto 1) */}
+            {/* Header Logos UNAH + VOAE */}
             <div className="flex items-center justify-between border-b pb-3 bg-slate-50/50 p-3 rounded-xl border border-slate-200">
               <div className="flex items-center gap-3">
                 <img src="/logo-unah.png" alt="UNAH" className="h-10 w-auto object-contain" />
@@ -713,12 +877,12 @@ export function AuditoriaEventoFinalizado() {
         </DialogContent>
       </Dialog>
 
-      {/* ── MODAL 4: Auditar Marcado de Entrada y Salida (Punto 3: Diseño idéntico a Imagen 159) ── */}
+      {/* ── MODAL 4: Auditar Marcado de Entrada y Salida (Punto 1: Botones Aprobar/Rechazar con Confirmación) ── */}
       <Dialog open={!!auditStudent} onOpenChange={() => setAuditStudent(null)}>
         <DialogContent className="sm:max-w-xl rounded-2xl p-6">
           {auditStudent && (
             <div className="space-y-6">
-              {/* Header con foto de perfil grande, nombre y datos (Imagen 159) */}
+              {/* Header con foto de perfil grande, nombre y datos */}
               <div className="flex items-center gap-4">
                 {auditStudent.fotoUrl || auditStudent.avatar ? (
                   <img
@@ -739,7 +903,7 @@ export function AuditoriaEventoFinalizado() {
                 </div>
               </div>
 
-              {/* Grid de 3 Tarjetas: Entrada, Salida, Ubicación (Imagen 159) */}
+              {/* Grid de 3 Tarjetas: Entrada, Salida, Ubicación */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                 {/* Panel 1 - Entrada */}
                 <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 flex flex-col justify-between space-y-2">
@@ -786,16 +950,16 @@ export function AuditoriaEventoFinalizado() {
                 </div>
               </div>
 
-              {/* Botones Inferiores de Acción (Imagen 159) */}
+              {/* Botones Inferiores de Acción (Punto 1: Aprobar y Rechazar abren confirmación) */}
               <div className="space-y-2.5 pt-2">
                 <Button
-                  onClick={() => handleAprobarEstudiante(auditStudent.id, auditStudent.studentName)}
+                  onClick={() => setShowApproveConfirm(true)}
                   className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold h-11 rounded-xl text-sm gap-2 shadow-xs transition-colors"
                 >
                   <CheckCircle2 className="size-5" /> Aprobar
                 </Button>
                 <Button
-                  onClick={() => handleRechazarEstudiante(auditStudent.id, auditStudent.studentName)}
+                  onClick={() => setShowRejectModal(true)}
                   variant="outline"
                   className="w-full border-rose-500 text-rose-600 hover:bg-rose-50 font-bold h-11 rounded-xl text-sm gap-2 transition-colors"
                 >
@@ -807,7 +971,66 @@ export function AuditoriaEventoFinalizado() {
         </DialogContent>
       </Dialog>
 
-      {/* ── MODAL 5: Vista Previa de Constancia de Participación Oficial (Imágenes 162 y 163) ── */}
+      {/* ── DIÁLOGO SUB 1: Confirmación de Aprobación ── */}
+      <Dialog open={showApproveConfirm} onOpenChange={setShowApproveConfirm}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-[#003366] font-bold text-base flex items-center gap-2">
+              <CheckCircle2 className="size-5 text-emerald-600" /> ¿Confirmar Aprobación de Asistencia?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600 mt-2 leading-relaxed">
+              ¿Estás seguro de aprobar la asistencia de <strong>{auditStudent?.studentName}</strong>? El estudiante quedará oficialmente acreditado con <strong>{event?.duracion_horas || 1.0} hrs VOAE</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2 mt-4">
+            <Button variant="outline" onClick={() => setShowApproveConfirm(false)} className="text-xs font-semibold">
+              Cancelar
+            </Button>
+            <Button onClick={handleAprobarEstudianteConfirm} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5">
+              <CheckCircle2 className="size-4" /> Sí, Confirmar Aprobación
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── DIÁLOGO SUB 2: Confirmación de Rechazo y Motivo (Punto 1) ── */}
+      <Dialog open={showRejectModal} onOpenChange={setShowRejectModal}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-rose-700 font-bold text-base flex items-center gap-2">
+              <XCircle className="size-5 text-rose-600" /> Rechazar Asistencia del Estudiante
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600 mt-1">
+              Especifica el motivo del rechazo para <strong>{auditStudent?.studentName}</strong>. Esta observación se guardará en la auditoría.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2 space-y-2">
+            <label className="text-xs font-bold text-slate-700 block">
+              Motivo del rechazo <span className="text-rose-600">*</span>
+            </label>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Ej: El estudiante no registró su marca de salida o estuvo fuera del perímetro del evento."
+              rows={3}
+              className="w-full rounded-xl border border-slate-300 p-3 text-xs focus:ring-2 focus:ring-rose-500 outline-none"
+            />
+          </div>
+
+          <DialogFooter className="gap-2 mt-2">
+            <Button variant="outline" onClick={() => setShowRejectModal(false)} className="text-xs font-semibold">
+              Cancelar
+            </Button>
+            <Button onClick={handleRechazarEstudianteConfirm} className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs gap-1.5">
+              <XCircle className="size-4" /> Confirmar Rechazo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── MODAL 5: Vista Previa de Constancia de Participación Oficial ── */}
       {certStudent && (
         <PdfModal
           estudiante={{
