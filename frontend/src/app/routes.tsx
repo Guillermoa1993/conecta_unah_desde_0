@@ -48,12 +48,11 @@ import { TutorHistory } from "./pages/tutor/History";
 // VOAE
 import { VOAEDashboard } from "./pages/voae/VOAEDashboard";
 import { OfficialReports } from "./pages/voae/OfficialReports";
-
-// Grupo 3 — VOAE
 import { Moderadores } from "./pages/voae/Moderadores";
 import { VOAERecords } from "./pages/voae/Records";
 import { CentrosRegionales } from "./pages/voae/CentrosRegionales";
 import { ValidacionEvento } from "./pages/voae/ValidacionEvento";
+import { AuditoriaEventoFinalizado } from "./pages/voae/AuditoriaEventoFinalizado";
 
 // Employees (compartido por tutor/admin/voae)
 import { Notifications } from "./pages/employees/Notifications";
@@ -143,6 +142,7 @@ export const router = createBrowserRouter([
       { path: "voae/records",           element: P(<VOAERecords />) },
       { path: "voae/centros",           element: P(<CentrosRegionales />) },
       { path: "voae/events/:id/validar",element: P(<ValidacionEvento />) },
+      { path: "voae/events/:id/validacion",element: P(<AuditoriaEventoFinalizado />) },
       { path: "voae/feed",               element: P(<SocialFeed />) },
       ...maintenanceRoutes("voae"),
     ],
