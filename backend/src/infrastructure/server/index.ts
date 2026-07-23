@@ -23,6 +23,7 @@ import { EnviarOtp } from '../../use-cases/auth/EnviarOtp';
 import { VerificarOtp } from '../../use-cases/auth/VerificarOtp';
 import { RegistrarEstudiante } from '../../use-cases/auth/RegistrarEstudiante';
 import { EnviarOtpRegistro } from '../../use-cases/auth/EnviarOtpRegistro';
+import { RegistrarEmpleado } from '../../use-cases/auth/RegistrarEmpleado';
 import { CrearEvento } from '../../use-cases/eventos/CrearEvento';
 import { ObtenerEventos } from '../../use-cases/eventos/ObtenerEventos';
 import { ObtenerEventoPorId } from '../../use-cases/eventos/ObtenerEventoPorId';
@@ -43,6 +44,7 @@ import { ListarSolicitudesEnviadas } from '../../use-cases/pumitas/ListarSolicit
 // Controllers
 import { HealthController } from '../../interfaces/controllers/HealthController';
 import { AuthController } from '../../interfaces/controllers/AuthController';
+import { CatalogoController } from '../../interfaces/controllers/CatalogoController';
 import { EventoController } from '../../interfaces/controllers/EventoController';
 import { InscripcionController } from '../../interfaces/controllers/InscripcionController';
 import { ConstanciaController } from '../../interfaces/controllers/ConstanciaController';
@@ -53,6 +55,7 @@ import { PerfilReaccionController } from '../../interfaces/controllers/PerfilRea
 
 // Routes
 import { authRouter } from '../../interfaces/routes/authRoutes';
+import { catalogoRouter } from '../../interfaces/routes/catalogoRoutes';
 import { eventoRouter } from '../../interfaces/routes/eventoRoutes';
 import { inscripcionRouter } from '../../interfaces/routes/inscripcionRoutes';
 import { constanciaRouter } from '../../interfaces/routes/constanciaRoutes';
@@ -95,6 +98,7 @@ const enviarOtpUC      = new EnviarOtp(usuarioRepo);
 const verificarOtpUC   = new VerificarOtp(usuarioRepo);
 const registrarEstudianteUC = new RegistrarEstudiante(usuarioRepo);
 const enviarOtpRegistroUC   = new EnviarOtpRegistro(usuarioRepo);
+const registrarEmpleadoUC   = new RegistrarEmpleado(usuarioRepo);
 const crearEventoUC    = new CrearEvento(eventoRepo);
 const obtenerEventosUC = new ObtenerEventos(eventoRepo);
 const obtenerEventoUC  = new ObtenerEventoPorId(eventoRepo);
@@ -115,7 +119,8 @@ const listarReaccionesRecibidasUC = new ListarReaccionesRecibidas(reaccionRepo);
 
 // ── Controllers ─────────────────────────────────────────────────────────────
 const healthCtrl       = new HealthController(new GetHealthReport(healthRepo));
-const authCtrl         = new AuthController(loginUC, registrarUC, loginMicrosoftUC, enviarOtpUC, verificarOtpUC, registrarEstudianteUC, enviarOtpRegistroUC, usuarioRepo);
+const authCtrl         = new AuthController(loginUC, registrarUC, loginMicrosoftUC, enviarOtpUC, verificarOtpUC, registrarEstudianteUC, enviarOtpRegistroUC, registrarEmpleadoUC, usuarioRepo);
+const catalogoCtrl      = new CatalogoController(pool);
 const eventoCtrl       = new EventoController(crearEventoUC, obtenerEventosUC, obtenerEventoUC, actualizarUC, aprobarUC, eventoRepo);
 const inscripcionCtrl  = new InscripcionController(inscribirUC, cancelarInscUC, inscripcionRepo);
 const constanciaCtrl   = new ConstanciaController(constanciaUC, constanciaRepo);
@@ -127,6 +132,7 @@ const perfilReaccionCtrl = new PerfilReaccionController(enviarReaccionUC, listar
 // ── Rutas ───────────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => healthCtrl.handle(req, res));
 app.use('/api/auth',          authRouter(authCtrl));
+app.use('/api/catalogos',     catalogoRouter(catalogoCtrl));
 app.use('/api/eventos',       eventoRouter(eventoCtrl));
 app.use('/api/inscripciones', inscripcionRouter(inscripcionCtrl));
 app.use('/api/constancias',   constanciaRouter(constanciaCtrl));

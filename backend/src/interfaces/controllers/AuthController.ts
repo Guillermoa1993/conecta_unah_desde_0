@@ -8,6 +8,7 @@ import { VerificarOtp } from '../../use-cases/auth/VerificarOtp';
 import { getMsalClient, getAzureRedirectUri, AZURE_SCOPES } from '../../infrastructure/auth/msalConfig';
 import { UsuarioRepository } from '../../domain/repositories/UsuarioRepository';
 import { RegistrarEstudiante } from '../../use-cases/auth/RegistrarEstudiante';
+import { RegistrarEmpleado } from '../../use-cases/auth/RegistrarEmpleado';
 import { EnviarOtpRegistro } from '../../use-cases/auth/EnviarOtpRegistro';
 import jwt from 'jsonwebtoken';
 
@@ -20,6 +21,7 @@ export class AuthController {
     private readonly verificarOtpUseCase: VerificarOtp,
     private readonly registrarEstudianteUseCase: RegistrarEstudiante,
     private readonly enviarOtpRegistroUseCase: EnviarOtpRegistro,
+    private readonly registrarEmpleadoUseCase: RegistrarEmpleado,
     private readonly usuarioRepo?: UsuarioRepository,
   ) {}
 
@@ -71,11 +73,31 @@ export class AuthController {
     } catch (err) { next(err); }
   };
 
+  registrarEmpleado = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const usuario = await this.registrarEmpleadoUseCase.execute(req.body);
+      const { password, forma003_base64, ...pub } = usuario as unknown as Record<string, unknown> & { password: string; forma003_base64: string };
+      res.status(201).json(pub);
+    } catch (err) { next(err); }
+  };
+
   enviarOtpRegistro = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { correo } = req.body;
       await this.enviarOtpRegistroUseCase.execute(correo);
       res.json({ mensaje: 'Código enviado correctamente' });
+    } catch (err) { next(err); }
+  };
+
+  verificarCorreoExistente = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const correo = req.query.correo as string;
+      if (!correo) {
+        res.status(400).json({ error: 'Correo requerido' });
+        return;
+      }
+      const usuario = await this.usuarioRepo!.findByCorreo(correo);
+      res.json({ existe: !!usuario });
     } catch (err) { next(err); }
   };
 

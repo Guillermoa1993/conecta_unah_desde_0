@@ -6,6 +6,7 @@ export class EnviarOtpRegistro {
   constructor(private readonly usuarioRepo: UsuarioRepository) {}
 
   async execute(correo: string): Promise<void> {
+    
     if (!correo.endsWith('@unah.hn') && !correo.endsWith('@unah.edu.hn')) {
       throw new Error('Solo se permiten correos institucionales @unah.hn o @unah.edu.hn');
     }
@@ -16,5 +17,7 @@ export class EnviarOtpRegistro {
     const codigo = Math.floor(100000 + Math.random() * 900000).toString();
     guardarOtpRegistro(correo, codigo);
     await enviarCodigoOtp(correo, codigo);
+    
   }
+
 }

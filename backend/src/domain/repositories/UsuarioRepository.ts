@@ -18,6 +18,8 @@ export interface UsuarioRepository {
     biografia?: string;
     foto_url?: string;
     forma003_base64?: string;
+    numero_empleado?: string;
+    departamento?: string;
   }): Promise<Usuario>;
   update(id: number, data: Partial<Usuario>): Promise<Usuario | null>;
   delete(id: number): Promise<boolean>;
