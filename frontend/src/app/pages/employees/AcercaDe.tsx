@@ -1,6 +1,7 @@
-﻿import {
+﻿import { useRef, useState } from "react";
+import {
   Clock, QrCode, ShieldCheck, Bell, History, Smartphone,
-  KeyRound, Lock, Users, Database, ClipboardCheck, Compass,
+  KeyRound, Lock, Users, Database, ClipboardCheck, Compass, ImagePlus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
@@ -15,6 +16,12 @@ const APP_INFO = {
   institucion: "Universidad Nacional Autónoma de Honduras (UNAH)",
   programa: "Informática Administrativa",
 };
+
+/* ─── Foto del equipo: se guarda en este dispositivo y solo se permite ───
+   subirla una única vez — una vez definida, el espacio queda bloqueado
+   y ya no se puede reemplazar ni eliminar. ────────────────────────────── */
+const TEAM_PHOTO_STORAGE_KEY = "unah_acerca_foto_equipo";
+const TEAM_PHOTO_MAX_SIZE_MB = 5;
 
 const FEATURES = [
   { title: "Seguimiento de Horas", description: "Progreso automático del cumplimiento del Artículo 140.", icon: Clock, color: "from-blue-500 to-indigo-600" },
@@ -40,6 +47,38 @@ const TEAM = [
 ];
 
 export function AcercaDe() {
+  const [teamPhoto, setTeamPhoto] = useState<string | null>(() =>
+    window.localStorage.getItem(TEAM_PHOTO_STORAGE_KEY)
+  );
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleTeamPhotoSelect = (file: File) => {
+    setPhotoError(null);
+
+    if (!file.type.startsWith("image/")) {
+      setPhotoError("El archivo debe ser una imagen (JPG o PNG).");
+      return;
+    }
+    if (file.size > TEAM_PHOTO_MAX_SIZE_MB * 1024 * 1024) {
+      setPhotoError(`La imagen no puede superar ${TEAM_PHOTO_MAX_SIZE_MB} MB.`);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      try {
+        window.localStorage.setItem(TEAM_PHOTO_STORAGE_KEY, dataUrl);
+        setTeamPhoto(dataUrl);
+      } catch {
+        setPhotoError("No se pudo guardar la imagen. Prueba con un archivo más liviano.");
+      }
+    };
+    reader.onerror = () => setPhotoError("No se pudo leer el archivo seleccionado.");
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       {/* Hero */}
@@ -167,6 +206,63 @@ export function AcercaDe() {
               </div>
             );
           })}
+        </CardContent>
+      </Card>
+
+      {/* Foto del equipo — el espacio admite una única subida */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-[#003366] flex items-center gap-2 flex-wrap">
+            Foto del Equipo
+            {teamPhoto && (
+              <Badge variant="outline" className="border-emerald-600/30 bg-emerald-600/5 text-emerald-700 text-[10px] font-bold gap-1">
+                <Lock className="h-3 w-3" /> Definitiva
+              </Badge>
+            )}
+          </CardTitle>
+          <CardDescription>
+            {teamPhoto
+              ? "Fotografía oficial del equipo de desarrollo."
+              : "Sube la fotografía del equipo. Una vez subida, este espacio queda bloqueado y no podrá reemplazarse."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {teamPhoto ? (
+            <div className="rounded-xl overflow-hidden border border-slate-150 shadow-sm">
+              <img
+                src={teamPhoto}
+                alt="Equipo de desarrollo de Conecta Pumas"
+                className="w-full max-h-[420px] object-cover"
+              />
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#004B87]/30 bg-[#004B87]/5 py-12 text-center hover:bg-[#004B87]/10 transition-colors"
+              >
+                <ImagePlus className="h-8 w-8 text-[#004B87]" />
+                <span className="text-sm font-bold text-[#003366]">Subir foto del equipo</span>
+                <span className="text-xs text-slate-500 max-w-xs">
+                  JPG o PNG, máx. {TEAM_PHOTO_MAX_SIZE_MB} MB. Esta acción solo se puede realizar una vez.
+                </span>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleTeamPhotoSelect(file);
+                }}
+              />
+              {photoError && (
+                <p className="text-xs font-semibold text-red-600 mt-2 text-center">{photoError}</p>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 

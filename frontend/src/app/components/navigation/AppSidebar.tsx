@@ -85,10 +85,15 @@ const MAINTENANCE_ITEMS = [
   { icon: FileText,      label: "Estados de usuario",    subPath: "/maintenance/user-states"        },
   { icon: Bell,          label: "Tipos de notificación", subPath: "/maintenance/notification-types" },
   { icon: LayoutGrid,    label: "Aplicativos",           path: "/employees/aplicativos"            },
-  { icon: Info,          label: "Acerca de",             path: "/employees/acerca-de"             },
 ];
 
-/* ─── ROLES CON MANTENIMIENTO ─── */
+/* ─── "Acerca de" vive en el mismo desplegable de Mantenimiento, pero es ───
+   visible para TODOS los roles sin excepción: no depende de
+   ROLES_WITH_MAINTENANCE ni de ningún permiso futuro, para que nunca
+   quede oculta por accidente. ─────────────────────────────────────────── */
+const ACERCA_DE_ITEM = { icon: Info, label: "Acerca de", path: "/employees/acerca-de" };
+
+/* ─── ROLES CON MANTENIMIENTO (catálogos + Aplicativos) ─── */
 const ROLES_WITH_MAINTENANCE = ["admin", "voae", "tutor", "dev", "student"];
 
 export function AppSidebar() {
@@ -159,48 +164,51 @@ export function AppSidebar() {
                 );
               })}
 
-              {/* Mantenimiento — solo roles permitidos */}
-              {ROLES_WITH_MAINTENANCE.includes(role) && (
-                <SidebarMenuItem className="mt-2">
-                  <button
-                    onClick={() => !isCollapsed && setMaintenanceOpen(v => !v)}
-                    className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-white rounded-md hover:bg-[#003366] transition-colors focus:outline-none"
-                    title={isCollapsed ? "Mantenimiento" : undefined}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Settings className="h-5 w-5" />
-                      {!isCollapsed && <span>Mantenimiento</span>}
-                    </div>
-                    {!isCollapsed && (
-                      maintenanceOpen
-                        ? <ChevronUp   className="h-4 w-4 text-[#FFD100]" />
-                        : <ChevronDown className="h-4 w-4 text-[#FFD100]" />
-                    )}
-                  </button>
-
-                  {maintenanceOpen && !isCollapsed && (
-                    <div className="pl-6 mt-1 space-y-1 border-l border-white/20 ml-5">
-                      {MAINTENANCE_ITEMS.map((sub) => {
-                        const fullPath = sub.path ?? `${prefix}${sub.subPath}`;
-                        const isActive = location.pathname === fullPath;
-                        return (
-                          <SidebarMenuButton
-                            key={fullPath} asChild isActive={isActive} tooltip={sub.label}
-                            className={isActive
-                              ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8"
-                              : "text-white/80 hover:bg-[#003366] hover:text-white h-8"}
-                          >
-                            <Link to={fullPath} className="flex items-center gap-2">
-                              <sub.icon className="h-4 w-4" />
-                              <span>{sub.label}</span>
-                            </Link>
-                          </SidebarMenuButton>
-                        );
-                      })}
-                    </div>
+              {/* Mantenimiento — el desplegable siempre está disponible para que  */}
+              {/* "Acerca de" se muestre a todos los roles; el resto del catálogo */}
+              {/* (y Aplicativos) sigue restringido a los roles de mantenimiento. */}
+              <SidebarMenuItem className="mt-2">
+                <button
+                  onClick={() => !isCollapsed && setMaintenanceOpen(v => !v)}
+                  className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-white rounded-md hover:bg-[#003366] transition-colors focus:outline-none"
+                  title={isCollapsed ? "Mantenimiento" : undefined}
+                >
+                  <div className="flex items-center gap-3">
+                    <Settings className="h-5 w-5" />
+                    {!isCollapsed && <span>Mantenimiento</span>}
+                  </div>
+                  {!isCollapsed && (
+                    maintenanceOpen
+                      ? <ChevronUp   className="h-4 w-4 text-[#FFD100]" />
+                      : <ChevronDown className="h-4 w-4 text-[#FFD100]" />
                   )}
-                </SidebarMenuItem>
-              )}
+                </button>
+
+                {maintenanceOpen && !isCollapsed && (
+                  <div className="pl-6 mt-1 space-y-1 border-l border-white/20 ml-5">
+                    {[
+                      ACERCA_DE_ITEM,
+                      ...(ROLES_WITH_MAINTENANCE.includes(role) ? MAINTENANCE_ITEMS : []),
+                    ].map((sub) => {
+                      const fullPath = sub.path ?? `${prefix}${sub.subPath}`;
+                      const isActive = location.pathname === fullPath;
+                      return (
+                        <SidebarMenuButton
+                          key={fullPath} asChild isActive={isActive} tooltip={sub.label}
+                          className={isActive
+                            ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8"
+                            : "text-white/80 hover:bg-[#003366] hover:text-white h-8"}
+                        >
+                          <Link to={fullPath} className="flex items-center gap-2">
+                            <sub.icon className="h-4 w-4" />
+                            <span>{sub.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      );
+                    })}
+                  </div>
+                )}
+              </SidebarMenuItem>
 
               {/* Cerrar sesión */}
               <SidebarMenuItem className="mt-4 border-t border-white/10 pt-2">
