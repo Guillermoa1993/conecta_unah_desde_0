@@ -112,9 +112,7 @@ export function AppSidebar() {
   const isCollapsed = state === "collapsed";
 
   const [maintenanceOpen, setMaintenanceOpen] = useState(false);
-  const [activityOpen, setActivityOpen] = useState(() =>
-    STUDENT_ACTIVITY_ITEMS.some(item => location.pathname === item.path)
-  );
+  const [activityOpen, setActivityOpen] = useState(false);
   const [soporte, setSoporte] = useState({ correo: "", whatsapp: "" });
 
   useEffect(() => {
