@@ -10,9 +10,11 @@ export interface Usuario {
   estado: EstadoUsuario;
   numero_cuenta?: string;
   carrera?: string;
+  facultad?: string;
   centro_regional?: string;
   telefono?: string;
   foto_url?: string;
+  permite_reacciones_perfil?: boolean;
   created_at: string;
 }
 
@@ -152,7 +154,10 @@ export type TipoNotificacion =
   | 'EVENTO_CANCELADO'
   | 'CONSTANCIA_EMITIDA'
   | 'RECORDATORIO'
-  | 'SISTEMA';
+  | 'SISTEMA'
+  | 'REACCION_PUMITA'
+  | 'SOLICITUD_PUMITA'
+  | 'EVENTO_DISPONIBLE';
 
 export interface Notificacion {
   id: string;
@@ -163,6 +168,26 @@ export interface Notificacion {
   leida: boolean;
   evento_id?: string;
   created_at: string;
+  emisor_nombre?: string; 
+  referencia_tipo?: string;   
+  referencia_id?: number; 
+}
+
+export type TipoReaccionPumita = 'APOYO' | 'FELICITACION' | 'SALUDO' | 'RUGIDO_PUMA';
+
+export interface ReaccionPumita {
+  id_reaccion: number;
+  id_emisor: number;
+  id_receptor: number;
+  tipo: TipoReaccionPumita;
+  fecha_creacion: string;
+  emisor_nombre?: string;
+  emisor_foto_url: string | null;
+}
+
+export interface RespuestaEnviarReaccion {
+  mensaje: string;
+  reaccion: ReaccionPumita;
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -190,4 +215,69 @@ export interface RegistroPayload {
 // ─── Respuestas genéricas ─────────────────────────────────────────────────────
 export interface ApiError {
   error: string;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Módulo 4 · Seguridad (Usuarios / Roles / Permisos)
+// Entidad DISTINTA del "Usuario" de arriba (que es el usuario de login/eventos,
+// tabla_grupo_1_usuario). Esta es tabla_grupo_4_usuarios — la pantalla de
+// administración "Gestión de Usuarios" bajo /admin.
+// ════════════════════════════════════════════════════════════════════════════
+
+export interface PermisoSeguridad {
+  id_permiso: number;
+  nombre_permiso: string;
+  modulo: string;
+  descripcion: string | null;
+}
+
+export interface RolSeguridad {
+  id_rol: number;
+  nombre_rol: string;
+  codigo_rol: string;
+  descripcion: string | null;
+  permisos: PermisoSeguridad[];
+}
+
+export interface UsuarioSeguridad {
+  id_usuario: number;
+  nombre: string;
+  apellido: string | null;
+  correo: string;
+  telefono: string | null;
+  estado: number; // 1 = Activo, 0 = Inhabilitado
+  motivo_inhabilitacion: string | null;
+  modulos_acceso: string[];
+  roles: { id_rol: number; nombre_rol: string; codigo_rol: string }[];
+  permisos_directos: { id_permiso: number; nombre_permiso: string; modulo: string }[];
+}
+
+export interface CrearUsuarioSeguridadPayload {
+  nombre: string;
+  apellido?: string;
+  correo: string;
+  telefono?: string;
+  modulos_acceso?: string[];
+  roles?: number[];
+  permisos_directos?: number[];
+}
+
+export interface ActualizarUsuarioSeguridadPayload {
+  nombre?: string;
+  apellido?: string;
+  telefono?: string;
+  modulos_acceso?: string[];
+}
+
+export interface CrearRolSeguridadPayload {
+  nombre_rol: string;
+  codigo_rol: string;
+  descripcion?: string;
+  permisos?: number[];
+}
+
+export interface CrearPermisoSeguridadPayload {
+  nombre_permiso: string;
+  modulo: string;
+  descripcion?: string;
 }

@@ -6,8 +6,10 @@ const SELECT_USUARIO = `
   SELECT u.id_usuario, u.nombre, u.correo, u.password,
          u.id_rol,    r.nombre  AS rol,
          u.id_estado, e.estado,
-         u.id_carrera, c.nombre AS carrera,
+         u.id_carrera, c.nombre AS carrera, f.nombre AS facultad,
+         u.created_at,
          u.microsoft_id, u.otp_code, u.otp_expira,
+         u.permite_reacciones_perfil,
          p.telefono, p.numero_cuenta, p.id_centro_regional,
          cr.nombre AS centro_regional,
          p.genero, p.biografia, p.foto_url, p.forma003_base64,
@@ -17,6 +19,7 @@ const SELECT_USUARIO = `
   LEFT JOIN tabla_grupo_1_rol            r  ON u.id_rol     = r.id_rol
   LEFT JOIN tabla_grupo_1_estado_usuario e  ON u.id_estado  = e.id_estado
   LEFT JOIN tabla_grupo_1_carreras       c  ON u.id_carrera = c.id_carrera
+  LEFT JOIN tabla_grupo_1_facultad       f  ON c.id_facultad = f.id_facultad
   LEFT JOIN tabla_grupo_1_perfil         p  ON u.id_usuario = p.id_usuario
   LEFT JOIN tabla_grupo_1_centro_regional cr ON p.id_centro_regional = cr.id_centro_regional
   LEFT JOIN tabla_grupo_1_departamento    d  ON p.id_departamento = d.id_departamento
@@ -108,6 +111,27 @@ export class PostgresUsuarioRepository implements UsuarioRepository {
     }
     return this.findById(id);
   }
+
+  async actualizarPerfil(id: number, data: {
+  telefono?: string; genero?: string; biografia?: string; foto_url?: string;
+}): Promise<Usuario | null> {
+  const campos = (['telefono', 'genero', 'biografia', 'foto_url'] as const).filter(
+    (k) => data[k] !== undefined
+  );
+  if (campos.length === 0) return this.findById(id);
+
+  const sets = campos.map((k, i) => `${k} = $${i + 2}`).join(', ');
+  const values = campos.map((k) => data[k]);
+
+  await this.pool.query(
+    `INSERT INTO tabla_grupo_1_perfil (id_usuario, ${campos.join(', ')})
+     VALUES ($1, ${campos.map((_, i) => `$${i + 2}`).join(', ')})
+     ON CONFLICT (id_usuario) DO UPDATE SET ${sets}`,
+    [id, ...values],
+  );
+
+  return this.findById(id);
+}
 
   async delete(id: number): Promise<boolean> {
     const { rowCount } = await this.pool.query(

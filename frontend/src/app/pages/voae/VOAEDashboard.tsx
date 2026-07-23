@@ -57,8 +57,9 @@ export function VOAEDashboard() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const data = await api.get<any[]>("/eventos");
-        setEvents(data);
+        setLoading(true);
+        const data = await api.get<any[]>("/eventos?limit=200");
+        setEvents(data || []);
       } catch (err) {
         console.error("Error al cargar eventos en VOAE Dashboard:", err);
       } finally {
@@ -71,7 +72,7 @@ export function VOAEDashboard() {
   const pendingEvents = useMemo(
     () =>
       events
-        .filter((e) => e.estado === "PENDIENTE_APROBACION")
+        .filter((e) => e.estado === "PENDIENTE_APROBACION" || String(e.estado).trim().toUpperCase() === "PENDIENTE_APROBACION")
         .sort((a, b) => new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime()),
     [events]
   );
@@ -79,17 +80,20 @@ export function VOAEDashboard() {
   const closedEvents = useMemo(
     () =>
       events
-        .filter((e) => e.estado === "FINALIZADO")
+        .filter((e) => e.estado === "FINALIZADO" || String(e.estado).trim().toUpperCase() === "FINALIZADO")
         .sort((a, b) => new Date(b.fecha_fin || "").getTime() - new Date(a.fecha_fin || "").getTime()),
     [events]
   );
 
   const approvedEvents = useMemo(
-    () => events.filter((e) => ["PROGRAMADO", "EN_CURSO", "FINALIZADO"].includes(e.estado)),
+    () => events.filter((e) => ["PROGRAMADO", "EN_CURSO", "FINALIZADO"].includes(String(e.estado).trim().toUpperCase())),
     [events]
   );
 
-  const rejectedEvents = useMemo(() => events.filter((e) => e.estado === "RECHAZADO"), [events]);
+  const rejectedEvents = useMemo(
+    () => events.filter((e) => e.estado === "RECHAZADO" || String(e.estado).trim().toUpperCase() === "RECHAZADO"),
+    [events]
+  );
 
   if (loading) {
     return (
@@ -119,7 +123,7 @@ export function VOAEDashboard() {
         ) : (
           <div className="space-y-3">
             {pendingEvents.map((ev) => (
-              <div key={ev.id_evento} className="rounded-lg border p-4 flex items-center gap-4 bg-slate-50 hover:bg-slate-100 transition-colors">
+              <div key={ev.id} className="rounded-lg border p-4 flex items-center gap-4 bg-slate-50 hover:bg-slate-100 transition-colors">
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-slate-800 text-sm truncate">{ev.titulo}</h3>
                   <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1 flex-wrap font-medium">
@@ -135,7 +139,7 @@ export function VOAEDashboard() {
                   </div>
                 </div>
                 <Button asChild size="sm" className="bg-[#004B87] hover:bg-[#003366] text-white">
-                  <Link to={`/voae/events/${ev.id_evento}/validar`}>
+                  <Link to={`/voae/events/${ev.id}/validar`}>
                     <Eye className="size-3.5 mr-1" /> Validar propuesta
                   </Link>
                 </Button>
@@ -155,7 +159,7 @@ export function VOAEDashboard() {
         ) : (
           <div className="space-y-3">
             {closedEvents.slice(0, 5).map((ev) => (
-              <div key={ev.id_evento} className="rounded-lg border p-3 flex items-center gap-3 bg-slate-50">
+              <div key={ev.id} className="rounded-lg border p-3 flex items-center gap-3 bg-slate-50">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-800">{ev.titulo}</p>
                   <p className="text-[11px] text-muted-foreground font-medium mt-1">
@@ -163,8 +167,8 @@ export function VOAEDashboard() {
                   </p>
                 </div>
                 <Button asChild size="sm" variant="outline" className="border-slate-300">
-                  <Link to={`/voae/events/${ev.id_evento}/validar`}>
-                    <Eye className="size-3.5 mr-1" /> Ver detalles
+                  <Link to={`/voae/events/${ev.id}/validacion`}>
+                    <Eye className="size-3.5 mr-1" /> Ver validaciones
                   </Link>
                 </Button>
               </div>
@@ -196,9 +200,9 @@ export function VOAEDashboard() {
           ) : (
             <div className="space-y-3">
               {approvedEvents.map((ev) => (
-                <div key={ev.id_evento} className="rounded-lg border p-3 flex items-center gap-3 bg-slate-50">
+                <div key={ev.id} className="rounded-lg border p-3 flex items-center gap-3 bg-slate-50">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-850">{ev.titulo}</p>
+                    <p className="text-sm font-semibold text-slate-855">{ev.titulo}</p>
                     <p className="text-[11px] text-muted-foreground mt-1 font-medium">
                       Tutor: {ev.tutor_nombre} {ev.aprobado_por ? `· Autorizado por ${ev.aprobado_por}` : ""} · Inicio: {formatDate(ev.fecha_inicio)}
                     </p>
@@ -213,7 +217,7 @@ export function VOAEDashboard() {
         ) : (
           <div className="space-y-3">
             {rejectedEvents.map((ev) => (
-              <div key={ev.id_evento} className="rounded-lg border p-3 flex items-center gap-3 bg-slate-50">
+              <div key={ev.id} className="rounded-lg border p-3 flex items-center gap-3 bg-slate-50">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-800">{ev.titulo}</p>
                   <p className="text-[11px] text-muted-foreground mt-1 font-medium">Tutor: {ev.tutor_nombre} · Rechazado</p>

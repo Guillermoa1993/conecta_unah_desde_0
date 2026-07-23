@@ -1,5 +1,19 @@
-import React, { useState } from 'react';
-
+import React, { useEffect, useRef, useState } from 'react';
+import { reaccionesService } from '../../../services/reacciones.service';
+import type { TipoReaccionPumita } from '../../../types';
+import { pumitasService, type Pumita } from '../../../services/pumitas.service';
+import { useAuth } from '../../../hooks/useAuth';
+import { useNotificaciones } from '../../../hooks/useNotificaciones';
+import { useNavigate } from 'react-router';
+import { authService } from '../../../services/auth.service';
+import { forma003Service, type RegistroForma003 } from '../../../services/forma003.service';
+import {
+  cambioCarreraService,
+  type CarreraCambioCarrera,
+  type CentroRegionalCambioCarrera,
+  type ContextoActualCambioCarrera,
+  type SolicitudCambioCarrera,
+} from '../../../services/cambio-carrera.service';
 interface PerfilProps {
   rolSimulado?: string;
   subScreen?: string;
@@ -21,9 +35,8 @@ interface PerfilData {
 }
 
 interface DocumentoForma003 {
+  id_registro: number;
   periodo: string;
-  carnet: string;
-  forma003: string;
   fechaCarga: string;
   estado: 'Pendiente' | 'Validado' | 'Rechazado';
 }
@@ -62,89 +75,62 @@ const perfilInicial: PerfilData = {
 type EstadoPumita = 'Conectado' | 'Pendiente' | 'Sugerido';
 
 interface PumitaData {
+  id_usuario: number;
+  id_conexion: number | null;
   nombre: string;
   carrera: string;
   avatar: string;
   estado: EstadoPumita;
   biografia: string;
   activo: boolean;
+  solicitudEnviada?: boolean;
 }
 
-const notificacionesRecientes = [
-  { icon: 'fa-user-plus', texto: 'Lucía Pineda quiere unirse a tu red', tiempo: 'Hace 3 h', leida: false, tipo: 'solicitud', nombre: 'Lucía Pineda' },
-  { icon: 'fa-calendar-check', texto: 'Tutoría de Finanzas confirmada', tiempo: 'Hace 10 min', leida: false, tipo: 'general' },
-  { icon: 'fa-bookmark', texto: 'Nuevo evento guardado en tu perfil', tiempo: 'Hace 1 h', leida: true, tipo: 'general' },
+const ICONO_POR_TIPO_NOTIFICACION: Record<string, string> = {
+  EVENTO_APROBADO: 'fa-calendar-check',
+  EVENTO_RECHAZADO: 'fa-calendar-xmark',
+  NUEVA_INSCRIPCION: 'fa-user-plus',
+  EVENTO_CANCELADO: 'fa-calendar-xmark',
+  CONSTANCIA_EMITIDA: 'fa-file-circle-check',
+  RECORDATORIO: 'fa-bell',
+  SISTEMA: 'fa-gear',
+  REACCION_PUMITA: 'fa-heart',
+  SOLICITUD_PUMITA: 'fa-user-plus',
+  EVENTO_DISPONIBLE: 'fa-calendar-days',
+};
+
+// Solo estos tipos deben aparecer en la campanita de "Mi Perfil"
+const TIPOS_VISIBLES_EN_PERFIL: readonly string[] = [
+  'REACCION_PUMITA',
+  'SOLICITUD_PUMITA',
+  'EVENTO_DISPONIBLE',
+  // 'PUBLICACION_NUEVA', // ← agregar cuando exista el módulo de publicaciones
 ];
 
-const pumitas: PumitaData[] = [
-  {
-    nombre: 'Andrea Mejía',
-    carrera: 'Ingeniería en Sistemas',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200',
-    estado: 'Conectado',
-    activo: true,
-    biografia: 'Estudiante de sistemas enfocada en desarrollo web, comunidades tecnológicas y mentorías entre compañeros.',
-  },
-  {
-    nombre: 'Carlos Rivera',
-    carrera: 'Tutor de Contabilidad',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200',
-    estado: 'Conectado',
-    activo: false,
-    biografia: 'Tutor académico con experiencia apoyando a estudiantes en contabilidad financiera y análisis de costos.',
-  },
-  {
-    nombre: 'Lucía Pineda',
-    carrera: 'Administración',
-    avatar: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&q=80&w=200',
-    estado: 'Pendiente',
-    activo: true,
-    biografia: 'Participa en grupos de liderazgo estudiantil y proyectos de innovación para emprendimientos universitarios.',
-  },
-  {
-    nombre: 'Marco Zelaya',
-    carrera: 'Mercadotecnia',
-    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=200',
-    estado: 'Sugerido',
-    activo: false,
-    biografia: 'Interesado en investigación de mercados, comunicación digital y actividades culturales dentro de la UNAH.',
-  },
-  {
-    nombre: 'Gabriela Santos',
-    carrera: 'Psicología',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200',
-    estado: 'Conectado',
-    activo: true,
-    biografia: 'Apoya actividades de bienestar estudiantil y orientación para nuevos ingresos.',
-  },
-  {
-    nombre: 'Diego Alvarado',
-    carrera: 'Economía',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
-    estado: 'Sugerido',
-    activo: false,
-    biografia: 'Colabora en análisis de datos, tutorías de estadística y debates académicos de economía aplicada.',
-  },
-];
+function tiempoRelativoNotificacion(fechaIso: string): string {
+  const diffMs = Date.now() - new Date(fechaIso).getTime();
+  const minutos = Math.floor(diffMs / 60000);
+  if (minutos < 1) return 'Justo ahora';
+  if (minutos < 60) return `Hace ${minutos} min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `Hace ${horas} ${horas === 1 ? 'hora' : 'horas'}`;
+  const dias = Math.floor(horas / 24);
+  return `Hace ${dias} ${dias === 1 ? 'día' : 'días'}`;
+}
+
+interface NotificacionPerfil {
+  id: string;
+  icon: string;
+  texto: string;
+  tiempo: string;
+  leida: boolean;
+  tipo: 'reaccion' | 'solicitud' | 'evento' | 'general';
+  nombre?: string;
+  referenciaId?: number;
+}
 
 const reaccionesPumita = ['👍 Apoyo', '🎉 Felicitación', '👋 Saludo', '🐾 Rugido Puma'];
 
-const documentosIniciales: DocumentoForma003[] = [
-  {
-    periodo: 'I PAC 2026',
-    carnet: 'carnet-i-pac-2026.png',
-    forma003: 'forma-003-i-pac-2026.pdf',
-    fechaCarga: '12/05/2026',
-    estado: 'Validado',
-  },
-  {
-    periodo: 'II PAC 2026',
-    carnet: 'carnet-ii-pac-2026.png',
-    forma003: 'forma-003-ii-pac-2026.pdf',
-    fechaCarga: '03/06/2026',
-    estado: 'Pendiente',
-  },
-];
 
 const publicacionesGuardadas: PublicacionGuardada[] = [
   {
@@ -194,11 +180,79 @@ const eventosGuardadosLista: EventoGuardado[] = [
   },
 ];
 
+const ESTADO_LABEL: Record<string, string> = {
+  ACTIVO: 'Activo',
+  INACTIVO: 'Inactivo',
+  SUSPENDIDO: 'Suspendido',
+};
+
+const formatearMiembroDesde = (fecha?: string) => {
+  if (!fecha) return '—';
+  const texto = new Date(fecha).toLocaleDateString('es-HN', { month: 'long', year: 'numeric' });
+  return `${texto.charAt(0).toUpperCase()}${texto.slice(1)}`;
+};
+
+const mapearUsuarioAPerfil = (usuario: any): PerfilData => ({
+  nombre: usuario?.nombre ?? '',
+  carrera: usuario?.carrera ?? 'Sin carrera asignada',
+  facultad: usuario?.facultad ?? 'Sin facultad asignada',
+  centroUniversitario: usuario?.centro_regional ?? 'Sin centro regional',
+  correoInstitucional: usuario?.correo ?? '',
+  estadoAcademico: ESTADO_LABEL[usuario?.estado] ?? usuario?.estado ?? '',
+  miembroDesde: formatearMiembroDesde(usuario?.created_at),
+  biografia: usuario?.biografia ?? '',
+  horasAcumuladas: 42,
+  dobleFactor: true,
+  forma003: '',
+});
+
+const mapearRegistroApi = (r: RegistroForma003): DocumentoForma003 => ({
+  id_registro: r.id_registro,
+  periodo: r.periodo,
+  fechaCarga: new Date(r.fecha_carga).toLocaleDateString(),
+  estado: r.estado === 'VALIDADO' ? 'Validado' : r.estado === 'RECHAZADO' ? 'Rechazado' : 'Pendiente',
+});
+
+const archivoABase64 = (archivo: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const lector = new FileReader();
+    lector.onload = () => resolve(lector.result as string);
+    lector.onerror = () => reject(lector.error);
+    lector.readAsDataURL(archivo);
+  });
+
 export const Perfil: React.FC<PerfilProps> = ({ rolSimulado }) => {
   const [viewMode, setViewMode] = useState<'ver' | 'editar'>('ver');
-  const [perfil, setPerfil] = useState<PerfilData>(perfilInicial);
-  const [borrador, setBorrador] = useState<PerfilData>(perfilInicial);
-  const [notificacionesPerfil, setNotificacionesPerfil] = useState(notificacionesRecientes);
+  const { usuario, actualizarUsuario } = useAuth();
+const [perfil, setPerfil] = useState<PerfilData>(() => mapearUsuarioAPerfil(usuario));
+const [borrador, setBorrador] = useState<PerfilData>(() => mapearUsuarioAPerfil(usuario));
+
+useEffect(() => {
+  if (usuario) setPerfil(mapearUsuarioAPerfil(usuario));
+}, [usuario]);
+  const { notificaciones: notificacionesReales, marcarLeida: marcarNotificacionLeidaAPI } = useNotificaciones();
+  const [notificacionesPerfil, setNotificacionesPerfil] = useState<NotificacionPerfil[]>([]);
+
+  useEffect(() => {
+    const mapped: NotificacionPerfil[] = notificacionesReales
+      .filter((n) => TIPOS_VISIBLES_EN_PERFIL.includes(n.tipo))
+      .map((n) => ({
+        id: n.id,
+        icon: ICONO_POR_TIPO_NOTIFICACION[n.tipo] ?? 'fa-bell',
+        texto: n.mensaje,
+        tiempo: tiempoRelativoNotificacion(n.created_at),
+        leida: n.leida,
+        tipo:
+          n.tipo === 'REACCION_PUMITA' ? 'reaccion' as const :
+          n.tipo === 'SOLICITUD_PUMITA' ? 'solicitud' as const :
+          n.tipo === 'EVENTO_DISPONIBLE' ? 'evento' as const :
+          'general' as const,
+        nombre: n.emisor_nombre,
+        referenciaId: n.referencia_id,
+      }));
+    setNotificacionesPerfil(mapped);
+  }, [notificacionesReales]);
+
   const [mostrarNotificaciones, setMostrarNotificaciones] = useState(false);
   const [mostrarHistorialNotificaciones, setMostrarHistorialNotificaciones] = useState(false);
   const [busquedaNotificaciones, setBusquedaNotificaciones] = useState('');
@@ -209,9 +263,62 @@ export const Perfil: React.FC<PerfilProps> = ({ rolSimulado }) => {
   const [mostrarRedPumita, setMostrarRedPumita] = useState(false);
   const [mostrarAgregarPumita, setMostrarAgregarPumita] = useState(false);
   const [busquedaAgregarPumita, setBusquedaAgregarPumita] = useState('');
-  const [solicitudesPendientes, setSolicitudesPendientes] = useState<PumitaData[]>(
-    pumitas.filter((pumita) => pumita.estado === 'Pendiente')
-  );
+  const [pumitas, setPumitas] = useState<PumitaData[]>([]);
+  const [cargandoPumitas, setCargandoPumitas] = useState(true);
+  const [solicitudesPendientes, setSolicitudesPendientes] = useState<PumitaData[]>([]);
+  const navigate = useNavigate();
+
+  const cargarPumitas = async () => {
+    try {
+      const [conexiones, pendientes, sugeridos, enviadas] = await Promise.all([
+        pumitasService.listarConexiones(),
+        pumitasService.listarPendientes(),
+        pumitasService.listarSugeridos(),
+        pumitasService.listarEnviadas(),
+      ]);
+
+      const mapearAPumitaData = (item: Pumita, estado: EstadoPumita, solicitudEnviada = false): PumitaData => ({
+        id_usuario: item.id_usuario,
+        id_conexion: item.id_conexion,
+        nombre: item.nombre,
+        carrera: '',
+        avatar: `https://ui-avatars.com/api/?background=003366&color=fff&name=${encodeURIComponent(item.nombre)}`,
+        estado,
+        biografia: '',
+        activo: true,
+        solicitudEnviada,
+      });
+
+      const conectadas = conexiones.map((c) => mapearAPumitaData(c, 'Conectado'));
+      const pendientesMapeadas = pendientes.map((p) => mapearAPumitaData(p, 'Pendiente'));
+      const sugeridasMapeadas = sugeridos.map((s) => mapearAPumitaData(s, 'Sugerido'));
+      const enviadasMapeadas = enviadas.map((e) => mapearAPumitaData(e, 'Sugerido', true));
+
+      setPumitas([...conectadas, ...pendientesMapeadas, ...sugeridasMapeadas, ...enviadasMapeadas]);
+      setSolicitudesPendientes(pendientesMapeadas);
+    } catch (error) {
+      console.error('No se pudieron cargar las conexiones Pumitas reales', error);
+    } finally {
+      setCargandoPumitas(false);
+    }
+  };
+
+  useEffect(() => {
+    cargarPumitas();
+  }, []);
+  
+  useEffect(() => {
+  const cargarForma003 = async () => {
+    try {
+      const registros = await forma003Service.listarMios();
+      setDocumentosForma003(registros.map(mapearRegistroApi));
+    } catch (error) {
+      console.error('No se pudo cargar el historial de Forma 003', error);
+    }
+  };
+  cargarForma003();
+}, []);
+
   const [solicitudesEnviadas, setSolicitudesEnviadas] = useState<string[]>([]);
   const [pumitasAceptados, setPumitasAceptados] = useState<string[]>([]);
   const [dejadosDeSeguir, setDejadosDeSeguir] = useState<string[]>([]);
@@ -224,7 +331,16 @@ export const Perfil: React.FC<PerfilProps> = ({ rolSimulado }) => {
   const [motivoCambioCarrera, setMotivoCambioCarrera] = useState('');
   const [errorCambioCarrera, setErrorCambioCarrera] = useState('');
   const [mensajeCambioCarrera, setMensajeCambioCarrera] = useState('');
-  const [documentosForma003, setDocumentosForma003] = useState<DocumentoForma003[]>(documentosIniciales);
+  const [carrerasCambio, setCarrerasCambio] = useState<CarreraCambioCarrera[]>([]);
+  const [centrosCambio, setCentrosCambio] = useState<CentroRegionalCambioCarrera[]>([]);
+  const [contextoCambio, setContextoCambio] = useState<ContextoActualCambioCarrera | null>(null);
+  const [solicitudCambioCarrera, setSolicitudCambioCarrera] = useState<SolicitudCambioCarrera | null>(null);
+  const [cargandoCambioCarrera, setCargandoCambioCarrera] = useState(true);
+  const [enviandoCambioCarrera, setEnviandoCambioCarrera] = useState(false);
+  const [documentosForma003, setDocumentosForma003] = useState<DocumentoForma003[]>([]);
+  const [carnetArchivoFile, setCarnetArchivoFile] = useState<File | null>(null);
+  const [forma003ArchivoFile, setForma003ArchivoFile] = useState<File | null>(null);
+  const [guardandoForma003, setGuardandoForma003] = useState(false);
   const [mostrarRegistroAcademico, setMostrarRegistroAcademico] = useState(false);
   const [periodoRegistro, setPeriodoRegistro] = useState('');
   const [carnetRegistro, setCarnetRegistro] = useState('');
@@ -242,59 +358,148 @@ export const Perfil: React.FC<PerfilProps> = ({ rolSimulado }) => {
   const [eventoSeleccionado, setEventoSeleccionado] = useState<EventoGuardado | null>(null);
   const [fotoPerfil, setFotoPerfil] = useState<string | null>(null);
   const [efectoReaccion, setEfectoReaccion] = useState('');
+  const [mensajeEstadoReaccion, setMensajeEstadoReaccion] = useState('');
+  const [tipoMensajeEstadoReaccion, setTipoMensajeEstadoReaccion] = useState<'exito' | 'aviso'>('exito');
+  const [timeoutMensajeEstadoReaccion, setTimeoutMensajeEstadoReaccion] = useState<number | null>(null);
+  const audioReaccionActual = useRef<HTMLAudioElement | null>(null);
 
   const iniciarEdicion = () => {
-    setBorrador(perfil);
-    setViewMode('editar');
-  };
+  setBorrador(perfil);
+  setViewMode('editar');
+  window.history.pushState({ editandoPerfil: true }, '');
+};
 
-  const guardarCambios = () => {
+const [guardandoPerfil, setGuardandoPerfil] = useState(false);
+
+const guardarCambios = async () => {
+  setGuardandoPerfil(true);
+  try {
+    const usuarioActualizado = await authService.actualizarPerfil({
+      biografia: borrador.biografia,
+      ...(fotoPerfil ? { foto_url: fotoPerfil } : {}),
+    });
+    actualizarUsuario(usuarioActualizado);
     setPerfil(borrador);
-    setViewMode('ver');
-  };
+    setFotoPerfil(null);
+    window.history.back();
+  } catch (error) {
+    console.error('No se pudo actualizar el perfil', error);
+    mostrarMensajeEstadoReaccion(error instanceof Error ? error.message : 'No se pudo guardar los cambios.', 'aviso');
+  } finally {
+    setGuardandoPerfil(false);
+  }
+};
 
-  const cancelarEdicion = () => {
-    setBorrador(perfil);
-    setViewMode('ver');
-  };
-
-  const manejarCambioDeFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const archivo = e.target.files?.[0];
-    if (archivo) {
-      setFotoPerfil(URL.createObjectURL(archivo));
+const cancelarEdicion = () => {
+  setBorrador(perfil);
+  setFotoPerfil(null);
+  window.history.back();
+};
+ 
+useEffect(() => {
+  const manejarPopState = () => {
+    if (viewMode === 'editar') {
+      setViewMode('ver');
     }
   };
 
-  const fotoPerfilActual =
-    fotoPerfil || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400';
+  window.addEventListener('popstate', manejarPopState);
+  return () => window.removeEventListener('popstate', manejarPopState);
+}, [viewMode]);
 
-  const enviarSolicitudPumita = (nombre: string) => {
-    setSolicitudesEnviadas((actuales) => (actuales.includes(nombre) ? actuales : [...actuales, nombre]));
+  const manejarCambioDeFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const archivo = e.target.files?.[0];
+    if (!archivo) return;
+
+    const tiposValidos = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    if (!tiposValidos.includes(archivo.type)) {
+      mostrarMensajeEstadoReaccion('La foto debe ser PNG, JPG o WEBP.', 'aviso');
+      return;
+    }
+    // El archivo crece ~33% al convertirse a base64, así que validamos con margen
+    // antes de leerlo, y volvemos a validar el tamaño real ya convertido.
+    if (archivo.size > 1.4 * 1024 * 1024) {
+      mostrarMensajeEstadoReaccion('La foto es demasiado grande (máximo ~1.4MB de archivo original).', 'aviso');
+      return;
+    }
+
+    const lector = new FileReader();
+    lector.onload = () => {
+      const resultado = lector.result as string;
+      if (resultado.length > 2 * 1024 * 1024) {
+        mostrarMensajeEstadoReaccion('La foto convertida supera el límite permitido. Prueba con una imagen más pequeña o comprimida.', 'aviso');
+        return;
+      }
+      setFotoPerfil(resultado);
+    };
+    lector.readAsDataURL(archivo);
   };
 
-  const cancelarSolicitudPumita = (nombre: string) => {
-    setSolicitudesEnviadas((actuales) => actuales.filter((solicitud) => solicitud !== nombre));
+  const fotoPerfilEdicion = fotoPerfil || usuario?.foto_url || null;
+
+  const fotoPerfilActual = fotoPerfil || usuario?.foto_url || null;
+
+  const enviarSolicitudPumita = async (pumita: PumitaData) => {
+    try {
+      await pumitasService.enviarSolicitud(pumita.id_usuario);
+      mostrarMensajeEstadoReaccion('Solicitud enviada correctamente.', 'exito');
+      await cargarPumitas();
+    } catch (error) {
+      console.error('No se pudo enviar la solicitud', error);
+      mostrarMensajeEstadoReaccion('No se pudo enviar la solicitud.', 'aviso');
+    }
   };
 
-  const aceptarSolicitudPumita = (nombre: string) => {
-    setSolicitudesPendientes((actuales) => actuales.filter((pumita) => pumita.nombre !== nombre));
-    setPumitasAceptados((actuales) => (actuales.includes(nombre) ? actuales : [...actuales, nombre]));
-    setSolicitudNotificacion(null);
-    setNotificacionesPerfil((actuales) =>
-      actuales.map((notificacion) =>
-        notificacion.nombre === nombre ? { ...notificacion, leida: true, texto: `Aceptaste la solicitud de ${nombre}` } : notificacion
-      )
-    );
+  const cancelarSolicitudPumita = async (pumita: PumitaData) => {
+    if (!pumita.id_conexion) return;
+    try {
+      await pumitasService.eliminar(pumita.id_conexion);
+      mostrarMensajeEstadoReaccion('Solicitud cancelada.', 'exito');
+      await cargarPumitas();
+    } catch (error) {
+      console.error('No se pudo cancelar la solicitud', error);
+      mostrarMensajeEstadoReaccion('No se pudo cancelar la solicitud.', 'aviso');
+    }
   };
 
-  const rechazarSolicitudPumita = (nombre: string) => {
-    setSolicitudesPendientes((actuales) => actuales.filter((pumita) => pumita.nombre !== nombre));
-    setSolicitudNotificacion(null);
-    setNotificacionesPerfil((actuales) =>
-      actuales.map((notificacion) =>
-        notificacion.nombre === nombre ? { ...notificacion, leida: true, texto: `Rechazaste la solicitud de ${nombre}` } : notificacion
-      )
-    );
+  const aceptarSolicitudPumita = async (pumita: PumitaData) => {
+    if (!pumita.id_conexion) return;
+    try {
+      await pumitasService.aceptar(pumita.id_conexion);
+      setSolicitudNotificacion(null);
+      setNotificacionesPerfil((actuales) =>
+        actuales.map((notificacion) =>
+          notificacion.nombre === pumita.nombre
+            ? { ...notificacion, leida: true, texto: `Aceptaste la solicitud de ${pumita.nombre}` }
+            : notificacion
+        )
+      );
+      mostrarMensajeEstadoReaccion('Solicitud aceptada.', 'exito');
+      await cargarPumitas();
+    } catch (error) {
+      console.error('No se pudo aceptar la solicitud', error);
+      mostrarMensajeEstadoReaccion('No se pudo aceptar la solicitud.', 'aviso');
+    }
+  };
+
+  const rechazarSolicitudPumita = async (pumita: PumitaData) => {
+    if (!pumita.id_conexion) return;
+    try {
+      await pumitasService.eliminar(pumita.id_conexion);
+      setSolicitudNotificacion(null);
+      setNotificacionesPerfil((actuales) =>
+        actuales.map((notificacion) =>
+          notificacion.nombre === pumita.nombre
+            ? { ...notificacion, leida: true, texto: `Rechazaste la solicitud de ${pumita.nombre}` }
+            : notificacion
+        )
+      );
+      mostrarMensajeEstadoReaccion('Solicitud rechazada.', 'exito');
+      await cargarPumitas();
+    } catch (error) {
+      console.error('No se pudo rechazar la solicitud', error);
+      mostrarMensajeEstadoReaccion('No se pudo rechazar la solicitud.', 'aviso');
+    }
   };
 
   const abrirPerfilPumita = (pumita: PumitaData) => {
@@ -308,35 +513,72 @@ export const Perfil: React.FC<PerfilProps> = ({ rolSimulado }) => {
     mostrarEfectoReaccion('rugido');
     setNotificacionesPerfil((actuales) => [
       {
+        id: Math.random().toString(),
         icon: 'fa-paw',
         texto: `Rugido Puma enviado a ${nombre}`,
         tiempo: 'Ahora',
         leida: false,
-        tipo: 'reaccion',
+        tipo: 'reaccion' as const,
       },
       ...actuales,
     ].slice(0, 5));
   };
 
-  const enviarReaccionPumita = (nombre: string, reaccion: string) => {
+  const mostrarMensajeEstadoReaccion = (mensaje: string, tipo: 'exito' | 'aviso') => {
+    if (timeoutMensajeEstadoReaccion) window.clearTimeout(timeoutMensajeEstadoReaccion);
+    setMensajeEstadoReaccion(mensaje);
+    setTipoMensajeEstadoReaccion(tipo);
+    const timeoutId = window.setTimeout(() => {
+      setMensajeEstadoReaccion('');
+      setTimeoutMensajeEstadoReaccion(null);
+    }, 3500);
+    setTimeoutMensajeEstadoReaccion(timeoutId);
+  };
+
+  const obtenerTipoReaccionBackend = (reaccion: string): TipoReaccionPumita => {
+    if (reaccion.includes('Rugido')) return 'RUGIDO_PUMA';
+    if (reaccion.includes('Felicit')) return 'FELICITACION';
+    if (reaccion.includes('Saludo')) return 'SALUDO';
+    return 'APOYO';
+  };
+
+  const enviarReaccionPumita = async (receptor: PumitaData, reaccion: string) => {
+    const nombre = receptor.nombre;
     setMensajePerfilPumita(`${reaccion} enviada a ${nombre}`);
     setMostrarMenuReaccionesPumita(false);
     mostrarEfectoReaccion(reaccion);
     setNotificacionesPerfil((actuales) => [
       {
+        id: Math.random().toString(),
         icon: reaccion.includes('Rugido') ? 'fa-paw' : 'fa-face-smile',
         texto: `${reaccion} enviada a ${nombre}`,
         tiempo: 'Ahora',
         leida: false,
-        tipo: 'reaccion',
+        tipo: 'reaccion' as const,
       },
       ...actuales,
     ].slice(0, 5));
+
+    try {
+      await reaccionesService.enviarReaccion(receptor.id_usuario, obtenerTipoReaccionBackend(reaccion));
+      mostrarMensajeEstadoReaccion('Reacción enviada correctamente.', 'exito');
+    } catch (error) {
+      console.error('No se pudo guardar la reacción Pumita', error);
+      mostrarMensajeEstadoReaccion('La reacción se mostró localmente, pero aún no pudo guardarse.', 'aviso');
+    }
   };
 
-  const dejarDeSeguirPumita = (nombre: string) => {
-    setDejadosDeSeguir((actuales) => (actuales.includes(nombre) ? actuales : [...actuales, nombre]));
-    setPumitaPorDejar(null);
+  const dejarDeSeguirPumita = async (pumita: PumitaData) => {
+    if (!pumita.id_conexion) return;
+    try {
+      await pumitasService.eliminar(pumita.id_conexion);
+      setPumitaPorDejar(null);
+      mostrarMensajeEstadoReaccion('Dejaste de seguir a este Pumita.', 'exito');
+      await cargarPumitas();
+    } catch (error) {
+      console.error('No se pudo dejar de seguir', error);
+      mostrarMensajeEstadoReaccion('No se pudo completar la acción.', 'aviso');
+    }
   };
 
   const volverASeguirPumita = (nombre: string) => {
@@ -387,28 +629,75 @@ export const Perfil: React.FC<PerfilProps> = ({ rolSimulado }) => {
           ? 'rugido'
           : '';
     if (!efecto) return;
+    if (audioReaccionActual.current) {
+      audioReaccionActual.current.pause();
+      audioReaccionActual.current.currentTime = 0;
+    }
+    const sonidoPorReaccion: Record<string, string> = {
+      rugido: '/sounds/rugido-puma.mp3.wav',
+      confeti: '/sounds/felicitacion-puma.wav',
+      saludo: '/sounds/saludo-puma.wav',
+      apoyo: '/sounds/apoyo-puma.wav',
+    };
+    const audio = new Audio(sonidoPorReaccion[efecto]);
+    audioReaccionActual.current = audio;
+    audio.play().catch((error) => console.warn('No se pudo reproducir el sonido', error));
     setEfectoReaccion(efecto);
     window.setTimeout(() => setEfectoReaccion(''), 2000);
   };
 
-  const manejarClickNotificacion = (notificacion: (typeof notificacionesRecientes)[number]) => {
-    setNotificacionesPerfil((actuales) =>
-      actuales.map((item) => (item.texto === notificacion.texto ? { ...item, leida: true } : item))
-    );
-    if (notificacion.tipo === 'solicitud' && notificacion.nombre) {
-      const pumita = pumitas.find((item) => item.nombre === notificacion.nombre);
-      if (pumita) setSolicitudNotificacion(pumita);
-      setMostrarNotificaciones(false);
-      return;
-    }
-    if (notificacion.tipo === 'reaccion') {
-      const pumita = notificacion.nombre ? pumitas.find((item) => item.nombre === notificacion.nombre) : null;
-      if (pumita) abrirPerfilPumita(pumita);
-      document.getElementById('interaccion-social')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setMostrarNotificaciones(false);
-      setMostrarHistorialNotificaciones(false);
+  useEffect(() => {
+  let activo = true;
+  const cargarCambioCarrera = async () => {
+    setCargandoCambioCarrera(true);
+    try {
+      const catalogos = await cambioCarreraService.obtenerCatalogos();
+      if (!activo) return;
+      setCarrerasCambio(catalogos.carreras);
+      setCentrosCambio(catalogos.centros_regionales);
+      setContextoCambio(catalogos.actual);
+      const respuesta = await cambioCarreraService.obtenerMiSolicitud();
+      if (activo) setSolicitudCambioCarrera(respuesta.solicitud);
+    } catch (error) {
+      if (activo) setErrorCambioCarrera(error instanceof Error ? error.message : 'No se pudo cargar la información de cambio de carrera.');
+    } finally {
+      if (activo) setCargandoCambioCarrera(false);
     }
   };
+  cargarCambioCarrera();
+  return () => { activo = false; };
+}, []);
+
+const manejarClickNotificacion = (notificacion: NotificacionPerfil) => {
+  if (!notificacion.leida) {
+    marcarNotificacionLeidaAPI(notificacion.id);
+  }
+
+  if (notificacion.tipo === 'reaccion') {
+    const pumita = notificacion.nombre ? pumitas.find((item) => item.nombre === notificacion.nombre) : null;
+    if (pumita) abrirPerfilPumita(pumita);
+    mostrarEfectoReaccion(notificacion.texto);
+    document.getElementById('interaccion-social')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setMostrarNotificaciones(false);
+    setMostrarHistorialNotificaciones(false);
+    return;
+  }
+
+  if (notificacion.tipo === 'solicitud') {
+    const pumita = solicitudesPendientes.find((item) => item.id_usuario === notificacion.referenciaId);
+    if (pumita) setSolicitudNotificacion(pumita);
+    setMostrarNotificaciones(false);
+    setMostrarHistorialNotificaciones(false);
+    return;
+  }
+
+  if (notificacion.tipo === 'evento') {
+    setMostrarNotificaciones(false);
+    setMostrarHistorialNotificaciones(false);
+    navigate('/student/events');
+    return;
+  }
+};
 
   const quitarPublicacionGuardada = (titulo: string) => {
     if (timeoutPublicacionQuitada) window.clearTimeout(timeoutPublicacionQuitada);
@@ -473,28 +762,47 @@ export const Perfil: React.FC<PerfilProps> = ({ rolSimulado }) => {
     setEventoQuitado(null);
     setTimeoutEventoQuitado(null);
   };
-  const enviarCambioCarrera = () => {
-    if (!nuevaCarrera.trim()) {
-      setErrorCambioCarrera('La nueva carrera es obligatoria.');
-      return;
-    }
+  const enviarCambioCarrera = async () => {
+  if (solicitudCambioCarrera?.estado === 'PENDIENTE') {
+    setErrorCambioCarrera('Ya existe una solicitud de cambio de carrera pendiente.');
+    return;
+  }
 
-    if (!centroRegionalCambio.trim()) {
-      setErrorCambioCarrera('El centro regional es obligatorio.');
-      return;
-    }
+  if (!nuevaCarrera.trim()) {
+    setErrorCambioCarrera('La nueva carrera es obligatoria.');
+    return;
+  }
 
-    if (motivoCambioCarrera.trim().length < 10) {
-      setErrorCambioCarrera('El motivo debe tener al menos 10 caracteres.');
-      return;
-    }
+  if (!centroRegionalCambio.trim()) {
+    setErrorCambioCarrera('El centro regional es obligatorio.');
+    return;
+  }
 
-    setErrorCambioCarrera('');
+  if (motivoCambioCarrera.trim().length < 10) {
+    setErrorCambioCarrera('El motivo debe tener al menos 10 caracteres.');
+    return;
+  }
+
+  setErrorCambioCarrera('');
+  setMensajeCambioCarrera('');
+  setEnviandoCambioCarrera(true);
+  try {
+    const respuesta = await cambioCarreraService.crear({
+      id_carrera_solicitada: Number(nuevaCarrera),
+      id_centro_regional_solicitado: Number(centroRegionalCambio),
+      motivo: motivoCambioCarrera.trim(),
+    });
+    setSolicitudCambioCarrera(respuesta.solicitud);
     setMensajeCambioCarrera('Solicitud de cambio de carrera enviada.');
     setNuevaCarrera('');
     setCentroRegionalCambio('');
     setMotivoCambioCarrera('');
-  };
+  } catch (error) {
+    setErrorCambioCarrera(error instanceof Error ? error.message : 'No se pudo enviar la solicitud.');
+  } finally {
+    setEnviandoCambioCarrera(false);
+  }
+};
 
   const validarArchivoAcademico = (archivo: File | undefined) => {
     if (!archivo) return { valido: false, mensaje: 'Debes cargar Carnet y Forma 003.' };
@@ -518,48 +826,57 @@ export const Perfil: React.FC<PerfilProps> = ({ rolSimulado }) => {
       return;
     }
 
-    if (tipo === 'Carnet') setCarnetRegistro(archivo.name);
-    if (tipo === 'Forma 003') setForma003Registro(archivo.name);
+    if (tipo === 'Carnet') {
+      setCarnetArchivoFile(archivo);
+      setCarnetRegistro(archivo.name);
+    }
+    if (tipo === 'Forma 003') {
+      setForma003ArchivoFile(archivo);
+      setForma003Registro(archivo.name);
+    }
     setMensajeDocumento('');
     e.target.value = '';
   };
-
-  const agregarRegistroAcademico = () => {
+const agregarRegistroAcademico = async () => {
     if (!periodoRegistro.trim()) {
       setMensajeDocumento('El período académico es obligatorio.');
       return;
     }
 
-    if (!carnetRegistro || !forma003Registro) {
+    if (!carnetArchivoFile || !forma003ArchivoFile) {
       setMensajeDocumento('Debes cargar Carnet y Forma 003.');
       return;
     }
 
-    setDocumentosForma003((actuales) => [
-      {
-        periodo: periodoRegistro,
-        carnet: carnetRegistro,
-        forma003: forma003Registro,
-        fechaCarga: new Date().toLocaleDateString(),
-        estado: 'Pendiente',
-      },
-      ...actuales,
-    ]);
-    setMensajeDocumento('Registro agregado correctamente.');
-    setPeriodoRegistro('');
-    setCarnetRegistro('');
-    setForma003Registro('');
-    setMostrarRegistroAcademico(false);
-  };
+    setGuardandoForma003(true);
+    try {
+      const [carnetBase64, forma003Base64] = await Promise.all([
+        archivoABase64(carnetArchivoFile),
+        archivoABase64(forma003ArchivoFile),
+      ]);
 
-  const validarRegistroForma003 = () => {
-    setDocumentosForma003((actuales) =>
-      actuales.map((documento, index) => (index === 0 ? { ...documento, estado: 'Validado' } : documento))
-    );
-    setMensajeDocumento('Registro validado localmente.');
-  };
+      const nuevoRegistro = await forma003Service.crear({
+        periodo: periodoRegistro.trim(),
+        carnet_base64: carnetBase64,
+        forma003_base64: forma003Base64,
+      });
 
-  const actualizarForma003 = (indexDocumento: number, e: React.ChangeEvent<HTMLInputElement>) => {
+      setDocumentosForma003((actuales) => [mapearRegistroApi(nuevoRegistro), ...actuales]);
+      setMensajeDocumento('Registro agregado correctamente.');
+      setPeriodoRegistro('');
+      setCarnetRegistro('');
+      setForma003Registro('');
+      setCarnetArchivoFile(null);
+      setForma003ArchivoFile(null);
+      setMostrarRegistroAcademico(false);
+    } catch (error) {
+      console.error('No se pudo agregar el registro', error);
+      setMensajeDocumento(error instanceof Error ? error.message : 'No se pudo agregar el registro.');
+    } finally {
+      setGuardandoForma003(false);
+    }
+  };
+const actualizarForma003 = async (idRegistro: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const archivo = e.target.files?.[0];
     if (!archivo) return;
 
@@ -570,15 +887,21 @@ export const Perfil: React.FC<PerfilProps> = ({ rolSimulado }) => {
       return;
     }
 
-    setDocumentosForma003((actuales) =>
-      actuales.map((documento, index) =>
-        index === indexDocumento
-          ? { ...documento, forma003: archivo.name, fechaCarga: new Date().toLocaleDateString(), estado: 'Pendiente' }
-          : documento
-      )
-    );
-    setMensajeDocumento('Forma 003 actualizada localmente.');
-    e.target.value = '';
+    try {
+      const forma003Base64 = await archivoABase64(archivo);
+      const actualizado = await forma003Service.actualizarArchivo(idRegistro, forma003Base64);
+      setDocumentosForma003((actuales) =>
+        actuales.map((documento) =>
+          documento.id_registro === idRegistro ? mapearRegistroApi(actualizado) : documento
+        )
+      );
+      setMensajeDocumento('Forma 003 actualizada correctamente.');
+    } catch (error) {
+      console.error('No se pudo actualizar la Forma 003', error);
+      setMensajeDocumento(error instanceof Error ? error.message : 'No se pudo actualizar la Forma 003.');
+    } finally {
+      e.target.value = '';
+    }
   };
 
 // ─── VISTA EDITAR ───────────────────────────────────────────────
@@ -604,10 +927,19 @@ if (viewMode === 'editar') {
             <div className="bg-white border border-gray-200 rounded-xl p-6 text-center shadow-sm">
               <div className="relative w-32 h-32 mx-auto mb-4">
                 <div className="w-full h-full rounded-full border-4 border-[#FFD100] bg-[#F4F6F8] flex items-center justify-center overflow-hidden">
-                  {fotoPerfil ? (
-                    <img src={fotoPerfil} alt="Perfil" className="w-full h-full object-cover" />
+                  {fotoPerfilEdicion ? (
+                    <img src={fotoPerfilEdicion} alt="Perfil" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-[#004B87] text-4xl font-bold">VE</span>
+                    <span className="text-[#004B87] text-4xl font-bold">
+                      {(borrador.nombre || 'Usuario Puma')
+                        .trim()
+                        .split(' ')
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((palabra) => palabra[0])
+                        .join('')
+                        .toUpperCase()}
+                    </span>
                   )}
                 </div>
                 <input type="file" id="fileInput" className="hidden" accept="image/*" onChange={manejarCambioDeFoto} />
@@ -698,6 +1030,7 @@ if (viewMode === 'editar') {
                 onClick={() => {
                   setMostrarRegistroAcademico(true);
                   setMensajeDocumento('');
+                  
                 }}
                 className="w-full mb-4 bg-[#FFD100] hover:bg-[#FFDE47] border border-[#FFD100] rounded-lg px-3 py-2.5 text-xs font-bold text-[#003366] transition-colors"
               >
@@ -705,8 +1038,8 @@ if (viewMode === 'editar') {
               </button>
 
               <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-                {documentosForma003.map((documento, index) => (
-                  <div key={`${documento.periodo}-${documento.carnet}-${documento.forma003}`} className="border border-gray-200 rounded-xl p-3 bg-[#F4F6F8]">
+                {documentosForma003.map((documento) => (
+                  <div key={documento.id_registro} className="border border-gray-200 rounded-xl p-3 bg-[#F4F6F8]">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="font-bold text-[#003366] text-sm">{documento.periodo}</p>
@@ -724,8 +1057,7 @@ if (viewMode === 'editar') {
                         {documento.estado}
                       </span>
                     </div>
-                    <p className="mt-2 text-xs font-semibold text-[#003366] truncate">Carnet: {documento.carnet}</p>
-                    <p className="text-xs font-semibold text-[#003366] truncate">Forma 003: {documento.forma003}</p>
+                    <p className="mt-2 text-xs font-semibold text-[#003366] truncate">Carnet y Forma 003 cargados</p>
                     <p className="text-[11px] text-[#5b6472]">Cargado: {documento.fechaCarga}</p>
                     <label className="mt-3 inline-flex cursor-pointer items-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-[11px] font-bold text-[#003366] hover:border-[#FFD100] transition-colors">
                       Actualizar Forma 003
@@ -733,20 +1065,12 @@ if (viewMode === 'editar') {
                         type="file"
                         accept=".pdf,.jpg,.jpeg,.png"
                         className="hidden"
-                        onChange={(e) => actualizarForma003(index, e)}
+                        onChange={(e) => actualizarForma003(documento.id_registro, e)}
                       />
                     </label>
                   </div>
                 ))}
               </div>
-
-              <button
-                type="button"
-                onClick={validarRegistroForma003}
-                className="mt-4 w-full bg-white border border-gray-200 text-[#003366] font-bold py-2.5 rounded-lg hover:bg-[#FFD100] transition-colors text-xs"
-              >
-                Validar registro
-              </button>
 
               {mensajeDocumento && (
                 <p className="mt-3 text-xs font-semibold text-[#004B87]">{mensajeDocumento}</p>
@@ -770,6 +1094,87 @@ if (viewMode === 'editar') {
           </div>
         </div>
       </div>
+
+      {mostrarRegistroAcademico && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="relative bg-white w-full max-w-lg rounded-xl border border-gray-200 shadow-2xl p-5">
+            {guardandoForma003 && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl bg-white/90 backdrop-blur-sm">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#FFD100] border-t-[#003366]"></div>
+                <p className="text-sm font-bold text-[#003366]">Guardando registro...</p>
+                <p className="max-w-xs text-center text-xs text-[#5b6472]">
+                  Esto puede tardar unos segundos, especialmente si el servidor estaba inactivo.
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-[#003366]">Agregar registro académico</h3>
+                <p className="text-sm text-[#5b6472]">Carga Carnet y Forma 003 para el período seleccionado.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMostrarRegistroAcademico(false)}
+                disabled={guardandoForma003}
+                className="w-9 h-9 rounded-lg bg-[#F4F6F8] border border-gray-200 text-[#003366] hover:bg-[#FFD100] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Cerrar registro académico"
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <label className="block">
+                <span className="block text-xs text-[#5b6472] font-bold uppercase tracking-wide mb-2">Período académico</span>
+                <input
+                  value={periodoRegistro}
+                  onChange={(e) => setPeriodoRegistro(e.target.value)}
+                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-3 text-sm text-[#003366] outline-none focus:border-[#004B87]"
+                  placeholder="Ej. III PAC 2026"
+                />
+              </label>
+
+              <label className="block cursor-pointer rounded-lg border border-gray-200 bg-[#F4F6F8] p-4 hover:border-[#FFD100] transition-colors">
+                <span className="block text-xs text-[#5b6472] font-bold uppercase tracking-wide mb-1">Cargar Carnet</span>
+                <span className="text-sm font-semibold text-[#003366]">{carnetRegistro || 'PDF, JPG o PNG máximo 10 MB'}</span>
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  className="hidden"
+                  onChange={(e) => manejarSeleccionRegistro('Carnet', e)}
+                />
+              </label>
+
+              <label className="block cursor-pointer rounded-lg border border-gray-200 bg-[#F4F6F8] p-4 hover:border-[#FFD100] transition-colors">
+                <span className="block text-xs text-[#5b6472] font-bold uppercase tracking-wide mb-1">Cargar Forma 003</span>
+                <span className="text-sm font-semibold text-[#003366]">{forma003Registro || 'PDF, JPG o PNG máximo 10 MB'}</span>
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  className="hidden"
+                  onChange={(e) => manejarSeleccionRegistro('Forma 003', e)}
+                />
+              </label>
+            </div>
+
+            {mensajeDocumento && (
+              <p className="mt-3 rounded-lg border border-[#FFD100]/40 bg-[#FFD100]/10 px-3 py-2 text-xs font-semibold text-[#003366]">
+                {mensajeDocumento}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={agregarRegistroAcademico}
+              className="mt-5 w-full bg-[#FFD100] text-[#003366] font-bold py-3 rounded-lg hover:bg-[#FFDE47] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={guardandoForma003}
+            >
+              {guardandoForma003 ? 'Guardando...' : 'Agregar registro'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -806,7 +1211,7 @@ return (
                 <div className="space-y-2">
                   {notificacionesPerfil.slice(0, 5).map((notificacion) => (
                     <button
-                      key={`${notificacion.texto}-${notificacion.tiempo}`}
+                      key={notificacion.id}
                       type="button"
                       onClick={() => manejarClickNotificacion(notificacion)}
                       className={`w-full flex items-start gap-3 rounded-lg p-3 text-left hover:bg-[#FFD100]/10 transition-colors ${
@@ -867,8 +1272,21 @@ return (
       <aside className="lg:col-span-4 xl:col-span-3 space-y-6 lg:sticky lg:top-4">
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
           <div className="flex flex-col items-center text-center">
-            <div className="relative w-32 h-32 rounded-full border-4 border-[#FFD100] p-1 mb-4 overflow-hidden bg-[#F4F6F8] shadow-sm">
-              <img src={fotoPerfilActual} alt={perfil.nombre} className="w-full h-full object-cover rounded-full" />
+            <div className="relative w-32 h-32 rounded-full border-4 border-[#FFD100] p-1 mb-4 overflow-hidden bg-[#F4F6F8] shadow-sm flex items-center justify-center">
+              {fotoPerfilActual ? (
+                <img src={fotoPerfilActual} alt={perfil.nombre} className="w-full h-full object-cover rounded-full" />
+              ) : (
+                <span className="text-[#004B87] text-4xl font-bold">
+                  {(perfil.nombre || 'Usuario Puma')
+                    .trim()
+                    .split(' ')
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((palabra) => palabra[0])
+                    .join('')
+                    .toUpperCase()}
+                </span>
+              )}
             </div>
             <h2 className="text-2xl font-bold text-[#003366]">{perfil.nombre}</h2>
             <p className="text-sm font-semibold text-[#004B87] mt-1">{perfil.carrera}</p>
@@ -956,7 +1374,7 @@ return (
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {pumitas.slice(0, 4).map((pumita) => {
+            {pumitasConectadas.slice(0, 4).map((pumita) => {
               const dejadoDeSeguir = dejadosDeSeguir.includes(pumita.nombre);
               const estadoVisual = pumitasAceptados.includes(pumita.nombre) ? 'Conectado' : pumita.estado;
 
@@ -1010,43 +1428,77 @@ return (
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {pumitas.map((pumita) => {
-                  const dejadoDeSeguir = dejadosDeSeguir.includes(pumita.nombre);
-                  const estadoVisual = pumitasAceptados.includes(pumita.nombre) ? 'Conectado' : pumita.estado;
+               {pumitas.map((pumita) => (
+                  <article key={`red-${pumita.nombre}`} className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                    <img src={pumita.avatar} alt={pumita.nombre} className="w-12 h-12 rounded-full object-cover border border-gray-200" />
+                    <div className="min-w-0 flex-1">
+                      <h5 className="font-bold text-[#003366] truncate">{pumita.nombre}</h5>
+                      <p className="text-xs text-[#5b6472] truncate">{pumita.carrera}</p>
+                      <span className={`inline-flex mt-2 px-2 py-0.5 rounded-full border text-[11px] font-bold ${obtenerEstiloEstadoPumita(pumita.estado)}`}>
+                        {pumita.solicitudEnviada ? 'Solicitud enviada' : pumita.estado}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => abrirPerfilPumita(pumita)}
+                        className="px-3 py-2 rounded-lg bg-[#F4F6F8] border border-gray-200 text-xs font-bold text-[#003366] hover:bg-[#FFD100] transition-colors"
+                      >
+                        Ver perfil
+                      </button>
 
-                  return (
-                    <article key={`red-${pumita.nombre}`} className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-                      <img src={pumita.avatar} alt={pumita.nombre} className="w-12 h-12 rounded-full object-cover border border-gray-200" />
-                      <div className="min-w-0 flex-1">
-                        <h5 className="font-bold text-[#003366] truncate">{pumita.nombre}</h5>
-                        <p className="text-xs text-[#5b6472] truncate">{pumita.carrera}</p>
-                        <span className={`inline-flex mt-2 px-2 py-0.5 rounded-full border text-[11px] font-bold ${dejadoDeSeguir ? 'bg-gray-100 text-[#5b6472] border-gray-200' : obtenerEstiloEstadoPumita(estadoVisual)}`}>
-                          {dejadoDeSeguir ? 'Sin seguir' : estadoVisual}
-                        </span>
-                      </div>
-                      <div className="flex gap-2">
+                      {pumita.estado === 'Conectado' && (
                         <button
                           type="button"
-                          onClick={() => abrirPerfilPumita(pumita)}
-                          className="px-3 py-2 rounded-lg bg-[#F4F6F8] border border-gray-200 text-xs font-bold text-[#003366] hover:bg-[#FFD100] transition-colors"
+                          onClick={() => setPumitaPorDejar(pumita)}
+                          className="px-3 py-2 rounded-lg border border-[#DC2626]/20 text-xs font-bold text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors"
                         >
-                          Ver perfil
+                          Dejar de seguir
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => (dejadoDeSeguir ? volverASeguirPumita(pumita.nombre) : setPumitaPorDejar(pumita))}
-                          className={`px-3 py-2 rounded-lg border text-xs font-bold transition-colors ${
-                            dejadoDeSeguir
-                              ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
-                              : 'border-[#DC2626]/20 text-[#DC2626] hover:bg-[#DC2626]/10'
-                          }`}
-                        >
-                          {dejadoDeSeguir ? 'Volver a seguir' : 'Dejar de seguir'}
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })}
+                      )}
+
+                      {pumita.estado === 'Pendiente' && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => rechazarSolicitudPumita(pumita)}
+                            className="px-3 py-2 rounded-lg border border-[#DC2626]/20 text-xs font-bold text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors"
+                          >
+                            Rechazar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => aceptarSolicitudPumita(pumita)}
+                            className="px-3 py-2 rounded-lg bg-[#FFD100] text-xs font-bold text-[#003366] hover:bg-[#FFDE47] transition-colors"
+                          >
+                            Aceptar
+                          </button>
+                        </>
+                      )}
+
+                      {pumita.estado === 'Sugerido' && (
+                        pumita.solicitudEnviada ? (
+                          <button
+                            type="button"
+                            onClick={() => cancelarSolicitudPumita(pumita)}
+                            className="px-3 py-2 rounded-lg border border-[#DC2626]/20 text-xs font-bold text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors"
+                          >
+                            Cancelar solicitud
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => enviarSolicitudPumita(pumita)}
+                            className="px-3 py-2 rounded-lg bg-[#FFD100] text-xs font-bold text-[#003366] hover:bg-[#FFDE47] transition-colors"
+                          >
+                            Agregar
+                          </button>
+                        )
+                      )}
+                    </div>
+                  </article>
+                ))}
+              
               </div>
             </div>
           )}
@@ -1223,14 +1675,14 @@ return (
           <div className="grid grid-cols-2 gap-3 mt-5">
             <button
               type="button"
-              onClick={() => rechazarSolicitudPumita(solicitudNotificacion.nombre)}
+              onClick={() => rechazarSolicitudPumita(solicitudNotificacion)}
               className="rounded-lg border border-[#DC2626]/20 bg-white py-3 text-sm font-bold text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors"
             >
               Rechazar
             </button>
             <button
               type="button"
-              onClick={() => aceptarSolicitudPumita(solicitudNotificacion.nombre)}
+              onClick={() => aceptarSolicitudPumita(solicitudNotificacion)}
               className="rounded-lg bg-[#FFD100] py-3 text-sm font-bold text-[#003366] hover:bg-[#FFDE47] transition-colors"
             >
               Aceptar
@@ -1481,6 +1933,17 @@ return (
                 {mensajePerfilPumita}
               </p>
             )}
+            {mensajeEstadoReaccion && (
+              <p
+                className={`mt-2 w-full rounded-lg border px-4 py-2 text-xs font-semibold ${
+                  tipoMensajeEstadoReaccion === 'exito'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border-amber-200 bg-amber-50 text-amber-700'
+                }`}
+              >
+                {mensajeEstadoReaccion}
+              </p>
+            )}
 
             {perteneceARedPumita(pumitaSeleccionada) ? (
               <div className="mt-6 w-full space-y-3">
@@ -1500,7 +1963,7 @@ return (
                           <button
                             key={`perfil-${pumitaSeleccionada.nombre}-${reaccion}`}
                             type="button"
-                            onClick={() => enviarReaccionPumita(pumitaSeleccionada.nombre, reaccion)}
+                            onClick={() => enviarReaccionPumita(pumitaSeleccionada, reaccion)}
                             className="rounded-lg px-3 py-2 text-left text-sm font-bold text-[#003366] hover:bg-[#FFD100]/20 transition-colors"
                           >
                             {reaccion}
@@ -1515,20 +1978,20 @@ return (
               <div className="mt-6 w-full space-y-3">
                 <button
                   type="button"
-                  onClick={() => enviarSolicitudPumita(pumitaSeleccionada.nombre)}
-                  disabled={solicitudesEnviadas.includes(pumitaSeleccionada.nombre)}
+                  onClick={() => enviarSolicitudPumita(pumitaSeleccionada)}
+                  disabled={pumitaSeleccionada.solicitudEnviada}
                   className={`w-full font-bold py-3 rounded-lg transition-colors ${
-                    solicitudesEnviadas.includes(pumitaSeleccionada.nombre)
+                    pumitaSeleccionada.solicitudEnviada
                       ? 'bg-[#F4F6F8] text-[#5b6472] border border-gray-200 cursor-not-allowed'
                       : 'bg-[#FFD100] text-[#003366] hover:bg-[#FFDE47]'
                   }`}
                 >
-                  {solicitudesEnviadas.includes(pumitaSeleccionada.nombre) ? 'Solicitud enviada' : 'Agregar Pumita'}
+                  {pumitaSeleccionada.solicitudEnviada ? 'Solicitud enviada' : 'Agregar Pumita'}
                 </button>
-                {solicitudesEnviadas.includes(pumitaSeleccionada.nombre) && (
+                {pumitaSeleccionada.solicitudEnviada && (
                   <button
                     type="button"
-                    onClick={() => cancelarSolicitudPumita(pumitaSeleccionada.nombre)}
+                    onClick={() => cancelarSolicitudPumita(pumitaSeleccionada)}
                     className="w-full rounded-lg border border-[#DC2626]/20 py-3 text-sm font-bold text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors"
                   >
                     Cancelar solicitud
@@ -1581,7 +2044,7 @@ return (
             </button>
             <button
               type="button"
-              onClick={() => dejarDeSeguirPumita(pumitaPorDejar.nombre)}
+              onClick={() => dejarDeSeguirPumita(pumitaPorDejar)}
               className="rounded-lg bg-[#DC2626] py-3 text-sm font-bold text-white hover:bg-[#DC2626]/90 transition-colors"
             >
               Confirmar
@@ -1591,7 +2054,7 @@ return (
       </div>
     )}
 
-    {mostrarCambioCarrera && (
+   {mostrarCambioCarrera && (
       <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
         <div className="bg-white w-full max-w-lg rounded-xl border border-gray-200 shadow-2xl p-5">
           <div className="flex items-start justify-between gap-4 mb-4">
@@ -1609,38 +2072,83 @@ return (
             </button>
           </div>
 
+          {solicitudCambioCarrera && (
+            <div className="mb-4 rounded-xl border border-gray-200 bg-[#F4F6F8] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-bold text-[#003366]">Última solicitud</p>
+                <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+                  solicitudCambioCarrera.estado === 'PENDIENTE'
+                    ? 'bg-amber-100 text-amber-800'
+                    : solicitudCambioCarrera.estado === 'APROBADA'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-red-100 text-red-700'
+                }`}>
+                  {solicitudCambioCarrera.estado}
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-[#5b6472]">
+                Solicitada el {new Date(solicitudCambioCarrera.fecha_creacion).toLocaleDateString('es-HN')}
+              </p>
+              <p className="mt-2 text-sm text-[#5b6472]">
+                {solicitudCambioCarrera.carrera_solicitada} · {solicitudCambioCarrera.centro_regional_solicitado ?? 'Sin centro regional'}
+              </p>
+              {solicitudCambioCarrera.comentario_revision && (
+                <p className="mt-2 text-sm text-[#5b6472]">Observación: {solicitudCambioCarrera.comentario_revision}</p>
+              )}
+            </div>
+          )}
+
           <div className="space-y-4">
             <label className="block">
               <span className="block text-xs text-[#5b6472] font-bold uppercase tracking-wide mb-2">Carrera actual</span>
               <input
-                value={perfil.carrera}
+                value={contextoCambio?.carrera_actual ?? ''}
+                readOnly
+                className="w-full bg-[#F4F6F8] border border-gray-200 rounded-lg px-3 py-3 text-sm text-[#5b6472] cursor-not-allowed"
+              />
+            </label>
+            <label className="block">
+              <span className="block text-xs text-[#5b6472] font-bold uppercase tracking-wide mb-2">Centro regional actual</span>
+              <input
+                value={contextoCambio?.centro_actual ?? ''}
                 readOnly
                 className="w-full bg-[#F4F6F8] border border-gray-200 rounded-lg px-3 py-3 text-sm text-[#5b6472] cursor-not-allowed"
               />
             </label>
             <label className="block">
               <span className="block text-xs text-[#5b6472] font-bold uppercase tracking-wide mb-2">Nueva carrera</span>
-              <input
+              <select
                 value={nuevaCarrera}
                 onChange={(e) => setNuevaCarrera(e.target.value)}
+                disabled={cargandoCambioCarrera || solicitudCambioCarrera?.estado === 'PENDIENTE'}
                 className="w-full bg-white border border-gray-200 rounded-lg px-3 py-3 text-sm text-[#003366] outline-none focus:border-[#004B87]"
-                placeholder="Ej. Ingeniería Industrial"
-              />
+              >
+                <option value="">Selecciona una carrera</option>
+                {carrerasCambio
+                  .filter((carrera) => carrera.id_carrera !== contextoCambio?.id_carrera_actual)
+                  .map((carrera) => <option key={carrera.id_carrera} value={carrera.id_carrera}>{carrera.nombre}</option>)}
+              </select>
             </label>
             <label className="block">
-              <span className="block text-xs text-[#5b6472] font-bold uppercase tracking-wide mb-2">Centro regional</span>
-              <input
+              <span className="block text-xs text-[#5b6472] font-bold uppercase tracking-wide mb-2">Centro regional solicitado</span>
+              <select
                 value={centroRegionalCambio}
                 onChange={(e) => setCentroRegionalCambio(e.target.value)}
+                disabled={cargandoCambioCarrera || solicitudCambioCarrera?.estado === 'PENDIENTE'}
                 className="w-full bg-white border border-gray-200 rounded-lg px-3 py-3 text-sm text-[#003366] outline-none focus:border-[#004B87]"
-                placeholder="Ej. UNAH-CU"
-              />
+              >
+                <option value="">Selecciona un centro regional</option>
+                {centrosCambio.map((centro) => (
+                  <option key={centro.id_centro_regional} value={centro.id_centro_regional}>{centro.nombre}</option>
+                ))}
+              </select>
             </label>
             <label className="block">
               <span className="block text-xs text-[#5b6472] font-bold uppercase tracking-wide mb-2">Motivo del cambio</span>
               <textarea
                 value={motivoCambioCarrera}
                 onChange={(e) => setMotivoCambioCarrera(e.target.value)}
+                disabled={solicitudCambioCarrera?.estado === 'PENDIENTE'}
                 className="w-full bg-white border border-gray-200 rounded-lg px-3 py-3 text-sm text-[#003366] outline-none focus:border-[#004B87] min-h-28 resize-none"
                 placeholder="Explica brevemente el motivo del cambio..."
               />
@@ -1662,82 +2170,18 @@ return (
           <button
             type="button"
             onClick={enviarCambioCarrera}
-            className="mt-5 w-full bg-[#FFD100] text-[#003366] font-bold py-3 rounded-lg hover:bg-[#FFDE47] transition-colors"
+            disabled={cargandoCambioCarrera || enviandoCambioCarrera || solicitudCambioCarrera?.estado === 'PENDIENTE'}
+            className="mt-5 w-full bg-[#FFD100] text-[#003366] font-bold py-3 rounded-lg hover:bg-[#FFDE47] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Enviar solicitud
+            {solicitudCambioCarrera?.estado === 'PENDIENTE'
+              ? 'Solicitud pendiente'
+              : enviandoCambioCarrera ? 'Enviando...' : 'Enviar solicitud'}
           </button>
         </div>
       </div>
     )}
 
-    {mostrarRegistroAcademico && (
-      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-        <div className="bg-white w-full max-w-lg rounded-xl border border-gray-200 shadow-2xl p-5">
-          <div className="flex items-start justify-between gap-4 mb-4">
-            <div>
-              <h3 className="text-xl font-bold text-[#003366]">Agregar registro académico</h3>
-              <p className="text-sm text-[#5b6472]">Carga Carnet y Forma 003 para el período seleccionado.</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setMostrarRegistroAcademico(false)}
-              className="w-9 h-9 rounded-lg bg-[#F4F6F8] border border-gray-200 text-[#003366] hover:bg-[#FFD100] transition-colors"
-              aria-label="Cerrar registro académico"
-            >
-              <i className="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <label className="block">
-              <span className="block text-xs text-[#5b6472] font-bold uppercase tracking-wide mb-2">Período académico</span>
-              <input
-                value={periodoRegistro}
-                onChange={(e) => setPeriodoRegistro(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-3 text-sm text-[#003366] outline-none focus:border-[#004B87]"
-                placeholder="Ej. III PAC 2026"
-              />
-            </label>
-
-            <label className="block cursor-pointer rounded-lg border border-gray-200 bg-[#F4F6F8] p-4 hover:border-[#FFD100] transition-colors">
-              <span className="block text-xs text-[#5b6472] font-bold uppercase tracking-wide mb-1">Cargar Carnet</span>
-              <span className="text-sm font-semibold text-[#003366]">{carnetRegistro || 'PDF, JPG o PNG máximo 10 MB'}</span>
-              <input
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                className="hidden"
-                onChange={(e) => manejarSeleccionRegistro('Carnet', e)}
-              />
-            </label>
-
-            <label className="block cursor-pointer rounded-lg border border-gray-200 bg-[#F4F6F8] p-4 hover:border-[#FFD100] transition-colors">
-              <span className="block text-xs text-[#5b6472] font-bold uppercase tracking-wide mb-1">Cargar Forma 003</span>
-              <span className="text-sm font-semibold text-[#003366]">{forma003Registro || 'PDF, JPG o PNG máximo 10 MB'}</span>
-              <input
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                className="hidden"
-                onChange={(e) => manejarSeleccionRegistro('Forma 003', e)}
-              />
-            </label>
-          </div>
-
-          {mensajeDocumento && (
-            <p className="mt-3 rounded-lg border border-[#FFD100]/40 bg-[#FFD100]/10 px-3 py-2 text-xs font-semibold text-[#003366]">
-              {mensajeDocumento}
-            </p>
-          )}
-
-          <button
-            type="button"
-            onClick={agregarRegistroAcademico}
-            className="mt-5 w-full bg-[#FFD100] text-[#003366] font-bold py-3 rounded-lg hover:bg-[#FFDE47] transition-colors"
-          >
-            Validar registro
-          </button>
-        </div>
-      </div>
-    )}
+   
 
     {mostrarAgregarPumita && (
       <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -1789,14 +2233,14 @@ return (
                     <div className="flex flex-col sm:flex-row gap-2">
                       <button
                         type="button"
-                        onClick={() => rechazarSolicitudPumita(pumita.nombre)}
+                        onClick={() => rechazarSolicitudPumita(pumita)}
                         className="rounded-lg border border-[#DC2626]/20 px-3 py-2 text-[11px] font-bold text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors"
                       >
                         Rechazar
                       </button>
                       <button
                         type="button"
-                        onClick={() => aceptarSolicitudPumita(pumita.nombre)}
+                        onClick={() => aceptarSolicitudPumita(pumita)}
                         className="rounded-lg bg-[#FFD100] px-3 py-2 text-[11px] font-bold text-[#003366] hover:bg-[#FFDE47] transition-colors"
                       >
                         Aceptar
@@ -1810,7 +2254,7 @@ return (
             <section className="space-y-3">
               <h4 className="text-sm font-bold text-[#003366]">Resultados</h4>
               {sugerenciasPumitas.map((pumita) => {
-                const solicitudLocal = solicitudesEnviadas.includes(pumita.nombre);
+                const solicitudLocal = Boolean(pumita.solicitudEnviada);
                 const estadoResultado = solicitudLocal ? 'Solicitud enviada' : pumita.estado;
 
                 return (
@@ -1831,7 +2275,7 @@ return (
                       {solicitudLocal ? (
                         <button
                           type="button"
-                          onClick={() => cancelarSolicitudPumita(pumita.nombre)}
+                          onClick={() => cancelarSolicitudPumita(pumita)}
                           className="px-3 py-2 rounded-lg border border-[#DC2626]/20 text-xs font-bold text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors"
                         >
                           Cancelar solicitud
@@ -1839,7 +2283,7 @@ return (
                       ) : (
                         <button
                           type="button"
-                          onClick={() => enviarSolicitudPumita(pumita.nombre)}
+                          onClick={() => enviarSolicitudPumita(pumita)}
                           className="px-3 py-2 rounded-lg bg-[#FFD100] text-xs font-bold text-[#003366] hover:bg-[#FFDE47] transition-colors"
                         >
                           Agregar

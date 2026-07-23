@@ -11,7 +11,7 @@ import { RegistrarEstudiante } from '../../use-cases/auth/RegistrarEstudiante';
 import { RegistrarEmpleado } from '../../use-cases/auth/RegistrarEmpleado';
 import { EnviarOtpRegistro } from '../../use-cases/auth/EnviarOtpRegistro';
 import jwt from 'jsonwebtoken';
-
+import { ActualizarPerfilPersonal } from '../../use-cases/perfil/ActualizarPerfilPersonal';
 export class AuthController {
   constructor(
     private readonly loginUseCase: LoginUsuario,
@@ -23,6 +23,7 @@ export class AuthController {
     private readonly enviarOtpRegistroUseCase: EnviarOtpRegistro,
     private readonly registrarEmpleadoUseCase: RegistrarEmpleado,
     private readonly usuarioRepo?: UsuarioRepository,
+    private readonly actualizarPerfilUseCase?: ActualizarPerfilPersonal,
   ) {}
 
   login = async (req: Request, res: Response, next: NextFunction) => {
@@ -40,9 +41,28 @@ export class AuthController {
     } catch (err) { next(err); }
   };
 
-  perfil = async (req: Request, res: Response) => {
-    res.json({ usuario: req.usuario });
-  };
+  perfil = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const usuario = await this.usuarioRepo!.findById(req.usuario!.id);
+    if (!usuario) {
+      res.status(404).json({ error: 'Usuario no encontrado' });
+      return;
+    }
+    const { password, otp_code, otp_expira, ...pub } = usuario as any;
+    res.json({ usuario: pub });
+  } catch (err) { next(err); }
+};
+
+actualizarPerfil = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { telefono, genero, biografia, foto_url } = req.body;
+    const usuario = await this.actualizarPerfilUseCase!.execute(req.usuario!.id, {
+      telefono, genero, biografia, foto_url,
+    });
+    const { password, otp_code, otp_expira, ...pub } = usuario as any;
+    res.json({ usuario: pub });
+  } catch (err) { next(err); }
+};
 
   enviarOtp = async (req: Request, res: Response, next: NextFunction) => {
     try {

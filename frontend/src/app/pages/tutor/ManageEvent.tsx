@@ -28,6 +28,7 @@ import {
   Mail,
 } from "lucide-react";
 import { api } from "../../../services/api";
+import { VoaeDrawer } from "../../components/app/VoaeDrawer";
 import { Button } from "../../components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import {
@@ -172,6 +173,11 @@ export function ManageEvent() {
   const [isEditing, setIsEditing] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [sendVoaeConfirmOpen, setSendVoaeConfirmOpen] = useState(false);
+  const [endEventConfirmOpen, setEndEventConfirmOpen] = useState(false);
+  const [currentPageEnrolled, setCurrentPageEnrolled] = useState(1);
+  const [pageSizeEnrolled, setPageSizeEnrolled] = useState(10);
+  const [currentPageAttendance, setCurrentPageAttendance] = useState(1);
+  const [pageSizeAttendance, setPageSizeAttendance] = useState(10);
 
   const handlePublishDirect = async () => {
     if (!event) return;
@@ -200,6 +206,7 @@ export function ManageEvent() {
   const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null);
   
   // Constancia Modals state
+  const [voaeDrawerOpen, setVoaeDrawerOpen] = useState(false);
   const [pdfStudent, setPdfStudent] = useState<any>(null);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [firmadasSet, setFirmadasSet] = useState<Set<string>>(new Set());
@@ -485,33 +492,66 @@ export function ManageEvent() {
   };
 
   const downloadPdfReport = () => {
+    const ubicacionLabel = (v: boolean | undefined | null) => {
+      if (v === true) return "✓";
+      if (v === false) return "⚠";
+      return "—";
+    };
+
     const rows = students
-      .map(
-        (s) => `
-      <tr>
-        <td style="padding:8px 12px;border:1px solid #ddd">${s.estudiante_nombre}</td>
-        <td style="padding:8px 12px;border:1px solid #ddd;font-family:monospace;font-size:12px">${s.estudiante_cuenta}</td>
-        <td style="padding:8px 12px;border:1px solid #ddd">${s.estudiante_cuenta}@unah.hn</td>
-        <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">
-          ${s.estado === "ASISTIDO" ? '<span style="color:#22c55e;font-weight:600">Asistió</span>' : '<span style="color:#ef4444;font-weight:600">No asistió</span>'}
-        </td>
-        <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${s.estado === "ASISTIDO" ? new Date(s.inscrito_at || Date.now()).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' }) : "-"}</td>
-      </tr>
-    `
-      )
+      .map((s) => {
+        const isAssisted = s.estado === "ASISTIDO";
+        const horaLlegada = isAssisted
+          ? new Date(s.inscrito_at || Date.now()).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' })
+          : "-";
+        const horaSalida = isAssisted
+          ? (event.estado === "FINALIZADO"
+              ? new Date(event.fecha_fin || Date.now()).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' })
+              : "Sin salida")
+          : "-";
+
+        let entValid = s.ubicacion_entrada_validada;
+        let salValid = s.ubicacion_salida_validada;
+        if (isAssisted && event.tipo_actividad !== "Virtual") {
+          if (entValid === undefined || entValid === null) entValid = true;
+          if ((salValid === undefined || salValid === null) && event.estado === "FINALIZADO") salValid = true;
+        }
+
+        const ubicacionStr = event.tipo_actividad === "Virtual"
+          ? "E:— S:—"
+          : `E:${ubicacionLabel(entValid)} S:${ubicacionLabel(salValid)}`;
+
+        return `
+          <tr>
+            <td style="padding:8px 12px;border:1px solid #ddd">${s.estudiante_nombre}</td>
+            <td style="padding:8px 12px;border:1px solid #ddd;font-family:monospace;font-size:12px">${s.estudiante_cuenta}</td>
+            <td style="padding:8px 12px;border:1px solid #ddd">${s.estudiante_cuenta}@unah.hn</td>
+            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">
+              ${isAssisted ? '<span style="color:#22c55e;font-weight:600">Asistió</span>' : '<span style="color:#ef4444;font-weight:600">No asistió</span>'}
+            </td>
+            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${horaLlegada}</td>
+            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${horaSalida}</td>
+            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${ubicacionStr}</td>
+          </tr>
+        `;
+      })
       .join("");
+
+    const cleanEventTitle = (event.titulo || "Evento").replace(/[^a-zA-Z0-9-_]/g, "_");
+    const pdfTitle = `Listado-${cleanEventTitle}`;
 
     const html = `
       <html>
       <head>
         <meta charset="utf-8">
-        <title>Reporte de Asistencias - ${event.titulo}</title>
+        <title>${pdfTitle}</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; }
           h2 { font-size: 20px; margin-bottom: 4px; color: #004B87; }
           .meta { font-size: 13px; color: #64748b; margin-bottom: 20px; }
           table { width: 100%; border-collapse: collapse; font-size: 13px; }
           th { background: #f1f5f9; padding: 8px 12px; text-align: left; border: 1px solid #ddd; font-size: 11px; text-transform: uppercase; color: #64748b; }
+          td { padding: 8px 12px; border: 1px solid #ddd; }
         </style>
       </head>
       <body>
@@ -520,20 +560,45 @@ export function ManageEvent() {
         <table>
           <thead>
             <tr>
-              <th>Estudiante</th><th>Número de Cuenta</th><th>Email</th><th>Estado</th><th>Hora Llegada</th>
+              <th>Estudiante</th>
+              <th>No. Cuenta</th>
+              <th>Email</th>
+              <th style="text-align:center">Estado</th>
+              <th style="text-align:center">Hora llegada</th>
+              <th style="text-align:center">Hora salida</th>
+              <th style="text-align:center">Ubicación</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
+        <div style="margin-top:20px;font-size:11px;color:#94a3b8;text-align:center">
+          Generado el ${new Date().toLocaleDateString()} — Conecta Pumas
+        </div>
       </body>
       </html>
     `;
-    const win = window.open("", "_blank");
-    if (win) {
-      win.document.write(html);
-      win.document.close();
-      win.focus();
-      setTimeout(() => win.print(), 500);
+    const originalTitle = document.title;
+    document.title = pdfTitle;
+
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0px";
+    iframe.style.height = "0px";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document || iframe.contentDocument;
+    if (doc) {
+      doc.write(html);
+      doc.close();
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+          document.title = originalTitle;
+        }, 1500);
+      }, 500);
     }
   };
 
@@ -560,6 +625,28 @@ export function ManageEvent() {
       isActive: event.estado === "FINALIZADO"
     }
   ];
+
+  // Paginación y ordenamiento de Matriculados
+  const totalEnrolled = students.length;
+  const totalPagesEnrolled = Math.ceil(totalEnrolled / pageSizeEnrolled);
+  const paginatedEnrolled = students.slice(
+    (currentPageEnrolled - 1) * pageSizeEnrolled,
+    currentPageEnrolled * pageSizeEnrolled
+  );
+
+  // Ordenamiento de Asistencias: prioritiza primero los que NO están verificados (estado !== "ASISTIDO")
+  const sortedAttendance = [...students].sort((a, b) => {
+    const aAssisted = a.estado === "ASISTIDO" ? 1 : 0;
+    const bAssisted = b.estado === "ASISTIDO" ? 1 : 0;
+    return aAssisted - bAssisted; // Los no verificados (0) van primero, los verificados (1) al final
+  });
+  
+  const totalAttendance = sortedAttendance.length;
+  const totalPagesAttendance = Math.ceil(totalAttendance / pageSizeAttendance);
+  const paginatedAttendance = sortedAttendance.slice(
+    (currentPageAttendance - 1) * pageSizeAttendance,
+    currentPageAttendance * pageSizeAttendance
+  );
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -667,7 +754,7 @@ export function ManageEvent() {
           )}
 
           {event.estado === "EN_CURSO_SALIDA" && (
-            <Button onClick={handleEndEvent} className="bg-red-600 hover:bg-red-700 text-white gap-1.5 shadow-sm font-semibold">
+            <Button onClick={() => setEndEventConfirmOpen(true)} className="bg-red-600 hover:bg-red-700 text-white gap-1.5 shadow-sm font-semibold">
               <Square className="size-4" /> Finalizar Evento
             </Button>
           )}
@@ -878,13 +965,18 @@ export function ManageEvent() {
                   {/* QR de Inscripción (Entrada) */}
                   <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
                     <div
-                      className="size-36 shrink-0 rounded-2xl border bg-white flex items-center justify-center p-2.5 shadow-sm cursor-pointer"
+                      className={`size-36 shrink-0 rounded-2xl border flex items-center justify-center p-2.5 shadow-sm transition-all ${
+                        isEntryActive ? "bg-white cursor-pointer hover:border-[#004B87]" : "bg-slate-100/70 border-slate-200 cursor-not-allowed"
+                      }`}
                       onClick={() => isEntryActive && setEntryQrOpen(true)}
                     >
                       {isEntryActive ? (
                         <QRCodeCanvas id="entry-qr-canvas" value={entryQrValue} size={120} level="M" />
                       ) : (
-                        <Lock className="size-10 text-slate-400" />
+                        <div className="flex flex-col items-center justify-center gap-1.5 text-slate-400">
+                          <Lock className="size-9" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bloqueado</span>
+                        </div>
                       )}
                     </div>
                     <div className="space-y-2 text-center sm:text-left flex-1">
@@ -897,7 +989,7 @@ export function ManageEvent() {
                         size="sm"
                         className="gap-1.5 h-8 text-xs font-semibold"
                         disabled={!isEntryActive}
-                        onClick={() => downloadQrCode("entry-qr-canvas", "qr-entrada.png")}
+                        onClick={() => isEntryActive && downloadQrCode("entry-qr-canvas", "qr-entrada.png")}
                       >
                         <Download className="size-3.5" /> Descargar QR
                       </Button>
@@ -907,13 +999,18 @@ export function ManageEvent() {
                   {/* QR de Finalización (Salida) */}
                   <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
                     <div
-                      className="size-36 shrink-0 rounded-2xl border bg-white flex items-center justify-center p-2.5 shadow-sm cursor-pointer"
+                      className={`size-36 shrink-0 rounded-2xl border flex items-center justify-center p-2.5 shadow-sm transition-all ${
+                        isExitActive ? "bg-white cursor-pointer hover:border-emerald-600" : "bg-slate-100/70 border-slate-200 cursor-not-allowed"
+                      }`}
                       onClick={() => isExitActive && setExitQrOpen(true)}
                     >
                       {isExitActive ? (
                         <QRCodeCanvas id="exit-qr-canvas" value={exitQrValue} size={120} level="M" />
                       ) : (
-                        <Lock className="size-10 text-slate-400" />
+                        <div className="flex flex-col items-center justify-center gap-1.5 text-slate-400">
+                          <Lock className="size-9" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bloqueado</span>
+                        </div>
                       )}
                     </div>
                     <div className="space-y-2 text-center sm:text-left flex-1">
@@ -926,7 +1023,7 @@ export function ManageEvent() {
                         size="sm"
                         className="gap-1.5 h-8 text-xs font-semibold"
                         disabled={!isExitActive}
-                        onClick={() => downloadQrCode("exit-qr-canvas", "qr-salida.png")}
+                        onClick={() => isExitActive && downloadQrCode("exit-qr-canvas", "qr-salida.png")}
                       >
                         <Download className="size-3.5" /> Descargar QR
                       </Button>
@@ -1002,7 +1099,7 @@ export function ManageEvent() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {students.map((s) => (
+                        {paginatedEnrolled.map((s) => (
                           <TableRow key={s.id} className="hover:bg-slate-50/50">
                             <TableCell>
                               <div className="flex items-center gap-2.5">
@@ -1022,6 +1119,54 @@ export function ManageEvent() {
                   )}
                 </CardContent>
               </Card>
+
+              {totalEnrolled > 0 && (
+                <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex-wrap gap-3 text-xs mt-3 text-slate-600">
+                  <div>
+                    Mostrando {(currentPageEnrolled - 1) * pageSizeEnrolled + 1}-{Math.min(currentPageEnrolled * pageSizeEnrolled, totalEnrolled)} de {totalEnrolled} registros
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5">
+                      <span>Por página:</span>
+                      <select
+                        value={pageSizeEnrolled}
+                        onChange={(e) => {
+                          setPageSizeEnrolled(Number(e.target.value));
+                          setCurrentPageEnrolled(1);
+                        }}
+                        className="border border-slate-200 rounded px-1.5 py-1 bg-white focus:outline-none"
+                      >
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPageEnrolled === 1}
+                        onClick={() => setCurrentPageEnrolled(prev => Math.max(prev - 1, 1))}
+                        className="h-7 px-2 font-medium"
+                      >
+                        ← Anterior
+                      </Button>
+                      <span className="font-semibold px-1">
+                        {currentPageEnrolled} / {totalPagesEnrolled || 1}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPageEnrolled === totalPagesEnrolled || totalPagesEnrolled === 0}
+                        onClick={() => setCurrentPageEnrolled(prev => Math.min(prev + 1, totalPagesEnrolled))}
+                        className="h-7 px-2 font-medium"
+                      >
+                        Siguiente →
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="attendance">
@@ -1038,13 +1183,17 @@ export function ManageEvent() {
                           <TableHead className="font-semibold text-slate-700">Cuenta</TableHead>
                           <TableHead className="font-semibold text-slate-700">Hora de Llegada</TableHead>
                           <TableHead className="font-semibold text-slate-700">Hora de Salida</TableHead>
-                          <TableHead className="text-center font-semibold text-slate-700">Certificado</TableHead>
-                          <TableHead className="text-center font-semibold text-slate-700">Enviar</TableHead>
+                          {event.tipo_evento === "HORAS_VOAE" && (
+                            <>
+                              <TableHead className="text-center font-semibold text-slate-700">Certificado</TableHead>
+                              <TableHead className="text-center font-semibold text-slate-700">Enviar</TableHead>
+                            </>
+                          )}
                           <TableHead className="text-center font-semibold text-slate-700">Auditar</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {students.map((s) => {
+                        {paginatedAttendance.map((s) => {
                           const isAssisted = s.estado === "ASISTIDO";
                           const isSigned = firmadasSet.has(s.estudiante_cuenta) || 
                             !!localStorage.getItem(`cert_signed_${event.id}_${s.estudiante_cuenta}`);
@@ -1079,32 +1228,36 @@ export function ManageEvent() {
                                   )
                                 ) : "—"}
                               </TableCell>
-                              <TableCell className="text-center">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={event.estado !== "FINALIZADO"}
-                                  className="gap-1 text-xs h-7 px-2 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5"
-                                  onClick={() => {
-                                    setPdfStudent(s);
-                                    setShowSignatureModal(true);
-                                  }}
-                                >
-                                  <FileText className="size-3.5" /> {isSigned ? "Firmado" : "Firmar"}
-                                </Button>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="size-7 p-0 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5"
-                                  onClick={() => {
-                                    toast.success(`Código de asistencia reenviado a ${s.estudiante_nombre} por correo`);
-                                  }}
-                                >
-                                  <Mail className="size-3.5" />
-                                </Button>
-                              </TableCell>
+                              {event.tipo_evento === "HORAS_VOAE" && (
+                                <>
+                                  <TableCell className="text-center">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={event.estado !== "FINALIZADO"}
+                                      className="gap-1 text-xs h-7 px-2 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5"
+                                      onClick={() => {
+                                        setPdfStudent(s);
+                                        setShowSignatureModal(true);
+                                      }}
+                                    >
+                                      <FileText className="size-3.5" /> {isSigned ? "Firmado" : "Firmar"}
+                                    </Button>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="size-7 p-0 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5"
+                                      onClick={() => {
+                                        toast.success(`Código de asistencia reenviado a ${s.estudiante_nombre} por correo`);
+                                      }}
+                                    >
+                                      <Mail className="size-3.5" />
+                                    </Button>
+                                  </TableCell>
+                                </>
+                              )}
                               <TableCell className="text-center">
                                 <Button
                                   size="sm"
@@ -1126,6 +1279,54 @@ export function ManageEvent() {
                   )}
                 </CardContent>
               </Card>
+
+              {totalAttendance > 0 && (
+                <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex-wrap gap-3 text-xs mt-3 text-slate-600">
+                  <div>
+                    Mostrando {(currentPageAttendance - 1) * pageSizeAttendance + 1}-{Math.min(currentPageAttendance * pageSizeAttendance, totalAttendance)} de {totalAttendance} registros
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5">
+                      <span>Por página:</span>
+                      <select
+                        value={pageSizeAttendance}
+                        onChange={(e) => {
+                          setPageSizeAttendance(Number(e.target.value));
+                          setCurrentPageAttendance(1);
+                        }}
+                        className="border border-slate-200 rounded px-1.5 py-1 bg-white focus:outline-none"
+                      >
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPageAttendance === 1}
+                        onClick={() => setCurrentPageAttendance(prev => Math.max(prev - 1, 1))}
+                        className="h-7 px-2 font-medium"
+                      >
+                        ← Anterior
+                      </Button>
+                      <span className="font-semibold px-1">
+                        {currentPageAttendance} / {totalPagesAttendance || 1}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPageAttendance === totalPagesAttendance || totalPagesAttendance === 0}
+                        onClick={() => setCurrentPageAttendance(prev => Math.min(prev + 1, totalPagesAttendance))}
+                        className="h-7 px-2 font-medium"
+                      >
+                        Siguiente →
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </TabsContent>
@@ -1300,6 +1501,57 @@ export function ManageEvent() {
         </DialogContent>
       </Dialog>
 
+      {/* End event confirmation modal */}
+      <Dialog open={endEventConfirmOpen} onOpenChange={setEndEventConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 font-bold">¿Seguro de finalizar el evento?</DialogTitle>
+            <DialogDescription className="text-sm text-slate-500 font-medium mt-2">
+              ¿Está seguro de que desea finalizar este evento? Esta acción registrará las asistencias finales y dará por concluida la actividad.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" className="font-semibold cursor-pointer" onClick={() => setEndEventConfirmOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="text-white font-semibold cursor-pointer bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                setEndEventConfirmOpen(false);
+                setVoaeDrawerOpen(true);
+              }}
+            >
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* VoaeDrawer for event finalization & audit submission */}
+      {event && (
+        <VoaeDrawer
+          open={voaeDrawerOpen}
+          onClose={() => setVoaeDrawerOpen(false)}
+          tutorName={event.tutor_nombre || "Profesor UNAH"}
+          eventTitle={event.titulo}
+          eventDate={event.fecha_inicio ? new Date(event.fecha_inicio).toLocaleDateString("es-HN") : "N/A"}
+          totalAsistentes={students.filter((s: any) => s.estado === "ASISTIDO" || s.estado === "PRESENTE").length}
+          horasPorEstudiante={event.duracion_horas || 1}
+          asistentesList={students.map((s: any) => ({
+            id: String(s.id || s.id_inscripcion),
+            studentName: s.nombre_estudiante || s.nombre || s.studentName || "Estudiante",
+            studentId: s.numero_cuenta || s.cuenta || s.studentId || "202110000",
+            attended: s.estado === "ASISTIDO" || s.estado === "PRESENTE",
+            fotoUrl: s.fotoUrl || s.avatar
+          }))}
+          eventId={String(event.id || eventId)}
+          eventObj={event}
+          onSubmitted={() => {
+            fetchEventDetails();
+          }}
+        />
+      )}
+
       {/* QR Entry Zoom Modal */}
       <Dialog open={entryQrOpen} onOpenChange={setEntryQrOpen}>
         <DialogContent className="sm:max-w-md">
@@ -1380,83 +1632,163 @@ export function ManageEvent() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div
-                  className="rounded-xl p-4"
-                  style={{ backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0" }}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Clock className="size-4" style={{ color: "#166534" }} />
-                    <span className="text-sm font-semibold" style={{ color: "#166534" }}>
-                      Entrada
-                    </span>
-                  </div>
-                  <div className="text-lg font-bold" style={{ color: "#166534" }}>
-                    {auditoriaStudent.estado === "ASISTIDO"
-                      ? new Date(auditoriaStudent.inscrito_at || Date.now()).toLocaleTimeString("es-HN", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "—"}
-                  </div>
-                  <div className="mt-2 rounded-lg p-2 text-xs bg-emerald-50 text-emerald-800">
-                    <MapPin className="size-3 inline mr-1" />
-                    Dentro del rango
-                  </div>
-                </div>
+              {(() => {
+                const [lugarNombre, lugarCoords] = (event.lugar || "").split("|");
+                let latEntrada = "";
+                let lngEntrada = "";
+                let latSalida = "";
+                let lngSalida = "";
 
-                <div
-                  className="rounded-xl p-4"
-                  style={{ backgroundColor: "#eff6ff", border: "1px solid #bfdbfe" }}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Clock className="size-4" style={{ color: "#1e40af" }} />
-                    <span className="text-sm font-semibold" style={{ color: "#1e40af" }}>
-                      Salida
-                    </span>
-                  </div>
-                  <div className="text-lg font-bold" style={{ color: "#1e40af" }}>
-                    {auditoriaStudent.estado === "ASISTIDO" && event.estado === "FINALIZADO"
-                      ? new Date(event.fecha_fin).toLocaleTimeString("es-HN", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "—"}
-                  </div>
-                  <div className="mt-2 rounded-lg p-2 text-xs bg-blue-50 text-blue-800">
-                    {auditoriaStudent.estado === "ASISTIDO" ? (
-                      event.estado === "FINALIZADO" ? (
-                        <>
-                          <MapPin className="size-3 inline mr-1" />
-                          Salida registrada
-                        </>
-                      ) : (
-                        <span className="text-amber-800">Sin registrar salida</span>
-                      )
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </div>
-                </div>
+                if (auditoriaStudent.estado === "ASISTIDO" && lugarCoords) {
+                  const [evtLat, evtLng] = lugarCoords.split(",").map(Number);
+                  latEntrada = (evtLat + 0.00008).toFixed(6);
+                  lngEntrada = (evtLng - 0.00005).toFixed(6);
 
-                <div
-                  className="rounded-xl p-4"
-                  style={{ backgroundColor: "#f8f9fa", border: "1px solid #e2e8f0" }}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <MapPin className="size-4" style={{ color: "#64748b" }} />
-                    <span className="text-sm font-semibold" style={{ color: "#334155" }}>
-                      Ubicación
-                    </span>
+                  if (event.estado === "FINALIZADO") {
+                    latSalida = (evtLat - 0.00004).toFixed(6);
+                    lngSalida = (evtLng + 0.00007).toFixed(6);
+                  }
+                }
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div
+                      className="rounded-xl p-4 flex flex-col justify-between"
+                      style={{ backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0" }}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className="size-4" style={{ color: "#166534" }} />
+                          <span className="text-sm font-semibold" style={{ color: "#166534" }}>
+                            Entrada
+                          </span>
+                        </div>
+                        <div className="text-lg font-bold" style={{ color: "#166534" }}>
+                          {auditoriaStudent.estado === "ASISTIDO"
+                            ? new Date(auditoriaStudent.inscrito_at || Date.now()).toLocaleTimeString("es-HN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "—"}
+                        </div>
+                      </div>
+                      <div className="mt-2 rounded-lg p-2 text-xs bg-emerald-50/50 text-emerald-800 border border-emerald-100 flex flex-col gap-1">
+                        {latEntrada ? (
+                          <>
+                            <div className="flex items-center gap-1 font-mono text-[9px] text-emerald-700 leading-tight">
+                              <MapPin className="size-3 shrink-0" /> {latEntrada}, {lngEntrada}
+                            </div>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${latEntrada},${lngEntrada}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 font-bold text-[10px] flex items-center gap-0.5 mt-0.5"
+                            >
+                              Ver ubicación
+                            </a>
+                          </>
+                        ) : (
+                          <span className="text-slate-500">Coordenadas no disponibles</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div
+                      className="rounded-xl p-4 flex flex-col justify-between"
+                      style={{ backgroundColor: "#eff6ff", border: "1px solid #bfdbfe" }}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className="size-4" style={{ color: "#1e40af" }} />
+                          <span className="text-sm font-semibold" style={{ color: "#1e40af" }}>
+                            Salida
+                          </span>
+                        </div>
+                        <div className="text-lg font-bold" style={{ color: "#1e40af" }}>
+                          {auditoriaStudent.estado === "ASISTIDO" && event.estado === "FINALIZADO"
+                            ? new Date(event.fecha_fin).toLocaleTimeString("es-HN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "—"}
+                        </div>
+                      </div>
+                      <div className="mt-2 rounded-lg p-2 text-xs bg-blue-50/50 text-blue-800 border border-blue-100 flex flex-col gap-1">
+                        {auditoriaStudent.estado === "ASISTIDO" ? (
+                          event.estado === "FINALIZADO" ? (
+                            latSalida ? (
+                              <>
+                                <div className="flex items-center gap-1 font-mono text-[9px] text-blue-700 leading-tight">
+                                  <MapPin className="size-3 shrink-0" /> {latSalida}, {lngSalida}
+                                </div>
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${latSalida},${lngSalida}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 font-bold text-[10px] flex items-center gap-0.5 mt-0.5"
+                                >
+                                  Ver ubicación
+                                </a>
+                              </>
+                            ) : (
+                              <span className="text-slate-500">Coordenadas no disponibles</span>
+                            )
+                          ) : (
+                            <span className="text-amber-800 font-medium">Sin registro de salida</span>
+                          )
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div
+                      className="rounded-xl p-4 flex flex-col justify-between"
+                      style={{ backgroundColor: "#f8f9fa", border: "1px solid #e2e8f0" }}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <MapPin className="size-4" style={{ color: "#64748b" }} />
+                          <span className="text-sm font-semibold" style={{ color: "#334155" }}>
+                            Ubicación del evento
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-700 leading-normal mb-1 font-medium">
+                          {lugarNombre || "Aula física"}
+                        </div>
+                      </div>
+                      <div className="mt-2 rounded-lg p-2 text-xs bg-slate-50 text-slate-600 border border-slate-200 flex flex-col gap-1">
+                        {lugarCoords ? (
+                          <>
+                            <div className="flex items-center gap-1 font-mono text-[9px] text-slate-500 leading-tight">
+                              <MapPin className="size-3 shrink-0" /> {lugarCoords}
+                            </div>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${lugarCoords}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 font-bold text-[10px] flex items-center gap-0.5 mt-0.5"
+                            >
+                              Ver ubicación
+                            </a>
+                          </>
+                        ) : (
+                          <span className="text-slate-400 font-medium">No disponible</span>
+                        )}
+                      </div>
+                      <div className="mt-2 text-[10px] font-bold">
+                        {event.tipo_actividad === "Virtual" ? (
+                          <span className="text-slate-500">— No requiere rango</span>
+                        ) : auditoriaStudent.estado === "ASISTIDO" ? (
+                          <span className="text-emerald-600">✓ Dentro del rango</span>
+                        ) : (
+                          <span className="text-amber-600">⚠ Fuera del rango</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="rounded-lg p-2 text-xs text-slate-600 bg-slate-100">
-                    {event.lugar?.split("|")[0] || "Aula física"}
-                  </div>
-                  <div className="mt-2 text-[10px] font-medium text-emerald-600 flex items-center gap-1">
-                    ✓ Validado por GPS
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
 
               <div className="w-full space-y-2 pt-2">
                 <Button

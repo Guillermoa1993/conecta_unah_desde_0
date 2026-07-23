@@ -12,10 +12,12 @@ export interface Usuario {
   estado?: string;
   id_carrera?: number;
   carrera?: string;
+  facultad?: string | null;
+  created_at?: Date | string;
   microsoft_id?: string | null;
   otp_code?: string | null;
   otp_expira?: Date | null;
-  // Datos del perfil (tabla separada, vienen unidos por JOIN)
+  permite_reacciones_perfil: boolean;
   telefono?: string | null;
   numero_cuenta?: string | null;
   id_centro_regional?: number | null;
@@ -39,6 +41,9 @@ export interface UsuarioPublico {
   estado?: string;
   id_carrera?: number;
   carrera?: string;
+  facultad?: string | null;
+  created_at?: Date | string;
+  permite_reacciones_perfil: boolean;
   telefono?: string | null;
   numero_cuenta?: string | null;
   id_centro_regional?: number | null;
