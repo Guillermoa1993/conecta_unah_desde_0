@@ -108,6 +108,20 @@ const TILE_LAYERS = {
   },
 };
 
+function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Radio de la tierra en km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 interface LocationPickerProps {
   lat: string;
   lng: string;
@@ -168,18 +182,36 @@ export function LocationPicker({
     })();
   }, []);
 
-  // B3 — Solicitar permiso de geolocalización automática al cargar el componente
+  // B3 — Solicitar permiso de geolocalización automática con Validación de Límites de Campus
   useEffect(() => {
     if (navigator.geolocation && !lat && !lng) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          const userLat = pos.coords.latitude.toFixed(6);
-          const userLng = pos.coords.longitude.toFixed(6);
-          onLocationChange(userLat, userLng);
-          setGeoBanner("📍 Tu ubicación actual fue detectada. Mueve el marcador si el lugar es diferente.");
+          const userLat = pos.coords.latitude;
+          const userLng = pos.coords.longitude;
+
+          const currentSedeObj = UNAH_SEDES.find((s) => s.name === selectedSede) || UNAH_SEDES[0];
+          const sedeLat = parseFloat(currentSedeObj.lat);
+          const sedeLng = parseFloat(currentSedeObj.lng);
+
+          const distanceKm = getDistanceKm(userLat, userLng, sedeLat, sedeLng);
+
+          // Si la ubicación detectada por red/GPS cae dentro del radio del campus (<= 3.0 km)
+          if (distanceKm <= 3.0) {
+            const formattedLat = userLat.toFixed(6);
+            const formattedLng = userLng.toFixed(6);
+            onLocationChange(formattedLat, formattedLng);
+            setGeoBanner("📍 Tu ubicación actual en el campus fue detectada. Mueve el marcador si el lugar exacto es diferente.");
+          } else {
+            // Fuera del campus: fijar coordenadas exactas oficiales de la sede
+            onLocationChange(currentSedeObj.lat, currentSedeObj.lng);
+            setGeoBanner(`📍 Ubicación detectada fuera del campus (${distanceKm.toFixed(1)} km). Se han fijado las coordenadas oficiales de ${currentSedeObj.name}.`);
+          }
         },
         () => {
-          // Falla en silencio si se rechaza el permiso
+          // Si el usuario deniega o no hay respuesta, fijar coordenadas exactas de la sede
+          const currentSedeObj = UNAH_SEDES.find((s) => s.name === selectedSede) || UNAH_SEDES[0];
+          onLocationChange(currentSedeObj.lat, currentSedeObj.lng);
         },
         { timeout: 8000 }
       );
@@ -205,7 +237,7 @@ export function LocationPicker({
 
     const map = L.map(mapRef.current, {
       center: [initialLat, initialLng] as L.LatLngExpression,
-      zoom: 16,
+      zoom: 17,
       zoomControl: true,
     });
 
@@ -234,6 +266,12 @@ export function LocationPicker({
       const clickLng = e.latlng.lng.toFixed(6);
       marker.setLatLng(e.latlng);
       onLocationChange(clickLat, clickLng);
+    });
+
+    // Actualización síncrona mientras se arrastra (drag) y al soltar (dragend)
+    marker.on("drag", () => {
+      const pos = marker.getLatLng();
+      onLocationChange(pos.lat.toFixed(6), pos.lng.toFixed(6));
     });
 
     marker.on("dragend", () => {
@@ -271,7 +309,7 @@ export function LocationPicker({
 
     const fullMap = L.map(fullMapRef.current, {
       center: [curLat, curLng] as L.LatLngExpression,
-      zoom: 17,
+      zoom: 18,
       zoomControl: true,
     });
 
@@ -298,6 +336,11 @@ export function LocationPicker({
       const clickLng = e.latlng.lng.toFixed(6);
       fullMarker.setLatLng(e.latlng);
       onLocationChange(clickLat, clickLng);
+    });
+
+    fullMarker.on("drag", () => {
+      const pos = fullMarker.getLatLng();
+      onLocationChange(pos.lat.toFixed(6), pos.lng.toFixed(6));
     });
 
     fullMarker.on("dragend", () => {

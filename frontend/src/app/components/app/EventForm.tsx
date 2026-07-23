@@ -1122,7 +1122,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                   selectedSede={data.centro_regional}
                   lat={data.latitud || "14.083902"}
                   lng={data.longitud || "-87.161601"}
-                  onSedeSelect={(sedeName, sLat, sLng) => {
+                  onSedeSelect={(sedeName: string, sLat: string, sLng: string) => {
                     setData((prev) => ({
                       ...prev,
                       centro_regional: sedeName,
@@ -1131,7 +1131,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                       ubicacion: `${sedeName}|https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${sedeName} UNAH`)}|${sLat},${sLng}`
                     }));
                   }}
-                  onLocationChange={(newLat, newLng) => {
+                  onLocationChange={(newLat: string, newLng: string) => {
                     setData((prev) => {
                       const currentName = prev.ubicacion.includes("|") ? prev.ubicacion.split("|")[0] : (prev.ubicacion || buildingName || prev.centro_regional);
                       const gLink = `https://www.google.com/maps/search/?api=1&query=${newLat},${newLng}`;
