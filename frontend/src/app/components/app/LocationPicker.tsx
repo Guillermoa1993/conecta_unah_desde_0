@@ -6,19 +6,22 @@ const defaultCenter: [number, number] = [14.082216, -87.165000]; // UNAH CU
 
 const UNAH_BUILDINGS = [
   { name: "Seleccionar un edificio de la UNAH...", lat: "", lng: "" },
-  { name: "Alma Mater / Edificio Administrativo", lat: "14.082216", lng: "-87.165000" },
+  { name: "Alma Mater / Edificio Administrativo", lat: "14.083902", lng: "-87.161601" },
+  { name: "Edificio 1847", lat: "14.084850", lng: "-87.162850" },
   { name: "Edificio D1 (Ingeniería / Sistemas)", lat: "14.082823", lng: "-87.163972" },
-  { name: "Edificio B1 (Ciencias Económicas)", lat: "14.083818", lng: "-87.164487" },
-  { name: "Edificio B2 (Aulas)", lat: "14.084128", lng: "-87.164305" },
-  { name: "Edificio C1 (Aulas)", lat: "14.083318", lng: "-87.163706" },
+  { name: "Edificio B1 (Ciencias Económicas)", lat: "14.083850", lng: "-87.164100" },
+  { name: "Edificio B2 (Aulas / Económicas)", lat: "14.084128", lng: "-87.163850" },
+  { name: "Edificio C1 (Ciencias Sociales)", lat: "14.083318", lng: "-87.163706" },
   { name: "Edificio C2 (Aulas)", lat: "14.083618", lng: "-87.163506" },
+  { name: "Edificio C3 (Lenguas Extranjeras)", lat: "14.083950", lng: "-87.163300" },
   { name: "Edificio F1 (Ciencias / Física)", lat: "14.082348", lng: "-87.163016" },
-  { name: "Edificio J1 (Odontología)", lat: "14.083908", lng: "-87.163316" },
-  { name: "Edificio I1 (Ciencias Sociales)", lat: "14.083548", lng: "-87.165316" },
-  { name: "Edificio G1 (Aulas)", lat: "14.082248", lng: "-87.162316" },
-  { name: "Palacio de los Deportes (Polideportivo)", lat: "14.082000", lng: "-87.165500" },
+  { name: "Edificio G1 (Biología / Ciencias)", lat: "14.082248", lng: "-87.162316" },
+  { name: "Edificio I1 (Ciencias Jurídicas / Derecho)", lat: "14.083548", lng: "-87.165316" },
+  { name: "Edificio J1 (Odontología / Salud)", lat: "14.083908", lng: "-87.163316" },
+  { name: "Palacio de los Deportes (Polideportivo)", lat: "14.082400", lng: "-87.165900" },
   { name: "Plaza de las Cuatro Culturas", lat: "14.082834", lng: "-87.164845" },
   { name: "CRAI / Biblioteca Central", lat: "14.082531", lng: "-87.165323" },
+  { name: "Auditorio Juan Lindo", lat: "14.082950", lng: "-87.164500" },
 ];
 
 const TILE_LAYERS = {
@@ -170,7 +173,7 @@ export function LocationPicker({
         markerPos.lng.toFixed(6) !== currentLng.toFixed(6)
       ) {
         markerInstance.current.setLatLng([currentLat, currentLng]);
-        mapInstance.current.panTo([currentLat, currentLng], { animate: true });
+        mapInstance.current.setView([currentLat, currentLng], 18, { animate: true });
       }
     }
   }, [lat, lng, leaflet]);
@@ -241,7 +244,15 @@ export function LocationPicker({
               if (!val) return;
               const [bLat, bLng] = val.split(",");
               onLocationChange(bLat, bLng);
-              toast.success("Ubicación exacta fijada en el mapa");
+
+              if (mapInstance.current && markerInstance.current) {
+                const numLat = parseFloat(bLat);
+                const numLng = parseFloat(bLng);
+                markerInstance.current.setLatLng([numLat, numLng]);
+                mapInstance.current.setView([numLat, numLng], 18, { animate: true });
+              }
+
+              toast.success("Ubicación exacta fijada y centrada en el mapa");
             }}
             className="w-full h-10 px-3 rounded-lg border border-input bg-white text-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer font-medium text-slate-800"
           >
