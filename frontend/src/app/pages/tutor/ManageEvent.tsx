@@ -965,15 +965,18 @@ export function ManageEvent() {
                   {/* QR de Inscripción (Entrada) */}
                   <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
                     <div
-                      className="size-36 shrink-0 rounded-2xl border bg-white flex items-center justify-center p-2.5 shadow-sm cursor-pointer"
-                      onClick={() => ["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado) && setEntryQrOpen(true)}
+                      className={`size-36 shrink-0 rounded-2xl border flex items-center justify-center p-2.5 shadow-sm transition-all ${
+                        isEntryActive ? "bg-white cursor-pointer hover:border-[#004B87]" : "bg-slate-100/70 border-slate-200 cursor-not-allowed"
+                      }`}
+                      onClick={() => isEntryActive && setEntryQrOpen(true)}
                     >
-                      {["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado) ? (
-                        <div className={!isEntryActive ? "opacity-50 grayscale" : ""}>
-                          <QRCodeCanvas id="entry-qr-canvas" value={entryQrValue} size={120} level="M" />
-                        </div>
+                      {isEntryActive ? (
+                        <QRCodeCanvas id="entry-qr-canvas" value={entryQrValue} size={120} level="M" />
                       ) : (
-                        <Lock className="size-10 text-slate-400" />
+                        <div className="flex flex-col items-center justify-center gap-1.5 text-slate-400">
+                          <Lock className="size-9" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bloqueado</span>
+                        </div>
                       )}
                     </div>
                     <div className="space-y-2 text-center sm:text-left flex-1">
@@ -985,8 +988,8 @@ export function ManageEvent() {
                         variant="outline"
                         size="sm"
                         className="gap-1.5 h-8 text-xs font-semibold"
-                        disabled={!["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado)}
-                        onClick={() => downloadQrCode("entry-qr-canvas", "qr-entrada.png")}
+                        disabled={!isEntryActive}
+                        onClick={() => isEntryActive && downloadQrCode("entry-qr-canvas", "qr-entrada.png")}
                       >
                         <Download className="size-3.5" /> Descargar QR
                       </Button>
@@ -996,15 +999,18 @@ export function ManageEvent() {
                   {/* QR de Finalización (Salida) */}
                   <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
                     <div
-                      className="size-36 shrink-0 rounded-2xl border bg-white flex items-center justify-center p-2.5 shadow-sm cursor-pointer"
-                      onClick={() => ["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado) && setExitQrOpen(true)}
+                      className={`size-36 shrink-0 rounded-2xl border flex items-center justify-center p-2.5 shadow-sm transition-all ${
+                        isExitActive ? "bg-white cursor-pointer hover:border-emerald-600" : "bg-slate-100/70 border-slate-200 cursor-not-allowed"
+                      }`}
+                      onClick={() => isExitActive && setExitQrOpen(true)}
                     >
-                      {["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado) ? (
-                        <div className={!isExitActive ? "opacity-50 grayscale" : ""}>
-                          <QRCodeCanvas id="exit-qr-canvas" value={exitQrValue} size={120} level="M" />
-                        </div>
+                      {isExitActive ? (
+                        <QRCodeCanvas id="exit-qr-canvas" value={exitQrValue} size={120} level="M" />
                       ) : (
-                        <Lock className="size-10 text-slate-400" />
+                        <div className="flex flex-col items-center justify-center gap-1.5 text-slate-400">
+                          <Lock className="size-9" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bloqueado</span>
+                        </div>
                       )}
                     </div>
                     <div className="space-y-2 text-center sm:text-left flex-1">
@@ -1016,8 +1022,8 @@ export function ManageEvent() {
                         variant="outline"
                         size="sm"
                         className="gap-1.5 h-8 text-xs font-semibold"
-                        disabled={!["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado)}
-                        onClick={() => downloadQrCode("exit-qr-canvas", "qr-salida.png")}
+                        disabled={!isExitActive}
+                        onClick={() => isExitActive && downloadQrCode("exit-qr-canvas", "qr-salida.png")}
                       >
                         <Download className="size-3.5" /> Descargar QR
                       </Button>
