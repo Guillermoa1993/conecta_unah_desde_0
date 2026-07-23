@@ -27,6 +27,7 @@ import {
   Lock,
   Mail,
 } from "lucide-react";
+import { EventDetailMapPreview } from "../../components/app/EventDetailMapPreview";
 import { api } from "../../../services/api";
 import { VoaeDrawer } from "../../components/app/VoaeDrawer";
 import { Button } from "../../components/ui/button";
@@ -1434,6 +1435,19 @@ export function ManageEvent() {
                 <div className="sm:col-span-2 md:col-span-3 border-t border-slate-100 pt-3">
                   <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Descripción del evento</span>
                   <p className="text-slate-700 leading-relaxed mt-1 bg-slate-50 p-3 rounded-lg border border-slate-100 whitespace-pre-wrap">{event.descripcion}</p>
+                </div>
+
+                {/* B4 — Mini preview del mapa en la vista de detalle del evento para todos los estados */}
+                <div className="sm:col-span-2 md:col-span-3 border-t border-slate-100 pt-4">
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block mb-2">
+                    🗺️ Mapa / Geolocalización Registrada
+                  </span>
+                  <EventDetailMapPreview
+                    lat={(event as any).latitud}
+                    lng={(event as any).longitud}
+                    lugar={event.lugar || (event as any).ubicacion}
+                    className="w-full"
+                  />
                 </div>
               </div>
             </CardContent>

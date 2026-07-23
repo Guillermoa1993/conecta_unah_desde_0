@@ -1,8 +1,22 @@
 import { useEffect, useRef, useState } from "react";
-import { Search, Layers } from "lucide-react";
+import { Search, Layers, Maximize2, X, MapPin, Check } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
-const defaultCenter: [number, number] = [14.082216, -87.165000]; // UNAH CU
+const defaultCenter: [number, number] = [14.083902, -87.161601]; // UNAH CU
+
+export const UNAH_SEDES = [
+  { name: "Ciudad Universitaria (Tegucigalpa)", lat: "14.083902", lng: "-87.161601" },
+  { name: "UNAH-VS (San Pedro Sula)", lat: "15.531200", lng: "-88.026400" },
+  { name: "UNAH-CURLA (La Ceiba)", lat: "15.753800", lng: "-86.822900" },
+  { name: "UNAH-CURLP (Choluteca)", lat: "13.308700", lng: "-87.190600" },
+  { name: "UNAH-CURC (Comayagua)", lat: "14.457800", lng: "-87.640300" },
+  { name: "UNAH-CUROC (Santa Rosa de Copán)", lat: "14.770500", lng: "-88.784200" },
+  { name: "UNAH-CURN (Nacaome)", lat: "13.535000", lng: "-87.490000" },
+  { name: "UNAH-CURNO (Olancho - Juticalpa)", lat: "14.675600", lng: "-86.208100" },
+  { name: "UNAH-CURO (Danlí)", lat: "14.032600", lng: "-86.568400" },
+  { name: "UNAH-Tec Aguán (Yoro)", lat: "15.580200", lng: "-86.234600" },
+];
 
 const UNAH_BUILDINGS = [
   { name: "Seleccionar un edificio de la UNAH...", lat: "", lng: "" },
@@ -45,24 +59,56 @@ const TILE_LAYERS = {
   },
 };
 
+interface LocationPickerProps {
+  lat: string;
+  lng: string;
+  onLocationChange: (lat: string, lng: string) => void;
+  selectedSede?: string;
+  onSedeSelect?: (sedeName: string, lat: string, lng: string) => void;
+}
+
 export function LocationPicker({
   lat,
   lng,
   onLocationChange,
-}: {
-  lat: string;
-  lng: string;
-  onLocationChange: (lat: string, lng: string) => void;
-}) {
+  selectedSede = "Ciudad Universitaria (Tegucigalpa)",
+  onSedeSelect,
+}: LocationPickerProps) {
   const mapRef = useRef<HTMLDivElement>(null);
+  const fullMapRef = useRef<HTMLDivElement>(null);
   const [leaflet, setLeaflet] = useState<typeof import("leaflet") | null>(null);
+
   const mapInstance = useRef<any>(null);
   const markerInstance = useRef<any>(null);
   const tileLayerInstance = useRef<any>(null);
 
+  const fullMapInstance = useRef<any>(null);
+  const fullMarkerInstance = useRef<any>(null);
+
   const [activeLayerKey, setActiveLayerKey] = useState<keyof typeof TILE_LAYERS>("google_roadmap");
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
+
+  // B1 — Dropdown desplegable hacia abajo overlay para Sede UNAH
+  const [sedeDropdownOpen, setSedeDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // B2 — Modal mapa expandido en pantalla completa
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // B3 — Banner de geolocalización automática
+  const [geoBanner, setGeoBanner] = useState<string | null>(null);
+
+  // Cierre de dropdown al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setSedeDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -72,7 +118,25 @@ export function LocationPicker({
     })();
   }, []);
 
-  // Inicializar Mapa con la Capa Gratuita de Google Maps
+  // B3 — Solicitar permiso de geolocalización automática al cargar el componente
+  useEffect(() => {
+    if (navigator.geolocation && !lat && !lng) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const userLat = pos.coords.latitude.toFixed(6);
+          const userLng = pos.coords.longitude.toFixed(6);
+          onLocationChange(userLat, userLng);
+          setGeoBanner("📍 Tu ubicación actual fue detectada. Mueve el marcador si el lugar es diferente.");
+        },
+        () => {
+          // Falla en silencio si se rechaza el permiso
+        },
+        { timeout: 8000 }
+      );
+    }
+  }, []);
+
+  // Inicializar Mini Preview del Mapa (~280px)
   useEffect(() => {
     if (!mapRef.current || !leaflet || mapInstance.current) return;
     const L = leaflet;
@@ -80,7 +144,6 @@ export function LocationPicker({
     const initialLat = parseFloat(lat) || defaultCenter[0];
     const initialLng = parseFloat(lng) || defaultCenter[1];
 
-    // Red Pin Icon con anclaje exacto en la punta inferior [12, 41]
     const redPinIcon = L.icon({
       iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
       shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
@@ -92,7 +155,7 @@ export function LocationPicker({
 
     const map = L.map(mapRef.current, {
       center: [initialLat, initialLng] as L.LatLngExpression,
-      zoom: 17,
+      zoom: 16,
       zoomControl: true,
     });
 
@@ -116,7 +179,6 @@ export function LocationPicker({
       map.invalidateSize();
     }, 200);
 
-    // Clic en el mapa para fijar exactamente las coordenadas en la punta del marcador
     map.on("click", (e: L.LeafletMouseEvent) => {
       const clickLat = e.latlng.lat.toFixed(6);
       const clickLng = e.latlng.lng.toFixed(6);
@@ -124,7 +186,6 @@ export function LocationPicker({
       onLocationChange(clickLat, clickLng);
     });
 
-    // Arrastrar marcador para actualizar coordenadas
     marker.on("dragend", () => {
       const pos = marker.getLatLng();
       onLocationChange(pos.lat.toFixed(6), pos.lng.toFixed(6));
@@ -141,7 +202,69 @@ export function LocationPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leaflet]);
 
-  // Cambiar capa del mapa dinámicamente (Google Maps Callejero / Satelital / OSM)
+  // Inicializar Mapa Expandido de Pantalla Completa cuando se abre el modal
+  useEffect(() => {
+    if (!isFullscreen || !fullMapRef.current || !leaflet) return;
+    const L = leaflet;
+
+    const curLat = parseFloat(lat) || defaultCenter[0];
+    const curLng = parseFloat(lng) || defaultCenter[1];
+
+    const redPinIcon = L.icon({
+      iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+      shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+      iconSize: [30, 48],
+      iconAnchor: [15, 48],
+      popupAnchor: [1, -40],
+      shadowSize: [48, 48],
+    });
+
+    const fullMap = L.map(fullMapRef.current, {
+      center: [curLat, curLng] as L.LatLngExpression,
+      zoom: 17,
+      zoomControl: true,
+    });
+
+    const layerConfig = TILE_LAYERS[activeLayerKey];
+    L.tileLayer(layerConfig.url, {
+      attribution: layerConfig.attribution,
+      maxZoom: layerConfig.maxZoom,
+    }).addTo(fullMap);
+
+    const fullMarker = L.marker([curLat, curLng] as L.LatLngExpression, {
+      icon: redPinIcon,
+      draggable: true,
+    }).addTo(fullMap);
+
+    fullMapInstance.current = fullMap;
+    fullMarkerInstance.current = fullMarker;
+
+    setTimeout(() => {
+      fullMap.invalidateSize();
+    }, 250);
+
+    fullMap.on("click", (e: L.LeafletMouseEvent) => {
+      const clickLat = e.latlng.lat.toFixed(6);
+      const clickLng = e.latlng.lng.toFixed(6);
+      fullMarker.setLatLng(e.latlng);
+      onLocationChange(clickLat, clickLng);
+    });
+
+    fullMarker.on("dragend", () => {
+      const pos = fullMarker.getLatLng();
+      onLocationChange(pos.lat.toFixed(6), pos.lng.toFixed(6));
+    });
+
+    return () => {
+      if (fullMapInstance.current) {
+        fullMapInstance.current.remove();
+        fullMapInstance.current = null;
+        fullMarkerInstance.current = null;
+      }
+    };
+  }, [isFullscreen, leaflet]);
+
+  // Cambiar capa del mapa dinámicamente
   const changeTileLayer = (key: keyof typeof TILE_LAYERS) => {
     if (!mapInstance.current || !leaflet) return;
     const L = leaflet;
@@ -160,25 +283,51 @@ export function LocationPicker({
     tileLayerInstance.current = newLayer;
   };
 
-  // Sincronizar reactivamente si lat/lng cambia externamente (ej. al seleccionar un edificio)
+  // Sincronización reactiva de lat/lng
   useEffect(() => {
-    if (!mapInstance.current || !markerInstance.current || !leaflet) return;
+    if (!leaflet) return;
     const currentLat = parseFloat(lat);
     const currentLng = parseFloat(lng);
 
     if (!isNaN(currentLat) && !isNaN(currentLng)) {
-      const markerPos = markerInstance.current.getLatLng();
-      if (
-        markerPos.lat.toFixed(6) !== currentLat.toFixed(6) ||
-        markerPos.lng.toFixed(6) !== currentLng.toFixed(6)
-      ) {
-        markerInstance.current.setLatLng([currentLat, currentLng]);
-        mapInstance.current.setView([currentLat, currentLng], 18, { animate: true });
+      if (mapInstance.current && markerInstance.current) {
+        const markerPos = markerInstance.current.getLatLng();
+        if (
+          markerPos.lat.toFixed(6) !== currentLat.toFixed(6) ||
+          markerPos.lng.toFixed(6) !== currentLng.toFixed(6)
+        ) {
+          markerInstance.current.setLatLng([currentLat, currentLng]);
+          mapInstance.current.setView([currentLat, currentLng], mapInstance.current.getZoom() || 16, { animate: true });
+        }
+      }
+
+      if (fullMapInstance.current && fullMarkerInstance.current) {
+        fullMarkerInstance.current.setLatLng([currentLat, currentLng]);
+        fullMapInstance.current.setView([currentLat, currentLng], 17, { animate: true });
       }
     }
   }, [lat, lng, leaflet]);
 
-  // Búsqueda de lugares usando Nominatim
+  // Seleccionar Sede UNAH (B1)
+  const handleSelectSede = (s: typeof UNAH_SEDES[0]) => {
+    setSedeDropdownOpen(false);
+    onLocationChange(s.lat, s.lng);
+
+    if (mapInstance.current && markerInstance.current) {
+      const numLat = parseFloat(s.lat);
+      const numLng = parseFloat(s.lng);
+      markerInstance.current.setLatLng([numLat, numLng]);
+      mapInstance.current.setView([numLat, numLng], 15, { animate: true });
+    }
+
+    if (onSedeSelect) {
+      onSedeSelect(s.name, s.lat, s.lng);
+    }
+
+    toast.success(`Mapa centrado en ${s.name} (Zoom 15)`);
+  };
+
+  // Búsqueda Nominatim
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
@@ -213,7 +362,60 @@ export function LocationPicker({
 
   return (
     <div className="space-y-3">
-      {/* Buscador & Selector rápido de Edificios UNAH */}
+      {/* B1 — Selector de Sede UNAH (Dropdown desplegable hacia abajo en overlay) */}
+      <div className="space-y-1 relative" ref={dropdownRef}>
+        <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+          Centro universitario (Sede UNAH)
+        </label>
+        <button
+          type="button"
+          onClick={() => setSedeDropdownOpen((prev) => !prev)}
+          className="w-full h-11 px-3.5 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-800 flex items-center justify-between shadow-2xs hover:border-[#004B87] transition-all cursor-pointer"
+        >
+          <span className="truncate flex items-center gap-2">
+            <MapPin className="size-4 text-[#004B87] shrink-0" />
+            {selectedSede || "Seleccionar sede oficial..."}
+          </span>
+          <span className="text-xs text-slate-400">▼</span>
+        </button>
+
+        {sedeDropdownOpen && (
+          <div className="absolute left-0 top-full mt-1.5 w-full rounded-xl border border-slate-200 bg-white shadow-xl z-50 max-h-60 overflow-y-auto p-1 animate-in fade-in duration-150">
+            {UNAH_SEDES.map((s) => {
+              const isSelected = selectedSede === s.name;
+              return (
+                <button
+                  key={s.name}
+                  type="button"
+                  onClick={() => handleSelectSede(s)}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-colors ${
+                    isSelected ? "bg-[#004B87]/10 text-[#004B87]" : "text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <span>{s.name}</span>
+                  {isSelected && <Check className="size-4 text-[#004B87]" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* B3 — Banner de Geolocalización Automática */}
+      {geoBanner && (
+        <div className="p-3 rounded-xl border border-blue-200 bg-blue-50/90 text-blue-900 text-xs flex items-start justify-between gap-2 shadow-2xs animate-in fade-in duration-200">
+          <div className="font-semibold">{geoBanner}</div>
+          <button
+            type="button"
+            onClick={() => setGeoBanner(null)}
+            className="text-blue-600 hover:text-blue-900 font-bold p-0.5"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Buscador & Lista rápida de Edificios CU */}
       <div className="space-y-2">
         <form onSubmit={handleSearch} className="flex gap-2">
           <div className="relative flex-1">
@@ -221,7 +423,7 @@ export function LocationPicker({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar dirección o lugar general..."
+              placeholder="Buscar dirección o lugar en mapa..."
               className="w-full h-10 pl-3 pr-10 rounded-lg border border-input bg-white text-sm focus:outline-none focus:ring-1 focus:ring-ring"
             />
             <button
@@ -252,7 +454,7 @@ export function LocationPicker({
                 mapInstance.current.setView([numLat, numLng], 18, { animate: true });
               }
 
-              toast.success("Ubicación exacta fijada y centrada en el mapa");
+              toast.success("Ubicación exacta fijada en el edificio seleccionado");
             }}
             className="w-full h-10 px-3 rounded-lg border border-input bg-white text-sm focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer font-medium text-slate-800"
           >
@@ -265,7 +467,7 @@ export function LocationPicker({
         </div>
       </div>
 
-      {/* Selector de Capa del Mapa (Google Maps / Satelital / OSM) */}
+      {/* Selector de Capa del Mapa */}
       <div className="flex items-center justify-between gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200 text-xs">
         <span className="font-bold text-slate-700 flex items-center gap-1.5 px-2">
           <Layers className="size-3.5 text-[#004B87]" /> Capa del Mapa:
@@ -307,10 +509,20 @@ export function LocationPicker({
         </div>
       </div>
 
-      {/* Contenedor del Mapa */}
-      <div ref={mapRef} className="w-full h-72 rounded-xl border border-slate-300 z-0 overflow-hidden shadow-xs relative" />
+      {/* B2 — Mini Preview del Mapa Integrado (~280px) con Botón "Expandir" */}
+      <div className="relative rounded-xl border border-slate-300 overflow-hidden shadow-2xs group">
+        <div ref={mapRef} className="w-full h-[280px] z-0 cursor-default" />
 
-      {/* Coordenadas Sincronizadas */}
+        <button
+          type="button"
+          onClick={() => setIsFullscreen(true)}
+          className="absolute top-2.5 right-2.5 bg-white/95 hover:bg-white text-slate-800 hover:text-[#004B87] text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm border border-slate-200 flex items-center gap-1.5 transition-all z-10"
+        >
+          <Maximize2 className="size-3.5" /> Expandir Mapa
+        </button>
+      </div>
+
+      {/* Inputs de Coordenadas Sincronizadas */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Latitud</label>
@@ -333,9 +545,35 @@ export function LocationPicker({
           />
         </div>
       </div>
-      <p className="text-[11px] text-slate-600 italic font-medium">
-        📍 Haz clic en cualquier parte del mapa o arrastra el marcador rojo para fijar las coordenadas exactas de la ubicación.
-      </p>
+
+      {/* Modal Dialog de Mapa en Pantalla Completa (Expandir) */}
+      <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+        <DialogContent className="max-w-4xl w-[95vw] h-[85vh] flex flex-col p-4">
+          <DialogHeader className="pb-2 border-b">
+            <DialogTitle className="text-base text-[#003366] font-bold flex items-center justify-between">
+              <span>📍 Ajuste de Precisión de Ubicación (Pantalla Completa)</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex-1 w-full rounded-xl border border-slate-200 overflow-hidden relative mt-2">
+            <div ref={fullMapRef} className="w-full h-full z-0" />
+          </div>
+
+          <div className="flex items-center justify-between pt-3 border-t mt-2">
+            <span className="text-xs font-mono text-slate-600 font-bold">
+              Lat: {lat}, Lng: {lng}
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsFullscreen(false)}
+              className="bg-[#004B87] hover:bg-[#003366] text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors"
+            >
+              ✓ Confirmar Ubicación
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+

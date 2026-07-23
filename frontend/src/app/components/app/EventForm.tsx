@@ -1050,6 +1050,10 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
             ? fullUbicacion.split(" - ")
             : [fullUbicacion, ""];
 
+          const generatedGQuery = buildingName
+            ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${buildingName} ${data.centro_regional} UNAH`)}`
+            : gMapsUrl || (data.latitud && data.longitud ? `https://www.google.com/maps/search/?api=1&query=${data.latitud},${data.longitud}` : "");
+
           return (
             <div className="space-y-4 animate-in fade-in duration-200">
               <div>
@@ -1061,15 +1065,15 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                   onChange={(e) => {
                     const val = e.target.value;
                     const fullLoc = aulaName ? `${val} - ${aulaName}` : val;
-                    const query = val ? `${val} ${data.centro_regional}`.trim() : "";
+                    const query = val ? `${val} ${data.centro_regional} UNAH`.trim() : "";
                     const link = query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : "";
                     setData((prev) => ({
                       ...prev,
-                      ubicacion: val ? `${fullLoc}|${link}` : ""
+                      ubicacion: val ? `${fullLoc}|${link}|${prev.latitud},${prev.longitud}` : ""
                     }));
                   }}
                   onBlur={() => blur("ubicacion")}
-                  placeholder="Ej. Edificio D1, Auditorio Juan Lindo, Plaza Cuatro Culturas..."
+                  placeholder="Ej. Edificio D1, Auditorio Juan Lindo, Aula Magna..."
                   className={cn("mt-1 h-11 bg-white", errors.ubicacion && "border-red-500")}
                 />
                 {errors.ubicacion && <p className="text-xs mt-0.5 text-red-800">{errors.ubicacion}</p>}
@@ -1084,11 +1088,11 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                   onChange={(e) => {
                     const val = e.target.value;
                     const fullLoc = val ? `${buildingName} - ${val}` : buildingName;
-                    const query = buildingName ? `${buildingName} ${data.centro_regional}`.trim() : "";
+                    const query = buildingName ? `${buildingName} ${data.centro_regional} UNAH`.trim() : "";
                     const link = query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : "";
                     setData((prev) => ({
                       ...prev,
-                      ubicacion: buildingName ? `${fullLoc}|${link}` : ""
+                      ubicacion: buildingName ? `${fullLoc}|${link}|${prev.latitud},${prev.longitud}` : ""
                     }));
                   }}
                   placeholder="Ej. Aula 101, Cubículo 4, Laboratorio B..."
@@ -1096,27 +1100,42 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                 />
               </div>
 
-              {/* Geolocalización Interactiva y OpenLayers / OpenStreetMap */}
-              <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 shadow-2xs">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <Label className="text-xs font-bold text-[#003366] flex items-center gap-1.5 uppercase tracking-wider">
-                    <MapPin className="size-4 text-[#004B87]" /> Geolocalización e Inspección en Mapa (OpenLayers / OpenStreetMap)
+              {/* B2 — Enlace de Google Maps generado (Solo lectura) */}
+              {generatedGQuery && (
+                <div className="space-y-1 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+                  <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">
+                    Enlace de Google Maps Generado (Solo lectura)
                   </Label>
-                  <span className="text-[11px] text-slate-500 font-mono">
-                    {data.latitud && data.longitud ? `📍 Lat: ${data.latitud}, Lng: ${data.longitud}` : "Selecciona o haz clic en el mapa"}
-                  </span>
+                  <Input
+                    type="text"
+                    value={generatedGQuery}
+                    readOnly
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                    className="bg-white cursor-text font-mono text-xs h-9 border-slate-200 text-slate-700"
+                  />
                 </div>
+              )}
 
+              {/* B1, B2 & B3 — Componente de Geolocalización, Sede, Mini Preview y Expandir */}
+              <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs">
                 <LocationPicker
-                  lat={data.latitud || "14.082216"}
-                  lng={data.longitud || "-87.165000"}
+                  selectedSede={data.centro_regional}
+                  lat={data.latitud || "14.083902"}
+                  lng={data.longitud || "-87.161601"}
+                  onSedeSelect={(sedeName, sLat, sLng) => {
+                    setData((prev) => ({
+                      ...prev,
+                      centro_regional: sedeName,
+                      latitud: sLat,
+                      longitud: sLng,
+                      ubicacion: `${sedeName}|https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${sedeName} UNAH`)}|${sLat},${sLng}`
+                    }));
+                  }}
                   onLocationChange={(newLat, newLng) => {
                     setData((prev) => {
-                      const currentName = prev.ubicacion.includes("|") ? prev.ubicacion.split("|")[0] : prev.ubicacion;
+                      const currentName = prev.ubicacion.includes("|") ? prev.ubicacion.split("|")[0] : (prev.ubicacion || buildingName || prev.centro_regional);
                       const gLink = `https://www.google.com/maps/search/?api=1&query=${newLat},${newLng}`;
-                      const fullLoc = currentName
-                        ? `${currentName}|${gLink}|${newLat},${newLng}`
-                        : `Edificio UNAH|${gLink}|${newLat},${newLng}`;
+                      const fullLoc = `${currentName}|${gLink}|${newLat},${newLng}`;
 
                       return {
                         ...prev,
