@@ -1121,6 +1121,26 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                   </div>
                 </div>
               )}
+
+              {/* Mini Preview del Mapa con Geocodificación Automática por Texto */}
+              <div className="space-y-1 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs">
+                <Label className="text-xs font-bold text-[#003366] uppercase tracking-wider block">
+                  📍 Inspección de Ubicación en Mapa (Geocodificación Automática)
+                </Label>
+                <LocationPicker
+                  buildingName={buildingName}
+                  centroRegional={data.centro_regional}
+                  lat={data.latitud || "14.083902"}
+                  lng={data.longitud || "-87.161601"}
+                  onLocationChange={(nLat: string, nLng: string) => {
+                    setData((prev) => ({
+                      ...prev,
+                      latitud: nLat,
+                      longitud: nLng,
+                    }));
+                  }}
+                />
+              </div>
             </div>
           );
         })()}
