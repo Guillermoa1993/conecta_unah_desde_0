@@ -10,6 +10,7 @@ export interface Usuario {
   estado: EstadoUsuario;
   numero_cuenta?: string;
   carrera?: string;
+  facultad?: string;
   centro_regional?: string;
   telefono?: string;
   foto_url?: string;
@@ -153,7 +154,10 @@ export type TipoNotificacion =
   | 'EVENTO_CANCELADO'
   | 'CONSTANCIA_EMITIDA'
   | 'RECORDATORIO'
-  | 'SISTEMA';
+  | 'SISTEMA'
+  | 'REACCION_PUMITA'
+  | 'SOLICITUD_PUMITA'
+  | 'EVENTO_DISPONIBLE';
 
 export interface Notificacion {
   id: string;
@@ -164,6 +168,9 @@ export interface Notificacion {
   leida: boolean;
   evento_id?: string;
   created_at: string;
+  emisor_nombre?: string; 
+  referencia_tipo?: string;   
+  referencia_id?: number; 
 }
 
 export type TipoReaccionPumita = 'APOYO' | 'FELICITACION' | 'SALUDO' | 'RUGIDO_PUMA';

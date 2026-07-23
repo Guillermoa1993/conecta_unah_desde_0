@@ -143,7 +143,7 @@ export class PostgresEventoRepository implements EventoRepository {
   }
 
   async create(data: CrearEventoDto): Promise<Evento> {
-    const defaultEstado = 'BORRADOR';
+    const defaultEstado = (data as any).estado || 'BORRADOR';
     
     const startDateTime = data.fecha_inicio;
     const endDateTime = data.fecha_fin;

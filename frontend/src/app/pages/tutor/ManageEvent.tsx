@@ -28,6 +28,7 @@ import {
   Mail,
 } from "lucide-react";
 import { api } from "../../../services/api";
+import { VoaeDrawer } from "../../components/app/VoaeDrawer";
 import { Button } from "../../components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import {
@@ -205,6 +206,7 @@ export function ManageEvent() {
   const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null);
   
   // Constancia Modals state
+  const [voaeDrawerOpen, setVoaeDrawerOpen] = useState(false);
   const [pdfStudent, setPdfStudent] = useState<any>(null);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [firmadasSet, setFirmadasSet] = useState<Set<string>>(new Set());
@@ -963,15 +965,18 @@ export function ManageEvent() {
                   {/* QR de Inscripción (Entrada) */}
                   <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
                     <div
-                      className="size-36 shrink-0 rounded-2xl border bg-white flex items-center justify-center p-2.5 shadow-sm cursor-pointer"
-                      onClick={() => ["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado) && setEntryQrOpen(true)}
+                      className={`size-36 shrink-0 rounded-2xl border flex items-center justify-center p-2.5 shadow-sm transition-all ${
+                        isEntryActive ? "bg-white cursor-pointer hover:border-[#004B87]" : "bg-slate-100/70 border-slate-200 cursor-not-allowed"
+                      }`}
+                      onClick={() => isEntryActive && setEntryQrOpen(true)}
                     >
-                      {["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado) ? (
-                        <div className={!isEntryActive ? "opacity-50 grayscale" : ""}>
-                          <QRCodeCanvas id="entry-qr-canvas" value={entryQrValue} size={120} level="M" />
-                        </div>
+                      {isEntryActive ? (
+                        <QRCodeCanvas id="entry-qr-canvas" value={entryQrValue} size={120} level="M" />
                       ) : (
-                        <Lock className="size-10 text-slate-400" />
+                        <div className="flex flex-col items-center justify-center gap-1.5 text-slate-400">
+                          <Lock className="size-9" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bloqueado</span>
+                        </div>
                       )}
                     </div>
                     <div className="space-y-2 text-center sm:text-left flex-1">
@@ -983,8 +988,8 @@ export function ManageEvent() {
                         variant="outline"
                         size="sm"
                         className="gap-1.5 h-8 text-xs font-semibold"
-                        disabled={!["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado)}
-                        onClick={() => downloadQrCode("entry-qr-canvas", "qr-entrada.png")}
+                        disabled={!isEntryActive}
+                        onClick={() => isEntryActive && downloadQrCode("entry-qr-canvas", "qr-entrada.png")}
                       >
                         <Download className="size-3.5" /> Descargar QR
                       </Button>
@@ -994,15 +999,18 @@ export function ManageEvent() {
                   {/* QR de Finalización (Salida) */}
                   <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
                     <div
-                      className="size-36 shrink-0 rounded-2xl border bg-white flex items-center justify-center p-2.5 shadow-sm cursor-pointer"
-                      onClick={() => ["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado) && setExitQrOpen(true)}
+                      className={`size-36 shrink-0 rounded-2xl border flex items-center justify-center p-2.5 shadow-sm transition-all ${
+                        isExitActive ? "bg-white cursor-pointer hover:border-emerald-600" : "bg-slate-100/70 border-slate-200 cursor-not-allowed"
+                      }`}
+                      onClick={() => isExitActive && setExitQrOpen(true)}
                     >
-                      {["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado) ? (
-                        <div className={!isExitActive ? "opacity-50 grayscale" : ""}>
-                          <QRCodeCanvas id="exit-qr-canvas" value={exitQrValue} size={120} level="M" />
-                        </div>
+                      {isExitActive ? (
+                        <QRCodeCanvas id="exit-qr-canvas" value={exitQrValue} size={120} level="M" />
                       ) : (
-                        <Lock className="size-10 text-slate-400" />
+                        <div className="flex flex-col items-center justify-center gap-1.5 text-slate-400">
+                          <Lock className="size-9" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bloqueado</span>
+                        </div>
                       )}
                     </div>
                     <div className="space-y-2 text-center sm:text-left flex-1">
@@ -1014,8 +1022,8 @@ export function ManageEvent() {
                         variant="outline"
                         size="sm"
                         className="gap-1.5 h-8 text-xs font-semibold"
-                        disabled={!["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado)}
-                        onClick={() => downloadQrCode("exit-qr-canvas", "qr-salida.png")}
+                        disabled={!isExitActive}
+                        onClick={() => isExitActive && downloadQrCode("exit-qr-canvas", "qr-salida.png")}
                       >
                         <Download className="size-3.5" /> Descargar QR
                       </Button>
@@ -1508,9 +1516,9 @@ export function ManageEvent() {
             </Button>
             <Button
               className="text-white font-semibold cursor-pointer bg-red-600 hover:bg-red-700"
-              onClick={async () => {
-                await handleEndEvent();
+              onClick={() => {
                 setEndEventConfirmOpen(false);
+                setVoaeDrawerOpen(true);
               }}
             >
               Confirmar
@@ -1518,6 +1526,31 @@ export function ManageEvent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* VoaeDrawer for event finalization & audit submission */}
+      {event && (
+        <VoaeDrawer
+          open={voaeDrawerOpen}
+          onClose={() => setVoaeDrawerOpen(false)}
+          tutorName={event.tutor_nombre || "Profesor UNAH"}
+          eventTitle={event.titulo}
+          eventDate={event.fecha_inicio ? new Date(event.fecha_inicio).toLocaleDateString("es-HN") : "N/A"}
+          totalAsistentes={students.filter((s: any) => s.estado === "ASISTIDO" || s.estado === "PRESENTE").length}
+          horasPorEstudiante={event.duracion_horas || 1}
+          asistentesList={students.map((s: any) => ({
+            id: String(s.id || s.id_inscripcion),
+            studentName: s.nombre_estudiante || s.nombre || s.studentName || "Estudiante",
+            studentId: s.numero_cuenta || s.cuenta || s.studentId || "202110000",
+            attended: s.estado === "ASISTIDO" || s.estado === "PRESENTE",
+            fotoUrl: s.fotoUrl || s.avatar
+          }))}
+          eventId={String(event.id || eventId)}
+          eventObj={event}
+          onSubmitted={() => {
+            fetchEventDetails();
+          }}
+        />
+      )}
 
       {/* QR Entry Zoom Modal */}
       <Dialog open={entryQrOpen} onOpenChange={setEntryQrOpen}>

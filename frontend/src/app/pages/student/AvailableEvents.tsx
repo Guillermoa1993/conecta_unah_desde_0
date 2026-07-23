@@ -1,16 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-
+import { grupo2EventosService } from '../../../services';
+import { Share, LogOut } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
 interface AsistenciaInfo {
   entrada: string;
-  salida?: string;
+  salida?: string; 
   lat: number;
   lng: number;
-  latEntrada?: number;
-  lngEntrada?: number;
-  latSalida?: number;
-  lngSalida?: number;
   estadoVerificacion: 'Pendiente de verificación' | 'Verificado';
 }
 interface Evento {
@@ -26,17 +23,37 @@ interface Evento {
   HORARIO?: string;
   HORAS_VOAE?: number;
   UBICACION?: string;
-  CLASIFICACION?: string;
+  UBICACION_LINK?: string;
+  Categoria?: string;
   ASISTENCIA?: AsistenciaInfo;
 }
 
 export const AvailableEvents: React.FC = () => {
 
-
-
   const [origenFiltro, setOrigenFiltro] = useState<'mis-eventos' | 'nuevos'>('mis-eventos');
   const [busqueda, setBusqueda] = useState('');
   const [eventoHorasModal, setEventoHorasModal] = useState(false);
+  const [mensajeCompartido, setMensajeCompartido] = useState(false);
+  const [eventoACompartir, setEventoACompartir] = useState<Evento | null>(null);
+  const [mensajePersonal, setMensajePersonal] = useState('');
+  const [tagsRaw, setTagsRaw] = useState('');
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [showDescEmojis, setShowDescEmojis] = useState(false);
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const [tagSearchQuery, setTagSearchQuery] = useState('');
+  const [tagStartIndex, setTagStartIndex] = useState(-1);
+  const descRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const tagsRef = useRef<HTMLInputElement>(null);
+  const CONNECTIONS = [
+    { name: 'Camel García', initials: 'CG' },
+    { name: 'Valeria Rojas', initials: 'VR' },
+    { name: 'Miguel Torres', initials: 'MT' },
+    { name: 'Puma Head', initials: 'PH' },
+    { name: 'Laura Paz', initials: 'LP' },
+    { name: 'Ángela Reyes', initials: 'AR' },
+    { name: 'Carlos Mendoza', initials: 'CM' },
+  ];
   const mostrarBotonEntrada = (ev: Evento) => {
     return ev?.ESTADO_ACTIVIDAD === 'En curso' && !ev?.ASISTENCIA?.entrada;
   };
@@ -59,143 +76,52 @@ export const AvailableEvents: React.FC = () => {
 
  
   // Estados para modales de control
-
   const [eventoDetalleModal, setEventoDetalleModal] = useState<Evento | null>(null);
   const [eventoACancelar, setEventoACancelar] = useState<Evento | null>(null);
   const [eventoAsistenciaModal, setEventoAsistenciaModal] = useState<Evento | null>(null);
 
   // Estado para activar la cámara real del dispositivo
-  const [escanerQR, setEscanerQR] = useState<{ abierto: boolean; eventoId: number; tipo: 'entrada' | 'salida' } | null>(null);
+  const [escanerQR, setEscanerQR] = useState<{ abierto: boolean; eventoId: number; tipo: 'activar entrada' | 'activar salida' } | null>(null);
 
   // Referencia para el contenedor del scanner HTML5
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
-  const [eventos, setEventos] = useState<Evento[]>([
+  const [eventos, setEventos] = useState<Evento[]>([]);
 
-    {
-      EVENTO_ID: 1,
-      TITULO_EVENTO: 'Taller de Liderazgo Competitivo',
-      DESCRIPCION: 'Curso presencial enfocado en el desarrollo de habilidades blandas y gestión de equipos para horas VOAE.',
-      ESTADO_ACTIVIDAD: 'Programado',
-      INSCRITO: true,
-      CUPOS_DISPONIBLES: 15,
-      FECHA: '2026-10-15',
-      INSTRUCTOR: 'Ing. Carlos Mendoza',
-      HORARIO: '08:00 AM - 11:00 AM',
-      UBICACION: 'Auditorio de Ingeniería',
-      CLASIFICACION: 'Desarrollo Profesional',
-      AVATAR_URL: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=300&auto=format&fit=crop&q=80',
-      HORAS_VOAE: 3
-    },
-    {
-      EVENTO_ID: 2,
-      TITULO_EVENTO: 'Seminario de AWS Cloud Foundations',
-      DESCRIPCION: 'Introducción práctica a los servicios principales de AWS y despliegue de arquitectura en la nube.',
-      ESTADO_ACTIVIDAD: 'En curso',
-      INSCRITO: true,
-      CUPOS_DISPONIBLES: 8,
-      FECHA: '2026-06-22',
-      INSTRUCTOR: 'Ing. Arnold Stark',
-      HORARIO: '01:00 PM - 04:00 PM',
-      UBICACION: 'Laboratorio de Cómputo 3',
-      CLASIFICACION: 'Tecnológico ',
-      AVATAR_URL: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=300&auto=format&fit=crop&q=80',
-      HORAS_VOAE: 3
-    },
-    {
-      EVENTO_ID: 3,
-      TITULO_EVENTO: 'Seminario de Ciberseguridad UNAH',
-      DESCRIPCION: 'Pentesting básico y protección de infraestructura crítica en redes académicas.',
-      ESTADO_ACTIVIDAD: 'En curso',
-      INSCRITO: true,
-      CUPOS_DISPONIBLES: 12,
-      FECHA: '2026-06-25',
-      INSTRUCTOR: 'Ing. Gerson Cerrato',
-      HORARIO: '02:00 PM - 05:00 PM',
-      UBICACION: 'Edificio B2',
-      CLASIFICACION: 'Seguridad',
-      AVATAR_URL: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=300&auto=format&fit=crop&q=80',
-      HORAS_VOAE: 3,
-      ASISTENCIA: {
-        entrada: '2026-06-23 14:05:12',
-        lat: 14.0818,
-        lng: -87.2068,
-        estadoVerificacion: 'Pendiente de verificación'
-      }
-    },
-    {
-      EVENTO_ID: 4,
-      TITULO_EVENTO: 'Módulo de Finanzas Avanzadas',
-      DESCRIPCION: 'Análisis profundo de costos estructurados y presupuestos institucionales.',
-      ESTADO_ACTIVIDAD: 'En curso',
-      INSCRITO: true,
-      CUPOS_DISPONIBLES: 20,
-      FECHA: '2026-06-22',
-      INSTRUCTOR: 'Lic. Amanda Silva',
-      HORARIO: '10:00 AM - 12:00 PM',
-      UBICACION: 'Aula Magna C3',
-      CLASIFICACION: 'Económico',
-      AVATAR_URL: 'https://images.unsplash.com/photo-1434626881859-194d67b2b86f?w=300&auto=format&fit=crop&q=80',
-      HORAS_VOAE: 2,
-      ASISTENCIA: {
-        entrada: '2026-06-22 10:02:44',
-        lat: 14.0818,
-        lng: -87.2068,
-        estadoVerificacion: 'Pendiente de verificación'
-      }
-    },
-    {
-      EVENTO_ID: 5,
-      TITULO_EVENTO: 'Noche de Talentos UNAH 2026',
-      DESCRIPCION: 'Evento artístico estudiantil provisionalmente organizado por VOAE.',
-      ESTADO_ACTIVIDAD: 'Finalizado',
-      INSCRITO: true,
-      CUPOS_DISPONIBLES: 0,
-      FECHA: '2026-06-21',
-      INSTRUCTOR: 'Lic. Carlos Flores',
-      HORARIO: '05:00 PM - 08:00 PM',
-      UBICACION: 'Plaza de las Cuatro Culturas',
-      CLASIFICACION: 'Cultural',
-      AVATAR_URL: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80',
-      HORAS_VOAE: 3,
-      ASISTENCIA: {
-        entrada: '2026-06-21 17:05:22',
-        salida: '2026-06-21 20:01:45',
-        lat: 14.0818,
-        lng: -87.2068,
-        estadoVerificacion: 'Verificado'
-      }
-    },
-    {
-      EVENTO_ID: 6,
-      TITULO_EVENTO: 'Introducción al Desarrollo Web con React',
-      DESCRIPCION: 'Aprende los fundamentos de React, hooks básicos y manejo de estados desde cero para proyectos estudiantiles.',
-      ESTADO_ACTIVIDAD: '',
-      INSCRITO: false,
-      CUPOS_DISPONIBLES: 25,
-      FECHA: '2026-07-02',
-      INSTRUCTOR: 'Ing. Elena Rostova',
-      HORARIO: '09:00 AM - 12:00 PM',
-      UBICACION: 'Laboratorio de Cómputo 1',
-      CLASIFICACION: 'Tecnológico ',
-      AVATAR_URL: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=300&auto=format&fit=crop&q=80',
-      HORAS_VOAE: 3
-    },
-    {
-      EVENTO_ID: 7,
-      TITULO_EVENTO: 'Conferencia de Inteligencia Artificial y Ética',
-      DESCRIPCION: 'Análisis del impacto de los modelos masivos de lenguaje en la educación superior y el mercado laboral moderno.',
-      ESTADO_ACTIVIDAD: '',
-      INSCRITO: false,
-      CUPOS_DISPONIBLES: 50,
-      FECHA: '2026-07-10',
-      INSTRUCTOR: 'Dr. Samuel Vance',
-      HORARIO: '02:00 PM - 04:00 PM',
-      UBICACION: 'Auditorio Central Juan Lindo',
-      CLASIFICACION: 'Académico ',
-      AVATAR_URL: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?w=300&auto=format&fit=crop&q=80',
-      HORAS_VOAE: 2
+  const cargarEventos = async () => {
+    try {
+      const data = await grupo2EventosService.obtenerMisEventos();
+      const mapped = data.map((ev: any) => ({
+        EVENTO_ID: ev.EVENTO_ID,
+        TITULO_EVENTO: ev.TITULO_EVENTO,
+        DESCRIPCION: ev.DESCRIPCION,
+        ESTADO_ACTIVIDAD: ev.ESTADO_ACTIVIDAD,
+        INSCRITO: ev.INSCRITO,
+        CUPOS_DISPONIBLES: ev.CUPOS_DISPONIBLES,
+        FECHA: ev.FECHA,
+        INSTRUCTOR: ev.INSTRUCTOR,
+        AVATAR_URL: ev.AVATAR_URL,
+        HORARIO: ev.HORARIO,
+        HORAS_VOAE: ev.HORAS_VOAE,
+        UBICACION: ev.UBICACION,
+        UBICACION_LINK: ev.UBICACION_LINK,
+        Categoria: ev.Categoria,
+        ASISTENCIA: ev.ASISTENCIA ? {
+          entrada: ev.ASISTENCIA.entrada,
+          salida: ev.ASISTENCIA.salida || undefined,
+          lat: ev.ASISTENCIA.lat || 14.0818,
+          lng: ev.ASISTENCIA.lng || -87.2068,
+          estadoVerificacion: (ev.ASISTENCIA.estadoVerificacion === 'Verificado' ? 'Verificado' : 'Pendiente de verificación') as 'Pendiente de verificación' | 'Verificado'
+        } : undefined
+      }));
+      setEventos(mapped);
+    } catch (error) {
+      console.error('Error al cargar eventos del backend:', error);
     }
-  ]);
+  };
+
+  useEffect(() => {
+    cargarEventos();
+  }, []);
 
   // Lector QR
   useEffect(() => {
@@ -212,37 +138,42 @@ export const AvailableEvents: React.FC = () => {
       );
       const alEscanearExitoso = (textoDecodificado: string) => {
         if (scannerRef.current) {
-          scannerRef.current.clear().catch((err: any) => console.error("Error al limpiar la cámara", err));
+          scannerRef.current.clear().catch(err => console.error("Error al limpiar la cámara", err));
         }
         if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition((position) => {
-            const ahora = new Date().toISOString().replace('T', ' ').substring(0, 19);
+          navigator.geolocation.getCurrentPosition(async (position) => {
             const { latitude, longitude } = position.coords;
-            setEventos(prev => prev.map(ev => {
-              if (ev.EVENTO_ID === escanerQR.eventoId) {
-                if (escanerQR.tipo === 'entrada') {
-                  return {
-                    ...ev,
-                    ASISTENCIA: { entrada: ahora, lat: latitude, lng: longitude, estadoVerificacion: 'Pendiente de verificación' }
-                  };
-                } else {
-                  return {
-                    ...ev,
-                    ESTADO_ACTIVIDAD: 'Finalizado',
-                    ASISTENCIA: { ...ev.ASISTENCIA!, salida: ahora, lat: latitude, lng: longitude, estadoVerificacion: 'Pendiente de verificación' }
-                  };
-                }
-              }
-              return ev;
-            }));
-            setEscanerQR(null);
-          }, () => {
-            alert("Asistencia capturada, pero activa los permisos de ubicación para registrar tus coordenadas en el mapa.");
-            setEscanerQR(null);
+            const tipoAsistencia = escanerQR.tipo === 'activar entrada' ? 'entrada' : 'salida';
+            try {
+              await grupo2EventosService.registrarAsistencia(escanerQR.eventoId, {
+                tipo: tipoAsistencia,
+                lat: latitude,
+                lng: longitude
+              });
+              await cargarEventos();
+              setEscanerQR(null);
+            } catch (error: any) {
+              alert(error.message || 'Error al registrar asistencia');
+              setEscanerQR(null);
+            }
+          }, async () => {
+            try {
+              const tipoAsistencia = escanerQR.tipo === 'activar entrada' ? 'entrada' : 'salida';
+              await grupo2EventosService.registrarAsistencia(escanerQR.eventoId, {
+                tipo: tipoAsistencia,
+                lat: 14.0818,
+                lng: -87.2068
+              });
+              await cargarEventos();
+              setEscanerQR(null);
+            } catch (error: any) {
+              alert(error.message || 'Error al registrar asistencia');
+              setEscanerQR(null);
+            }
           });
         }
       };
-      scannerRef.current.render(alEscanearExitoso, (error: any) => {});
+      scannerRef.current.render(alEscanearExitoso, (error) => {});
       const escanearTextosEspanol = () => {
         const btnCambiarCamara = document.getElementById('html5-qrcode-button-camera-permission');
         if (btnCambiarCamara) btnCambiarCamara.innerText = "Conceder permiso de cámara";
@@ -257,30 +188,159 @@ export const AvailableEvents: React.FC = () => {
     }
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.clear().catch((err: any) => console.error("Error al limpiar recursos de cámara", err));
+        scannerRef.current.clear().catch(err => console.error("Error al limpiar recursos de cámara", err));
       }
     };
   }, [escanerQR]);
-  const inscribirseAEvento = (id: number) => {
-    setEventos(prev => prev.map(ev => {
-      if (ev.EVENTO_ID === id) {
-        if (ev.CUPOS_DISPONIBLES <= 0) return ev;
-        return { ...ev, INSCRITO: true, CUPOS_DISPONIBLES: ev.CUPOS_DISPONIBLES - 1, ESTADO_ACTIVIDAD: 'Programado', PROGRESO: 0 };
-      }
-      return ev;
-    }));
-    setEventoDetalleModal(null);
-    setOrigenFiltro('mis-eventos');
+
+
+  const inscribirseAEvento = async (id: number) => {
+    try {
+      await grupo2EventosService.inscribir(id);
+      await cargarEventos();
+      setEventoDetalleModal(null);
+      setOrigenFiltro('mis-eventos');
+    } catch (error: any) {
+      alert(error.message || 'Error al inscribirse al evento');
+    }
   };
-  const ejecutarCancelacionLimpia = () => {
-    if (!eventoACancelar) return;
-    setEventos(prev => prev.map(ev => {
-      if (ev.EVENTO_ID === eventoACancelar.EVENTO_ID) {
-        return { ...ev, INSCRITO: false, ESTADO_ACTIVIDAD: '', CUPOS_DISPONIBLES: ev.CUPOS_DISPONIBLES + 1, ASISTENCIA: undefined };
+  const compartirEnSocialFeed = (evento: Evento, mensaje?: string, tags?: string[], images?: string[]) => {
+    const savedPosts = localStorage.getItem("unah_posts");
+    let posts = savedPosts ? JSON.parse(savedPosts) : [];
+
+    const autorNombre = 'Valeria Estrada';
+    const sharerId = 'valeria.estrada';
+
+    const descFinal = mensaje?.trim()
+      ? `${mensaje.trim()}\n\n📅 ${evento.TITULO_EVENTO}\n${evento.DESCRIPCION}`
+      : evento.DESCRIPCION;
+
+    const postImages = [...(images?.filter(Boolean) || [])];
+    if (evento.AVATAR_URL && !postImages.some(i => i === evento.AVATAR_URL)) {
+      postImages.push(evento.AVATAR_URL);
+    }
+
+    const nuevoPost = {
+      id: Date.now(),
+      type: "Evento" as const,
+      title: evento.TITULO_EVENTO,
+      desc: descFinal,
+      fecha: evento.FECHA,
+      lugar: evento.UBICACION,
+      author: autorNombre,
+      initials: (autorNombre || 'U').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
+      sharerId,
+      scope: evento.Categoria || 'Social',
+      visibility: 'Público',
+      time: 'Justo ahora',
+      tags: tags?.filter(Boolean) || [],
+      cupos: evento.CUPOS_DISPONIBLES,
+      inscrito: evento.INSCRITO,
+      voaeHoras: evento.HORAS_VOAE || 0,
+      images: postImages,
+      topInscritos: [],
+      love: 0, like: 0, dislike: 0, haha: 0, wow: 0, sad: 0, angry: 0,
+      comments: [],
+      userReaction: null,
+      saved: false,
+      hidden: false,
+      createdAt: Date.now(),
+    };
+
+    posts.unshift(nuevoPost);
+
+    localStorage.setItem("unah_posts", JSON.stringify(posts));
+    window.dispatchEvent(new CustomEvent('unah-posts-changed'));
+
+    setMensajeCompartido(true);
+    setTimeout(() => setMensajeCompartido(false), 2500);
+  };
+
+  const abrirModalCompartir = (evento: Evento) => {
+    setMensajePersonal('');
+    setTagsRaw('');
+    setSelectedImages([]);
+    setShowDescEmojis(false);
+    setShowTagSuggestions(false);
+    setEventoACompartir(evento);
+  };
+
+  const handleTagsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setTagsRaw(val);
+    const cursorPos = e.target.selectionStart || 0;
+    const textBeforeCursor = val.substring(0, cursorPos);
+    const lastAtIdx = textBeforeCursor.lastIndexOf('@');
+    if (lastAtIdx !== -1) {
+      const queryText = textBeforeCursor.substring(lastAtIdx + 1);
+      if (!queryText.includes(' ') && !queryText.includes('\n') && !queryText.includes(',')) {
+        setShowTagSuggestions(true);
+        setTagSearchQuery(queryText.toLowerCase());
+        setTagStartIndex(lastAtIdx);
+        return;
       }
-      return ev;
+    }
+    setShowTagSuggestions(false);
+  };
+
+  const handleSelectTag = (name: string) => {
+    if (tagStartIndex === -1) return;
+    const textBeforeAt = tagsRaw.substring(0, tagStartIndex);
+    const textAfterAt = tagsRaw.substring(tagStartIndex + tagSearchQuery.length + 1);
+    const newTags = `${textBeforeAt}@${name} ${textAfterAt}`;
+    setTagsRaw(newTags);
+    setShowTagSuggestions(false);
+    setTimeout(() => {
+      if (tagsRef.current) {
+        tagsRef.current.focus();
+        const newCursorPos = tagStartIndex + name.length + 2;
+        tagsRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 50);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const remaining = 3 - selectedImages.length;
+    if (remaining <= 0) return;
+    const filesToLoad = Array.from(files).slice(0, remaining);
+    const promises = filesToLoad.map(file => new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
     }));
-    setEventoACancelar(null);
+    Promise.all(promises).then(base64s => {
+      setSelectedImages(prev => [...prev, ...base64s]);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    });
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const confirmarCompartir = () => {
+    if (!eventoACompartir) return;
+    const tags = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
+    compartirEnSocialFeed(eventoACompartir, mensajePersonal, tags, selectedImages);
+    setEventoACompartir(null);
+    setMensajePersonal('');
+    setTagsRaw('');
+    setSelectedImages([]);
+  };
+
+  const emojiList = ['😊','😂','🤣','❤️','👍','🎉','🔥','🚀','🎓','🙌','✨','👀','💻','📚','💡','🎨','🌟','👏','✔️','🚩'];
+  const ejecutarCancelacionLimpia = async () => {
+    if (!eventoACancelar) return;
+    try {
+      await grupo2EventosService.cancelar(eventoACancelar.EVENTO_ID);
+      await cargarEventos();
+      setEventoACancelar(null);
+    } catch (error: any) {
+      alert(error.message || 'Error al cancelar la inscripción');
+    }
   };
   const mandarAImprimirComprobante = (evento: Evento) => {
       // Depuración: Verifica qué está recibiendo la función
@@ -327,6 +387,12 @@ export const AvailableEvents: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#f3f4f6] p-4 font-sans antialiased">
+      {/* MENSAJE DE EVENTO COMPARTIDO */}
+      {mensajeCompartido && (
+        <div className="fixed top-5 right-5 z-50 bg-emerald-600 text-white px-6 py-4 rounded-xl shadow-lg font-bold">
+          ✅ Evento compartido correctamente
+        </div>
+      )}
       {/* CABECERA AZUL */}
       <div className="max-w-6xl mx-auto bg-[#004B87] rounded-3xl p-6 md:p-8 text-white shadow-md flex flex-col gap-6 mb-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -441,7 +507,7 @@ export const AvailableEvents: React.FC = () => {
                     {/* Botón de Entrada QR */}
                     {mostrarBotonEntrada(evento) && (
                       <button
-                        onClick={() => setEscanerQR({ abierto: true, eventoId: evento.EVENTO_ID, tipo: 'entrada' })}
+                        onClick={() => setEscanerQR({ abierto: true, eventoId: evento.EVENTO_ID, tipo: 'activar entrada' })}
                         className="bg-[#004a8b] text-white hover:bg-[#003d73] px-5 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
                       >
                         📷 Entrada QR
@@ -450,7 +516,7 @@ export const AvailableEvents: React.FC = () => {
                     {/* Botón de Salida QR */}
                     {mostrarBotonSalida(evento) && (
                       <button
-                        onClick={() => setEscanerQR({ abierto: true, eventoId: evento.EVENTO_ID, tipo: 'salida' })}
+                        onClick={() => setEscanerQR({ abierto: true, eventoId: evento.EVENTO_ID, tipo: 'activar salida' })}
                         className="bg-[#004a8b] text-white hover:bg-[#003d73] px-5 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
                       >
                         📷 Salida QR
@@ -476,12 +542,24 @@ export const AvailableEvents: React.FC = () => {
                       </div>
                     )}
                     {evento.ESTADO_ACTIVIDAD === 'Programado' && (
+                      <>
                       <button
-                        onClick={() => setEventoACancelar(evento)}
-                        className="px-4 py-2 bg-rose-50 text-rose-600 font-bold rounded-xl text-xs border border-rose-100 hover:bg-rose-100"
-                      >
-                        Retirarme del Evento
-                      </button>
+                          onClick={() => setEventoACancelar(evento)}
+                          className="p-2 bg-rose-50 text-rose-600 rounded-xl border border-rose-200 hover:bg-rose-100 transition-colors flex items-center justify-center"
+                          title="Retirarme del Evento"
+                          aria-label="Retirarme del Evento"
+                        >
+                          <LogOut size={16} />
+                        </button>
+                      <button
+                          onClick={() => abrirModalCompartir(evento)}
+                          className="p-2 bg-blue-50 text-blue-700 rounded-xl border border-blue-200 hover:bg-blue-100 transition-colors flex items-center justify-center"
+                          title="Compartir en Muro"
+                          aria-label="Compartir en Muro"
+                        >
+                          <Share size={16} />
+                        </button>
+                      </>
                     )}
                   </>
                 )}
@@ -550,18 +628,48 @@ export const AvailableEvents: React.FC = () => {
                 <div className="border rounded-xl p-3 bg-slate-50">
                   <p className="text-[10px] font-bold text-slate-400 uppercase">Lugar</p>
                   <p className="font-bold text-slate-800 text-sm">{eventoDetalleModal.UBICACION}</p>
+                  {eventoDetalleModal.UBICACION_LINK && (
+                    <a
+                      href={eventoDetalleModal.UBICACION_LINK}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 inline-block text-xs font-bold text-[#004B87] underline hover:text-[#003366]"
+                    >
+                      Ver en Google Maps
+                    </a>
+                  )}
                 </div>
                 <div className="border rounded-xl p-3 bg-slate-50 col-span-2">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Clasificación y Tipo</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Categoría y Tipo</p>
                   <p className="font-bold text-slate-800 text-sm">
-                    {eventoDetalleModal.CLASIFICACION} — ARTICULO 140
+                    {eventoDetalleModal.Categoria} — ARTICULO 140
                   </p>
                 </div>
                 {/* Horas a Obtener */}
                 <div className="border rounded-xl p-3 bg-blue-50 border-blue-100 col-span-2">
                   <p className="text-[10px] font-bold text-blue-600 uppercase">Horas a Obtener</p>
                   <p className="font-black text-blue-900 text-sm">
-                   {eventoDetalleModal.HORAS_VOAE ?? 0} Horas Académicas
+                   {(() => {
+                     const hours = eventoDetalleModal.HORAS_VOAE ?? 0;
+                     const clasif = (eventoDetalleModal.Categoria || "").trim().toLowerCase();
+                     
+                     if (eventoDetalleModal.EVENTO_ID <= 4) {
+                       return "3 Horas Académicas";
+                     }
+                     
+                     let scopeLabel = eventoDetalleModal.Categoria || "";
+                     if (clasif.includes("academico") || clasif.includes("académico")) {
+                       scopeLabel = "Académicas";
+                     } else if (clasif.includes("deportivo")) {
+                       scopeLabel = "Deportivas";
+                     } else if (clasif.includes("cultural")) {
+                       scopeLabel = "Culturales";
+                     } else if (clasif.includes("social")) {
+                       scopeLabel = "Sociales";
+                     }
+                     
+                     return `${hours} Horas ${scopeLabel}`;
+                   })()}
                   </p>
                 </div>
               </div>
@@ -609,7 +717,7 @@ export const AvailableEvents: React.FC = () => {
                   <iframe
                     title="Mapa de Entrada"
                     width="100%" height="100%" style={{ border: 0 }}
-                    src={`https://www.google.com/maps?q=${eventoAsistenciaModal.ASISTENCIA?.latEntrada ?? 14.0818},${eventoAsistenciaModal.ASISTENCIA?.lngEntrada ?? -87.2068}&z=16&output=embed`}
+                    src={`https://www.google.com/maps?q=${eventoAsistenciaModal.ASISTENCIA?.lat ?? 14.0818},${eventoAsistenciaModal.ASISTENCIA?.entrada ?? -87.2068}&z=16&output=embed`}
                   ></iframe>
                 </div>
               </div>
@@ -621,7 +729,7 @@ export const AvailableEvents: React.FC = () => {
                   <iframe
                     title="Mapa de Salida"
                     width="100%" height="100%" style={{ border: 0 }}
-                    src={`https://www.google.com/maps?q=${eventoAsistenciaModal.ASISTENCIA?.latSalida ?? 14.0818},${eventoAsistenciaModal.ASISTENCIA?.lngSalida ?? -87.2068}&z=16&output=embed`}
+                    src={`https://www.google.com/maps?q=${eventoAsistenciaModal.ASISTENCIA?.salida ?? 14.0818},${eventoAsistenciaModal.ASISTENCIA?.lng ?? -87.2068}&z=16&output=embed`}
                   ></iframe>
                 </div>
               </div>
@@ -631,6 +739,114 @@ export const AvailableEvents: React.FC = () => {
         </div>
       </div>
     )}
+      {/* MODAL: COMPARTIR EN FEED */}
+      {eventoACompartir && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs" onClick={() => { setEventoACompartir(null); setMensajePersonal(''); setTagsRaw(''); setSelectedImages([]); }}>
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b flex justify-between items-center shrink-0">
+              <h3 className="text-xs font-extrabold text-[#004B87] tracking-wider uppercase">📤 Compartir en Muro</h3>
+              <button onClick={() => { setEventoACompartir(null); setMensajePersonal(''); setTagsRaw(''); setSelectedImages([]); }} className="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
+            </div>
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
+              {/* Event preview */}
+              <div className="flex gap-4 items-start bg-slate-50 rounded-2xl p-4 border">
+                {eventoACompartir.AVATAR_URL ? (
+                  <img src={eventoACompartir.AVATAR_URL} alt="" className="w-14 h-14 rounded-xl object-cover border shadow-sm shrink-0" />
+                ) : (
+                  <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center font-black text-blue-600 border shrink-0">
+                    {eventoACompartir.TITULO_EVENTO.substring(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <h2 className="text-base font-black text-[#003560] leading-tight truncate">{eventoACompartir.TITULO_EVENTO}</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">{eventoACompartir.INSTRUCTOR} · {eventoACompartir.FECHA}</p>
+                  <p className="text-xs text-slate-400 mt-1 line-clamp-2">{eventoACompartir.DESCRIPCION}</p>
+                </div>
+              </div>
+
+              {/* Mensaje personal */}
+              <div>
+                <label className="text-xs font-bold text-slate-500 block mb-2">AGREGA UN MENSAJE (opcional)</label>
+                <div className="flex gap-2 items-start">
+                  <textarea
+                    ref={descRef}
+                    value={mensajePersonal}
+                    onChange={e => setMensajePersonal(e.target.value)}
+                    placeholder="Escribe algo sobre este evento..."
+                    rows={3}
+                    className="w-full border border-slate-200 rounded-xl p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowDescEmojis(v => !v)}
+                    className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50 shrink-0 text-lg"
+                  >
+                    😊
+                  </button>
+                </div>
+                {showDescEmojis && (
+                  <div className="flex flex-wrap gap-1.5 mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                    {emojiList.map(emoji => (
+                      <button
+                        key={emoji}
+                        onClick={() => { setMensajePersonal(prev => prev + emoji); setShowDescEmojis(false); }}
+                        className="text-lg hover:bg-slate-200 rounded-lg px-1 py-0.5"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Etiquetas */}
+              <div className="relative">
+                <label className="text-xs font-bold text-slate-500 block mb-2">ETIQUETAS (separadas por coma, usa @ para mencionar)</label>
+                <input
+                  ref={tagsRef}
+                  type="text"
+                  placeholder="#Tema1, #Tema2, @Usuario"
+                  value={tagsRaw}
+                  onChange={handleTagsChange}
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                />
+                {showTagSuggestions && (
+                  <div className="absolute z-10 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+                    {CONNECTIONS.filter(c => c.name.toLowerCase().includes(tagSearchQuery)).map(c => (
+                      <div
+                        key={c.name}
+                        onClick={() => handleSelectTag(c.name)}
+                        className="flex items-center gap-2 px-4 py-2.5 hover:bg-blue-50 cursor-pointer text-sm"
+                      >
+                        <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">{c.initials}</span>
+                        <span className="font-medium text-slate-700">{c.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t shrink-0">
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setEventoACompartir(null); setMensajePersonal(''); setTagsRaw(''); setSelectedImages([]); }}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-600 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmarCompartir}
+                  className="flex-1 py-2.5 bg-[#004B87] hover:bg-[#003560] text-white font-bold rounded-xl text-xs shadow-sm transition-colors flex items-center justify-center gap-2"
+                >
+                  <Share size={14} />
+                  Compartir en Muro
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* MODAL: RETIRARSE */}
       {eventoACancelar && (
         <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
@@ -647,5 +863,3 @@ export const AvailableEvents: React.FC = () => {
     </div>
   );
 };
-
-export default AvailableEvents;

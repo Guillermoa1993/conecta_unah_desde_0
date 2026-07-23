@@ -1357,6 +1357,14 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
             )}
           </div>
           <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleExit}
+              className="border-slate-300 text-slate-700 hover:bg-slate-100 font-semibold"
+            >
+              Cancelar
+            </Button>
             {currentStep < 4 ? (
               <Button
                 type="button"

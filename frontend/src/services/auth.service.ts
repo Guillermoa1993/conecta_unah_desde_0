@@ -13,6 +13,17 @@ export const authService = {
     return api.post<Usuario>('/auth/registro', payload);
   },
 
+  async actualizarPerfil(payload: {
+  biografia?: string;
+  telefono?: string;
+  genero?: string;
+  foto_url?: string;
+}): Promise<Usuario> {
+  const data = await api.put<{ usuario: Usuario }>('/auth/me', payload);
+  this.setUsuarioGuardado(data.usuario);
+  return data.usuario;
+},
+
   async me(): Promise<{ usuario: { id: string; rol: string } }> {
     return api.get('/auth/me');
   },
