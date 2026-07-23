@@ -226,9 +226,16 @@ export function AuditoriaEventoFinalizado() {
   const [inscripciones, setInscripciones] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Pagination state (Punto 2)
+  // Pagination state
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // Cierre de Auditoría state
+  const [auditCompleted, setAuditCompleted] = useState<boolean>(() => {
+    if (!id) return false;
+    return localStorage.getItem(`voae_audit_completed_${id}`) === "true";
+  });
+  const [showFinalizeAuditModal, setShowFinalizeAuditModal] = useState(false);
 
   // Modals state
   const [showSigningModal, setShowSigningModal] = useState(false);
@@ -238,7 +245,7 @@ export function AuditoriaEventoFinalizado() {
   const [auditStudent, setAuditStudent] = useState<any | null>(null);
   const [certStudent, setCertStudent] = useState<any | null>(null);
 
-  // Confirmations state (Punto 1)
+  // Confirmations state
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -256,6 +263,10 @@ export function AuditoriaEventoFinalizado() {
       // Check stored signature
       const savedSig = localStorage.getItem(`voae_signature_${id}`);
       if (savedSig) setSignatureUrl(savedSig);
+
+      // Check saved audit completion
+      const completed = localStorage.getItem(`voae_audit_completed_${id}`) === "true";
+      setAuditCompleted(completed);
     } catch (err: any) {
       toast.error("Error al cargar datos del evento", { description: err.message });
     } finally {
@@ -291,7 +302,7 @@ export function AuditoriaEventoFinalizado() {
   const rechazados = inscripciones.filter((i) => i.estado === "NO_ASISTIO" || i.estado === "CANCELADO" || i.estado === "RECHAZADO");
   const pendientes = inscripciones.filter((i) => i.estado !== "ASISTIDO" && i.estado !== "NO_ASISTIO" && i.estado !== "RECHAZADO" && i.estado !== "CANCELADO");
 
-  // Sort list prioritizing pending audits FIRST (Punto 2)
+  // Sort list prioritizing pending audits FIRST
   const sortedInscripciones = [...inscripciones].sort((a, b) => {
     const aAudited = a.estado === "ASISTIDO" || a.estado === "RECHAZADO" || a.estado === "NO_ASISTIO";
     const bAudited = b.estado === "ASISTIDO" || b.estado === "RECHAZADO" || b.estado === "NO_ASISTIO";
@@ -300,7 +311,7 @@ export function AuditoriaEventoFinalizado() {
     return 0;
   });
 
-  // Pagination calculations (Punto 2)
+  // Pagination calculations
   const totalItems = sortedInscripciones.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -360,6 +371,33 @@ export function AuditoriaEventoFinalizado() {
     setShowRejectModal(false);
     setRejectReason("");
     setAuditStudent(null);
+  };
+
+  const handleFinalizarAuditoriaCompleta = () => {
+    setAuditCompleted(true);
+    localStorage.setItem(`voae_audit_completed_${id}`, "true");
+    setShowFinalizeAuditModal(false);
+
+    // Guardar notificación para estudiantes
+    const notifs = JSON.parse(localStorage.getItem("voae_student_notifications") || "[]");
+    inscripciones.forEach((st) => {
+      const isApproved = st.estado === "ASISTIDO" || st.asistio;
+      const stAccount = st.numero_cuenta || st.cuenta || "estudiante";
+      notifs.push({
+        id: Date.now() + Math.random(),
+        estudiante_cuenta: stAccount,
+        evento_id: id,
+        titulo_evento: event.titulo,
+        tipo: isApproved ? "APROBADO" : "RECHAZADO",
+        mensaje: isApproved
+          ? `¡Felicidades! Tu constancia de participación en "${event.titulo}" ha sido auditada y aprobada por VOAE. Ya puedes descargar tu certificado.`
+          : `Tu constancia para el evento "${event.titulo}" fue denegada por VOAE. Motivo: ${st.motivo_rechazo || "Marca de asistencia no válida."}`,
+        fecha: new Date().toISOString(),
+      });
+    });
+    localStorage.setItem("voae_student_notifications", JSON.stringify(notifs));
+
+    toast.success(`Auditoría finalizada con éxito. Se han emitido ${asistentes.length} certificados oficiales.`);
   };
 
   const categoriaNombre = CATEGORY_LABEL[event.categoria] || event.categoria || "Académico";
@@ -469,10 +507,10 @@ export function AuditoriaEventoFinalizado() {
         </div>
       </div>
 
-      {/* Sección de Badges y Botón Firma (Círculo Morado) */}
+      {/* Sección de Badges y Botón Firma (Círculo Morado) + Cierre Auditoría */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
               ✓ {asistentes.length} acreditados
             </span>
@@ -484,18 +522,42 @@ export function AuditoriaEventoFinalizado() {
             </span>
           </div>
 
-          {/* Círculo Morado: Registrar mi firma */}
-          <Button
-            onClick={() => setShowSigningModal(true)}
-            variant="outline"
-            className="border-purple-300 bg-purple-50 text-purple-800 hover:bg-purple-100 font-semibold text-xs h-9 gap-2 shadow-2xs"
-          >
-            <PenLine className="size-4 text-purple-600" />
-            {signatureUrl ? "Firma Registrada ✓ (Modificar)" : "Registrar mi firma"}
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Círculo Morado: Registrar mi firma */}
+            <Button
+              onClick={() => setShowSigningModal(true)}
+              variant="outline"
+              className="border-purple-300 bg-purple-50 text-purple-800 hover:bg-purple-100 font-semibold text-xs h-9 gap-2 shadow-2xs"
+            >
+              <PenLine className="size-4 text-purple-600" />
+              {signatureUrl ? "Firma Registrada ✓ (Modificar)" : "Registrar mi firma"}
+            </Button>
+
+            {/* Cierre de Auditoría y Liberación de Certificados */}
+            {auditCompleted ? (
+              <div className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1.5 shadow-2xs">
+                <CheckCircle2 className="size-4 text-emerald-600" /> Auditoría Finalizada & Certificados Emitidos
+              </div>
+            ) : pendientes.length > 0 ? (
+              <Button
+                disabled
+                className="bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs h-9 cursor-not-allowed gap-2 opacity-90 shadow-2xs"
+                title="Debes auditar el 100% de las asistencias antes de finalizar la auditoría"
+              >
+                <Clock className="size-4 text-amber-600" /> Auditar pendientes (Faltan {pendientes.length})
+              </Button>
+            ) : (
+              <Button
+                onClick={() => setShowFinalizeAuditModal(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 gap-2 shadow-md animate-pulse"
+              >
+                <CheckCircle2 className="size-4" /> Finalizar Auditoría y Emitir Certificados
+              </Button>
+            )}
+          </div>
         </div>
 
-        {/* Tabla de Asistentes con Paginación y Priorización (Puntos 1 y 2) */}
+        {/* Tabla de Asistentes con Paginación y Restricción de Certificado */}
         <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
@@ -572,22 +634,28 @@ export function AuditoriaEventoFinalizado() {
                         </span>
                       </td>
 
-                      {/* Certificado */}
+                      {/* Certificado (Restricción de Auditoría Completa) */}
                       <td className="px-4 py-3 text-center">
                         {isApproved ? (
-                          <Button
-                            size="sm"
-                            onClick={() => setCertStudent(student)}
-                            className="bg-[#003366] hover:bg-[#002244] text-white text-[11px] h-7 px-2.5 font-semibold gap-1"
-                          >
-                            <FileText className="size-3" /> Certificado
-                          </Button>
+                          auditCompleted ? (
+                            <Button
+                              size="sm"
+                              onClick={() => setCertStudent(student)}
+                              className="bg-[#003366] hover:bg-[#002244] text-white text-[11px] h-7 px-2.5 font-semibold gap-1"
+                            >
+                              <FileText className="size-3" /> Certificado
+                            </Button>
+                          ) : (
+                            <span className="text-[11px] px-2 py-1 rounded-full font-semibold bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
+                              <Lock className="size-3 text-amber-600" /> En revisión VOAE
+                            </span>
+                          )
                         ) : (
                           <span className="text-[11px] text-slate-400 font-medium">No disponible</span>
                         )}
                       </td>
 
-                      {/* Acción VOAE (Punto 1: muestra 'Aprobado' o 'Rechazado' una vez procesado) */}
+                      {/* Acción VOAE */}
                       <td className="px-4 py-3 text-right">
                         {isApproved ? (
                           <div className="flex items-center justify-end gap-1.5">
@@ -630,7 +698,7 @@ export function AuditoriaEventoFinalizado() {
             </tbody>
           </table>
 
-          {/* Paginación (Punto 2 - Imagen 170) */}
+          {/* Paginación */}
           <PaginationControls
             page={safePage}
             totalPages={totalPages}
@@ -841,7 +909,7 @@ export function AuditoriaEventoFinalizado() {
         </DialogContent>
       </Dialog>
 
-      {/* ── MODAL 3: Ver Lista Escrita (Respaldo PDF) sin salir a nueva pestaña ── */}
+      {/* ── MODAL 3: Ver Lista Escrita (Respaldo PDF) ── */}
       <Dialog open={showPdfModal} onOpenChange={setShowPdfModal}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
@@ -877,7 +945,7 @@ export function AuditoriaEventoFinalizado() {
         </DialogContent>
       </Dialog>
 
-      {/* ── MODAL 4: Auditar Marcado de Entrada y Salida (Punto 1: Botones Aprobar/Rechazar con Confirmación) ── */}
+      {/* ── MODAL 4: Auditar Marcado de Entrada y Salida ── */}
       <Dialog open={!!auditStudent} onOpenChange={() => setAuditStudent(null)}>
         <DialogContent className="sm:max-w-xl rounded-2xl p-6">
           {auditStudent && (
@@ -950,7 +1018,7 @@ export function AuditoriaEventoFinalizado() {
                 </div>
               </div>
 
-              {/* Botones Inferiores de Acción (Punto 1: Aprobar y Rechazar abren confirmación) */}
+              {/* Botones Inferiores de Acción */}
               <div className="space-y-2.5 pt-2">
                 <Button
                   onClick={() => setShowApproveConfirm(true)}
@@ -994,7 +1062,7 @@ export function AuditoriaEventoFinalizado() {
         </DialogContent>
       </Dialog>
 
-      {/* ── DIÁLOGO SUB 2: Confirmación de Rechazo y Motivo (Punto 1) ── */}
+      {/* ── DIÁLOGO SUB 2: Confirmación de Rechazo y Motivo ── */}
       <Dialog open={showRejectModal} onOpenChange={setShowRejectModal}>
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
@@ -1030,7 +1098,56 @@ export function AuditoriaEventoFinalizado() {
         </DialogContent>
       </Dialog>
 
-      {/* ── MODAL 5: Vista Previa de Constancia de Participación Oficial ── */}
+      {/* ── MODAL 5: Cierre Oficial de Auditoría (Finalizar Auditoría y Emitir Certificados) ── */}
+      <Dialog open={showFinalizeAuditModal} onOpenChange={setShowFinalizeAuditModal}>
+        <DialogContent className="sm:max-w-lg rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-[#003366] font-bold text-lg flex items-center gap-2">
+              <Stamp className="size-5 text-emerald-600" /> Cierre Oficial de Auditoría del Evento
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600 mt-1">
+              Has completado la revisión del 100% de los estudiantes inscritos en el evento <strong>{event.titulo}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-3 space-y-4 text-xs">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-3 gap-3 text-center">
+              <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                <span className="text-slate-400 font-medium block">Total Revisados</span>
+                <span className="font-bold text-slate-800 text-sm">{inscripciones.length}</span>
+              </div>
+              <div className="bg-emerald-50 p-2.5 rounded-lg border border-emerald-200">
+                <span className="text-emerald-700 font-medium block">Acreditados</span>
+                <span className="font-bold text-emerald-800 text-sm">{asistentes.length}</span>
+              </div>
+              <div className="bg-rose-50 p-2.5 rounded-lg border border-rose-200">
+                <span className="text-rose-700 font-medium block">Rechazados</span>
+                <span className="font-bold text-rose-800 text-sm">{rechazados.length}</span>
+              </div>
+            </div>
+
+            <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5 space-y-1.5">
+              <div className="font-bold text-emerald-900 flex items-center gap-1.5">
+                <CheckCircle2 className="size-4 text-emerald-600" /> Liberación de Certificados & Notificaciones
+              </div>
+              <p className="text-slate-600 leading-relaxed text-[11px]">
+                Al confirmar el cierre de auditoría, se liberarán oficialmente las constancias de participación de los <strong>{asistentes.length} estudiantes acreditados</strong> y se notificarán los resultados a cada alumno.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 pt-2">
+            <Button variant="outline" onClick={() => setShowFinalizeAuditModal(false)} className="text-xs font-semibold">
+              Cancelar
+            </Button>
+            <Button onClick={handleFinalizarAuditoriaCompleta} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5">
+              <CheckCircle2 className="size-4" /> ✓ Confirmar y Emitir Certificados
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── MODAL 6: Vista Previa de Constancia de Participación Oficial ── */}
       {certStudent && (
         <PdfModal
           estudiante={{
