@@ -1,4 +1,4 @@
-﻿import { useState, type FormEvent } from "react";
+import { useState, useEffect, useCallback, type FormEvent } from "react";
 import {
   UserPlus,
   Edit,
@@ -7,6 +7,7 @@ import {
   UserCheck,
   Eye,
   ShieldCheck,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -43,157 +44,88 @@ import {
   TableRow,
 } from "../../components/ui/table";
 import { toast } from "sonner";
+import { usuariosSeguridadService } from "../../../services/usuariosSeguridad.service";
+import { rolesSeguridadService } from "../../../services/rolesSeguridad.service";
+import { permisosSeguridadService } from "../../../services/permisosSeguridad.service";
+import type { UsuarioSeguridad, RolSeguridad, PermisoSeguridad } from "../../../types";
 
 /* ======================================================================= */
-/*  Catálogos de referencia (Roles, Módulos y Permisos)                    */
-/*  En producción estos vendrían de los módulos M2 (Roles) y M3 (Permisos) */
-/*  vía API; aquí se definen localmente para alimentar los combobox y la   */
-/*  matriz de "nivel de detalle" de permisos.                              */
+/*  Módulo 4 · Seguridad — Gestión de Usuarios                              */
+/*  Roles y Permisos ya NO son mocks locales: se consultan en vivo desde   */
+/*  /api/seguridad/roles y /api/seguridad/permisos (endpoints públicos     */
+/*  para cualquier usuario autenticado, así alimentan estos combobox).    */
+/*  Los datos de "Todos los Usuarios" vienen de /api/seguridad/usuarios.  */
 /* ======================================================================= */
 
-type Accion = "Leer" | "Crear" | "Editar" | "Eliminar";
-const ACCIONES: Accion[] = ["Leer", "Crear", "Editar", "Eliminar"];
-
-const MODULOS_DISPONIBLES = [
-  "Usuarios",
-  "Roles",
-  "Permisos",
-  "Eventos",
-  "Bitácora",
-  "Reportes",
-  "Mantenimiento",
-];
-
-const ROLES_DISPONIBLES = [
-  { id: "1", nombre: "Administrador" },
-  { id: "2", nombre: "Estudiante" },
-  { id: "3", nombre: "Empleado" },
-  { id: "4", nombre: "VOAE" },
-];
-
-const PERMISOS_DISPONIBLES = [
-  { id: "1", nombre: "leer_roles", modulo: "Roles" },
-  { id: "2", nombre: "crear_roles", modulo: "Roles" },
-  { id: "3", nombre: "modificar_permisos", modulo: "Permisos" },
-  { id: "4", nombre: "gestionar_usuarios", modulo: "Usuarios" },
-  { id: "5", nombre: "crear_eventos", modulo: "Eventos" },
-  { id: "6", nombre: "aprobar_eventos", modulo: "Eventos" },
-  { id: "7", nombre: "ver_bitacora", modulo: "Bitácora" },
-];
-
-/** Nivel de detalle: qué ACCIONES otorga cada rol, agrupadas por MÓDULO. */
-const PERMISOS_POR_ROL: Record<string, Record<string, Accion[]>> = {
-  "1": {
-    Usuarios: ["Leer", "Crear", "Editar", "Eliminar"],
-    Roles: ["Leer", "Crear", "Editar", "Eliminar"],
-    Permisos: ["Leer", "Crear", "Editar", "Eliminar"],
-    Eventos: ["Leer", "Crear", "Editar", "Eliminar"],
-    "Bitácora": ["Leer"],
-    Reportes: ["Leer", "Crear"],
-    Mantenimiento: ["Leer", "Crear", "Editar", "Eliminar"],
-  },
-  "2": {
-    Eventos: ["Leer"],
-    Reportes: ["Leer"],
-  },
-  "3": {
-    Eventos: ["Leer", "Crear", "Editar"],
-    Reportes: ["Leer", "Crear"],
-    "Bitácora": ["Leer"],
-  },
-  "4": {
-    Eventos: ["Leer", "Editar"],
-    Reportes: ["Leer", "Crear"],
-  },
-};
-
-function getRoleName(id: string) {
-  return ROLES_DISPONIBLES.find((r) => r.id === id)?.nombre ?? id;
+function getRoleName(roles: RolSeguridad[], id: string) {
+  return roles.find((r) => String(r.id_rol) === id)?.nombre_rol ?? id;
 }
 
-function getPermisoLabel(id: string) {
-  const p = PERMISOS_DISPONIBLES.find((p) => p.id === id);
-  return p ? `${p.nombre} (${p.modulo})` : id;
+function getPermisoLabel(permisos: PermisoSeguridad[], id: string) {
+  const p = permisos.find((p) => String(p.id_permiso) === id);
+  return p ? `${p.nombre_permiso} (${p.modulo})` : id;
 }
 
-/** Une las acciones otorgadas por todos los roles seleccionados, por módulo. */
-function calcularDetallePermisos(roleIds: string[]): Record<string, Set<Accion>> {
-  const detalle: Record<string, Set<Accion>> = {};
-  roleIds.forEach((rid) => {
-    const porModulo = PERMISOS_POR_ROL[rid] ?? {};
-    Object.entries(porModulo).forEach(([modulo, acciones]) => {
-      if (!detalle[modulo]) detalle[modulo] = new Set();
-      acciones.forEach((a) => detalle[modulo].add(a));
-    });
-  });
-  return detalle;
-}
-
-function roleBadgeColor(id: string) {
-  switch (id) {
-    case "1":
-      return "bg-red-500";       // Administrador
-    case "3":
-      return "bg-[#004B87]";     // Tutor / Empleado
-    case "4":
-      return "bg-purple-500";    // VOAE
+/** Colores conocidos por código de rol; cualquier rol nuevo cae en el gris neutro. */
+function roleBadgeColor(codigoRol: string) {
+  switch (codigoRol) {
+    case "admin":
+      return "bg-red-500";
+    case "tutor":
+      return "bg-[#004B87]";
+    case "moderador":
+      return "bg-purple-500";
+    case "estudiante":
+      return "bg-green-500";
     default:
-      return "bg-green-500";    // Estudiante
+      return "bg-slate-500";
   }
 }
 
+/**
+ * Agrupa los permisos EFECTIVOS (de todos los roles seleccionados) por módulo.
+ * A diferencia del mock anterior (una grilla fija Leer/Crear/Editar/Eliminar),
+ * aquí se muestra el nombre real de cada permiso: el catálogo de la BD es más
+ * granular (p.ej. "seguridad:ver_roles" y "seguridad:ver_permisos" son permisos
+ * distintos dentro de un mismo módulo "Seguridad"), así que forzarlo a 4
+ * columnas fijas perdería información. Se conserva el mismo estilo visual
+ * (píldoras azules por módulo).
+ */
+function calcularDetallePermisos(
+  rolesDisponibles: RolSeguridad[],
+  roleIds: string[],
+): Record<string, string[]> {
+  const detalle: Record<string, Set<string>> = {};
+  roleIds.forEach((rid) => {
+    const rol = rolesDisponibles.find((r) => String(r.id_rol) === rid);
+    rol?.permisos.forEach((p) => {
+      if (!detalle[p.modulo]) detalle[p.modulo] = new Set();
+      detalle[p.modulo].add(p.nombre_permiso);
+    });
+  });
+  return Object.fromEntries(
+    Object.entries(detalle).map(([modulo, nombres]) => [modulo, Array.from(nombres).sort()]),
+  );
+}
+
 /* ======================================================================= */
-/*  Modelo de datos del usuario                                             */
-/*  -> SIN campo de contraseña y SIN campo de usuario/username:             */
-/*     el inicio de sesión institucional se gestiona fuera de este módulo. */
+/*  Modelo de formulario                                                    */
+/*  -> SIN campo de contraseña y SIN campo de usuario/username: el inicio  */
+/*     de sesión institucional se gestiona fuera de este módulo.          */
 /*  -> "estado" reemplaza el borrado físico por inhabilitación (soft delete)*/
 /* ======================================================================= */
 
-type EstadoUsuario = "activo" | "inhabilitado";
-
-interface UsuarioRow {
-  id: string;
+interface UsuarioForm {
   nombre: string;
   apellido: string;
   email: string;
   telefono: string;
-  roles: string[];              // ids de ROLES_DISPONIBLES (relación N:M)
-  modulos: string[];            // módulos del sistema a los que tiene acceso
-  permisosDirectos: string[];   // permisos puntuales además de los del rol
-  estado: EstadoUsuario;
-  motivoInhabilitacion?: string;
+  roles: string[];             // ids como string, para el Combobox
+  modulos: string[];
+  permisosDirectos: string[];  // ids como string, para el Combobox
 }
 
-const initialUsers: UsuarioRow[] = [
-  {
-    id: "1", nombre: "Ana", apellido: "García", email: "ana.garcia@unah.hn",
-    telefono: "9988-7766", roles: ["2"], modulos: ["Eventos"],
-    permisosDirectos: [], estado: "activo",
-  },
-  {
-    id: "2", nombre: "Juan", apellido: "Pérez", email: "juan.perez@unah.hn",
-    telefono: "9911-2233", roles: ["3"], modulos: ["Eventos", "Reportes"],
-    permisosDirectos: ["6"], estado: "activo",
-  },
-  {
-    id: "3", nombre: "Carlos", apellido: "López", email: "carlos.lopez@unah.hn",
-    telefono: "9955-4433", roles: ["2"], modulos: ["Eventos"],
-    permisosDirectos: [], estado: "activo",
-  },
-  {
-    id: "4", nombre: "María", apellido: "González", email: "maria.gonzalez@unah.hn",
-    telefono: "9922-1100", roles: ["4"], modulos: ["Eventos", "Reportes"],
-    permisosDirectos: [], estado: "inhabilitado",
-    motivoInhabilitacion: "Egresó del cargo VOAE en mayo 2026.",
-  },
-  {
-    id: "5", nombre: "Admin", apellido: "Sistema", email: "admin@unah.hn",
-    telefono: "9900-0000", roles: ["1"], modulos: MODULOS_DISPONIBLES,
-    permisosDirectos: [], estado: "activo",
-  },
-];
-
-const emptyForm: Omit<UsuarioRow, "id"> = {
+const emptyForm: UsuarioForm = {
   nombre: "",
   apellido: "",
   email: "",
@@ -201,7 +133,6 @@ const emptyForm: Omit<UsuarioRow, "id"> = {
   roles: [],
   modulos: [],
   permisosDirectos: [],
-  estado: "activo",
 };
 
 /* ======================================================================= */
@@ -209,30 +140,58 @@ const emptyForm: Omit<UsuarioRow, "id"> = {
 /* ======================================================================= */
 
 export function UserManagement() {
-  const [users, setUsers] = useState<UsuarioRow[]>(initialUsers);
+  const [users, setUsers] = useState<UsuarioSeguridad[]>([]);
+  const [roles, setRoles] = useState<RolSeguridad[]>([]);
+  const [permisos, setPermisos] = useState<PermisoSeguridad[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   // Dialog: crear / editar usuario
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<Omit<UsuarioRow, "id">>(emptyForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [form, setForm] = useState<UsuarioForm>(emptyForm);
+  const [saving, setSaving] = useState(false);
 
   // Dialog: detalle de permisos (solo lectura, desde la tabla)
-  const [detailUser, setDetailUser] = useState<UsuarioRow | null>(null);
+  const [detailUser, setDetailUser] = useState<UsuarioSeguridad | null>(null);
 
   // AlertDialog: confirmación de inhabilitar (soft delete)
-  const [userToDisable, setUserToDisable] = useState<UsuarioRow | null>(null);
+  const [userToDisable, setUserToDisable] = useState<UsuarioSeguridad | null>(null);
   const [motivo, setMotivo] = useState("");
 
-  const filteredUsers = users.filter((u) => {
-    const term = search.trim().toLowerCase();
-    if (!term) return true;
-    return (
-      u.nombre.toLowerCase().includes(term) ||
-      u.apellido.toLowerCase().includes(term) ||
-      u.email.toLowerCase().includes(term)
-    );
-  });
+  // Módulos disponibles = módulos distintos que aparecen en el catálogo de permisos
+  const modulosDisponibles = Array.from(new Set(permisos.map((p) => p.modulo))).sort();
+
+  const cargarTodo = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const [usuariosData, rolesData, permisosData] = await Promise.all([
+        usuariosSeguridadService.getAll(search ? { busqueda: search } : undefined),
+        rolesSeguridadService.getAll(),
+        permisosSeguridadService.getAll(),
+      ]);
+      setUsers(usuariosData);
+      setRoles(rolesData);
+      setPermisos(permisosData);
+    } catch (err) {
+      // Importante: un error de carga (backend caído, sin permiso, tabla sin
+      // migrar, etc.) NUNCA debe verse igual que "no hay usuarios". Se guarda
+      // el mensaje real para mostrarlo en un banner visible en la tabla.
+      const message = err instanceof Error ? err.message : "No se pudo cargar la información";
+      setLoadError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  }, [search]);
+
+  useEffect(() => {
+    const timeout = setTimeout(cargarTodo, 300); // debounce de la búsqueda
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   function handleOpenCreate() {
     setEditingId(null);
@@ -240,68 +199,109 @@ export function UserManagement() {
     setIsFormOpen(true);
   }
 
-  function handleOpenEdit(user: UsuarioRow) {
-    setEditingId(user.id);
+  function handleOpenEdit(user: UsuarioSeguridad) {
+    setEditingId(user.id_usuario);
     setForm({
       nombre: user.nombre,
-      apellido: user.apellido,
-      email: user.email,
-      telefono: user.telefono,
-      roles: user.roles,
-      modulos: user.modulos,
-      permisosDirectos: user.permisosDirectos,
-      estado: user.estado,
-      motivoInhabilitacion: user.motivoInhabilitacion,
+      apellido: user.apellido ?? "",
+      email: user.correo,
+      telefono: user.telefono ?? "",
+      roles: user.roles.map((r) => String(r.id_rol)),
+      modulos: user.modulos_acceso,
+      permisosDirectos: user.permisos_directos.map((p) => String(p.id_permiso)),
     });
     setIsFormOpen(true);
   }
 
-  function handleSave(e: FormEvent) {
+  async function handleSave(e: FormEvent) {
     e.preventDefault();
     if (!form.nombre.trim() || !form.apellido.trim() || !form.email.trim()) {
       toast.error("Nombre, apellido y correo son obligatorios");
       return;
     }
 
-    if (editingId) {
-      setUsers((prev) =>
-        prev.map((u) => (u.id === editingId ? { ...u, ...form } : u)),
-      );
-      toast.success("Usuario actualizado correctamente");
-    } else {
-      const newId = String(Math.max(0, ...users.map((u) => Number(u.id))) + 1);
-      setUsers((prev) => [...prev, { id: newId, ...form }]);
-      toast.success("Usuario creado correctamente");
+    setSaving(true);
+    try {
+      if (editingId) {
+        // 1) Datos generales
+        await usuariosSeguridadService.actualizar(editingId, {
+          nombre: form.nombre,
+          apellido: form.apellido,
+          telefono: form.telefono || undefined,
+          modulos_acceso: form.modulos,
+        });
+
+        // 2) Reconciliar roles y permisos directos contra el estado previo
+        const usuarioPrevio = users.find((u) => u.id_usuario === editingId);
+        const rolesPrevios = new Set(usuarioPrevio?.roles.map((r) => String(r.id_rol)) ?? []);
+        const permisosPrevios = new Set(
+          usuarioPrevio?.permisos_directos.map((p) => String(p.id_permiso)) ?? [],
+        );
+
+        const rolesNuevos = new Set(form.roles);
+        const permisosNuevos = new Set(form.permisosDirectos);
+
+        await Promise.all([
+          ...form.roles
+            .filter((rid) => !rolesPrevios.has(rid))
+            .map((rid) => usuariosSeguridadService.asignarRol(editingId, Number(rid))),
+          ...[...rolesPrevios]
+            .filter((rid) => !rolesNuevos.has(rid))
+            .map((rid) => usuariosSeguridadService.revocarRol(editingId, Number(rid))),
+          ...form.permisosDirectos
+            .filter((pid) => !permisosPrevios.has(pid))
+            .map((pid) => usuariosSeguridadService.asignarPermiso(editingId, Number(pid))),
+          ...[...permisosPrevios]
+            .filter((pid) => !permisosNuevos.has(pid))
+            .map((pid) => usuariosSeguridadService.revocarPermiso(editingId, Number(pid))),
+        ]);
+
+        toast.success("Usuario actualizado correctamente");
+      } else {
+        await usuariosSeguridadService.crear({
+          nombre: form.nombre,
+          apellido: form.apellido,
+          correo: form.email,
+          telefono: form.telefono || undefined,
+          modulos_acceso: form.modulos,
+          roles: form.roles.map(Number),
+          permisos_directos: form.permisosDirectos.map(Number),
+        });
+        toast.success("Usuario creado correctamente");
+      }
+      setIsFormOpen(false);
+      await cargarTodo();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo guardar el usuario");
+    } finally {
+      setSaving(false);
     }
-    setIsFormOpen(false);
   }
 
-  function handleConfirmDisable() {
+  async function handleConfirmDisable() {
     if (!userToDisable) return;
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === userToDisable.id
-          ? { ...u, estado: "inhabilitado", motivoInhabilitacion: motivo }
-          : u,
-      ),
-    );
-    toast.success(`Usuario ${userToDisable.nombre} inhabilitado`);
-    setUserToDisable(null);
-    setMotivo("");
+    try {
+      await usuariosSeguridadService.inhabilitar(userToDisable.id_usuario, motivo);
+      toast.success(`Usuario ${userToDisable.nombre} inhabilitado`);
+      setUserToDisable(null);
+      setMotivo("");
+      await cargarTodo();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo inhabilitar al usuario");
+    }
   }
 
-  function handleEnable(user: UsuarioRow) {
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === user.id
-          ? { ...u, estado: "activo", motivoInhabilitacion: undefined }
-          : u,
-      ),
-    );
-    toast.success(`Usuario ${user.nombre} habilitado nuevamente`);
+  async function handleEnable(user: UsuarioSeguridad) {
+    try {
+      await usuariosSeguridadService.habilitar(user.id_usuario);
+      toast.success(`Usuario ${user.nombre} habilitado nuevamente`);
+      await cargarTodo();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo habilitar al usuario");
+    }
   }
 
-  const formDetalle = calcularDetallePermisos(form.roles);
+  const formDetalle = calcularDetallePermisos(roles, form.roles);
 
   return (
     <div className="space-y-6">
@@ -344,26 +344,53 @@ export function UserManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
+                {loading && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                      <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                      Cargando usuarios...
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!loading && loadError && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-4">
+                      <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-start justify-between gap-4">
+                        <span><strong>No se pudo cargar la informacion.</strong> {loadError}</span>
+                        <Button size="sm" variant="outline" className="shrink-0 border-red-300 text-red-700 hover:bg-red-100" onClick={cargarTodo}>
+                          Reintentar
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!loading && !loadError && users.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                      No se encontraron usuarios.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!loading && users.map((user) => (
+                  <TableRow key={user.id_usuario}>
                     <TableCell className="font-medium">
                       {user.nombre} {user.apellido}
                     </TableCell>
-                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.correo}</TableCell>
                     <TableCell className="text-center">
                       <div className="flex flex-wrap justify-center gap-1">
                         {user.roles.length === 0 && (
                           <span className="text-xs text-muted-foreground">Sin rol</span>
                         )}
-                        {user.roles.map((rid) => (
-                          <Badge key={rid} className={roleBadgeColor(rid)}>
-                            {getRoleName(rid)}
+                        {user.roles.map((r) => (
+                          <Badge key={r.id_rol} className={roleBadgeColor(r.codigo_rol)}>
+                            {r.nombre_rol}
                           </Badge>
                         ))}
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      {user.estado === "activo" ? (
+                      {user.estado === 1 ? (
                         <Badge className="bg-green-500">Activo</Badge>
                       ) : (
                         <Badge variant="secondary" className="bg-gray-300 text-gray-700">
@@ -389,7 +416,7 @@ export function UserManagement() {
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        {user.estado === "activo" ? (
+                        {user.estado === 1 ? (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -468,9 +495,15 @@ export function UserManagement() {
                     id="email"
                     type="email"
                     required
+                    disabled={!!editingId}
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
                   />
+                  {editingId && (
+                    <p className="text-xs text-muted-foreground">
+                      El correo no se puede modificar una vez creado el usuario.
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -487,7 +520,7 @@ export function UserManagement() {
                     <div className="space-y-1.5">
                       <Label>Estado actual</Label>
                       <div>
-                        {form.estado === "activo" ? (
+                        {users.find((u) => u.id_usuario === editingId)?.estado === 1 ? (
                           <Badge className="bg-green-500">Activo</Badge>
                         ) : (
                           <Badge variant="secondary" className="bg-gray-300 text-gray-700">
@@ -509,7 +542,7 @@ export function UserManagement() {
                   <Label>Roles asignados</Label>
                   <Combobox
                     multiple
-                    options={ROLES_DISPONIBLES.map((r) => ({ value: r.id, label: r.nombre }))}
+                    options={roles.map((r) => ({ value: String(r.id_rol), label: r.nombre_rol }))}
                     value={form.roles}
                     onChange={(v) => setForm({ ...form, roles: v })}
                     placeholder="Seleccionar rol(es)..."
@@ -522,7 +555,7 @@ export function UserManagement() {
                   <Label>Módulos con acceso</Label>
                   <Combobox
                     multiple
-                    options={MODULOS_DISPONIBLES.map((m) => ({ value: m, label: m }))}
+                    options={modulosDisponibles.map((m) => ({ value: m, label: m }))}
                     value={form.modulos}
                     onChange={(v) => setForm({ ...form, modulos: v })}
                     placeholder="Seleccionar módulo(s)..."
@@ -535,9 +568,9 @@ export function UserManagement() {
                   <Label>Permisos directos adicionales</Label>
                   <Combobox
                     multiple
-                    options={PERMISOS_DISPONIBLES.map((p) => ({
-                      value: p.id,
-                      label: p.nombre,
+                    options={permisos.map((p) => ({
+                      value: String(p.id_permiso),
+                      label: p.nombre_permiso,
                       description: p.modulo,
                     }))}
                     value={form.permisosDirectos}
@@ -551,7 +584,7 @@ export function UserManagement() {
                   </p>
                 </div>
 
-                {/* Nivel de detalle: matriz de permisos efectivos por módulo */}
+                {/* Nivel de detalle: permisos efectivos por módulo */}
                 <div className="rounded-md border p-3 bg-muted/30">
                   <p className="text-xs font-semibold text-[#004B87] mb-2 flex items-center gap-1.5">
                     <ShieldCheck className="h-3.5 w-3.5" />
@@ -563,22 +596,18 @@ export function UserManagement() {
                     </p>
                   ) : (
                     <div className="space-y-2">
-                      {Object.entries(formDetalle).map(([modulo, acciones]) => (
-                        <div key={modulo} className="flex items-center gap-2 text-xs">
+                      {Object.entries(formDetalle).map(([modulo, nombresPermisos]) => (
+                        <div key={modulo} className="flex items-start gap-2 text-xs">
                           <span className="font-medium w-28 shrink-0 text-[#003366]">
                             {modulo}
                           </span>
                           <div className="flex gap-1.5 flex-wrap">
-                            {ACCIONES.map((accion) => (
+                            {nombresPermisos.map((nombre) => (
                               <span
-                                key={accion}
-                                className={
-                                  acciones.has(accion)
-                                    ? "px-2 py-0.5 rounded-md bg-[#004B87] text-white text-[10px] font-semibold"
-                                    : "px-2 py-0.5 rounded-md bg-gray-100 text-gray-400 text-[10px]"
-                                }
+                                key={nombre}
+                                className="px-2 py-0.5 rounded-md bg-[#004B87] text-white text-[10px] font-semibold"
                               >
-                                {accion}
+                                {nombre}
                               </span>
                             ))}
                           </div>
@@ -594,7 +623,8 @@ export function UserManagement() {
               <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" className="bg-[#004B87] hover:bg-[#003366]">
+              <Button type="submit" className="bg-[#004B87] hover:bg-[#003366]" disabled={saving}>
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editingId ? "Guardar Cambios" : "Crear Usuario"}
               </Button>
             </DialogFooter>
@@ -610,7 +640,7 @@ export function UserManagement() {
           <DialogHeader>
             <DialogTitle>Detalle de Permisos</DialogTitle>
             <DialogDescription>
-              {detailUser && `${detailUser.nombre} ${detailUser.apellido} — ${detailUser.email}`}
+              {detailUser && `${detailUser.nombre} ${detailUser.apellido ?? ""} — ${detailUser.correo}`}
             </DialogDescription>
           </DialogHeader>
 
@@ -622,9 +652,9 @@ export function UserManagement() {
                   {detailUser.roles.length === 0 && (
                     <span className="text-xs text-muted-foreground">Sin rol asignado</span>
                   )}
-                  {detailUser.roles.map((rid) => (
-                    <Badge key={rid} className={roleBadgeColor(rid)}>
-                      {getRoleName(rid)}
+                  {detailUser.roles.map((r) => (
+                    <Badge key={r.id_rol} className={roleBadgeColor(r.codigo_rol)}>
+                      {r.nombre_rol}
                     </Badge>
                   ))}
                 </div>
@@ -635,41 +665,35 @@ export function UserManagement() {
                   Permisos efectivos por módulo
                 </p>
                 <div className="space-y-2 rounded-md border p-3 bg-muted/30">
-                  {Object.entries(calcularDetallePermisos(detailUser.roles)).map(
-                    ([modulo, acciones]) => (
-                      <div key={modulo} className="flex items-center gap-2 text-xs">
-                        <span className="font-medium w-28 shrink-0 text-[#003366]">
-                          {modulo}
-                        </span>
-                        <div className="flex gap-1.5 flex-wrap">
-                          {ACCIONES.map((accion) => (
-                            <span
-                              key={accion}
-                              className={
-                                acciones.has(accion)
-                                  ? "px-2 py-0.5 rounded-md bg-[#004B87] text-white text-[10px] font-semibold"
-                                  : "px-2 py-0.5 rounded-md bg-gray-100 text-gray-400 text-[10px]"
-                              }
-                            >
-                              {accion}
-                            </span>
-                          ))}
-                        </div>
+                  {Object.entries(
+                    calcularDetallePermisos(roles, detailUser.roles.map((r) => String(r.id_rol))),
+                  ).map(([modulo, nombresPermisos]) => (
+                    <div key={modulo} className="flex items-start gap-2 text-xs">
+                      <span className="font-medium w-28 shrink-0 text-[#003366]">{modulo}</span>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {nombresPermisos.map((nombre) => (
+                          <span
+                            key={nombre}
+                            className="px-2 py-0.5 rounded-md bg-[#004B87] text-white text-[10px] font-semibold"
+                          >
+                            {nombre}
+                          </span>
+                        ))}
                       </div>
-                    ),
-                  )}
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {detailUser.permisosDirectos.length > 0 && (
+              {detailUser.permisos_directos.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground mb-1.5">
                     Permisos directos adicionales
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {detailUser.permisosDirectos.map((pid) => (
-                      <Badge key={pid} variant="outline">
-                        {getPermisoLabel(pid)}
+                    {detailUser.permisos_directos.map((p) => (
+                      <Badge key={p.id_permiso} variant="outline">
+                        {getPermisoLabel(permisos, String(p.id_permiso))}
                       </Badge>
                     ))}
                   </div>

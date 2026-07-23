@@ -16,6 +16,12 @@ import { PostgresPumitaRepository } from '../repositories/PostgresPumitaReposito
 import { PostgresReaccionPumitaRepository } from '../repositories/PostgresReaccionPumitaRepository';
 import { PostgresSolicitudCambioCarreraRepository } from '../repositories/PostgresSolicitudCambioCarreraRepository';
 import { PostgresGrupo2EventoRepository } from '../repositories/PostgresGrupo2EventoRepository';
+// Módulo 4 · Seguridad — repositorios
+import { PostgresBitacoraRepository } from '../repositories/PostgresBitacoraRepository';
+import { PostgresUsuarioSeguridadRepository } from '../repositories/PostgresUsuarioSeguridadRepository';
+import { PostgresRolSeguridadRepository } from '../repositories/PostgresRolSeguridadRepository';
+import { PostgresPermisoSeguridadRepository } from '../repositories/PostgresPermisoSeguridadRepository';
+import { BackupService } from '../backup/BackupService';
 
 // Use cases
 import { GetHealthReport } from '../../use-cases/GetHealthReport';
@@ -56,6 +62,21 @@ import { ListarEventosGrupo2 } from '../../use-cases/mis-eventos/ListarEventosGr
 import { InscribirEventoGrupo2 } from '../../use-cases/mis-eventos/InscribirEventoGrupo2';
 import { CancelarInscripcionGrupo2 } from '../../use-cases/mis-eventos/CancelarInscripcionGrupo2';
 import { RegistrarAsistenciaGrupo2 } from '../../use-cases/mis-eventos/RegistrarAsistenciaGrupo2';
+// Módulo 4 · Seguridad — use cases
+import {
+  CrearUsuarioSeguridad, ObtenerUsuariosSeguridad, ObtenerUsuarioSeguridadPorId,
+  ActualizarUsuarioSeguridad, InhabilitarUsuarioSeguridad, HabilitarUsuarioSeguridad,
+  AsignarRolAUsuario, RevocarRolDeUsuario,
+  AsignarPermisoDirectoAUsuario, RevocarPermisoDirectoDeUsuario,
+} from '../../use-cases/seguridad/UsuarioSeguridadUseCases';
+import {
+  CrearRolSeguridad, ObtenerRolesSeguridad, ObtenerRolSeguridadPorId,
+  ActualizarRolSeguridad, EliminarRolSeguridad, AsignarPermisoARol, RevocarPermisoDeRol,
+} from '../../use-cases/seguridad/RolSeguridadUseCases';
+import {
+  CrearPermisoSeguridad, ObtenerPermisosSeguridad, ObtenerPermisoSeguridadPorId,
+  ActualizarPermisoSeguridad, EliminarPermisoSeguridad,
+} from '../../use-cases/seguridad/PermisoSeguridadUseCases';
 // Controllers
 import { HealthController } from '../../interfaces/controllers/HealthController';
 import { AuthController } from '../../interfaces/controllers/AuthController';
@@ -70,6 +91,12 @@ import { PumitaController } from '../../interfaces/controllers/PumitaController'
 import { PerfilReaccionController } from '../../interfaces/controllers/PerfilReaccionController';
 import { SolicitudCambioCarreraController } from '../../interfaces/controllers/SolicitudCambioCarreraController';
 import { Grupo2EventoController } from '../../interfaces/controllers/Grupo2EventoController';
+// Módulo 4 · Seguridad — controllers
+import { BitacoraController } from '../../interfaces/controllers/BitacoraController';
+import { BackupController } from '../../interfaces/controllers/BackupController';
+import { UsuarioSeguridadController } from '../../interfaces/controllers/UsuarioSeguridadController';
+import { RolSeguridadController } from '../../interfaces/controllers/RolSeguridadController';
+import { PermisoSeguridadController } from '../../interfaces/controllers/PermisoSeguridadController';
 
 // Routes
 import { authRouter } from '../../interfaces/routes/authRoutes';
@@ -85,6 +112,12 @@ import { perfilReaccionRouter } from '../../interfaces/routes/perfilReaccionRout
 import { parametrosRouter } from '../../interfaces/routes/parametrosRoutes';
 import { solicitudCambioCarreraRouter } from '../../interfaces/routes/solicitudCambioCarreraRoutes';
 import { grupo2EventoRouter } from '../../interfaces/routes/grupo2EventoRoutes';
+// Módulo 4 · Seguridad — routes
+import { bitacoraRouter } from '../../interfaces/routes/bitacoraRoutes';
+import { backupRouter } from '../../interfaces/routes/backupRoutes';
+import { usuarioSeguridadRouter } from '../../interfaces/routes/usuarioSeguridadRoutes';
+import { rolSeguridadRouter } from '../../interfaces/routes/rolSeguridadRoutes';
+import { permisoSeguridadRouter } from '../../interfaces/routes/permisoSeguridadRoutes';
 
 // Middleware
 import { errorMiddleware } from '../../interfaces/middlewares/errorMiddleware';
@@ -113,7 +146,12 @@ const pumitaRepo = new PostgresPumitaRepository(pool);
 const reaccionRepo = new PostgresReaccionPumitaRepository(pool);
 const solicitudCambioCarreraRepo = new PostgresSolicitudCambioCarreraRepository(pool);
 const grupo2EventoRepo = new PostgresGrupo2EventoRepository(pool);
-
+// Módulo 4 · Seguridad — repositorios
+const bitacoraRepo    = new PostgresBitacoraRepository(pool);
+const usuarioSegRepo  = new PostgresUsuarioSeguridadRepository(pool);
+const rolSegRepo      = new PostgresRolSeguridadRepository(pool);
+const permisoSegRepo  = new PostgresPermisoSeguridadRepository(pool);
+const backupService   = new BackupService();
 
 // ── Use cases ───────────────────────────────────────────────────────────────
 const loginUC          = new LoginUsuario(usuarioRepo);
@@ -153,7 +191,31 @@ const listarEventosGrupo2UC = new ListarEventosGrupo2(grupo2EventoRepo);
 const inscribirEventoGrupo2UC = new InscribirEventoGrupo2(grupo2EventoRepo);
 const cancelarInscripcionGrupo2UC = new CancelarInscripcionGrupo2(grupo2EventoRepo);
 const registrarAsistenciaGrupo2UC = new RegistrarAsistenciaGrupo2(grupo2EventoRepo);
-
+// Módulo 4 · Seguridad — use cases (Usuarios)
+const crearUsuarioSegUC       = new CrearUsuarioSeguridad(usuarioSegRepo);
+const obtenerUsuariosSegUC    = new ObtenerUsuariosSeguridad(usuarioSegRepo);
+const obtenerUsuarioSegUC     = new ObtenerUsuarioSeguridadPorId(usuarioSegRepo);
+const actualizarUsuarioSegUC  = new ActualizarUsuarioSeguridad(usuarioSegRepo);
+const inhabilitarUsuarioSegUC = new InhabilitarUsuarioSeguridad(usuarioSegRepo);
+const habilitarUsuarioSegUC   = new HabilitarUsuarioSeguridad(usuarioSegRepo);
+const asignarRolUsuarioUC     = new AsignarRolAUsuario(usuarioSegRepo, rolSegRepo);
+const revocarRolUsuarioUC     = new RevocarRolDeUsuario(usuarioSegRepo);
+const asignarPermisoUsuarioUC = new AsignarPermisoDirectoAUsuario(usuarioSegRepo, permisoSegRepo);
+const revocarPermisoUsuarioUC = new RevocarPermisoDirectoDeUsuario(usuarioSegRepo);
+// Módulo 4 · Seguridad — use cases (Roles)
+const crearRolSegUC       = new CrearRolSeguridad(rolSegRepo);
+const obtenerRolesSegUC   = new ObtenerRolesSeguridad(rolSegRepo);
+const obtenerRolSegUC     = new ObtenerRolSeguridadPorId(rolSegRepo);
+const actualizarRolSegUC  = new ActualizarRolSeguridad(rolSegRepo);
+const eliminarRolSegUC    = new EliminarRolSeguridad(rolSegRepo);
+const asignarPermisoRolUC = new AsignarPermisoARol(rolSegRepo, permisoSegRepo);
+const revocarPermisoRolUC = new RevocarPermisoDeRol(rolSegRepo);
+// Módulo 4 · Seguridad — use cases (Permisos)
+const crearPermisoSegUC      = new CrearPermisoSeguridad(permisoSegRepo);
+const obtenerPermisosSegUC   = new ObtenerPermisosSeguridad(permisoSegRepo);
+const obtenerPermisoSegUC    = new ObtenerPermisoSeguridadPorId(permisoSegRepo);
+const actualizarPermisoSegUC = new ActualizarPermisoSeguridad(permisoSegRepo);
+const eliminarPermisoSegUC   = new EliminarPermisoSeguridad(permisoSegRepo);
 
 // ── Controllers ─────────────────────────────────────────────────────────────
 const healthCtrl       = new HealthController(new GetHealthReport(healthRepo));
@@ -183,6 +245,21 @@ const grupo2EventoCtrl = new Grupo2EventoController(
   cancelarInscripcionGrupo2UC,
   registrarAsistenciaGrupo2UC,
 );
+// Módulo 4 · Seguridad — controllers
+const bitacoraCtrl = new BitacoraController(bitacoraRepo);
+const backupCtrl   = new BackupController(backupService, bitacoraRepo);
+const usuarioSegCtrl = new UsuarioSeguridadController(
+  crearUsuarioSegUC, obtenerUsuariosSegUC, obtenerUsuarioSegUC, actualizarUsuarioSegUC,
+  inhabilitarUsuarioSegUC, habilitarUsuarioSegUC,
+  asignarRolUsuarioUC, revocarRolUsuarioUC, asignarPermisoUsuarioUC, revocarPermisoUsuarioUC,
+);
+const rolSegCtrl = new RolSeguridadController(
+  crearRolSegUC, obtenerRolesSegUC, obtenerRolSegUC, actualizarRolSegUC, eliminarRolSegUC,
+  asignarPermisoRolUC, revocarPermisoRolUC,
+);
+const permisoSegCtrl = new PermisoSeguridadController(
+  crearPermisoSegUC, obtenerPermisosSegUC, obtenerPermisoSegUC, actualizarPermisoSegUC, eliminarPermisoSegUC,
+);
 
 // ── Rutas ───────────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => healthCtrl.handle(req, res));
@@ -199,8 +276,12 @@ app.use('/api/perfil/reacciones', perfilReaccionRouter(perfilReaccionCtrl));
 app.use('/api/parametros',    parametrosRouter);
 app.use('/api/solicitudes-cambio-carrera', solicitudCambioCarreraRouter(solicitudCambioCarreraCtrl));
 app.use('/api/grupo2/mis-eventos', grupo2EventoRouter(grupo2EventoCtrl));
-
-
+// Módulo 4 · Seguridad
+app.use('/api/seguridad/usuarios', usuarioSeguridadRouter(usuarioSegCtrl));
+app.use('/api/seguridad/roles',    rolSeguridadRouter(rolSegCtrl));
+app.use('/api/seguridad/permisos', permisoSeguridadRouter(permisoSegCtrl));
+app.use('/api/seguridad/bitacora', bitacoraRouter(bitacoraCtrl));
+app.use('/api/seguridad/backups',  backupRouter(backupCtrl));
 
 // ── Error handler (debe ir al final) ────────────────────────────────────────
 app.use(errorMiddleware);
