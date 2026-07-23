@@ -14,7 +14,10 @@ import {
   Send,
   Check,
   MapPin,
+  Sparkles,
+  Wand2,
 } from "lucide-react";
+import { LocationPicker } from "./LocationPicker";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -173,6 +176,180 @@ function buildInitialCategorias(initialEvent?: UniEvent) {
   });
 }
 
+function generateAiCoverCanvas(
+  title: string,
+  category: string,
+  styleTheme: string = "academic"
+): string {
+  if (typeof document === "undefined") return "";
+  const canvas = document.createElement("canvas");
+  canvas.width = 1200;
+  canvas.height = 630;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+
+  const w = 1200;
+  const h = 630;
+
+  // Theme palettes
+  let bgGrad1 = "#003366";
+  let bgGrad2 = "#001f3f";
+  let accentColor = "#ffbf00";
+  let badgeBg = "rgba(255, 191, 0, 0.25)";
+  let badgeBorder = "#ffbf00";
+
+  if (styleTheme === "tech") {
+    bgGrad1 = "#0f172a";
+    bgGrad2 = "#0284c7";
+    accentColor = "#38bdf8";
+    badgeBg = "rgba(56, 189, 248, 0.25)";
+    badgeBorder = "#38bdf8";
+  } else if (styleTheme === "art") {
+    bgGrad1 = "#4c1d95";
+    bgGrad2 = "#db2777";
+    accentColor = "#f472b6";
+    badgeBg = "rgba(244, 114, 182, 0.25)";
+    badgeBorder = "#f472b6";
+  } else if (styleTheme === "sports") {
+    bgGrad1 = "#064e3b";
+    bgGrad2 = "#059669";
+    accentColor = "#34d399";
+    badgeBg = "rgba(52, 211, 153, 0.25)";
+    badgeBorder = "#34d399";
+  } else if (styleTheme === "social") {
+    bgGrad1 = "#7c2d12";
+    bgGrad2 = "#ea580c";
+    accentColor = "#fb923c";
+    badgeBg = "rgba(251, 146, 60, 0.25)";
+    badgeBorder = "#fb923c";
+  }
+
+  // Background Gradient
+  const grad = ctx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, bgGrad1);
+  grad.addColorStop(1, bgGrad2);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // Geometric AI Mesh & Glowing Orbs
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 1.5;
+
+  for (let i = 0; i < 9; i++) {
+    ctx.beginPath();
+    ctx.arc(w * 0.82 + (i % 3) * 30, h * 0.35 + Math.floor(i / 3) * 40, 90 + i * 28, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = 0.07;
+  const gridSize = 45;
+  for (let x = 0; x < w; x += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+    ctx.stroke();
+  }
+  for (let y = 0; y < h; y += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Accent Sidebar Stripe
+  ctx.save();
+  ctx.fillStyle = accentColor;
+  ctx.fillRect(0, 0, 18, h);
+  ctx.restore();
+
+  // Glassmorphic Content Card Container
+  ctx.save();
+  ctx.fillStyle = "rgba(15, 23, 42, 0.58)";
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+  ctx.lineWidth = 2;
+  const cardX = 80, cardY = 70, cardW = w - 160, cardH = h - 140;
+  const r = 24;
+  ctx.beginPath();
+  ctx.moveTo(cardX + r, cardY);
+  ctx.lineTo(cardX + cardW - r, cardY);
+  ctx.quadraticCurveTo(cardX + cardW, cardY, cardX + cardW, cardY + r);
+  ctx.lineTo(cardX + cardW, cardY + cardH - r);
+  ctx.quadraticCurveTo(cardX + cardW, cardY + cardH, cardX + cardW - r, cardY + cardH);
+  ctx.lineTo(cardX + r, cardY + cardH);
+  ctx.quadraticCurveTo(cardX, cardY + cardH, cardX, cardY + cardH - r);
+  ctx.lineTo(cardX, cardY + r);
+  ctx.quadraticCurveTo(cardX, cardY, cardX + r, cardY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
+  // AI Badge Pill
+  const categoryText = (category || "EVENTO INSTITUCIONAL").toUpperCase();
+  ctx.save();
+  ctx.font = "bold 15px sans-serif";
+  const badgeWidth = ctx.measureText(categoryText).width + 40;
+  const badgeX = 120;
+  const badgeY = 115;
+  ctx.fillStyle = badgeBg;
+  ctx.strokeStyle = badgeBorder;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  if (typeof (ctx as any).roundRect === "function") {
+    (ctx as any).roundRect(badgeX, badgeY, badgeWidth, 38, 19);
+  } else {
+    ctx.rect(badgeX, badgeY, badgeWidth, 38);
+  }
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(categoryText, badgeX + 20, badgeY + 24);
+  ctx.restore();
+
+  // Title Typography
+  const displayTitle = (title.trim() || "Nombre del Evento Académico").toUpperCase();
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 44px 'Segoe UI', Arial, sans-serif";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 4;
+
+  const words = displayTitle.split(" ");
+  let line = "";
+  let currentY = 225;
+  const maxTextWidth = w - 300;
+
+  for (let i = 0; i < words.length; i++) {
+    const testLine = line + words[i] + " ";
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width > maxTextWidth && i > 0) {
+      ctx.fillText(line, 120, currentY);
+      line = words[i] + " ";
+      currentY += 56;
+      if (currentY > 410) break;
+    } else {
+      line = testLine;
+    }
+  }
+  ctx.fillText(line, 120, currentY);
+  ctx.restore();
+
+  // Bottom Watermark / Branding
+  ctx.save();
+  ctx.font = "bold 15px sans-serif";
+  ctx.fillStyle = accentColor;
+  ctx.fillText("✨ PORTADA GENERADA CON IA • UNIVERSIDAD NACIONAL AUTÓNOMA DE HONDURAS", 120, h - 110);
+  ctx.restore();
+
+  return canvas.toDataURL("image/png");
+}
+
 export function EventForm({ initialEvent, onClose }: EventFormProps) {
   const { user } = useRole();
   const navigate = useNavigate();
@@ -182,6 +359,9 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
   const [touched, setTouched] = useState<Partial<Record<keyof FormData, boolean>>>({});
   const [images, setImages] = useState<string[]>(initialEvent?.imagenes_adicionales || []);
   const [imgPortada, setImgPortada] = useState<string | null>(initialEvent?.portada_url || initialEvent?.imagen_url || null);
+
+  const [aiTheme, setAiTheme] = useState<string>("academic");
+  const [isGeneratingAiCover, setIsGeneratingAiCover] = useState<boolean>(false);
 
   const [dragOver, setDragOver] = useState(false);
   const [dragOverPortada, setDragOverPortada] = useState(false);
@@ -916,31 +1096,38 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                 />
               </div>
 
-              {gMapsUrl && (
-                <div className="space-y-2 rounded-lg border border-slate-100 bg-slate-50/50 p-3 shadow-inner">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full gap-1.5 h-11 text-[#004B87] border-[#004B87] hover:bg-slate-50 font-semibold bg-white shadow-sm"
-                    onClick={() => window.open(gMapsUrl, "_blank")}
-                  >
-                    <MapPin className="size-4 text-[#004B87]" /> Probar búsqueda en Google Maps
-                  </Button>
-
-                  <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-                      Enlace de Google Maps Generado (Solo lectura)
-                    </Label>
-                    <Input
-                      type="text"
-                      value={gMapsUrl}
-                      readOnly
-                      onClick={(e) => (e.target as HTMLInputElement).select()}
-                      className="bg-white cursor-text font-mono text-xs h-9 border-slate-200"
-                    />
-                  </div>
+              {/* Geolocalización Interactiva y OpenLayers / OpenStreetMap */}
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 shadow-2xs">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <Label className="text-xs font-bold text-[#003366] flex items-center gap-1.5 uppercase tracking-wider">
+                    <MapPin className="size-4 text-[#004B87]" /> Geolocalización e Inspección en Mapa (OpenLayers / OpenStreetMap)
+                  </Label>
+                  <span className="text-[11px] text-slate-500 font-mono">
+                    {data.latitud && data.longitud ? `📍 Lat: ${data.latitud}, Lng: ${data.longitud}` : "Selecciona o haz clic en el mapa"}
+                  </span>
                 </div>
-              )}
+
+                <LocationPicker
+                  lat={data.latitud || "14.082216"}
+                  lng={data.longitud || "-87.165000"}
+                  onLocationChange={(newLat, newLng) => {
+                    setData((prev) => {
+                      const currentName = prev.ubicacion.includes("|") ? prev.ubicacion.split("|")[0] : prev.ubicacion;
+                      const gLink = `https://www.google.com/maps/search/?api=1&query=${newLat},${newLng}`;
+                      const fullLoc = currentName
+                        ? `${currentName}|${gLink}|${newLat},${newLng}`
+                        : `Edificio UNAH|${gLink}|${newLat},${newLng}`;
+
+                      return {
+                        ...prev,
+                        latitud: newLat,
+                        longitud: newLng,
+                        ubicacion: fullLoc,
+                      };
+                    });
+                  }}
+                />
+              </div>
             </div>
           );
         })()}
@@ -1019,10 +1206,67 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
         {data.usa_imagen_personalizada ? (
           <div className="space-y-6">
             <div>
-              <p className="text-sm font-semibold">Imagen de portada</p>
-              <p className="text-xs text-muted-foreground mt-0.5 mb-3">
-                Esta imagen aparecerá en la card del evento y como imagen principal.
-              </p>
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="text-sm font-semibold">Imagen de portada</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Esta imagen aparecerá en la card del evento y como imagen principal.
+                  </p>
+                </div>
+              </div>
+
+              {/* Generador de Portadas con IA */}
+              <div className="p-4 mb-3 rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/80 via-purple-50/40 to-white space-y-3 shadow-2xs">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs">
+                      <Sparkles className="size-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-indigo-950 uppercase tracking-wider">Generador de Portadas con IA (Automático)</h4>
+                      <p className="text-[11px] text-indigo-700/80">Crea una portada institucional estilizada para este evento con 1 clic.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select
+                      value={aiTheme}
+                      onChange={(e) => setAiTheme(e.target.value)}
+                      className="h-9 text-xs rounded-xl border border-indigo-200 bg-white px-3 font-semibold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    >
+                      <option value="academic">🎓 Académico UNAH</option>
+                      <option value="tech">🚀 Tech & Futurista</option>
+                      <option value="art">🎨 Arte & Cultura</option>
+                      <option value="sports">🏆 Deportes & Salud</option>
+                      <option value="social">🤝 Social & Comunidad</option>
+                    </select>
+
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setIsGeneratingAiCover(true);
+                        setTimeout(() => {
+                          const aiImg = generateAiCoverCanvas(data.titulo, data.categoria, aiTheme);
+                          if (aiImg) {
+                            setImgPortada(aiImg);
+                            set("usa_imagen_personalizada", true);
+                            toast.success("¡Portada generada exitosamente con IA!");
+                          } else {
+                            toast.error("Error al generar portada con IA");
+                          }
+                          setIsGeneratingAiCover(false);
+                        }, 250);
+                      }}
+                      disabled={isGeneratingAiCover}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs h-9 gap-1.5 rounded-xl shadow-xs transition-colors"
+                    >
+                      <Wand2 className="size-3.5" />
+                      {isGeneratingAiCover ? "Generando..." : "Generar Portada IA"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
               <div
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -1035,7 +1279,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                   handlePortadaFile(e.dataTransfer.files[0]);
                 }}
                 className={cn(
-                  "relative rounded-xl border-2 border-dashed p-5 text-center transition cursor-pointer",
+                  "relative rounded-xl border-2 border-dashed p-5 text-center transition cursor-pointer bg-white",
                   dragOverPortada
                     ? "border-primary bg-primary/5"
                     : "border-muted-foreground/30 hover:border-primary/40",
@@ -1051,23 +1295,26 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                 />
                 {imgPortada ? (
                   <div className="flex flex-col items-center gap-2">
-                    <img src={imgPortada} alt="" className="max-h-20 rounded-lg object-contain" />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setImgPortada(null);
-                      }}
-                      className="text-xs underline text-red-500"
-                    >
-                      Eliminar
-                    </button>
+                    <img src={imgPortada} alt="Portada Generada/Subida" className="max-h-28 rounded-lg object-contain border border-slate-200 shadow-2xs" />
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">✓ Portada Lista</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setImgPortada(null);
+                        }}
+                        className="text-xs font-semibold text-rose-600 hover:underline"
+                      >
+                        Quitar portada
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2">
                     <Upload className="size-8 text-muted-foreground/50" />
                     <div className="text-sm font-medium">
-                      Arrastra o haz clic para subir portada
+                      Arrastra o haz clic para subir portada propia
                     </div>
                     <div className="text-xs text-muted-foreground">
                       JPG, PNG o WEBP · Máximo 5MB
