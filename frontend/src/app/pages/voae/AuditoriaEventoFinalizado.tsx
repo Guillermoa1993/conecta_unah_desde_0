@@ -634,22 +634,16 @@ export function AuditoriaEventoFinalizado() {
                         </span>
                       </td>
 
-                      {/* Certificado (Restricción de Auditoría Completa) */}
+                      {/* Certificado (VOAE auditor siempre puede ver/previsualizar el certificado del estudiante aprobado) */}
                       <td className="px-4 py-3 text-center">
                         {isApproved ? (
-                          auditCompleted ? (
-                            <Button
-                              size="sm"
-                              onClick={() => setCertStudent(student)}
-                              className="bg-[#003366] hover:bg-[#002244] text-white text-[11px] h-7 px-2.5 font-semibold gap-1"
-                            >
-                              <FileText className="size-3" /> Certificado
-                            </Button>
-                          ) : (
-                            <span className="text-[11px] px-2 py-1 rounded-full font-semibold bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
-                              <Lock className="size-3 text-amber-600" /> En revisión VOAE
-                            </span>
-                          )
+                          <Button
+                            size="sm"
+                            onClick={() => setCertStudent(student)}
+                            className="bg-[#003366] hover:bg-[#002244] text-white text-[11px] h-7 px-2.5 font-semibold gap-1"
+                          >
+                            <FileText className="size-3" /> Certificado
+                          </Button>
                         ) : (
                           <span className="text-[11px] text-slate-400 font-medium">No disponible</span>
                         )}
