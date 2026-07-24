@@ -496,6 +496,63 @@ export function FichaEmpleado() {
     });
   };
 
+  /**
+   * Recorta la zona inferior-izquierda del carnet UNAH donde están el N.E. y el nombre completo.
+   * Basado en el layout real: N.E. y nombre ocupan aprox. Y: 55%-92%, X: 0%-65%
+   * Devuelve la imagen recortada preprocesada para OCR.
+   */
+  const cropNameNumberRegion = (base64: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const srcW = img.naturalWidth;
+        const srcH = img.naturalHeight;
+
+        // Zona del nombre y N.E.: parte inferior izquierda del carnet
+        const cropX = 0;
+        const cropY = Math.round(srcH * 0.54); // desde el 54% de altura
+        const cropW = Math.round(srcW * 0.68); // hasta el 68% de ancho
+        const cropH = Math.round(srcH * 0.43); // hasta el final (97%)
+
+        // Escalar 3x para mejor resolución OCR
+        const escala = 3;
+        const canvas = document.createElement('canvas');
+        canvas.width = cropW * escala;
+        canvas.height = cropH * escala;
+        const ctx = canvas.getContext('2d')!;
+
+        // Fondo blanco para el canvas
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Dibujar la región recortada escalada
+        ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+
+        // Preprocesar: escala de grises + inversión + binarización
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        let sumaBrillo = 0;
+        const brillos: number[] = new Array(data.length / 4);
+        for (let i = 0; i < data.length; i += 4) {
+          const b = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+          brillos[i / 4] = b;
+          sumaBrillo += b;
+        }
+        const brilloPromedio = sumaBrillo / brillos.length;
+        const invertir = brilloPromedio < 128; // fondo azul → invertir
+        for (let i = 0; i < data.length; i += 4) {
+          let b = brillos[i / 4];
+          if (invertir) b = 255 - b;
+          const v = b > brilloPromedio ? 255 : 0;
+          data[i] = v; data[i + 1] = v; data[i + 2] = v;
+        }
+        ctx.putImageData(imageData, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => resolve(base64);
+      img.src = base64;
+    });
+  };
 
 
   // Analiza la imagen con Canvas API para verificar la estructura visual y proporciones
@@ -703,22 +760,35 @@ export function FichaEmpleado() {
 
       setScanStepName("Ejecutando OCR para lectura de texto oficial (esto puede demorar unos segundos)...");
 
+      // OCR completo del carnet
       const ocrResult = await Tesseract.recognize(
         imagenParaOcr,
         'spa',
         {
           logger: (m) => {
             if (m.status === 'recognizing text') {
-              setScanProgress(45 + Math.round(m.progress * 25));
-              setScanStepName(`Reconociendo caracteres: ${Math.round(m.progress * 100)}%`);
+              setScanProgress(45 + Math.round(m.progress * 20));
+              setScanStepName(`Reconociendo texto completo: ${Math.round(m.progress * 100)}%`);
             }
           }
         }
       );
 
-      console.log("RESULTADO OCR COMPLETO:", ocrResult.data.text);
+      // OCR específico de la zona del N.E. y nombre (abajo-izquierda)
+      setScanProgress(65);
+      setScanStepName("Leyendo zona de nombre y número de empleado...");
+      const regionNombreNe = await cropNameNumberRegion(forma003);
+      const ocrRegionResult = await Tesseract.recognize(
+        regionNombreNe,
+        'spa',
+        { logger: () => {} }
+      );
 
-      const ocrText = ocrResult.data.text;
+      console.log("OCR COMPLETO:", ocrResult.data.text);
+      console.log("OCR ZONA N.E./NOMBRE:", ocrRegionResult.data.text);
+
+      // Combinar ambos textos para máxima cobertura
+      const ocrText = ocrResult.data.text + "\n" + ocrRegionResult.data.text;
       const cleanText = ocrText.toLowerCase();
 
       // Paso 3: Validar palabras clave obligatorias del documento oficial
@@ -759,46 +829,68 @@ export function FichaEmpleado() {
 
 
 
-      // Normalizar el nombre del formulario (sin tildes, minúsculas)
-      const nameParts = formData.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/\s+/).filter(w => w.length >= 2);
+      // ── Validar NOMBRE ──────────────────────────────────────────────────────
+      // Normalizar nombre del formulario: sin tildes, minúsculas, solo palabras de 2+ letras
+      const nameParts = formData.nombre.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .split(/\s+/).filter(w => w.length >= 2);
 
       let matchingNameParts = 0;
       nameParts.forEach(part => {
-        // Stem: buscar las primeras 3 letras o toda la palabra si es corta
-        const stem = part.length > 3 ? part.substring(0, 3) : part;
-        if (normalizedOcrText.includes(part) || normalizedOcrText.includes(stem)) {
+        // Buscar palabra completa O stem de 4 letras (para tolerar OCR impreciso)
+        const stem4 = part.length >= 4 ? part.substring(0, 4) : part;
+        const stem3 = part.length >= 3 ? part.substring(0, 3) : part;
+        if (
+          normalizedOcrText.includes(part) ||
+          normalizedOcrText.includes(stem4) ||
+          normalizedOcrText.includes(stem3)
+        ) {
           matchingNameParts++;
         }
       });
 
-      console.log("TEXTO OCR CARNET:", normalizedOcrText);
+      console.log("TEXTO OCR COMPLETO:", normalizedOcrText.substring(0, 200));
       console.log("NOMBRE FORMULARIO:", formData.nombre);
       console.log("PARTES DEL NOMBRE:", nameParts);
       console.log("PARTES ENCONTRADAS:", matchingNameParts, "de", nameParts.length);
 
-      // Aprueba si al menos el 40% de las partes del nombre coinciden (mínimo 1)
-      const minPartsRequired = Math.max(1, Math.ceil(nameParts.length * 0.4));
+      // Aprueba si al menos el 33% de las partes del nombre coinciden (mínimo 1 de 3)
+      const minPartsRequired = Math.max(1, Math.ceil(nameParts.length * 0.33));
       const nameMatchOk = nameParts.length > 0 ? (matchingNameParts >= minPartsRequired) : true;
 
-      // Comparación de número de empleado (con tolerancia a errores OCR de 1 dígito)
+      // ── Validar NÚMERO DE EMPLEADO ──────────────────────────────────────────
       const employeeNumClean = formData.numeroEmpleado.trim().replace(/\D/g, '');
       const ocrDigitsOnly = normalizedOcrText.replace(/\D/g, '');
 
-      // Buscar coincidencia exacta primero
-      let employeeNumMatchOk = employeeNumClean.length > 0 && ocrDigitsOnly.includes(employeeNumClean);
+      // 1) Intentar extraer número después del patrón "N.E." o "NE" en el OCR
+      //    Ej: "N.E. 98765" → extraer "98765"
+      let employeeNumMatchOk = false;
+      const nePatternMatch = normalizedOcrText.match(/n\.?\s*e\.?\s*(\d{3,})/i);
+      if (nePatternMatch) {
+        const foundNeNumber = nePatternMatch[1].replace(/\D/g, '');
+        console.log("Número encontrado vía patrón N.E.:", foundNeNumber);
+        if (foundNeNumber === employeeNumClean || foundNeNumber.includes(employeeNumClean) || employeeNumClean.includes(foundNeNumber)) {
+          employeeNumMatchOk = true;
+        }
+      }
 
-      // Si no hay coincidencia exacta, intentar con tolerancia de 1 dígito diferente
+      // 2) Si no se encontró por patrón N.E., buscar el número exacto en todos los dígitos del OCR
+      if (!employeeNumMatchOk && employeeNumClean.length > 0) {
+        employeeNumMatchOk = ocrDigitsOnly.includes(employeeNumClean);
+      }
+
+      // 3) Si aún no coincide, tolerancia de 1 dígito diferente (OCR impreciso)
       if (!employeeNumMatchOk && employeeNumClean.length >= 4) {
-        // Generar variantes con 1 dígito cambiado/faltante/extra
         for (let i = 0; i < employeeNumClean.length && !employeeNumMatchOk; i++) {
           const sinDigito = employeeNumClean.slice(0, i) + employeeNumClean.slice(i + 1);
           if (ocrDigitsOnly.includes(sinDigito)) {
             employeeNumMatchOk = true;
-            console.log("Número de empleado encontrado con tolerancia (sin dígito en posición", i, "):", sinDigito);
+            console.log("N.E. encontrado con tolerancia (posición", i, "):", sinDigito);
           }
         }
       }
-      console.log("NÚMERO EMPLEADO INGRESADO:", employeeNumClean, "| DÍGITOS OCR:", ocrDigitsOnly.substring(0, 50), "| MATCH:", employeeNumMatchOk);
+
+      console.log("N.E. INGRESADO:", employeeNumClean, "| DÍGITOS OCR (primeros 80):", ocrDigitsOnly.substring(0, 80), "| MATCH:", employeeNumMatchOk);
 
       // Comparación de departamento (normalizando tildes y buscando palabras clave principales)
       const facultyClean = formData.facultad.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
