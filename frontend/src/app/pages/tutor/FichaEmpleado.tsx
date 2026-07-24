@@ -858,39 +858,28 @@ export function FichaEmpleado() {
       const minPartsRequired = Math.max(1, Math.ceil(nameParts.length * 0.33));
       const nameMatchOk = nameParts.length > 0 ? (matchingNameParts >= minPartsRequired) : true;
 
-      // ── Validar NÚMERO DE EMPLEADO ──────────────────────────────────────────
+      // ── Validar NÚMERO DE EMPLEADO (ESTRICTO EXACTO) ─────────────────────────
       const employeeNumClean = formData.numeroEmpleado.trim().replace(/\D/g, '');
       const ocrDigitsOnly = normalizedOcrText.replace(/\D/g, '');
 
-      // 1) Intentar extraer número después del patrón "N.E." o "NE" en el OCR
-      //    Ej: "N.E. 98765" → extraer "98765"
       let employeeNumMatchOk = false;
+
+      // 1) Intentar extraer número exacto después del patrón "N.E." o "NE" en el OCR
       const nePatternMatch = normalizedOcrText.match(/n\.?\s*e\.?\s*(\d{3,})/i);
       if (nePatternMatch) {
         const foundNeNumber = nePatternMatch[1].replace(/\D/g, '');
         console.log("Número encontrado vía patrón N.E.:", foundNeNumber);
-        if (foundNeNumber === employeeNumClean || foundNeNumber.includes(employeeNumClean) || employeeNumClean.includes(foundNeNumber)) {
+        if (foundNeNumber === employeeNumClean) {
           employeeNumMatchOk = true;
         }
       }
 
-      // 2) Si no se encontró por patrón N.E., buscar el número exacto en todos los dígitos del OCR
+      // 2) Coincidencia exacta estricta del número completo dentro de los dígitos escaneados
       if (!employeeNumMatchOk && employeeNumClean.length > 0) {
         employeeNumMatchOk = ocrDigitsOnly.includes(employeeNumClean);
       }
 
-      // 3) Si aún no coincide, tolerancia de 1 dígito diferente (OCR impreciso)
-      if (!employeeNumMatchOk && employeeNumClean.length >= 4) {
-        for (let i = 0; i < employeeNumClean.length && !employeeNumMatchOk; i++) {
-          const sinDigito = employeeNumClean.slice(0, i) + employeeNumClean.slice(i + 1);
-          if (ocrDigitsOnly.includes(sinDigito)) {
-            employeeNumMatchOk = true;
-            console.log("N.E. encontrado con tolerancia (posición", i, "):", sinDigito);
-          }
-        }
-      }
-
-      console.log("N.E. INGRESADO:", employeeNumClean, "| DÍGITOS OCR (primeros 80):", ocrDigitsOnly.substring(0, 80), "| MATCH:", employeeNumMatchOk);
+      console.log("N.E. INGRESADO:", employeeNumClean, "| DÍGITOS OCR:", ocrDigitsOnly.substring(0, 80), "| MATCH EXACTO:", employeeNumMatchOk);
 
       // Comparación de departamento (normalizando tildes y buscando palabras clave principales)
       const facultyClean = formData.facultad.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
