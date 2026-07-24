@@ -997,12 +997,11 @@ export function FichaEmpleado() {
 
       // El carnet se aprueba si:
       // - Las proporciones son correctas (formato horizontal)
-      // - Y al menos UNO de los dos: nombre coincide O número de empleado coincide
-      // (esto da tolerancia a errores de OCR en carnets de fondo oscuro)
-      const datosCoinciden = employeeNumMatchOk || nameMatchOk;
+      // - Y OBLIGATORIAMENTE tanto el Nombre como el Número de Empleado coinciden
       const shouldApprove =
         analysis.aspectRatioOk &&
-        datosCoinciden;
+        employeeNumMatchOk &&
+        nameMatchOk;
 
       console.log("ERRORES DETECTADOS:", detectedErrors);
       console.log("shouldApprove:", shouldApprove, "| aspectRatioOk:", analysis.aspectRatioOk, "| employeeNumMatchOk:", employeeNumMatchOk, "| nameMatchOk:", nameMatchOk);
@@ -1014,7 +1013,7 @@ export function FichaEmpleado() {
       } else {
         setErrors(detectedErrors);
         setForma003Status('failed');
-        toast.error(`La verificación del carnet ha fallado. Asegúrese de que el carnet esté en posición horizontal y que el nombre o número de empleado sea legible.`);
+        toast.error(`La verificación del carnet ha fallado. Asegúrese de que el nombre y el número de empleado ingresados coincidan con los de su carnet.`);
       }
 
     } catch (err: any) {
