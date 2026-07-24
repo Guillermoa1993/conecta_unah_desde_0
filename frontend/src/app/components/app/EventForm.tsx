@@ -478,7 +478,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
 
   const TEXT_RE = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9\s.,:=\-*()+#@!?¿¡"'/_&%]+$/;
   const DESC_RE = /^[^<>{}[\]]*$/;
-  const UBICACION_RE = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9\s,.\-#:=*()+#@!?¿¡"'/_&|%?=+&]+$/;
+  const UBICACION_RE = /^[^<>{}[\]]*$/;
 
   const validate = (d: FormData): FormErrors => {
     const e: FormErrors = {};
