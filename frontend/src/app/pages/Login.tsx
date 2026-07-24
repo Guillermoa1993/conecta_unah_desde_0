@@ -322,7 +322,8 @@ export function Login() {
       authService.setUsuarioGuardado(data.usuario);
 
       const ROL_MAP: Record<string, Role> = {
-        estudiante: 'student', tutor: 'tutor', admin: 'admin', voae: 'voae', dev: 'dev',
+        estudiante: 'student', tutor: 'tutor', empleado: 'tutor', admin: 'admin',
+        voae: 'voae', voae_direccion: 'voae', voae_departamento: 'voae', dev: 'dev',
       };
       const role = ROL_MAP[data.usuario.rol.toLowerCase()] ?? 'student';
       const path = ROLE_PATHS[role] ?? "/student/feed";
