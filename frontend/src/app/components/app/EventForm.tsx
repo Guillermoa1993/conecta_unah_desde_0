@@ -231,6 +231,12 @@ function generateAiCoverCanvas(
     accentColor = "#fb923c";
     badgeBg = "rgba(251, 146, 60, 0.25)";
     badgeBorder = "#fb923c";
+  } else if (styleTheme === "recreational") {
+    bgGrad1 = "#0f172a";
+    bgGrad2 = "#4f46e5";
+    accentColor = "#a78bfa";
+    badgeBg = "rgba(167, 139, 250, 0.25)";
+    badgeBorder = "#a78bfa";
   }
 
   // Background Gradient
@@ -303,6 +309,35 @@ function generateAiCoverCanvas(
           ctx.stroke();
         }
       });
+    });
+  } else if (styleTheme === "recreational") {
+    // Festive confetti dots and celebration stars
+    ctx.globalAlpha = 0.22;
+    const confettiColors = ["#a78bfa", "#34d399", "#fb923c", "#f472b6", "#60a5fa"];
+    for (let i = 0; i < 24; i++) {
+      ctx.fillStyle = confettiColors[i % confettiColors.length];
+      const cx = w * 0.55 + (i % 7) * 90 + (i < 12 ? 0 : 40);
+      const cy = i < 12 ? h * 0.2 + (i % 4) * 90 : h * 0.6 + (i % 4) * 60;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 10 + (i % 3) * 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Star shapes
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = "#fbbf24";
+    [[w * 0.78, h * 0.25], [w * 0.91, h * 0.55], [w * 0.68, h * 0.72]].forEach(([sx, sy]) => {
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.beginPath();
+      for (let pt = 0; pt < 5; pt++) {
+        const angle = (pt * 4 * Math.PI) / 5 - Math.PI / 2;
+        const r2 = pt % 2 === 0 ? 30 : 14;
+        pt === 0 ? ctx.moveTo(Math.cos(angle) * r2, Math.sin(angle) * r2)
+                 : ctx.lineTo(Math.cos(angle) * r2, Math.sin(angle) * r2);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
     });
   } else {
     // Academic / Institutional Orbs and Crest Lines
@@ -635,20 +670,24 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
 
     if (currentStep === 3) {
       if (!imgPortada) {
-        const checkedCatsWithHours = categoriasHoras.filter((c) => c.checked && c.horas > 0);
-        const checkedCatsAll = categoriasHoras.filter((c) => c.checked);
-        const pCat = checkedCatsWithHours.length > 0
-          ? checkedCatsWithHours[0].categoria
-          : (checkedCatsAll.length > 0 ? checkedCatsAll[checkedCatsAll.length - 1].categoria : data.categoria);
-
-        const autoThemeMap: Record<string, string> = {
-          ACADEMICO: "academic",
-          CULTURAL: "art",
-          DEPORTIVO: "sports",
-          SOCIAL: "social",
-        };
-        const themeToUse = autoThemeMap[pCat] || "academic";
-        const autoCover = generateAiCoverCanvas(data.titulo, pCat, themeToUse);
+        const isRecreativo = data.tipo_evento !== "HORAS_VOAE";
+        let pCat = "RECREACION";
+        let themeToUse = "recreational";
+        if (!isRecreativo) {
+          const checkedCatsWithHours = categoriasHoras.filter((c) => c.checked && c.horas > 0);
+          const checkedCatsAll = categoriasHoras.filter((c) => c.checked);
+          pCat = checkedCatsWithHours.length > 0
+            ? checkedCatsWithHours[0].categoria
+            : (checkedCatsAll.length > 0 ? checkedCatsAll[checkedCatsAll.length - 1].categoria : data.categoria);
+          const autoThemeMap: Record<string, string> = {
+            ACADEMICO: "academic",
+            CULTURAL: "art",
+            DEPORTIVO: "sports",
+            SOCIAL: "social",
+          };
+          themeToUse = autoThemeMap[pCat] || "academic";
+        }
+        const autoCover = generateAiCoverCanvas(data.titulo, isRecreativo ? "Recreación" : pCat, themeToUse);
         setImgPortada(autoCover);
       }
     }
@@ -713,14 +752,19 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       ? checkedCategorias.map((ch) => ({ categoria: ch.categoria, horas: ch.horas }))
       : undefined;
 
+    const isRecreativoSubmit = data.tipo_evento !== "HORAS_VOAE";
     const autoThemeMap: Record<string, string> = {
       ACADEMICO: "academic",
       CULTURAL: "art",
       DEPORTIVO: "sports",
       SOCIAL: "social",
     };
-    const themeToUse = autoThemeMap[primaryCategoria] || "academic";
-    const finalPortada = imgPortada || generateAiCoverCanvas(data.titulo, primaryCategoria, themeToUse);
+    const themeToUse = isRecreativoSubmit ? "recreational" : (autoThemeMap[primaryCategoria] || "academic");
+    const finalPortada = imgPortada || generateAiCoverCanvas(
+      data.titulo,
+      isRecreativoSubmit ? "Recreación" : primaryCategoria,
+      themeToUse
+    );
 
     const payload = {
       titulo: data.titulo,
