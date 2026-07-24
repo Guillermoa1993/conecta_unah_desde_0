@@ -1,4 +1,5 @@
 version: '3.9'
+
 # ─── UNAH CONECTA PUMAS ────────────────────────────────────────────────────────
 # Base de datos: Render.com (PostgreSQL externo, sin contenedor local de DB)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -17,16 +18,16 @@ services:
       - ./backend/.env
     environment:
       - PORT=5000
-      - DATABASE_URL=postgresql://unah_conecta2_user:jNjG22SbWrJlJwf35Vuk3qcMZqXMsnXo@dpg-d931mbugvqtc739qj7h0-a.virginia-postgres.render.com/unah_conecta2
-      - JWT_SECRET=unah_conecta_pumas_2026_jwt_secret_key_cambiar_en_produccion
-      - FRONTEND_URL=http://localhost:5173
-      - NODE_OPTIONS=--dns-result-order=ipv4first
-      - AZURE_CLIENT_ID=3539454f-3ef2-43e9-8b17-2424b171504d
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - NODE_OPTIONS=${NODE_OPTIONS}
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
       - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
-      - AZURE_TENANT_ID=0dfe615a-5e05-412a-bfb2-0bf859e3563e
-      - AZURE_REDIRECT_URI=http://localhost:5000/api/auth/microsoft/callback
-      - GMAIL_USER=josecarlosaguilar71123@gmail.com
-      - GMAIL_APP_PASSWORD=yenfgvryovntbmub
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
+      - AZURE_REDIRECT_URI=${AZURE_REDIRECT_URI}
+      - GMAIL_USER=${GMAIL_USER}
+      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
