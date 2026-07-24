@@ -256,65 +256,73 @@ export function LocationPicker({
 
   // Inicializar Mapa Expandido de Pantalla Completa
   useEffect(() => {
-    if (!isFullscreen || !fullMapRef.current || !leaflet) return;
+    if (!isFullscreen || !leaflet) return;
     const L = leaflet;
 
-    const curLat = parseFloat(lat) || defaultCenter[0];
-    const curLng = parseFloat(lng) || defaultCenter[1];
+    const timer = setTimeout(() => {
+      if (!fullMapRef.current) return;
 
-    const redPinIcon = L.icon({
-      iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
-      shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-      iconSize: [30, 48],
-      iconAnchor: [15, 48],
-      popupAnchor: [1, -40],
-      shadowSize: [48, 48],
-    });
+      const curLat = parseFloat(lat) || defaultCenter[0];
+      const curLng = parseFloat(lng) || defaultCenter[1];
 
-    const fullMap = L.map(fullMapRef.current, {
-      center: [curLat, curLng] as L.LatLngExpression,
-      zoom: 18,
-      zoomControl: true,
-    });
+      const redPinIcon = L.icon({
+        iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+        shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+        iconSize: [30, 48],
+        iconAnchor: [15, 48],
+        popupAnchor: [1, -40],
+        shadowSize: [48, 48],
+      });
 
-    const layerConfig = TILE_LAYERS[activeLayerKey];
-    L.tileLayer(layerConfig.url, {
-      attribution: layerConfig.attribution,
-      maxZoom: layerConfig.maxZoom,
-    }).addTo(fullMap);
+      if (fullMapInstance.current) {
+        fullMapInstance.current.remove();
+        fullMapInstance.current = null;
+      }
 
-    const fullMarker = L.marker([curLat, curLng] as L.LatLngExpression, {
-      icon: redPinIcon,
-      draggable: true,
-    }).addTo(fullMap);
+      const fullMap = L.map(fullMapRef.current, {
+        center: [curLat, curLng] as L.LatLngExpression,
+        zoom: 18,
+        zoomControl: true,
+      });
 
-    fullMapInstance.current = fullMap;
-    fullMarkerInstance.current = fullMarker;
+      const layerConfig = TILE_LAYERS[activeLayerKey];
+      L.tileLayer(layerConfig.url, {
+        attribution: layerConfig.attribution,
+        maxZoom: layerConfig.maxZoom,
+      }).addTo(fullMap);
 
-    setTimeout(() => {
+      const fullMarker = L.marker([curLat, curLng] as L.LatLngExpression, {
+        icon: redPinIcon,
+        draggable: true,
+      }).addTo(fullMap);
+
+      fullMapInstance.current = fullMap;
+      fullMarkerInstance.current = fullMarker;
+
       fullMap.invalidateSize();
-    }, 250);
 
-    fullMap.on("click", (e: L.LeafletMouseEvent) => {
-      const clickLat = e.latlng.lat.toFixed(6);
-      const clickLng = e.latlng.lng.toFixed(6);
-      fullMarker.setLatLng(e.latlng);
-      if (onLocationChange) onLocationChange(clickLat, clickLng);
-    });
+      fullMap.on("click", (e: L.LeafletMouseEvent) => {
+        const clickLat = e.latlng.lat.toFixed(6);
+        const clickLng = e.latlng.lng.toFixed(6);
+        fullMarker.setLatLng(e.latlng);
+        if (onLocationChange) onLocationChange(clickLat, clickLng);
+      });
 
-    fullMarker.on("dragend", () => {
-      const pos = fullMarker.getLatLng();
-      if (onLocationChange) onLocationChange(pos.lat.toFixed(6), pos.lng.toFixed(6));
-    });
+      fullMarker.on("dragend", () => {
+        const pos = fullMarker.getLatLng();
+        if (onLocationChange) onLocationChange(pos.lat.toFixed(6), pos.lng.toFixed(6));
+      });
+    }, 180);
 
     return () => {
+      clearTimeout(timer);
       if (fullMapInstance.current) {
         fullMapInstance.current.remove();
         fullMapInstance.current = null;
         fullMarkerInstance.current = null;
       }
     };
-  }, [isFullscreen, leaflet]);
+  }, [isFullscreen, leaflet, lat, lng]);
 
   // Cambiar capa del mapa dinámicamente
   const changeTileLayer = (key: keyof typeof TILE_LAYERS) => {
@@ -407,8 +415,8 @@ export function LocationPicker({
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 w-full rounded-xl border border-slate-200 overflow-hidden relative mt-2">
-            <div ref={fullMapRef} className="w-full h-full z-0" />
+          <div className="flex-1 w-full min-h-[480px] rounded-xl border border-slate-200 overflow-hidden relative mt-2">
+            <div ref={fullMapRef} className="w-full h-full min-h-[480px] z-0" />
           </div>
 
           <div className="flex items-center justify-between pt-3 border-t mt-2">

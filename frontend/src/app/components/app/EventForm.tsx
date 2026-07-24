@@ -1011,134 +1011,112 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
             {errors.hora_fin && <p className="text-xs mt-0.5 text-red-800">{errors.hora_fin}</p>}
           </div>
         </div>
-        <div>
-          <Label>
-            Centro regional <span className="text-red-500">*</span>
-          </Label>
-          <Select
-            value={data.centro_regional}
-            onValueChange={(v) => {
-              const sedeInfo = SEDES_DATA[v] || SEDES_DATA["Ciudad Universitaria"];
-              setData((prev) => {
-                const link = `https://www.google.com/maps/search/?api=1&query=${sedeInfo.lat},${sedeInfo.lng}`;
-                return {
-                  ...prev,
-                  centro_regional: v,
-                  latitud: sedeInfo.lat,
-                  longitud: sedeInfo.lng,
-                  ubicacion: `${v}|${link}|${sedeInfo.lat},${sedeInfo.lng}`
-                };
-              });
-            }}
-          >
-            <SelectTrigger className="mt-1 h-11 bg-white">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.keys(SEDES_DATA).map((cr) => (
-                <SelectItem key={cr} value={cr}>
-                  {cr}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
         {data.tipo_actividad !== "Virtual" && (() => {
-          const [fullUbicacion, gMapsUrl] = data.ubicacion && data.ubicacion.includes("|")
+          const [fullUbicacion] = data.ubicacion && data.ubicacion.includes("|")
             ? data.ubicacion.split("|")
             : [data.ubicacion || "", ""];
 
-          const [buildingName, aulaName] = fullUbicacion.includes(" - ")
-            ? fullUbicacion.split(" - ")
-            : [fullUbicacion, ""];
-
           const currentSedeData = SEDES_DATA[data.centro_regional] || SEDES_DATA["Ciudad Universitaria"];
+
+          // Parseo seguro del edificio y aula sin romper nombres con guiones (ej. Biblioteca – UNAH)
+          const matchedBuilding = currentSedeData.buildings.find((b) => fullUbicacion.startsWith(b.name));
+          const buildingName = matchedBuilding ? matchedBuilding.name : (fullUbicacion.includes(" - ") ? fullUbicacion.split(" - ")[0] : fullUbicacion);
+          const aulaName = matchedBuilding
+            ? fullUbicacion.slice(matchedBuilding.name.length).replace(/^ - /, "")
+            : (fullUbicacion.includes(" - ") ? fullUbicacion.split(" - ").slice(1).join(" - ") : "");
 
           return (
             <div className="space-y-4 animate-in fade-in duration-200">
-              <div>
-                <Label>
-                  Edificio / Ubicación física <span className="text-red-500">*</span>
-                </Label>
-                <select
-                  value={buildingName}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const matchedBuilding = currentSedeData.buildings.find((b) => b.name === val);
-                    const bLat = matchedBuilding ? matchedBuilding.lat : currentSedeData.lat;
-                    const bLng = matchedBuilding ? matchedBuilding.lng : currentSedeData.lng;
-                    const fullLoc = aulaName ? `${val} - ${aulaName}` : val;
-                    const link = `https://www.google.com/maps/search/?api=1&query=${bLat},${bLng}`;
-
-                    setData((prev) => ({
-                      ...prev,
-                      latitud: bLat,
-                      longitud: bLng,
-                      ubicacion: val ? `${fullLoc}|${link}|${bLat},${bLng}` : ""
-                    }));
-                  }}
-                  onBlur={() => blur("ubicacion")}
-                  className={cn(
-                    "mt-1 h-11 w-full rounded-xl border border-input bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer font-medium text-slate-800 shadow-2xs",
-                    errors.ubicacion && "border-red-500"
-                  )}
-                >
-                  <option value="">Seleccionar edificio de {data.centro_regional}...</option>
-                  {currentSedeData.buildings.map((b) => (
-                    <option key={b.name} value={b.name}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.ubicacion && <p className="text-xs mt-0.5 text-red-800">{errors.ubicacion}</p>}
-              </div>
-
-              <div>
-                <Label>
-                  Aula (Opcional)
-                </Label>
-                <Input
-                  value={aulaName}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const fullLoc = val ? `${buildingName} - ${val}` : buildingName;
-                    const link = `https://www.google.com/maps/search/?api=1&query=${data.latitud || currentSedeData.lat},${data.longitud || currentSedeData.lng}`;
-                    setData((prev) => ({
-                      ...prev,
-                      ubicacion: buildingName ? `${fullLoc}|${link}|${prev.latitud},${prev.longitud}` : ""
-                    }));
-                  }}
-                  placeholder="Ej. Aula 101, Cubículo 4, Laboratorio B..."
-                  className="mt-1 h-11 bg-white border-slate-200"
-                />
-              </div>
-
-              {gMapsUrl && (
-                <div className="space-y-2 rounded-lg border border-slate-100 bg-slate-50/50 p-3 shadow-inner">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full gap-1.5 h-11 text-[#004B87] border-[#004B87] hover:bg-slate-50 font-semibold bg-white shadow-sm"
-                    onClick={() => window.open(gMapsUrl, "_blank")}
+              {/* Estructura en 3 columnas iguales: Centro Regional | Edificio | Aula */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <Label>
+                    Centro regional <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={data.centro_regional}
+                    onValueChange={(v) => {
+                      const sedeInfo = SEDES_DATA[v] || SEDES_DATA["Ciudad Universitaria"];
+                      const link = `https://www.google.com/maps/search/?api=1&query=${sedeInfo.lat},${sedeInfo.lng}`;
+                      setData((prev) => ({
+                        ...prev,
+                        centro_regional: v,
+                        latitud: sedeInfo.lat,
+                        longitud: sedeInfo.lng,
+                        ubicacion: `${v}|${link}|${sedeInfo.lat},${sedeInfo.lng}`
+                      }));
+                    }}
                   >
-                    <MapPin className="size-4 text-[#004B87]" /> Probar búsqueda en Google Maps
-                  </Button>
-
-                  <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-                      Enlace de Google Maps Generado (Solo lectura)
-                    </Label>
-                    <Input
-                      type="text"
-                      value={gMapsUrl}
-                      readOnly
-                      onClick={(e) => (e.target as HTMLInputElement).select()}
-                      className="bg-white cursor-text font-mono text-xs h-9 border-slate-200"
-                    />
-                  </div>
+                    <SelectTrigger className="mt-1 h-11 bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.keys(SEDES_DATA).map((cr) => (
+                        <SelectItem key={cr} value={cr}>
+                          {cr}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
+
+                <div>
+                  <Label>
+                    Edificio / Ubicación física <span className="text-red-500">*</span>
+                  </Label>
+                  <select
+                    value={buildingName}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const bObj = currentSedeData.buildings.find((b) => b.name === val);
+                      const bLat = bObj ? bObj.lat : currentSedeData.lat;
+                      const bLng = bObj ? bObj.lng : currentSedeData.lng;
+                      const fullLoc = aulaName ? `${val} - ${aulaName}` : val;
+                      const link = `https://www.google.com/maps/search/?api=1&query=${bLat},${bLng}`;
+
+                      setData((prev) => ({
+                        ...prev,
+                        latitud: bLat,
+                        longitud: bLng,
+                        ubicacion: val ? `${fullLoc}|${link}|${bLat},${bLng}` : ""
+                      }));
+                    }}
+                    onBlur={() => blur("ubicacion")}
+                    className={cn(
+                      "mt-1 h-11 w-full rounded-xl border border-input bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer font-medium text-slate-800 shadow-2xs",
+                      errors.ubicacion && "border-red-500"
+                    )}
+                  >
+                    <option value="">Seleccionar edificio de {data.centro_regional}...</option>
+                    {currentSedeData.buildings.map((b) => (
+                      <option key={b.name} value={b.name}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.ubicacion && <p className="text-xs mt-0.5 text-red-800">{errors.ubicacion}</p>}
+                </div>
+
+                <div>
+                  <Label>
+                    Aula (Opcional)
+                  </Label>
+                  <Input
+                    value={aulaName}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const fullLoc = val ? `${buildingName} - ${val}` : buildingName;
+                      const link = `https://www.google.com/maps/search/?api=1&query=${data.latitud || currentSedeData.lat},${data.longitud || currentSedeData.lng}`;
+                      setData((prev) => ({
+                        ...prev,
+                        ubicacion: buildingName ? `${fullLoc}|${link}|${prev.latitud},${prev.longitud}` : ""
+                      }));
+                    }}
+                    placeholder="Ej. Aula 101, Cubículo 4..."
+                    className="mt-1 h-11 bg-white border-slate-200"
+                  />
+                </div>
+              </div>
 
               {/* Mini Preview del Mapa con Coordenadas Predefinidas Exactas */}
               <div className="space-y-1 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs">
