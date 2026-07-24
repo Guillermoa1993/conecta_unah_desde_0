@@ -127,9 +127,19 @@ export function VOAEDashboard() {
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-slate-800 text-sm truncate">{ev.titulo}</h3>
                   <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1 flex-wrap font-medium">
-                    <span>Tutor: <strong className="text-slate-700">{ev.tutor_nombre || "N/A"}</strong></span>
-                    <span>Fecha: {formatDate(ev.fecha_inicio)}</span>
-                    <span>Lugar: {ev.lugar || ev.ubicacion || "N/A"}</span>
+                    {(() => {
+                      const rawLoc = ev.lugar || ev.ubicacion || "N/A";
+                      const [cleanLoc] = rawLoc.split("|");
+                      const solicitante = ev.creador_nombre || ev.tutor_nombre || ev.solicitante || ev.organizador || "Solicitante";
+
+                      return (
+                        <>
+                          <span>Solicitante: <strong className="text-slate-700">{solicitante}</strong></span>
+                          <span>Fecha: {formatDate(ev.fecha_inicio)}</span>
+                          <span>Lugar: {cleanLoc}</span>
+                        </>
+                      );
+                    })()}
                     <span
                       className="px-2 py-0.5 rounded text-[10px] font-semibold text-white"
                       style={{ backgroundColor: CATEGORY_COLORS[ev.categoria] || "#64748b" }}

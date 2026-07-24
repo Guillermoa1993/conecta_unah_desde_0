@@ -47,6 +47,10 @@ export interface Evento {
   audiencia?: string;
   registro_entrada?: boolean;
   registro_salida?: boolean;
+  tutor_nombre?: string;
+  creador_nombre?: string;
+  tutor_foto?: string;
+  creador_foto?: string;
 }
 
 export interface CrearEventoDto {
