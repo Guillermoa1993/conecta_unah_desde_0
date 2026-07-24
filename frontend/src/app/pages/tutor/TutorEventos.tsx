@@ -382,7 +382,20 @@ function EventCard({
                 color: isConHoras ? "#1e40af" : "#64748b",
               }}
             >
-              {isConHoras ? "\uD83C\uDF93 Horas VOAE" : "\uD83C\uDF89 Recreación"}
+              {isConHoras ? (
+                <>
+                  🎓 Horas VOAE
+                  {(() => {
+                    const catMap = CATEGORY_LABEL as Record<string, string>;
+                    const ambitos = (event.distribucion_horas && event.distribucion_horas.length > 0)
+                      ? event.distribucion_horas.map((dh: any) => catMap[dh.categoria] || dh.categoria).join(", ")
+                      : (catMap[event.categoria] || event.categoria);
+                    return ambitos ? ` — ${ambitos}` : "";
+                  })()}
+                </>
+              ) : (
+                "🎉 Recreación"
+              )}
             </span>
           </div>
           {/* Capacity bar */}

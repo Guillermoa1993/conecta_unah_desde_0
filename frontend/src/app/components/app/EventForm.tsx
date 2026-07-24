@@ -14,7 +14,10 @@ import {
   Send,
   Check,
   MapPin,
+  Sparkles,
+  Wand2,
 } from "lucide-react";
+import { LocationPicker, SEDES_DATA, resolveExactBuildingCoords } from "./LocationPicker";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -113,12 +116,21 @@ function buildFormDefaults(user: { name?: string }, initialEvent?: UniEvent): Fo
     const startVal = getLocalDatePickerValues(initialEvent.fecha_inicio);
     const endVal = getLocalDatePickerValues(initialEvent.fecha_fin);
 
+    const cRegional = initialEvent.centro_regional || "Ciudad Universitaria";
+    const uRaw = (initialEvent as any).ubicacion || initialEvent.lugar || "";
+    const { lat: resolvedLat, lng: resolvedLng } = resolveExactBuildingCoords(
+      cRegional,
+      uRaw,
+      initialEvent.latitud,
+      initialEvent.longitud
+    );
+
     return {
       titulo: initialEvent.titulo,
       categoria: initialEvent.categoria,
       tipo_actividad: initialEvent.tipo_actividad || "Presencial",
       tipo_evento: initialEvent.tipo_evento === "HORAS_VOAE" ? "HORAS_VOAE" : "SIN_HORAS",
-      centro_regional: initialEvent.centro_regional || "Ciudad Universitaria",
+      centro_regional: cRegional,
       descripcion: initialEvent.descripcion,
       audiencia: (initialEvent as any).audiencia || "TODO_PUBLICO",
       registro_entrada: initialEvent.tipo_evento === "HORAS_VOAE",
@@ -128,13 +140,13 @@ function buildFormDefaults(user: { name?: string }, initialEvent?: UniEvent): Fo
       fecha_fin: endVal.date,
       hora_inicio: startVal.time,
       hora_fin: endVal.time,
-      ubicacion: (initialEvent as any).ubicacion || initialEvent.lugar || "",
+      ubicacion: uRaw,
       enlace_virtual: initialEvent.enlace_virtual || "",
       cupo_maximo: String(initialEvent.cupo_maximo),
       tutor_responsable: initialEvent.tutor_nombre || user.name || "Dr. Carlos Mendoza",
       usa_imagen_personalizada: initialEvent.usa_imagen_personalizada,
-      latitud: String(initialEvent.latitud ?? ""),
-      longitud: String(initialEvent.longitud ?? ""),
+      latitud: resolvedLat,
+      longitud: resolvedLng,
     };
   }
   return {
@@ -167,10 +179,287 @@ function buildInitialCategorias(initialEvent?: UniEvent) {
     const found = initialEvent?.distribucion_horas?.find((dh) => dh.categoria === c);
     return {
       categoria: c,
-      checked: found ? true : c === initialEvent?.categoria || (!initialEvent && c === "ACADEMICO"),
+      checked: found ? true : (initialEvent ? c === initialEvent.categoria : false),
       horas: found ? found.horas : 0,
     };
   });
+}
+
+function generateAiCoverCanvas(
+  title: string,
+  category: string,
+  styleTheme: string = "academic"
+): string {
+  if (typeof document === "undefined") return "";
+  const canvas = document.createElement("canvas");
+  canvas.width = 1200;
+  canvas.height = 630;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+
+  const w = 1200;
+  const h = 630;
+
+  // Theme palettes
+  let bgGrad1 = "#003366";
+  let bgGrad2 = "#001f3f";
+  let accentColor = "#ffbf00";
+  let badgeBg = "rgba(255, 191, 0, 0.25)";
+  let badgeBorder = "#ffbf00";
+
+  if (styleTheme === "tech") {
+    bgGrad1 = "#0f172a";
+    bgGrad2 = "#0284c7";
+    accentColor = "#38bdf8";
+    badgeBg = "rgba(56, 189, 248, 0.25)";
+    badgeBorder = "#38bdf8";
+  } else if (styleTheme === "art") {
+    bgGrad1 = "#4c1d95";
+    bgGrad2 = "#db2777";
+    accentColor = "#f472b6";
+    badgeBg = "rgba(244, 114, 182, 0.25)";
+    badgeBorder = "#f472b6";
+  } else if (styleTheme === "sports") {
+    bgGrad1 = "#064e3b";
+    bgGrad2 = "#059669";
+    accentColor = "#34d399";
+    badgeBg = "rgba(52, 211, 153, 0.25)";
+    badgeBorder = "#34d399";
+  } else if (styleTheme === "social") {
+    bgGrad1 = "#7c2d12";
+    bgGrad2 = "#ea580c";
+    accentColor = "#fb923c";
+    badgeBg = "rgba(251, 146, 60, 0.25)";
+    badgeBorder = "#fb923c";
+  } else if (styleTheme === "recreational") {
+    bgGrad1 = "#0f172a";
+    bgGrad2 = "#4f46e5";
+    accentColor = "#a78bfa";
+    badgeBg = "rgba(167, 139, 250, 0.25)";
+    badgeBorder = "#a78bfa";
+  }
+
+  // Background Gradient
+  const grad = ctx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, bgGrad1);
+  grad.addColorStop(1, bgGrad2);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // Decorative Illustrative Graphics based on Theme
+  ctx.save();
+  if (styleTheme === "tech") {
+    // Tech Circuit Nodes and Data Lines
+    ctx.globalAlpha = 0.25;
+    ctx.strokeStyle = "#38bdf8";
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 6; i++) {
+      const x = w * 0.65 + i * 45;
+      const y = h * 0.2 + (i % 3) * 60;
+      ctx.beginPath();
+      ctx.arc(x, y, 12, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + 12, y);
+      ctx.lineTo(x + 80, y + 40);
+      ctx.stroke();
+    }
+  } else if (styleTheme === "art") {
+    // Artistic Translucent Color Waves
+    ctx.globalAlpha = 0.22;
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = i % 2 === 0 ? "#f472b6" : "#c084fc";
+      ctx.beginPath();
+      ctx.arc(w * 0.8 + i * 20, h * 0.5 - i * 30, 110 + i * 35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (styleTheme === "sports") {
+    // Dynamic Speed Angles
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = "#34d399";
+    for (let i = 0; i < 5; i++) {
+      ctx.beginPath();
+      ctx.moveTo(w * 0.7 + i * 40, 0);
+      ctx.lineTo(w * 0.85 + i * 40, 0);
+      ctx.lineTo(w * 0.55 + i * 40, h);
+      ctx.lineTo(w * 0.4 + i * 40, h);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else if (styleTheme === "social") {
+    // Connected Community Nodes
+    ctx.globalAlpha = 0.25;
+    ctx.strokeStyle = "#fb923c";
+    ctx.lineWidth = 2.5;
+    const nodes = [
+      { x: w * 0.75, y: h * 0.3 },
+      { x: w * 0.88, y: h * 0.4 },
+      { x: w * 0.7, y: h * 0.65 },
+      { x: w * 0.85, y: h * 0.75 },
+    ];
+    nodes.forEach((n, idx) => {
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 16, 0, Math.PI * 2);
+      ctx.stroke();
+      nodes.forEach((n2, idx2) => {
+        if (idx < idx2) {
+          ctx.beginPath();
+          ctx.moveTo(n.x, n.y);
+          ctx.lineTo(n2.x, n2.y);
+          ctx.stroke();
+        }
+      });
+    });
+  } else if (styleTheme === "recreational") {
+    // Festive confetti dots and celebration stars
+    ctx.globalAlpha = 0.22;
+    const confettiColors = ["#a78bfa", "#34d399", "#fb923c", "#f472b6", "#60a5fa"];
+    for (let i = 0; i < 24; i++) {
+      ctx.fillStyle = confettiColors[i % confettiColors.length];
+      const cx = w * 0.55 + (i % 7) * 90 + (i < 12 ? 0 : 40);
+      const cy = i < 12 ? h * 0.2 + (i % 4) * 90 : h * 0.6 + (i % 4) * 60;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 10 + (i % 3) * 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Star shapes
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = "#fbbf24";
+    [[w * 0.78, h * 0.25], [w * 0.91, h * 0.55], [w * 0.68, h * 0.72]].forEach(([sx, sy]) => {
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.beginPath();
+      for (let pt = 0; pt < 5; pt++) {
+        const angle = (pt * 4 * Math.PI) / 5 - Math.PI / 2;
+        const r2 = pt % 2 === 0 ? 30 : 14;
+        pt === 0 ? ctx.moveTo(Math.cos(angle) * r2, Math.sin(angle) * r2)
+                 : ctx.lineTo(Math.cos(angle) * r2, Math.sin(angle) * r2);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    });
+  } else {
+    // Academic / Institutional Orbs and Crest Lines
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = "#fbbf24";
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 6; i++) {
+      ctx.beginPath();
+      ctx.arc(w * 0.82, h * 0.45, 80 + i * 32, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  // Fine Grid Lines overlay
+  ctx.save();
+  ctx.globalAlpha = 0.06;
+  ctx.strokeStyle = "#ffffff";
+  const gridSize = 45;
+  for (let x = 0; x < w; x += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+    ctx.stroke();
+  }
+  for (let y = 0; y < h; y += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Accent Sidebar Stripe
+  ctx.save();
+  ctx.fillStyle = accentColor;
+  ctx.fillRect(0, 0, 18, h);
+  ctx.restore();
+
+  // Glassmorphic Content Card Container
+  ctx.save();
+  ctx.fillStyle = "rgba(15, 23, 42, 0.58)";
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+  ctx.lineWidth = 2;
+  const cardX = 80, cardY = 70, cardW = w - 160, cardH = h - 140;
+  const r = 24;
+  ctx.beginPath();
+  ctx.moveTo(cardX + r, cardY);
+  ctx.lineTo(cardX + cardW - r, cardY);
+  ctx.quadraticCurveTo(cardX + cardW, cardY, cardX + cardW, cardY + r);
+  ctx.lineTo(cardX + cardW, cardY + cardH - r);
+  ctx.quadraticCurveTo(cardX + cardW, cardY + cardH, cardX + cardW - r, cardY + cardH);
+  ctx.lineTo(cardX + r, cardY + cardH);
+  ctx.quadraticCurveTo(cardX, cardY + cardH, cardX, cardY + cardH - r);
+  ctx.lineTo(cardX, cardY + r);
+  ctx.quadraticCurveTo(cardX, cardY, cardX + r, cardY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
+  // Category Badge Pill
+  const categoryText = (category || "EVENTO INSTITUCIONAL").toUpperCase();
+  ctx.save();
+  ctx.font = "bold 15px sans-serif";
+  const badgeWidth = ctx.measureText(categoryText).width + 40;
+  const badgeX = 120;
+  const badgeY = 115;
+  ctx.fillStyle = badgeBg;
+  ctx.strokeStyle = badgeBorder;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  if (typeof (ctx as any).roundRect === "function") {
+    (ctx as any).roundRect(badgeX, badgeY, badgeWidth, 38, 19);
+  } else {
+    ctx.rect(badgeX, badgeY, badgeWidth, 38);
+  }
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(categoryText, badgeX + 20, badgeY + 24);
+  ctx.restore();
+
+  // Title Typography
+  const displayTitle = (title.trim() || "Nombre del Evento Académico").toUpperCase();
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 44px 'Segoe UI', Arial, sans-serif";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 4;
+
+  const words = displayTitle.split(" ");
+  let line = "";
+  let currentY = 225;
+  const maxTextWidth = w - 300;
+
+  for (let i = 0; i < words.length; i++) {
+    const testLine = line + words[i] + " ";
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width > maxTextWidth && i > 0) {
+      ctx.fillText(line, 120, currentY);
+      line = words[i] + " ";
+      currentY += 56;
+      if (currentY > 410) break;
+    } else {
+      line = testLine;
+    }
+  }
+  ctx.fillText(line, 120, currentY);
+  ctx.restore();
+
+  // Bottom Watermark / Branding
+  ctx.save();
+  ctx.font = "bold 14px sans-serif";
+  ctx.fillStyle = accentColor;
+  ctx.fillText("UNIVERSIDAD NACIONAL AUTÓNOMA DE HONDURAS • CONECTA PUMAS", 120, h - 110);
+  ctx.restore();
+
+  return canvas.toDataURL("image/png");
 }
 
 export function EventForm({ initialEvent, onClose }: EventFormProps) {
@@ -182,6 +471,9 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
   const [touched, setTouched] = useState<Partial<Record<keyof FormData, boolean>>>({});
   const [images, setImages] = useState<string[]>(initialEvent?.imagenes_adicionales || []);
   const [imgPortada, setImgPortada] = useState<string | null>(initialEvent?.portada_url || initialEvent?.imagen_url || null);
+
+  const [aiTheme, setAiTheme] = useState<string>("academic");
+  const [isGeneratingAiCover, setIsGeneratingAiCover] = useState<boolean>(false);
 
   const [dragOver, setDragOver] = useState(false);
   const [dragOverPortada, setDragOverPortada] = useState(false);
@@ -221,7 +513,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
 
   const TEXT_RE = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9\s.,:=\-*()+#@!?¿¡"'/_&%]+$/;
   const DESC_RE = /^[^<>{}[\]]*$/;
-  const UBICACION_RE = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9\s,.\-#:=*()+#@!?¿¡"'/_&|%?=+&]+$/;
+  const UBICACION_RE = /^[^<>{}[\]]*$/;
 
   const validate = (d: FormData): FormErrors => {
     const e: FormErrors = {};
@@ -375,6 +667,31 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       toast.error("Corrige los campos marcados en rojo");
       return;
     }
+
+    if (currentStep === 3) {
+      if (!imgPortada) {
+        const isRecreativo = data.tipo_evento !== "HORAS_VOAE";
+        let pCat = "RECREACION";
+        let themeToUse = "recreational";
+        if (!isRecreativo) {
+          const checkedCatsWithHours = categoriasHoras.filter((c) => c.checked && c.horas > 0);
+          const checkedCatsAll = categoriasHoras.filter((c) => c.checked);
+          pCat = checkedCatsWithHours.length > 0
+            ? checkedCatsWithHours[0].categoria
+            : (checkedCatsAll.length > 0 ? checkedCatsAll[checkedCatsAll.length - 1].categoria : data.categoria);
+          const autoThemeMap: Record<string, string> = {
+            ACADEMICO: "academic",
+            CULTURAL: "art",
+            DEPORTIVO: "sports",
+            SOCIAL: "social",
+          };
+          themeToUse = autoThemeMap[pCat] || "academic";
+        }
+        const autoCover = generateAiCoverCanvas(data.titulo, isRecreativo ? "Recreación" : pCat, themeToUse);
+        setImgPortada(autoCover);
+      }
+    }
+
     setCurrentStep((s) => Math.min(s + 1, 4));
   };
 
@@ -426,10 +743,28 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       return Math.round(diffHours * 10) / 10;
     };
     const checkedCategorias = categoriasHoras.filter((ch) => ch.checked);
-    const primaryCategoria = checkedCategorias.length > 0 ? checkedCategorias[0].categoria : "ACADEMICO";
+    const checkedCatsWithHours = categoriasHoras.filter((c) => c.checked && c.horas > 0);
+    const primaryCategoria = checkedCatsWithHours.length > 0
+      ? checkedCatsWithHours[0].categoria
+      : (checkedCategorias.length > 0 ? checkedCategorias[checkedCategorias.length - 1].categoria : data.categoria);
+
     const distribucion = data.tipo_evento === "HORAS_VOAE" && checkedCategorias.length > 0
       ? checkedCategorias.map((ch) => ({ categoria: ch.categoria, horas: ch.horas }))
       : undefined;
+
+    const isRecreativoSubmit = data.tipo_evento !== "HORAS_VOAE";
+    const autoThemeMap: Record<string, string> = {
+      ACADEMICO: "academic",
+      CULTURAL: "art",
+      DEPORTIVO: "sports",
+      SOCIAL: "social",
+    };
+    const themeToUse = isRecreativoSubmit ? "recreational" : (autoThemeMap[primaryCategoria] || "academic");
+    const finalPortada = imgPortada || generateAiCoverCanvas(
+      data.titulo,
+      isRecreativoSubmit ? "Recreación" : primaryCategoria,
+      themeToUse
+    );
 
     const payload = {
       titulo: data.titulo,
@@ -447,7 +782,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       hora_inicio: data.hora_inicio,
       hora_fin: data.hora_fin,
       enlace_virtual: data.enlace_virtual,
-      portada_url: imgPortada || null,
+      portada_url: finalPortada,
       imagenes_adicionales: images,
       tutor_responsable: data.tutor_responsable,
       tipo_duracion: data.tipo_duracion,
@@ -585,134 +920,134 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
             </Select>
           </div>
         </div>
-        <div>
-          <Label>
-            Categorías / Ámbitos <span className="text-red-500">*</span>
-          </Label>
-        <div className="grid grid-cols-2 gap-4 mt-1">
+        {data.tipo_evento === "HORAS_VOAE" && (
           <div>
-            <div className="relative" ref={catDropdownRef}>
-              <div
-                className="flex items-center gap-1 flex-wrap min-h-[44px] rounded-lg border bg-background px-3 py-1.5 cursor-pointer"
-                style={{ borderColor: errors.categoria ? "#ef4444" : undefined }}
-                onClick={() => setCatDropdownOpen((o) => !o)}
-              >
-                {(() => {
-                  const selected = categoriasHoras.filter((ch) => ch.checked);
-                  if (selected.length === 0) return <span className="text-sm text-muted-foreground">Seleccionar categorías...</span>;
-                  return selected.map((ch) => (
-                    <span
-                      key={ch.categoria}
-                      className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border"
-                      style={{ backgroundColor: CATEGORY_COLORS[ch.categoria] + "15", borderColor: CATEGORY_COLORS[ch.categoria] + "40", color: CATEGORY_COLORS[ch.categoria] }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {CATEGORY_LABEL_LONG[ch.categoria]}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCategoriasHoras((prev) =>
-                            prev.map((c) =>
-                              c.categoria === ch.categoria ? { ...c, checked: false, horas: 0 } : c
-                            )
-                          );
-                        }}
-                        className="ml-0.5 hover:opacity-70"
-                      >
-                        ✕
-                      </button>
-                    </span>
-                  ));
-                })()}
-                <ChevronDown className="size-4 ml-auto shrink-0 text-muted-foreground" />
-              </div>
-              {catDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-lg border bg-card shadow-lg p-1.5">
-                  {categoriasHoras.map((ch) => (
-                    <div
-                      key={ch.categoria}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer"
-                      onClick={() => {
-                        setCategoriasHoras((prev) =>
-                          prev.map((c) =>
-                            c.categoria === ch.categoria
-                              ? { ...c, checked: !c.checked, horas: !c.checked ? c.horas : 0 }
-                              : c
-                          )
-                        );
-                      }}
-                    >
-                      <Checkbox checked={ch.checked} className="pointer-events-none" />
-                      <div className="size-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[ch.categoria] }} />
-                      <span className="text-sm">{CATEGORY_LABEL_LONG[ch.categoria]}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          {data.tipo_evento === "HORAS_VOAE" && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-muted-foreground">Asignar horas por categoría</p>
-              {categoriasHoras.filter((ch) => ch.checked).length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">Selecciona categorías arriba</p>
-              ) : (
-                categoriasHoras
-                  .filter((ch) => ch.checked)
-                  .map((ch) => {
-                    const exceededCat = ch.horas > 15;
-                    const isZero = ch.horas <= 0;
-                    const allChecked = categoriasHoras.filter((c) => c.checked);
-                    const totalAll = allChecked.reduce((s, c) => s + c.horas, 0);
-                    const totalExceeded = totalAll > 60;
-                    return (
-                      <div key={ch.categoria} className="flex items-center gap-2">
-                        <span className="text-xs w-24 truncate">{CATEGORY_LABEL_LONG[ch.categoria]}</span>
-                        <Input
-                          type="number"
-                          min={1}
-                          max={15}
-                          value={ch.horas || ""}
-                          onChange={(e) => {
-                            const raw = parseInt(e.target.value);
-                            const val = isNaN(raw) ? 0 : Math.min(raw, 15);
-                            const totalOther = categoriasHoras
-                              .filter((c) => c.checked && c.categoria !== ch.categoria)
-                              .reduce((s, c) => s + c.horas, 0);
-                            const clamped = totalOther + val > 60 ? 60 - totalOther : val;
+            <Label>
+              Categorías / Ámbitos <span className="text-red-500">*</span>
+            </Label>
+            <div className="grid grid-cols-2 gap-4 mt-1">
+              <div>
+                <div className="relative" ref={catDropdownRef}>
+                  <div
+                    className="flex items-center gap-1 flex-wrap min-h-[44px] rounded-lg border bg-background px-3 py-1.5 cursor-pointer"
+                    style={{ borderColor: errors.categoria ? "#ef4444" : undefined }}
+                    onClick={() => setCatDropdownOpen((o) => !o)}
+                  >
+                    {(() => {
+                      const selected = categoriasHoras.filter((ch) => ch.checked);
+                      if (selected.length === 0) return <span className="text-sm text-muted-foreground">Seleccionar categorías...</span>;
+                      return selected.map((ch) => (
+                        <span
+                          key={ch.categoria}
+                          className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border"
+                          style={{ backgroundColor: CATEGORY_COLORS[ch.categoria] + "15", borderColor: CATEGORY_COLORS[ch.categoria] + "40", color: CATEGORY_COLORS[ch.categoria] }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {CATEGORY_LABEL_LONG[ch.categoria]}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCategoriasHoras((prev) =>
+                                prev.map((c) =>
+                                  c.categoria === ch.categoria ? { ...c, checked: false, horas: 0 } : c
+                                )
+                              );
+                            }}
+                            className="ml-0.5 hover:opacity-70"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ));
+                    })()}
+                    <ChevronDown className="size-4 ml-auto shrink-0 text-muted-foreground" />
+                  </div>
+                  {catDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-lg border bg-card shadow-lg p-1.5">
+                      {categoriasHoras.map((ch) => (
+                        <div
+                          key={ch.categoria}
+                          className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer"
+                          onClick={() => {
                             setCategoriasHoras((prev) =>
                               prev.map((c) =>
-                                c.categoria === ch.categoria ? { ...c, horas: Math.max(0, clamped) } : c
+                                c.categoria === ch.categoria
+                                  ? { ...c, checked: !c.checked, horas: !c.checked ? c.horas : 0 }
+                                  : c
                               )
                             );
                           }}
-                          className={cn("h-8 w-16 text-sm", (exceededCat || totalExceeded || isZero) && "border-red-400")}
-                          placeholder="hrs"
-                        />
-                        {exceededCat && <span className="text-[10px] text-red-500">máx 15</span>}
-                        {isZero && <span className="text-[10px] text-red-500 font-medium">requerido</span>}
-                      </div>
-                    );
-                  })
-              )}
-              {(() => {
-                const checked = categoriasHoras.filter((ch) => ch.checked);
-                const total = checked.reduce((s, c) => s + c.horas, 0);
-                const exceeded = total > 60;
-                return (
-                  <p className={cn("text-xs", exceeded ? "text-red-500 font-medium" : "text-muted-foreground")}>
-                    Total: {total} / 60 horas
-                    {exceeded && " — Excede el límite"}
-                  </p>
-                );
-              })()}
+                        >
+                          <Checkbox checked={ch.checked} className="pointer-events-none" />
+                          <div className="size-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[ch.categoria] }} />
+                          <span className="text-sm">{CATEGORY_LABEL_LONG[ch.categoria]}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground">Asignar horas por categoría</p>
+                {categoriasHoras.filter((ch) => ch.checked).length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">Selecciona categorías arriba</p>
+                ) : (
+                  categoriasHoras
+                    .filter((ch) => ch.checked)
+                    .map((ch) => {
+                      const exceededCat = ch.horas > 15;
+                      const isZero = ch.horas <= 0;
+                      const allChecked = categoriasHoras.filter((c) => c.checked);
+                      const totalAll = allChecked.reduce((s, c) => s + c.horas, 0);
+                      const totalExceeded = totalAll > 60;
+                      return (
+                        <div key={ch.categoria} className="flex items-center gap-2">
+                          <span className="text-xs w-24 truncate">{CATEGORY_LABEL_LONG[ch.categoria]}</span>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={15}
+                            value={ch.horas || ""}
+                            onChange={(e) => {
+                              const raw = parseInt(e.target.value);
+                              const val = isNaN(raw) ? 0 : Math.min(raw, 15);
+                              const totalOther = categoriasHoras
+                                .filter((c) => c.checked && c.categoria !== ch.categoria)
+                                .reduce((s, c) => s + c.horas, 0);
+                              const clamped = totalOther + val > 60 ? 60 - totalOther : val;
+                              setCategoriasHoras((prev) =>
+                                prev.map((c) =>
+                                  c.categoria === ch.categoria ? { ...c, horas: Math.max(0, clamped) } : c
+                                )
+                              );
+                            }}
+                            className={cn("h-8 w-16 text-sm", (exceededCat || totalExceeded || isZero) && "border-red-400")}
+                            placeholder="hrs"
+                          />
+                          {exceededCat && <span className="text-[10px] text-red-500">máx 15</span>}
+                          {isZero && <span className="text-[10px] text-red-500 font-medium">requerido</span>}
+                        </div>
+                      );
+                    })
+                )}
+                {(() => {
+                  const checked = categoriasHoras.filter((ch) => ch.checked);
+                  const total = checked.reduce((s, c) => s + c.horas, 0);
+                  const exceeded = total > 60;
+                  return (
+                    <p className={cn("text-xs", exceeded ? "text-red-500 font-medium" : "text-muted-foreground")}>
+                      Total: {total} / 60 horas
+                      {exceeded && " — Excede el límite"}
+                    </p>
+                  );
+                })()}
+              </div>
             </div>
-          )}
-        </div>
-        {categoriasHoras.filter((ch) => ch.checked).length === 0 && (
-          <p className="text-xs text-red-500 mt-1">Selecciona al menos una categoría</p>
+            {categoriasHoras.filter((ch) => ch.checked).length === 0 && (
+              <p className="text-xs text-red-500 mt-1">Selecciona al menos una categoría</p>
+            )}
+          </div>
         )}
-      </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label>Audiencia — Quién puede inscribirse</Label>
@@ -831,116 +1166,138 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
             {errors.hora_fin && <p className="text-xs mt-0.5 text-red-800">{errors.hora_fin}</p>}
           </div>
         </div>
-        <div>
-          <Label>Centro regional <span className="text-red-500">*</span></Label>
-          <Select
-            value={data.centro_regional}
-            onValueChange={(v) => {
-              setData((prev) => {
-                const currentName = prev.ubicacion.includes("|") ? prev.ubicacion.split("|")[0] : prev.ubicacion;
-                const query = currentName ? `${currentName} ${v}`.trim() : "";
-                const link = query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : "";
-                return {
-                  ...prev,
-                  centro_regional: v,
-                  ubicacion: currentName ? `${currentName}|${link}` : ""
-                };
-              });
-            }}
-          >
-            <SelectTrigger className="mt-1 h-11 bg-white">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {CENTROS_REGIONALES.map((cr) => (
-                <SelectItem key={cr} value={cr}>
-                  {cr}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
         {data.tipo_actividad !== "Virtual" && (() => {
-          const [fullUbicacion, gMapsUrl] = data.ubicacion && data.ubicacion.includes("|")
+          const [fullUbicacion] = data.ubicacion && data.ubicacion.includes("|")
             ? data.ubicacion.split("|")
             : [data.ubicacion || "", ""];
 
-          const [buildingName, aulaName] = fullUbicacion.includes(" - ")
-            ? fullUbicacion.split(" - ")
-            : [fullUbicacion, ""];
+          const currentSedeData = SEDES_DATA[data.centro_regional] || SEDES_DATA["Ciudad Universitaria"];
+
+          // Parseo seguro del edificio y aula sin romper nombres con guiones (ej. Biblioteca – UNAH)
+          const matchedBuilding = currentSedeData.buildings.find((b) => fullUbicacion.startsWith(b.name));
+          const buildingName = matchedBuilding ? matchedBuilding.name : (fullUbicacion.includes(" - ") ? fullUbicacion.split(" - ")[0] : fullUbicacion);
+          const aulaName = matchedBuilding
+            ? fullUbicacion.slice(matchedBuilding.name.length).replace(/^ - /, "")
+            : (fullUbicacion.includes(" - ") ? fullUbicacion.split(" - ").slice(1).join(" - ") : "");
+
+          const { lat: resolvedLat, lng: resolvedLng } = resolveExactBuildingCoords(
+            data.centro_regional,
+            buildingName,
+            data.latitud,
+            data.longitud
+          );
 
           return (
             <div className="space-y-4 animate-in fade-in duration-200">
-              <div>
-                <Label>
-                  Edificio / Ubicación física <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  value={buildingName}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const fullLoc = aulaName ? `${val} - ${aulaName}` : val;
-                    const query = val ? `${val} ${data.centro_regional}`.trim() : "";
-                    const link = query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : "";
-                    setData((prev) => ({
-                      ...prev,
-                      ubicacion: val ? `${fullLoc}|${link}` : ""
-                    }));
-                  }}
-                  onBlur={() => blur("ubicacion")}
-                  placeholder="Ej. Edificio D1, Auditorio Juan Lindo, Plaza Cuatro Culturas..."
-                  className={cn("mt-1 h-11 bg-white", errors.ubicacion && "border-red-500")}
-                />
-                {errors.ubicacion && <p className="text-xs mt-0.5 text-red-800">{errors.ubicacion}</p>}
-              </div>
-
-              <div>
-                <Label>
-                  Aula (Opcional)
-                </Label>
-                <Input
-                  value={aulaName}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const fullLoc = val ? `${buildingName} - ${val}` : buildingName;
-                    const query = buildingName ? `${buildingName} ${data.centro_regional}`.trim() : "";
-                    const link = query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : "";
-                    setData((prev) => ({
-                      ...prev,
-                      ubicacion: buildingName ? `${fullLoc}|${link}` : ""
-                    }));
-                  }}
-                  placeholder="Ej. Aula 101, Cubículo 4, Laboratorio B..."
-                  className="mt-1 h-11 bg-white border-slate-200"
-                />
-              </div>
-
-              {gMapsUrl && (
-                <div className="space-y-2 rounded-lg border border-slate-100 bg-slate-50/50 p-3 shadow-inner">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full gap-1.5 h-11 text-[#004B87] border-[#004B87] hover:bg-slate-50 font-semibold bg-white shadow-sm"
-                    onClick={() => window.open(gMapsUrl, "_blank")}
+              {/* Estructura en 3 columnas iguales: Centro Regional | Edificio | Aula */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <Label>
+                    Centro regional <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={data.centro_regional}
+                    onValueChange={(v) => {
+                      const sedeInfo = SEDES_DATA[v] || SEDES_DATA["Ciudad Universitaria"];
+                      const link = `https://www.google.com/maps/search/?api=1&query=${sedeInfo.lat},${sedeInfo.lng}`;
+                      setData((prev) => ({
+                        ...prev,
+                        centro_regional: v,
+                        latitud: sedeInfo.lat,
+                        longitud: sedeInfo.lng,
+                        ubicacion: `${v}|${link}|${sedeInfo.lat},${sedeInfo.lng}`
+                      }));
+                    }}
                   >
-                    <MapPin className="size-4 text-[#004B87]" /> Probar búsqueda en Google Maps
-                  </Button>
-
-                  <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-                      Enlace de Google Maps Generado (Solo lectura)
-                    </Label>
-                    <Input
-                      type="text"
-                      value={gMapsUrl}
-                      readOnly
-                      onClick={(e) => (e.target as HTMLInputElement).select()}
-                      className="bg-white cursor-text font-mono text-xs h-9 border-slate-200"
-                    />
-                  </div>
+                    <SelectTrigger className="mt-1 h-11 bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.keys(SEDES_DATA).map((cr) => (
+                        <SelectItem key={cr} value={cr}>
+                          {cr}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
+
+                <div>
+                  <Label>
+                    Edificio / Ubicación física <span className="text-red-500">*</span>
+                  </Label>
+                  <select
+                    value={buildingName}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const bObj = currentSedeData.buildings.find((b) => b.name === val);
+                      const bLat = bObj ? bObj.lat : currentSedeData.lat;
+                      const bLng = bObj ? bObj.lng : currentSedeData.lng;
+                      const fullLoc = aulaName ? `${val} - ${aulaName}` : val;
+                      const link = `https://www.google.com/maps/search/?api=1&query=${bLat},${bLng}`;
+
+                      setData((prev) => ({
+                        ...prev,
+                        latitud: bLat,
+                        longitud: bLng,
+                        ubicacion: val ? `${fullLoc}|${link}|${bLat},${bLng}` : ""
+                      }));
+                    }}
+                    onBlur={() => blur("ubicacion")}
+                    className={cn(
+                      "mt-1 h-11 w-full rounded-xl border border-input bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer font-medium text-slate-800 shadow-2xs",
+                      errors.ubicacion && "border-red-500"
+                    )}
+                  >
+                    <option value="">Seleccionar edificio de {data.centro_regional}...</option>
+                    {currentSedeData.buildings.map((b) => (
+                      <option key={b.name} value={b.name}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.ubicacion && <p className="text-xs mt-0.5 text-red-800">{errors.ubicacion}</p>}
+                </div>
+
+                <div>
+                  <Label>
+                    Aula (Opcional)
+                  </Label>
+                  <Input
+                    value={aulaName}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const fullLoc = val ? `${buildingName} - ${val}` : buildingName;
+                      const link = `https://www.google.com/maps/search/?api=1&query=${resolvedLat},${resolvedLng}`;
+                      setData((prev) => ({
+                        ...prev,
+                        ubicacion: buildingName ? `${fullLoc}|${link}|${resolvedLat},${resolvedLng}` : ""
+                      }));
+                    }}
+                    placeholder="Ej. Aula 101, Cubículo 4..."
+                    className="mt-1 h-11 bg-white border-slate-200"
+                  />
+                </div>
+              </div>
+
+              {/* Mini Preview del Mapa con Coordenadas Predefinidas Exactas */}
+              <div className="space-y-1 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs">
+                <Label className="text-xs font-bold text-[#003366] uppercase tracking-wider block">
+                  📍 Ubicación en Mapa (Coordenadas Predefinidas Exactas)
+                </Label>
+                <LocationPicker
+                  lat={resolvedLat}
+                  lng={resolvedLng}
+                  titleBanner={buildingName ? `${buildingName} (${data.centro_regional})` : data.centro_regional}
+                  onLocationChange={(nLat: string, nLng: string) => {
+                    setData((prev) => ({
+                      ...prev,
+                      latitud: nLat,
+                      longitud: nLng,
+                    }));
+                  }}
+                />
+              </div>
             </div>
           );
         })()}
@@ -1019,10 +1376,67 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
         {data.usa_imagen_personalizada ? (
           <div className="space-y-6">
             <div>
-              <p className="text-sm font-semibold">Imagen de portada</p>
-              <p className="text-xs text-muted-foreground mt-0.5 mb-3">
-                Esta imagen aparecerá en la card del evento y como imagen principal.
-              </p>
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="text-sm font-semibold">Imagen de portada</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Esta imagen aparecerá en la card del evento y como imagen principal.
+                  </p>
+                </div>
+              </div>
+
+              {/* Generador de Portadas con IA */}
+              <div className="p-4 mb-3 rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/80 via-purple-50/40 to-white space-y-3 shadow-2xs">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs">
+                      <Sparkles className="size-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-indigo-950 uppercase tracking-wider">Generador de Portadas con IA (Automático)</h4>
+                      <p className="text-[11px] text-indigo-700/80">Crea una portada institucional estilizada para este evento con 1 clic.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select
+                      value={aiTheme}
+                      onChange={(e) => setAiTheme(e.target.value)}
+                      className="h-9 text-xs rounded-xl border border-indigo-200 bg-white px-3 font-semibold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    >
+                      <option value="academic">🎓 Académico UNAH</option>
+                      <option value="tech">🚀 Tech & Futurista</option>
+                      <option value="art">🎨 Arte & Cultura</option>
+                      <option value="sports">🏆 Deportes & Salud</option>
+                      <option value="social">🤝 Social & Comunidad</option>
+                    </select>
+
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setIsGeneratingAiCover(true);
+                        setTimeout(() => {
+                          const aiImg = generateAiCoverCanvas(data.titulo, data.categoria, aiTheme);
+                          if (aiImg) {
+                            setImgPortada(aiImg);
+                            set("usa_imagen_personalizada", true);
+                            toast.success("¡Portada generada exitosamente con IA!");
+                          } else {
+                            toast.error("Error al generar portada con IA");
+                          }
+                          setIsGeneratingAiCover(false);
+                        }, 250);
+                      }}
+                      disabled={isGeneratingAiCover}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs h-9 gap-1.5 rounded-xl shadow-xs transition-colors"
+                    >
+                      <Wand2 className="size-3.5" />
+                      {isGeneratingAiCover ? "Generando..." : "Generar Portada IA"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
               <div
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -1035,7 +1449,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                   handlePortadaFile(e.dataTransfer.files[0]);
                 }}
                 className={cn(
-                  "relative rounded-xl border-2 border-dashed p-5 text-center transition cursor-pointer",
+                  "relative rounded-xl border-2 border-dashed p-5 text-center transition cursor-pointer bg-white",
                   dragOverPortada
                     ? "border-primary bg-primary/5"
                     : "border-muted-foreground/30 hover:border-primary/40",
@@ -1051,23 +1465,26 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                 />
                 {imgPortada ? (
                   <div className="flex flex-col items-center gap-2">
-                    <img src={imgPortada} alt="" className="max-h-20 rounded-lg object-contain" />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setImgPortada(null);
-                      }}
-                      className="text-xs underline text-red-500"
-                    >
-                      Eliminar
-                    </button>
+                    <img src={imgPortada} alt="Portada Generada/Subida" className="max-h-28 rounded-lg object-contain border border-slate-200 shadow-2xs" />
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">✓ Portada Lista</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setImgPortada(null);
+                        }}
+                        className="text-xs font-semibold text-rose-600 hover:underline"
+                      >
+                        Quitar portada
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2">
                     <Upload className="size-8 text-muted-foreground/50" />
                     <div className="text-sm font-medium">
-                      Arrastra o haz clic para subir portada
+                      Arrastra o haz clic para subir portada propia
                     </div>
                     <div className="text-xs text-muted-foreground">
                       JPG, PNG o WEBP · Máximo 5MB

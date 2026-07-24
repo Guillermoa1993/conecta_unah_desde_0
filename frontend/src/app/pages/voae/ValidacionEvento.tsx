@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
+import { LocationPicker, resolveExactBuildingCoords } from "../../components/app/LocationPicker";
 
 const CATEGORY_LABEL: Record<string, string> = {
   ACADEMICO: "Académico",
@@ -155,84 +156,87 @@ export function ValidacionEvento() {
       </Link>
 
       <div className="flex items-center gap-4">
-        <div className="size-12 rounded-full bg-[#004B87]/15 text-[#004B87] font-bold text-lg flex items-center justify-center">
-          {event.categoria?.slice(0, 2).toUpperCase()}
+        <div className="size-12 rounded-full overflow-hidden bg-[#004B87]/15 text-[#004B87] font-bold text-lg flex items-center justify-center shrink-0 border border-slate-200">
+          {(event.creador_foto || event.tutor_foto || event.foto_url) ? (
+            <img src={event.creador_foto || event.tutor_foto || event.foto_url} alt="Foto del solicitante" className="w-full h-full object-cover" />
+          ) : (
+            <span>{(event.creador_nombre || event.tutor_nombre || "Puma")?.slice(0, 2).toUpperCase()}</span>
+          )}
         </div>
         <div>
           <h1 className="text-xl font-bold text-slate-800 leading-tight">{event.titulo}</h1>
           <p className="text-xs text-slate-500 font-medium">
-            {CATEGORY_LABEL[event.categoria] || event.categoria} · {new Date(event.fecha_inicio).toLocaleDateString("es-HN", { day: "numeric", month: "long", year: "numeric" })} · {event.lugar?.split("|")[0]}
+            {CATEGORY_LABEL[event.categoria] || event.categoria} · {new Date(event.fecha_inicio).toLocaleDateString("es-HN", { day: "numeric", month: "long", year: "numeric" })} · {(event.lugar || event.ubicacion || "").split("|")[0]}
           </p>
-          <div className="flex items-center gap-1 mt-1 font-semibold text-slate-600 text-xs">
-            <span>Tutor: {event.tutor_nombre}</span>
-            {event.aprobado_por && <span className="text-emerald-600">· Solicitado por: {event.tutor_nombre}</span>}
+          <div className="flex items-center gap-1 mt-1 font-medium text-slate-600 text-xs">
+            <span>Solicitante: <strong className="text-slate-800 font-bold">{event.creador_nombre || event.tutor_nombre || event.solicitante || event.organizador || "Solicitante"}</strong></span>
           </div>
         </div>
       </div>
 
-      {/* Grid: Portada + Tarjeta de ubicación (Imagen 133) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Portada */}
-        <div className="md:col-span-2 relative rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm h-60 flex items-center justify-center">
+      {/* Grid: Portada + Tarjeta de ubicación con Mini Preview del Mapa (Como en Imagen 191) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Portada del Evento */}
+        <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm h-64 md:h-72 w-full flex items-center justify-center group">
           {event.portada_url || event.imagen_url ? (
             <img src={event.portada_url || event.imagen_url} alt="Banner del evento" className="w-full h-full object-cover" />
           ) : (
-            <div className="text-slate-400 font-bold flex flex-col items-center gap-2">
-              <span className="text-4xl">AC</span>
-              <span className="text-xs">Imagen por categoría</span>
+            <div className="w-full h-full bg-gradient-to-br from-[#003366] to-[#004B87] flex flex-col items-center justify-center text-white p-6 text-center">
+              <span className="text-xs font-bold uppercase tracking-widest text-[#FFD100] mb-2">{CATEGORY_LABEL[event.categoria] || event.categoria}</span>
+              <h3 className="text-2xl font-black uppercase tracking-tight">{event.titulo}</h3>
+              <p className="text-[11px] text-slate-300 mt-4 font-semibold">UNIVERSIDAD NACIONAL AUTÓNOMA DE HONDURAS • CONECTA PUMAS</p>
             </div>
           )}
         </div>
 
-        {/* Ubicación y Botones */}
+        {/* Ubicación y Mini Preview del Mapa Leaflet */}
         {(() => {
-          const loc = event.lugar || event.ubicacion || "No especificado";
-          let bName = loc;
-          let bCoordsOrLink = "";
-          if (loc.includes("|")) {
-            [bName, bCoordsOrLink] = loc.split("|");
-          }
-
           const isVirtual = event.tipo_actividad === "Virtual";
           const isHybrid = event.tipo_actividad === "Híbrido";
 
-          const mapsHref = bCoordsOrLink
-            ? (bCoordsOrLink.startsWith("http") ? bCoordsOrLink : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bCoordsOrLink)}`)
-            : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bName)}`;
+          const { lat: latVal, lng: lngVal, buildingName: exactBuildingName } = resolveExactBuildingCoords(
+            event.centro_regional,
+            event.lugar || event.ubicacion,
+            event.latitud,
+            event.longitud
+          );
+
+          const fullLoc = event.lugar || event.ubicacion || "";
+          const [bName] = fullLoc.includes("|") ? fullLoc.split("|") : [fullLoc || exactBuildingName];
 
           return (
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between h-60">
-              <div className="space-y-1.5">
-                <div className="text-[10px] font-bold text-[#004B87] uppercase flex items-center gap-1">
-                  <MapPin className="size-3.5 shrink-0" />
-                  {isVirtual ? "Ubicación Virtual" : isHybrid ? "Ubicación Híbrida" : "Ubicación Presencial"}
+            <div className="rounded-2xl border bg-white border-slate-200/80 p-4 flex flex-col justify-between shadow-sm relative space-y-2.5">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1.5 text-xs text-[#004B87] font-semibold uppercase tracking-wider">
+                  <MapPin className="size-4" /> {isVirtual ? "Ubicación Virtual" : isHybrid ? "Ubicación Híbrida" : "Ubicación Presencial"}
                 </div>
-                <h3 className="font-bold text-slate-800 text-lg leading-snug">{bName}</h3>
-                <p className="text-xs text-slate-500 font-medium">{event.centro_regional || "Ciudad Universitaria"}</p>
+                <h4 className="font-bold text-base text-slate-800 line-clamp-2" title={bName}>{bName || exactBuildingName}</h4>
+                <p className="text-xs text-muted-foreground">{event.centro_regional || "Ciudad Universitaria"}</p>
               </div>
 
-              <div className="space-y-2 mt-4 w-full">
-                {!isVirtual && (
-                  <a
-                    href={mapsHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-2.5 px-3 bg-[#004B87] hover:bg-[#003366] text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
-                  >
-                    <MapPin className="size-3.5" /> Google Maps
-                  </a>
-                )}
-                {(isVirtual || isHybrid) && event.enlace_virtual && (
+              {!isVirtual && (
+                <div className="rounded-xl overflow-hidden border border-slate-200 shadow-2xs">
+                  <LocationPicker
+                    lat={latVal}
+                    lng={lngVal}
+                    titleBanner={`${bName || exactBuildingName} (${event.centro_regional || 'Ciudad Universitaria'})`}
+                    height="160px"
+                  />
+                </div>
+              )}
+
+              {(isVirtual || isHybrid) && event.enlace_virtual && (
+                <div className="pt-0.5">
                   <a
                     href={event.enlace_virtual}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full py-2.5 px-3 bg-[#22c55e] hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition"
                   >
-                    <Eye className="size-3.5" /> Enlace Virtual
+                    <Eye className="size-4" /> Enlace Virtual
                   </a>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           );
         })()}
@@ -426,7 +430,7 @@ export function ValidacionEvento() {
       </Dialog>
 
       {/* Lightbox dialog */}
-      <Dialog open={selectedImage !== null} onOpenChange={(v) => !v && setSelectedImage(null)}>
+      <Dialog open={selectedImage !== null} onOpenChange={(v: boolean) => !v && setSelectedImage(null)}>
         <DialogContent className="max-w-3xl p-1 bg-black/10 border-none flex items-center justify-center">
           {selectedImage && (
             <div className="relative w-full max-h-[80vh] flex items-center justify-center bg-transparent">
