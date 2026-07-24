@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "../ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { SidebarTrigger } from "../ui/sidebar";
 import { useNavigate, useLocation } from "react-router";
@@ -17,6 +17,8 @@ import { PermissionsPanel } from "../permissions/PermissionsPanel";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { StoriesBar } from "./StoriesBar";
 import { useNotificaciones } from "../../../hooks/useNotificaciones";
+import { useAuth } from "../../../hooks/useAuth";
+import { authService } from "../../../services/auth.service";
 
 function tiempoRelativo(fechaIso: string): string {
   const fecha = new Date(fechaIso).getTime();
@@ -37,13 +39,40 @@ export function AppNavbar() {
   const shieldRef = useRef<HTMLButtonElement>(null);
   const { permissions } = usePermissions();
   const { notificaciones, noLeidas, marcarLeida } = useNotificaciones();
+  const { usuario } = useAuth();
+  const usuarioGuardado = authService.getUsuarioGuardado();
+  const usuarioActivo = usuario || usuarioGuardado;
+
+  const nombreUsuario = usuarioActivo?.nombre || localStorage.getItem("unah_usuario_nombre") || "Usuario Puma";
+  const fotoUsuario = usuarioActivo?.foto_url || localStorage.getItem("unah_foto_perfil");
+
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(" ").filter(Boolean);
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
   const permDeniedOrPending = Object.values(permissions).some(
     (s) => s === "denied" || s === "prompt"
   );
 
   const getRoleName = () => {
-    const userType = sessionStorage.getItem("unah_user_type");
-    if (userType === "empleado") return "Empleado";
+    if (usuarioActivo?.rol) {
+      switch (usuarioActivo.rol.toUpperCase()) {
+        case 'ESTUDIANTE': return 'Estudiante';
+        case 'TUTOR': return 'Empleado / Tutor';
+        case 'ADMIN': return 'Administrador';
+        case 'VOAE': return 'VOAE';
+        default: return usuarioActivo.rol;
+      }
+    }
+    const role = sessionStorage.getItem("unah_role") || sessionStorage.getItem("unah_user_type");
+    if (role === "tutor" || role === "empleado") return "Empleado / Tutor";
+    if (role === "admin") return "Administrador";
+    if (role === "voae") return "VOAE";
+    if (role === "dev") return "Desarrollador";
     return "Estudiante";
   };
 
@@ -130,11 +159,14 @@ export function AppNavbar() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="gap-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-[#004B87] text-white">
-                    <User className="h-4 w-4" />
+                  {fotoUsuario && (
+                    <AvatarImage src={fotoUsuario} alt={nombreUsuario} className="object-cover" />
+                  )}
+                  <AvatarFallback className="bg-[#004B87] text-white text-xs font-semibold">
+                    {usuario?.nombre ? getInitials(usuario.nombre) : <User className="h-4 w-4" />}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium text-[#004B87]">Usuario Puma</span>
+                <span className="text-sm font-medium text-[#004B87]">{nombreUsuario}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
