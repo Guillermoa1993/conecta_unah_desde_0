@@ -998,18 +998,51 @@ export function AuditoriaEventoFinalizado() {
                 </div>
 
                 {/* Panel 3 - Ubicación del evento */}
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col justify-between space-y-2">
-                  <div className="flex items-center gap-1.5 font-bold text-slate-700 text-xs">
-                    <MapPin className="size-4 text-slate-500" />
-                    <span>Ubicación del evento</span>
-                  </div>
-                  <div className="text-xs font-semibold text-slate-800 truncate" title={formatLugar(event.ubicacion || event.lugar)}>
-                    {formatLugar(event.ubicacion || event.lugar)}
-                  </div>
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-[11px] font-bold text-amber-800">
-                    ⚠️ Fuera del rango
-                  </div>
-                </div>
+                {(() => {
+                  const evLat = event.latitud ? parseFloat(event.latitud) : (event.lugar && event.lugar.includes("|") && event.lugar.split("|")[2] ? parseFloat(event.lugar.split("|")[2].split(",")[0]) : undefined);
+                  const evLng = event.longitud ? parseFloat(event.longitud) : (event.lugar && event.lugar.includes("|") && event.lugar.split("|")[2] ? parseFloat(event.lugar.split("|")[2].split(",")[1]) : undefined);
+
+                  const stLat = auditStudent.latitud ? parseFloat(auditStudent.latitud) : undefined;
+                  const stLng = auditStudent.longitud ? parseFloat(auditStudent.longitud) : undefined;
+
+                  let dist: number | null = null;
+                  if (stLat && stLng && evLat && evLng) {
+                    const R = 6371;
+                    const dLat = ((evLat - stLat) * Math.PI) / 180;
+                    const dLon = ((evLng - stLng) * Math.PI) / 180;
+                    const a =
+                      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos((stLat * Math.PI) / 180) *
+                        Math.cos((evLat * Math.PI) / 180) *
+                        Math.sin(dLon / 2) *
+                        Math.sin(dLon / 2);
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                    dist = R * c;
+                  }
+
+                  const isWithinRange = dist !== null ? dist <= 3.0 : true;
+
+                  return (
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col justify-between space-y-2">
+                      <div className="flex items-center gap-1.5 font-bold text-slate-700 text-xs">
+                        <MapPin className="size-4 text-slate-500" />
+                        <span>Ubicación del evento</span>
+                      </div>
+                      <div className="text-xs font-semibold text-slate-800 truncate" title={formatLugar(event.ubicacion || event.lugar)}>
+                        {formatLugar(event.ubicacion || event.lugar)}
+                      </div>
+                      {isWithinRange ? (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 text-[11px] font-bold text-emerald-800 flex items-center gap-1">
+                          <CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" /> ✓ Dentro del rango {dist !== null ? `(${dist.toFixed(1)} km)` : ""}
+                        </div>
+                      ) : (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-[11px] font-bold text-amber-800 flex items-center gap-1">
+                          <AlertTriangle className="size-3.5 text-amber-600 shrink-0" /> ⚠️ Fuera del rango ({dist?.toFixed(1)} km)
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Botones Inferiores de Acción */}

@@ -209,7 +209,7 @@ export function LocationPicker({
 
     const marker = L.marker([initialLat, initialLng] as L.LatLngExpression, {
       icon: redPinIcon,
-      draggable: true,
+      draggable: false,
     }).addTo(map);
 
     mapInstance.current = map;
@@ -218,18 +218,6 @@ export function LocationPicker({
     setTimeout(() => {
       map.invalidateSize();
     }, 200);
-
-    map.on("click", (e: L.LeafletMouseEvent) => {
-      const clickLat = e.latlng.lat.toFixed(6);
-      const clickLng = e.latlng.lng.toFixed(6);
-      marker.setLatLng(e.latlng);
-      if (onLocationChange) onLocationChange(clickLat, clickLng);
-    });
-
-    marker.on("dragend", () => {
-      const pos = marker.getLatLng();
-      if (onLocationChange) onLocationChange(pos.lat.toFixed(6), pos.lng.toFixed(6));
-    });
 
     return () => {
       if (mapInstance.current) {
@@ -293,25 +281,13 @@ export function LocationPicker({
 
       const fullMarker = L.marker([curLat, curLng] as L.LatLngExpression, {
         icon: redPinIcon,
-        draggable: true,
+        draggable: false,
       }).addTo(fullMap);
 
       fullMapInstance.current = fullMap;
       fullMarkerInstance.current = fullMarker;
 
       fullMap.invalidateSize();
-
-      fullMap.on("click", (e: L.LeafletMouseEvent) => {
-        const clickLat = e.latlng.lat.toFixed(6);
-        const clickLng = e.latlng.lng.toFixed(6);
-        fullMarker.setLatLng(e.latlng);
-        if (onLocationChange) onLocationChange(clickLat, clickLng);
-      });
-
-      fullMarker.on("dragend", () => {
-        const pos = fullMarker.getLatLng();
-        if (onLocationChange) onLocationChange(pos.lat.toFixed(6), pos.lng.toFixed(6));
-      });
     }, 180);
 
     return () => {
@@ -408,18 +384,18 @@ export function LocationPicker({
 
       {/* Modal Dialog de Mapa en Pantalla Completa (Expandir) */}
       <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-        <DialogContent className="max-w-4xl w-[95vw] h-[85vh] flex flex-col p-4">
-          <DialogHeader className="pb-2 border-b">
+        <DialogContent className="max-w-4xl w-[92vw] h-[80vh] max-h-[650px] flex flex-col p-4 z-[99999] overflow-hidden bg-white rounded-2xl">
+          <DialogHeader className="pb-2 border-b shrink-0">
             <DialogTitle className="text-base text-[#003366] font-bold flex items-center justify-between">
               <span>📍 Vista de Inspección en Pantalla Completa</span>
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 w-full min-h-[480px] rounded-xl border border-slate-200 overflow-hidden relative mt-2">
-            <div ref={fullMapRef} className="w-full h-full min-h-[480px] z-0" />
+          <div className="flex-1 w-full min-h-0 relative rounded-xl border border-slate-200 overflow-hidden mt-2 shrink">
+            <div ref={fullMapRef} className="w-full h-full absolute inset-0 z-0" />
           </div>
 
-          <div className="flex items-center justify-between pt-3 border-t mt-2">
+          <div className="flex items-center justify-between pt-3 border-t mt-2 shrink-0">
             <span className="text-xs font-mono text-slate-600 font-bold">
               Lat: {lat}, Lng: {lng}
             </span>

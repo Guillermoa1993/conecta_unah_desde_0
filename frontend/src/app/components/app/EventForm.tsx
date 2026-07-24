@@ -231,19 +231,87 @@ function generateAiCoverCanvas(
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, w, h);
 
-  // Geometric AI Mesh & Glowing Orbs
+  // Decorative Illustrative Graphics based on Theme
   ctx.save();
-  ctx.globalAlpha = 0.12;
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 1.5;
-
-  for (let i = 0; i < 9; i++) {
-    ctx.beginPath();
-    ctx.arc(w * 0.82 + (i % 3) * 30, h * 0.35 + Math.floor(i / 3) * 40, 90 + i * 28, 0, Math.PI * 2);
-    ctx.stroke();
+  if (styleTheme === "tech") {
+    // Tech Circuit Nodes and Data Lines
+    ctx.globalAlpha = 0.25;
+    ctx.strokeStyle = "#38bdf8";
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 6; i++) {
+      const x = w * 0.65 + i * 45;
+      const y = h * 0.2 + (i % 3) * 60;
+      ctx.beginPath();
+      ctx.arc(x, y, 12, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + 12, y);
+      ctx.lineTo(x + 80, y + 40);
+      ctx.stroke();
+    }
+  } else if (styleTheme === "art") {
+    // Artistic Translucent Color Waves
+    ctx.globalAlpha = 0.22;
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = i % 2 === 0 ? "#f472b6" : "#c084fc";
+      ctx.beginPath();
+      ctx.arc(w * 0.8 + i * 20, h * 0.5 - i * 30, 110 + i * 35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (styleTheme === "sports") {
+    // Dynamic Speed Angles
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = "#34d399";
+    for (let i = 0; i < 5; i++) {
+      ctx.beginPath();
+      ctx.moveTo(w * 0.7 + i * 40, 0);
+      ctx.lineTo(w * 0.85 + i * 40, 0);
+      ctx.lineTo(w * 0.55 + i * 40, h);
+      ctx.lineTo(w * 0.4 + i * 40, h);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else if (styleTheme === "social") {
+    // Connected Community Nodes
+    ctx.globalAlpha = 0.25;
+    ctx.strokeStyle = "#fb923c";
+    ctx.lineWidth = 2.5;
+    const nodes = [
+      { x: w * 0.75, y: h * 0.3 },
+      { x: w * 0.88, y: h * 0.4 },
+      { x: w * 0.7, y: h * 0.65 },
+      { x: w * 0.85, y: h * 0.75 },
+    ];
+    nodes.forEach((n, idx) => {
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 16, 0, Math.PI * 2);
+      ctx.stroke();
+      nodes.forEach((n2, idx2) => {
+        if (idx < idx2) {
+          ctx.beginPath();
+          ctx.moveTo(n.x, n.y);
+          ctx.lineTo(n2.x, n2.y);
+          ctx.stroke();
+        }
+      });
+    });
+  } else {
+    // Academic / Institutional Orbs and Crest Lines
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = "#fbbf24";
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 6; i++) {
+      ctx.beginPath();
+      ctx.arc(w * 0.82, h * 0.45, 80 + i * 32, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
+  ctx.restore();
 
-  ctx.globalAlpha = 0.07;
+  // Fine Grid Lines overlay
+  ctx.save();
+  ctx.globalAlpha = 0.06;
+  ctx.strokeStyle = "#ffffff";
   const gridSize = 45;
   for (let x = 0; x < w; x += gridSize) {
     ctx.beginPath();
@@ -287,7 +355,7 @@ function generateAiCoverCanvas(
   ctx.stroke();
   ctx.restore();
 
-  // AI Badge Pill
+  // Category Badge Pill
   const categoryText = (category || "EVENTO INSTITUCIONAL").toUpperCase();
   ctx.save();
   ctx.font = "bold 15px sans-serif";
@@ -342,9 +410,9 @@ function generateAiCoverCanvas(
 
   // Bottom Watermark / Branding
   ctx.save();
-  ctx.font = "bold 15px sans-serif";
+  ctx.font = "bold 14px sans-serif";
   ctx.fillStyle = accentColor;
-  ctx.fillText("✨ PORTADA GENERADA CON IA • UNIVERSIDAD NACIONAL AUTÓNOMA DE HONDURAS", 120, h - 110);
+  ctx.fillText("UNIVERSIDAD NACIONAL AUTÓNOMA DE HONDURAS • CONECTA PUMAS", 120, h - 110);
   ctx.restore();
 
   return canvas.toDataURL("image/png");

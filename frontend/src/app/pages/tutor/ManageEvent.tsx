@@ -28,6 +28,7 @@ import {
   Mail,
 } from "lucide-react";
 import { EventDetailMapPreview } from "../../components/app/EventDetailMapPreview";
+import { LocationPicker } from "../../components/app/LocationPicker";
 import { api } from "../../../services/api";
 import { VoaeDrawer } from "../../components/app/VoaeDrawer";
 import { Button } from "../../components/ui/button";
@@ -879,22 +880,33 @@ export function ManageEvent() {
               }
 
               const isHibrido = event.tipo_actividad === "Híbrido";
+              const latVal = event.latitud ? String(event.latitud) : (event.lugar && event.lugar.includes("|") && event.lugar.split("|")[2] ? event.lugar.split("|")[2].split(",")[0] : "14.084952");
+              const lngVal = event.longitud ? String(event.longitud) : (event.lugar && event.lugar.includes("|") && event.lugar.split("|")[2] ? event.lugar.split("|")[2].split(",")[1] : "-87.164929");
 
               return (
-                <div className="rounded-xl border bg-white border-slate-200/80 p-5 flex flex-col justify-between h-52 shadow-sm relative group hover:border-[#004B87]/40 transition-colors">
-                  <div className="space-y-1.5">
+                <div className="rounded-2xl border bg-white border-slate-200/80 p-5 flex flex-col justify-between shadow-sm relative group hover:border-[#004B87]/40 transition-colors space-y-3">
+                  <div className="space-y-1">
                     <div className="flex items-center gap-1.5 text-xs text-[#004B87] font-semibold uppercase tracking-wider">
-                      <MapPin className="size-4" /> {isHibrido ? "Ubicación Híbrida" : "Ubicación Física"}
+                      <MapPin className="size-4" /> {isHibrido ? "Ubicación Híbrida" : "Ubicación Presencial"}
                     </div>
-                    <h4 className="font-bold text-lg text-slate-800 line-clamp-2">{bName}</h4>
+                    <h4 className="font-bold text-lg text-slate-800 line-clamp-1">{bName}</h4>
                     <p className="text-xs text-muted-foreground">{event.centro_regional || "Ciudad Universitaria"}</p>
                   </div>
 
-                  <div className="flex gap-2">
+                  {/* Mini Preview del Mapa en Recuadro Pequeño con Botón Expandir */}
+                  <div className="rounded-xl overflow-hidden border border-slate-200">
+                    <LocationPicker
+                      lat={latVal}
+                      lng={lngVal}
+                      titleBanner={`${bName} (${event.centro_regional || 'Ciudad Universitaria'})`}
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-1">
                     {bLink && (
                       <Button
                         type="button"
-                        className="flex-1 gap-1.5 h-11 text-white shadow-sm transition hover:scale-[1.01] font-semibold text-xs"
+                        className="flex-1 gap-1.5 h-11 text-white shadow-sm transition hover:scale-[1.01] font-semibold text-xs rounded-xl"
                         style={{ backgroundColor: "#004B87" }}
                         onClick={() => window.open(bLink, "_blank")}
                       >
@@ -904,7 +916,7 @@ export function ManageEvent() {
                     {isHibrido && event.enlace_virtual && (
                       <Button
                         type="button"
-                        className="flex-1 gap-1.5 h-11 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition hover:scale-[1.01] font-semibold text-xs"
+                        className="flex-1 gap-1.5 h-11 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition hover:scale-[1.01] font-semibold text-xs rounded-xl"
                         onClick={() => window.open(event.enlace_virtual, "_blank")}
                       >
                         <Eye className="size-4" /> Enlace Virtual
