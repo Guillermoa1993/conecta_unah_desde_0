@@ -179,7 +179,7 @@ function buildInitialCategorias(initialEvent?: UniEvent) {
     const found = initialEvent?.distribucion_horas?.find((dh) => dh.categoria === c);
     return {
       categoria: c,
-      checked: found ? true : c === initialEvent?.categoria || (!initialEvent && c === "ACADEMICO"),
+      checked: found ? true : (initialEvent ? c === initialEvent.categoria : false),
       horas: found ? found.horas : 0,
     };
   });
@@ -635,8 +635,12 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
 
     if (currentStep === 3) {
       if (!imgPortada) {
-        const checkedCats = categoriasHoras.filter((c) => c.checked);
-        const pCat = checkedCats.length > 0 ? checkedCats[0].categoria : data.categoria;
+        const checkedCatsWithHours = categoriasHoras.filter((c) => c.checked && c.horas > 0);
+        const checkedCatsAll = categoriasHoras.filter((c) => c.checked);
+        const pCat = checkedCatsWithHours.length > 0
+          ? checkedCatsWithHours[0].categoria
+          : (checkedCatsAll.length > 0 ? checkedCatsAll[checkedCatsAll.length - 1].categoria : data.categoria);
+
         const autoThemeMap: Record<string, string> = {
           ACADEMICO: "academic",
           CULTURAL: "art",
@@ -700,7 +704,11 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       return Math.round(diffHours * 10) / 10;
     };
     const checkedCategorias = categoriasHoras.filter((ch) => ch.checked);
-    const primaryCategoria = checkedCategorias.length > 0 ? checkedCategorias[0].categoria : data.categoria;
+    const checkedCatsWithHours = categoriasHoras.filter((c) => c.checked && c.horas > 0);
+    const primaryCategoria = checkedCatsWithHours.length > 0
+      ? checkedCatsWithHours[0].categoria
+      : (checkedCategorias.length > 0 ? checkedCategorias[checkedCategorias.length - 1].categoria : data.categoria);
+
     const distribucion = data.tipo_evento === "HORAS_VOAE" && checkedCategorias.length > 0
       ? checkedCategorias.map((ch) => ({ categoria: ch.categoria, horas: ch.horas }))
       : undefined;
