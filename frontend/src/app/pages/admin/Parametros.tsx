@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  Settings, Database, Mail, Shield, Code2, Save, RefreshCcw, Loader2, Plus, Search, Edit3, Check, X,
+  Settings, Database, Mail, Shield, Code2, Save, RefreshCcw, Loader2, Plus, Search, Edit3, Check,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -21,9 +21,10 @@ export type Param = {
   nombre: string;
   valor: string;
   tipo_dato?: DataType;
+  es_fijo?: boolean;
 };
 
-// Parámetros conocidos por tipo de dato predeterminado
+// Parámetros del sistema predeterminados (Fijos)
 const INT_PARAMS = [
   "PORT",
   "SMTP_PORT",
@@ -107,6 +108,8 @@ const GROUPS: { label: string; icon: React.ElementType; keys: string[] }[] = [
   },
 ];
 
+const FIXED_KEYS = GROUPS.flatMap(g => g.keys);
+
 const LABEL_MAP: Record<string, string> = {
   MODO_MANTENIMIENTO:       "Modo Mantenimiento",
   MODO_DEV:                 "Modo Desarrollador",
@@ -167,7 +170,7 @@ export function Parametros() {
   const [newTipo, setNewTipo]     = useState<DataType>("TO_CHAR");
   const [adding, setAdding]       = useState(false);
 
-  // Modal para editar parámetro individual
+  // Modal para editar solo parámetros nuevos (Dinámicos)
   const [editParam, setEditParam] = useState<Param | null>(null);
   const [editVal, setEditVal]     = useState("");
   const [editTipo, setEditTipo]   = useState<DataType>("TO_CHAR");
@@ -181,7 +184,10 @@ export function Parametros() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data: Param[] = await res.json();
-      setParams(data);
+      setParams(data.map(p => ({
+        ...p,
+        es_fijo: FIXED_KEYS.includes(p.nombre),
+      })));
     } catch {
       toast.error("Error al cargar los parámetros del sistema");
     } finally {
@@ -192,16 +198,15 @@ export function Parametros() {
   useEffect(() => { load(); }, []);
 
   const saveParamValue = async (nombre: string, valor: string, tipo?: DataType) => {
-    // Validar tipo de dato antes de guardar
     const activeType = tipo ?? getDataType(nombre);
 
     if (activeType === "INT" && isNaN(Number(valor.trim()))) {
-      toast.error(`El parámetro "${nombre}" requiere un número entero válido (INT).`);
+      toast.error(`El parámetro "${nombre}" requiere un número entero (INT).`);
       return;
     }
 
     if (activeType === "BOOLEAN" && valor !== "1" && valor !== "0" && valor !== "true" && valor !== "false") {
-      toast.error(`El parámetro "${nombre}" debe ser un valor booleano (1/0 o true/false).`);
+      toast.error(`El parámetro "${nombre}" debe ser un booleano (1 o 0).`);
       return;
     }
 
@@ -216,7 +221,7 @@ export function Parametros() {
       if (!res.ok) throw new Error("No se pudo actualizar");
 
       setParams(prev => prev.map(p => p.nombre === nombre ? { ...p, valor, tipo_dato: activeType } : p));
-      toast.success(`Parámetro "${nombre}" guardado con éxito (${activeType})`);
+      toast.success(`Parámetro "${nombre}" guardado con éxito`);
       setEditParam(null);
     } catch {
       toast.error(`Error al guardar el parámetro ${nombre}`);
@@ -258,11 +263,11 @@ export function Parametros() {
       if (!res.ok) throw new Error("Error al agregar");
 
       const data = await res.json();
-      setParams(prev => [...prev, { ...data, tipo_dato: newTipo }]);
+      setParams(prev => [...prev, { ...data, tipo_dato: newTipo, es_fijo: false }]);
       setNewNombre("");
       setNewValor("");
       setNewTipo("TO_CHAR");
-      toast.success(`Parámetro "${cleanName}" agregado como ${newTipo}`);
+      toast.success(`Parámetro dinámico "${cleanName}" creado`);
     } catch {
       toast.error("Error al crear el parámetro");
     } finally {
@@ -284,6 +289,8 @@ export function Parametros() {
 
   const getParam = (nombre: string) => filteredParams.find(p => p.nombre === nombre);
 
+  const newCustomParams = filteredParams.filter(p => !FIXED_KEYS.includes(p.nombre));
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
@@ -300,7 +307,7 @@ export function Parametros() {
         <div>
           <h1 className="text-2xl font-bold text-[#003366] tracking-tight">Parámetros del Sistema</h1>
           <p className="text-sm text-slate-500">
-            Listado y edición de parámetros abiertos con especificación de tipos de datos (<code>TO_CHAR</code>, <code>BOOLEAN</code>, <code>INT</code>).
+            Parámetros del sistema y gestión de nuevos parámetros dinámicos.
           </p>
         </div>
         <Button variant="outline" onClick={load} className="border-[#004B87]/30 text-[#004B87] hover:bg-[#004B87]/5 self-start sm:self-auto">
@@ -320,7 +327,7 @@ export function Parametros() {
         />
       </div>
 
-      {/* Secciones Agrupadas */}
+      {/* Secciones de Parámetros FIJOS (Limpio, solo Switch / Input + Guardar) */}
       {GROUPS.map(group => {
         const groupParams = group.keys.map(k => getParam(k)).filter(Boolean) as Param[];
         if (groupParams.length === 0) return null;
@@ -344,32 +351,17 @@ export function Parametros() {
                       <Label className="text-sm font-medium text-slate-700">
                         {LABEL_MAP[p.nombre] ?? p.nombre}
                       </Label>
-                      {/* Badge de Tipo de Dato */}
-                      <Badge
-                        variant="secondary"
-                        className={
-                          tipo === "BOOLEAN"
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px]"
-                            : tipo === "INT"
-                            ? "bg-amber-50 text-amber-700 border-amber-200 text-[10px]"
-                            : "bg-blue-50 text-blue-700 border-blue-200 text-[10px]"
-                        }
-                      >
-                        {tipo}
-                      </Badge>
                     </div>
 
-                    {/* Control de Edición Rápida o Switch */}
+                    {/* Control de Valor directo */}
                     <div className="flex items-center gap-3 flex-1 justify-end">
                       {isBool ? (
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                           <Switch
                             checked={p.valor === "1" || p.valor.toLowerCase() === "true"}
                             onCheckedChange={() => toggleBoolean(p.nombre, p.valor)}
                           />
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded ${p.valor === "1" || p.valor.toLowerCase() === "true" ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-600"}`}>
-                            {p.valor === "1" || p.valor.toLowerCase() === "true" ? "VERDADERO (1)" : "FALSO (0)"}
-                          </span>
+                          {saving === p.nombre && <Loader2 className="h-3.5 w-3.5 animate-spin text-[#004B87]" />}
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 max-w-md flex-1">
@@ -389,17 +381,6 @@ export function Parametros() {
                           </Button>
                         </div>
                       )}
-
-                      {/* Botón Abrir Modal Edición Completa */}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => openEditModal(p)}
-                        className="text-slate-500 hover:text-[#004B87] h-9 w-9 p-0"
-                        title="Editar tipo y detalles de parámetro"
-                      >
-                        <Edit3 className="h-4 w-4" />
-                      </Button>
                     </div>
                   </div>
                 );
@@ -409,15 +390,97 @@ export function Parametros() {
         );
       })}
 
+      {/* Sección de Nuevos Parámetros Dinámicos */}
+      {newCustomParams.length > 0 && (
+        <Card className="border border-blue-200 shadow-sm overflow-hidden bg-blue-50/10">
+          <CardHeader className="pb-3 bg-blue-50/40 border-b border-blue-100">
+            <CardTitle className="text-[#003366] text-base flex items-center gap-2">
+              <Plus className="h-4.5 w-4.5 text-[#004B87]" />
+              Nuevos Parámetros Dinámicos
+              <Badge variant="secondary" className="ml-auto bg-blue-100 text-[#004B87] text-[10px]">
+                Personalizados / Editables
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 divide-y divide-slate-100">
+            {newCustomParams.map(p => {
+              const tipo = getDataType(p.nombre, p.tipo_dato);
+              const isBool = tipo === "BOOLEAN";
+
+              return (
+                <div key={p.nombre} className="py-3 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-[240px]">
+                    <Label className="text-sm font-semibold text-[#003366] font-mono">
+                      {p.nombre}
+                    </Label>
+                    <Badge
+                      variant="secondary"
+                      className={
+                        tipo === "BOOLEAN"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px]"
+                          : tipo === "INT"
+                          ? "bg-amber-50 text-amber-700 border-amber-200 text-[10px]"
+                          : "bg-blue-50 text-blue-700 border-blue-200 text-[10px]"
+                      }
+                    >
+                      {tipo}
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center gap-3 flex-1 justify-end">
+                    {isBool ? (
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={p.valor === "1" || p.valor.toLowerCase() === "true"}
+                          onCheckedChange={() => toggleBoolean(p.nombre, p.valor)}
+                        />
+                        {saving === p.nombre && <Loader2 className="h-3.5 w-3.5 animate-spin text-[#004B87]" />}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 max-w-md flex-1">
+                        <Input
+                          type={tipo === "INT" ? "number" : "text"}
+                          value={p.valor}
+                          onChange={e => setParams(prev => prev.map(x => x.nombre === p.nombre ? { ...x, valor: e.target.value } : x))}
+                          className="text-sm flex-1 bg-white font-mono text-slate-800 h-9 border-blue-200"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => saveParamValue(p.nombre, p.valor, tipo)}
+                          disabled={saving === p.nombre}
+                          className="bg-[#004B87] hover:bg-[#003366] text-white h-9 px-3 shrink-0"
+                        >
+                          {saving === p.nombre ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        </Button>
+                      </div>
+                    )}
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openEditModal(p)}
+                      className="border-blue-300 text-[#004B87] hover:bg-blue-50 h-9 px-3 shrink-0 flex items-center gap-1.5"
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                      <span className="text-xs font-medium">Editar</span>
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Agregar Nuevo Parámetro Personalizado */}
       <Card className="border border-dashed border-[#004B87]/40 shadow-sm bg-blue-50/20">
         <CardHeader className="pb-3">
           <CardTitle className="text-[#003366] text-base flex items-center gap-2">
             <Plus className="h-4 w-4 text-[#004B87]" />
-            Agregar Nuevo Parámetro
+            Agregar Nuevo Parámetro Dinámico
           </CardTitle>
           <CardDescription>
-            Permite definir nuevos parámetros abiertos especificando su tipo de dato (<code>TO_CHAR</code>, <code>BOOLEAN</code>, <code>INT</code>).
+            Permite definir nuevos parámetros especificando su tipo de dato (<code>TO_CHAR</code>, <code>BOOLEAN</code>, <code>INT</code>).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -483,14 +546,14 @@ export function Parametros() {
         </CardContent>
       </Card>
 
-      {/* Modal de Edición de Parámetro */}
+      {/* Modal de Edición de Parámetro Dinámico */}
       {editParam && (
         <Dialog open={!!editParam} onOpenChange={open => !open && setEditParam(null)}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="text-[#003366]">Editar Parámetro: {editParam.nombre}</DialogTitle>
+              <DialogTitle className="text-[#003366]">Editar Parámetro Dinámico: {editParam.nombre}</DialogTitle>
               <DialogDescription>
-                Modifica el tipo de dato o valor asignado al parámetro.
+                Modifica el tipo de dato (<code>TO_CHAR</code>, <code>BOOLEAN</code>, <code>INT</code>) y el valor del parámetro personalizado.
               </DialogDescription>
             </DialogHeader>
 
