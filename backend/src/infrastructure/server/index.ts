@@ -151,7 +151,7 @@ const bitacoraRepo    = new PostgresBitacoraRepository(pool);
 const usuarioSegRepo  = new PostgresUsuarioSeguridadRepository(pool);
 const rolSegRepo      = new PostgresRolSeguridadRepository(pool);
 const permisoSegRepo  = new PostgresPermisoSeguridadRepository(pool);
-const backupService   = new BackupService();
+const backupService   = new BackupService(pool);
 
 // ── Use cases ───────────────────────────────────────────────────────────────
 const loginUC          = new LoginUsuario(usuarioRepo);
