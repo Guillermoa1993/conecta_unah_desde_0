@@ -1,4 +1,4 @@
-import { Shield, Calendar, Users, Settings, MessageSquare, ArrowRight, Clock, Activity, FileSpreadsheet, Lock } from "lucide-react";
+import { Shield, Calendar, Users, Settings, ArrowRight, Clock, Activity, FileSpreadsheet, Lock, Database } from "lucide-react";
 import { Link } from "react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
@@ -29,12 +29,12 @@ const adminActions = [
     shadow: "shadow-amber-500/10",
   },
   {
-    title: "Revisión de Comentarios",
-    description: "Moderar encuestas y comentarios sobre eventos realizados.",
-    path: "/admin/comments",
-    icon: MessageSquare,
-    color: "from-rose-500 to-pink-600",
-    shadow: "shadow-rose-500/10",
+    title: "Respaldo y Restauración",
+    description: "Protege la información institucional con copias de seguridad y recuperaciones rápidas.",
+    path: "/admin/backup-restore",
+    icon: Database,
+    color: "from-cyan-500 to-sky-600",
+    shadow: "shadow-cyan-500/10",
   },
 ];
 

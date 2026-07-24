@@ -4,8 +4,8 @@ export type PermissionState = "granted" | "denied" | "prompt" | "unavailable";
 
 export interface AppPermissions {
   notifications: PermissionState;
-  camera: PermissionState;
   microphone: PermissionState;
+  camera: PermissionState;
 }
 
 async function queryPermission(name: PermissionName): Promise<PermissionState> {
@@ -20,17 +20,17 @@ async function queryPermission(name: PermissionName): Promise<PermissionState> {
 export function usePermissions() {
   const [permissions, setPermissions] = useState<AppPermissions>({
     notifications: "prompt",
-    camera: "prompt",
     microphone: "prompt",
+    camera: "prompt",
   });
 
   const refresh = useCallback(async () => {
-    const [notifications, camera, microphone] = await Promise.all([
+    const [notifications, microphone, camera] = await Promise.all([
       queryPermission("notifications"),
-      queryPermission("camera" as PermissionName),
       queryPermission("microphone" as PermissionName),
+      queryPermission("camera" as PermissionName),
     ]);
-    setPermissions({ notifications, camera, microphone });
+    setPermissions({ notifications, microphone, camera });
   }, []);
 
   useEffect(() => {
@@ -43,19 +43,6 @@ export function usePermissions() {
     const state = result === "granted" ? "granted" : result === "denied" ? "denied" : "prompt";
     setPermissions((p) => ({ ...p, notifications: state }));
     return state;
-  }, []);
-
-  const requestCamera = useCallback(async (): Promise<PermissionState> => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      stream.getTracks().forEach((t) => t.stop());
-      setPermissions((p) => ({ ...p, camera: "granted" }));
-      return "granted";
-    } catch {
-      const state = await queryPermission("camera" as PermissionName);
-      setPermissions((p) => ({ ...p, camera: state }));
-      return state;
-    }
   }, []);
 
   const requestMicrophone = useCallback(async (): Promise<PermissionState> => {
@@ -71,13 +58,26 @@ export function usePermissions() {
     }
   }, []);
 
+  const requestCamera = useCallback(async (): Promise<PermissionState> => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach((t) => t.stop());
+      setPermissions((p) => ({ ...p, camera: "granted" }));
+      return "granted";
+    } catch {
+      const state = await queryPermission("camera" as PermissionName);
+      setPermissions((p) => ({ ...p, camera: state }));
+      return state;
+    }
+  }, []);
+
   const requestAll = useCallback(async () => {
     await Promise.allSettled([
       requestNotifications(),
-      requestCamera(),
       requestMicrophone(),
+      requestCamera(),
     ]);
-  }, [requestNotifications, requestCamera, requestMicrophone]);
+  }, [requestNotifications, requestMicrophone, requestCamera]);
 
-  return { permissions, refresh, requestNotifications, requestCamera, requestMicrophone, requestAll };
+  return { permissions, refresh, requestNotifications, requestMicrophone, requestCamera, requestAll };
 }
