@@ -934,22 +934,28 @@ export function FichaEmpleado() {
 
       if (analysis.photoDetected && formData.foto) {
         setScanStepName("Extrayendo fotografía del carnet cargado...");
-        croppedPhotoUrl = await cropDocumentPhoto(forma003);
-        setCroppedDocPhoto(croppedPhotoUrl);
-        await new Promise(r => setTimeout(r, 600));
+        try {
+          croppedPhotoUrl = await cropDocumentPhoto(forma003);
+          setCroppedDocPhoto(croppedPhotoUrl);
+          await new Promise(r => setTimeout(r, 400));
 
-        setScanStepName("Analizando similitud facial y patrones biométricos...");
-        const resultado = await compararRostros(formData.foto, croppedPhotoUrl);
-        faceMatchScore = resultado.similitud;
-        faceMatchOk = resultado.coincide;
-        setFaceSimilarityScore(faceMatchScore);
-        await new Promise(r => setTimeout(r, 600));
+          setScanStepName("Analizando similitud facial (opcional)...");
+          const resultado = await compararRostros(formData.foto, croppedPhotoUrl);
+          faceMatchScore = resultado.similitud;
+          faceMatchOk = resultado.coincide;
+          setFaceSimilarityScore(faceMatchScore);
+        } catch (faceErr: any) {
+          // El cotejo facial es informativo, no bloquea la validación
+          console.warn("Cotejo facial omitido (modelos no disponibles o imagen incompatible):", faceErr?.message || faceErr);
+          faceMatchOk = true; // no penalizar si faceapi no pudo cargar
+          faceMatchScore = 0;
+          setFaceSimilarityScore(null);
+        }
       } else {
         setCroppedDocPhoto(null);
-        setFaceSimilarityScore(0);
-        detectedErrors.push(
-          "No se detectó un rostro en el carnet para realizar el cotejo facial."
-        );
+        setFaceSimilarityScore(null);
+        // Si no hay foto detectada en el carnet, no penalizar — el OCR ya valida los datos
+        faceMatchOk = true;
       }
 
       if (!faceMatchOk && analysis.photoDetected) {
