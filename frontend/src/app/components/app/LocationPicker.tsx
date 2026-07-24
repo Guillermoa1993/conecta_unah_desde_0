@@ -370,15 +370,15 @@ export function LocationPicker({
   return (
     <div className="space-y-2 mt-2">
       {/* Selector de Capa del Mapa */}
-      <div className="flex items-center justify-between gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200 text-xs">
-        <span className="font-bold text-slate-700 flex items-center gap-1.5 px-2">
-          <Layers className="size-3.5 text-[#004B87]" /> Capa del Mapa:
+      <div className="flex items-center justify-between gap-1.5 bg-slate-100/90 p-1 rounded-lg border border-slate-200 text-[10px]">
+        <span className="font-bold text-slate-600 flex items-center gap-1 px-1.5 uppercase tracking-wider text-[9.5px]">
+          <Layers className="size-3 text-[#004B87]" /> Capa:
         </span>
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => changeTileLayer("google_roadmap")}
-            className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
+            className={`px-2 py-0.5 rounded-md font-bold transition-all text-[10px] ${
               activeLayerKey === "google_roadmap"
                 ? "bg-[#004B87] text-white shadow-2xs"
                 : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"
@@ -389,7 +389,7 @@ export function LocationPicker({
           <button
             type="button"
             onClick={() => changeTileLayer("google_satellite")}
-            className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
+            className={`px-2 py-0.5 rounded-md font-bold transition-all text-[10px] ${
               activeLayerKey === "google_satellite"
                 ? "bg-[#004B87] text-white shadow-2xs"
                 : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"
@@ -400,7 +400,7 @@ export function LocationPicker({
           <button
             type="button"
             onClick={() => changeTileLayer("openstreetmap")}
-            className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
+            className={`px-2 py-0.5 rounded-md font-bold transition-all text-[10px] ${
               activeLayerKey === "openstreetmap"
                 ? "bg-[#004B87] text-white shadow-2xs"
                 : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"

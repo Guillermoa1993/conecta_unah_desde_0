@@ -17,7 +17,7 @@ import {
   Sparkles,
   Wand2,
 } from "lucide-react";
-import { LocationPicker, SEDES_DATA } from "./LocationPicker";
+import { LocationPicker, SEDES_DATA, resolveExactBuildingCoords } from "./LocationPicker";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -116,12 +116,21 @@ function buildFormDefaults(user: { name?: string }, initialEvent?: UniEvent): Fo
     const startVal = getLocalDatePickerValues(initialEvent.fecha_inicio);
     const endVal = getLocalDatePickerValues(initialEvent.fecha_fin);
 
+    const cRegional = initialEvent.centro_regional || "Ciudad Universitaria";
+    const uRaw = (initialEvent as any).ubicacion || initialEvent.lugar || "";
+    const { lat: resolvedLat, lng: resolvedLng } = resolveExactBuildingCoords(
+      cRegional,
+      uRaw,
+      initialEvent.latitud,
+      initialEvent.longitud
+    );
+
     return {
       titulo: initialEvent.titulo,
       categoria: initialEvent.categoria,
       tipo_actividad: initialEvent.tipo_actividad || "Presencial",
       tipo_evento: initialEvent.tipo_evento === "HORAS_VOAE" ? "HORAS_VOAE" : "SIN_HORAS",
-      centro_regional: initialEvent.centro_regional || "Ciudad Universitaria",
+      centro_regional: cRegional,
       descripcion: initialEvent.descripcion,
       audiencia: (initialEvent as any).audiencia || "TODO_PUBLICO",
       registro_entrada: initialEvent.tipo_evento === "HORAS_VOAE",
@@ -131,13 +140,13 @@ function buildFormDefaults(user: { name?: string }, initialEvent?: UniEvent): Fo
       fecha_fin: endVal.date,
       hora_inicio: startVal.time,
       hora_fin: endVal.time,
-      ubicacion: (initialEvent as any).ubicacion || initialEvent.lugar || "",
+      ubicacion: uRaw,
       enlace_virtual: initialEvent.enlace_virtual || "",
       cupo_maximo: String(initialEvent.cupo_maximo),
       tutor_responsable: initialEvent.tutor_nombre || user.name || "Dr. Carlos Mendoza",
       usa_imagen_personalizada: initialEvent.usa_imagen_personalizada,
-      latitud: String(initialEvent.latitud ?? ""),
-      longitud: String(initialEvent.longitud ?? ""),
+      latitud: resolvedLat,
+      longitud: resolvedLng,
     };
   }
   return {
@@ -1093,6 +1102,13 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
             ? fullUbicacion.slice(matchedBuilding.name.length).replace(/^ - /, "")
             : (fullUbicacion.includes(" - ") ? fullUbicacion.split(" - ").slice(1).join(" - ") : "");
 
+          const { lat: resolvedLat, lng: resolvedLng } = resolveExactBuildingCoords(
+            data.centro_regional,
+            buildingName,
+            data.latitud,
+            data.longitud
+          );
+
           return (
             <div className="space-y-4 animate-in fade-in duration-200">
               {/* Estructura en 3 columnas iguales: Centro Regional | Edificio | Aula */}
@@ -1174,10 +1190,10 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                     onChange={(e) => {
                       const val = e.target.value;
                       const fullLoc = val ? `${buildingName} - ${val}` : buildingName;
-                      const link = `https://www.google.com/maps/search/?api=1&query=${data.latitud || currentSedeData.lat},${data.longitud || currentSedeData.lng}`;
+                      const link = `https://www.google.com/maps/search/?api=1&query=${resolvedLat},${resolvedLng}`;
                       setData((prev) => ({
                         ...prev,
-                        ubicacion: buildingName ? `${fullLoc}|${link}|${prev.latitud},${prev.longitud}` : ""
+                        ubicacion: buildingName ? `${fullLoc}|${link}|${resolvedLat},${resolvedLng}` : ""
                       }));
                     }}
                     placeholder="Ej. Aula 101, Cubículo 4..."
@@ -1192,8 +1208,8 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                   📍 Ubicación en Mapa (Coordenadas Predefinidas Exactas)
                 </Label>
                 <LocationPicker
-                  lat={data.latitud || currentSedeData.lat}
-                  lng={data.longitud || currentSedeData.lng}
+                  lat={resolvedLat}
+                  lng={resolvedLng}
                   titleBanner={buildingName ? `${buildingName} (${data.centro_regional})` : data.centro_regional}
                   onLocationChange={(nLat: string, nLng: string) => {
                     setData((prev) => ({
