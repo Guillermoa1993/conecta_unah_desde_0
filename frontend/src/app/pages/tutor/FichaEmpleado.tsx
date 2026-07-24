@@ -829,22 +829,17 @@ export function FichaEmpleado() {
 
 
 
-      // ── Validar NOMBRE ──────────────────────────────────────────────────────
-      // Normalizar nombre del formulario: sin tildes, minúsculas, solo palabras de 2+ letras
+      // ── Validar NOMBRE (ESTRICTO) ──────────────────────────────────────────
+      // Normalizar nombre del formulario: sin tildes, minúsculas, solo palabras de 3+ letras
       const nameParts = formData.nombre.toLowerCase()
         .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        .split(/\s+/).filter(w => w.length >= 2);
+        .split(/\s+/).filter(w => w.length >= 3);
 
       let matchingNameParts = 0;
       nameParts.forEach(part => {
-        // Buscar palabra completa O stem de 4 letras (para tolerar OCR impreciso)
-        const stem4 = part.length >= 4 ? part.substring(0, 4) : part;
-        const stem3 = part.length >= 3 ? part.substring(0, 3) : part;
-        if (
-          normalizedOcrText.includes(part) ||
-          normalizedOcrText.includes(stem4) ||
-          normalizedOcrText.includes(stem3)
-        ) {
+        // Buscar palabra exacta o prefijo de al menos 4 letras si la palabra es larga
+        const stem4 = part.length >= 5 ? part.substring(0, part.length - 1) : part;
+        if (normalizedOcrText.includes(part) || normalizedOcrText.includes(stem4)) {
           matchingNameParts++;
         }
       });
@@ -854,8 +849,8 @@ export function FichaEmpleado() {
       console.log("PARTES DEL NOMBRE:", nameParts);
       console.log("PARTES ENCONTRADAS:", matchingNameParts, "de", nameParts.length);
 
-      // Aprueba si al menos el 33% de las partes del nombre coinciden (mínimo 1 de 3)
-      const minPartsRequired = Math.max(1, Math.ceil(nameParts.length * 0.33));
+      // Exigir que coincida al menos el 70% de las palabras ingresadas (ej: mínimo 2 de 3 palabras)
+      const minPartsRequired = nameParts.length <= 2 ? nameParts.length : Math.ceil(nameParts.length * 0.7);
       const nameMatchOk = nameParts.length > 0 ? (matchingNameParts >= minPartsRequired) : true;
 
       // ── Validar NÚMERO DE EMPLEADO (ESTRICTO EXACTO) ─────────────────────────
