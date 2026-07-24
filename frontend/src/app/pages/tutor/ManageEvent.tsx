@@ -893,7 +893,7 @@ export function ManageEvent() {
                     <div className="flex items-center gap-1.5 text-xs text-[#004B87] font-semibold uppercase tracking-wider">
                       <MapPin className="size-4" /> {isHibrido ? "Ubicación Híbrida" : "Ubicación Presencial"}
                     </div>
-                    <h4 className="font-bold text-base text-slate-800 line-clamp-1">{exactBuildingName || bName}</h4>
+                    <h4 className="font-bold text-base text-slate-800 line-clamp-2" title={bName}>{bName}</h4>
                     <p className="text-xs text-muted-foreground">{event.centro_regional || "Ciudad Universitaria"}</p>
                   </div>
 
