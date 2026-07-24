@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, useBlocker } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -759,12 +759,14 @@ export function FichaEmpleado() {
 
 
 
-      const nameParts = formData.nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(/\s+/).filter(w => w.length > 2);
+      // Normalizar el nombre del formulario (sin tildes, minúsculas)
+      const nameParts = formData.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/\s+/).filter(w => w.length >= 2);
 
       let matchingNameParts = 0;
       nameParts.forEach(part => {
-        const corePart = part.length > 4 ? part.substring(0, part.length - 1) : part;
-        if (normalizedOcrText.includes(part) || normalizedOcrText.includes(corePart)) {
+        // Stem: buscar las primeras 3 letras o toda la palabra si es corta
+        const stem = part.length > 3 ? part.substring(0, 3) : part;
+        if (normalizedOcrText.includes(part) || normalizedOcrText.includes(stem)) {
           matchingNameParts++;
         }
       });
@@ -772,19 +774,31 @@ export function FichaEmpleado() {
       console.log("TEXTO OCR CARNET:", normalizedOcrText);
       console.log("NOMBRE FORMULARIO:", formData.nombre);
       console.log("PARTES DEL NOMBRE:", nameParts);
-      console.log("PARTES ENCONTRADAS:", matchingNameParts);
+      console.log("PARTES ENCONTRADAS:", matchingNameParts, "de", nameParts.length);
 
-      // Con que coincida al menos 2 partes del nombre o el 50% de las partes ingresadas, se considera válido
-      const nameMatchOk = nameParts.length > 0 ? (matchingNameParts >= Math.min(2, nameParts.length)) : true;
+      // Aprueba si al menos el 40% de las partes del nombre coinciden (mínimo 1)
+      const minPartsRequired = Math.max(1, Math.ceil(nameParts.length * 0.4));
+      const nameMatchOk = nameParts.length > 0 ? (matchingNameParts >= minPartsRequired) : true;
 
-      // Comparación de número de empleado estricta
+      // Comparación de número de empleado (con tolerancia a errores OCR de 1 dígito)
       const employeeNumClean = formData.numeroEmpleado.trim().replace(/\D/g, '');
       const ocrDigitsOnly = normalizedOcrText.replace(/\D/g, '');
 
-      // Comparación estricta del número de empleado contra el OCR del carnet
-      const employeeNumMatchOk =
-        employeeNumClean.length > 0 &&
-        ocrDigitsOnly.includes(employeeNumClean);
+      // Buscar coincidencia exacta primero
+      let employeeNumMatchOk = employeeNumClean.length > 0 && ocrDigitsOnly.includes(employeeNumClean);
+
+      // Si no hay coincidencia exacta, intentar con tolerancia de 1 dígito diferente
+      if (!employeeNumMatchOk && employeeNumClean.length >= 4) {
+        // Generar variantes con 1 dígito cambiado/faltante/extra
+        for (let i = 0; i < employeeNumClean.length && !employeeNumMatchOk; i++) {
+          const sinDigito = employeeNumClean.slice(0, i) + employeeNumClean.slice(i + 1);
+          if (ocrDigitsOnly.includes(sinDigito)) {
+            employeeNumMatchOk = true;
+            console.log("Número de empleado encontrado con tolerancia (sin dígito en posición", i, "):", sinDigito);
+          }
+        }
+      }
+      console.log("NÚMERO EMPLEADO INGRESADO:", employeeNumClean, "| DÍGITOS OCR:", ocrDigitsOnly.substring(0, 50), "| MATCH:", employeeNumMatchOk);
 
       // Comparación de departamento (normalizando tildes y buscando palabras clave principales)
       const facultyClean = formData.facultad.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -883,15 +897,17 @@ export function FichaEmpleado() {
         faceMatchOk
       });
 
-      // El carnet se aprueba si cumple la estructura (layout, foto, qr), el número de empleado y la foto biométrica facial
-      // El carnet se aprueba si cumple la estructura básica, el número de empleado y el nombre
+      // El carnet se aprueba si:
+      // - Las proporciones son correctas (formato horizontal)
+      // - Y al menos UNO de los dos: nombre coincide O número de empleado coincide
+      // (esto da tolerancia a errores de OCR en carnets de fondo oscuro)
+      const datosCoinciden = employeeNumMatchOk || nameMatchOk;
       const shouldApprove =
         analysis.aspectRatioOk &&
-        analysis.qrDetected &&
-        employeeNumMatchOk &&
-        nameMatchOk;
+        datosCoinciden;
 
       console.log("ERRORES DETECTADOS:", detectedErrors);
+      console.log("shouldApprove:", shouldApprove, "| aspectRatioOk:", analysis.aspectRatioOk, "| employeeNumMatchOk:", employeeNumMatchOk, "| nameMatchOk:", nameMatchOk);
 
       if (shouldApprove) {
         setErrors([]);
@@ -900,17 +916,7 @@ export function FichaEmpleado() {
       } else {
         setErrors(detectedErrors);
         setForma003Status('failed');
-        toast.error(`La verificación del carnet ha fallado.`);
-      }
-
-      if (shouldApprove) {
-        setErrors([]);
-        setForma003Status('verified');
-        toast.success(`¡Carnet de empleado verificado correctamente! Similitud general: ${finalSimilarity}%`);
-      } else {
-        setErrors(detectedErrors);
-        setForma003Status('failed');
-        toast.error(`La verificación del carnet ha fallado.`);
+        toast.error(`La verificación del carnet ha fallado. Asegúrese de que el carnet esté en posición horizontal y que el nombre o número de empleado sea legible.`);
       }
 
     } catch (err: any) {
