@@ -177,7 +177,7 @@ export function ValidacionEvento() {
       {/* Grid: Portada + Tarjeta de ubicación con Mini Preview del Mapa (Como en Imagen 191) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Portada del Evento */}
-        <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm h-auto min-h-[260px] flex items-center justify-center group">
+        <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm h-64 md:h-72 w-full flex items-center justify-center group">
           {event.portada_url || event.imagen_url ? (
             <img src={event.portada_url || event.imagen_url} alt="Banner del evento" className="w-full h-full object-cover" />
           ) : (

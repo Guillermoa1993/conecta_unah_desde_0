@@ -632,6 +632,23 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       toast.error("Corrige los campos marcados en rojo");
       return;
     }
+
+    if (currentStep === 3) {
+      if (!imgPortada) {
+        const checkedCats = categoriasHoras.filter((c) => c.checked);
+        const pCat = checkedCats.length > 0 ? checkedCats[0].categoria : data.categoria;
+        const autoThemeMap: Record<string, string> = {
+          ACADEMICO: "academic",
+          CULTURAL: "art",
+          DEPORTIVO: "sports",
+          SOCIAL: "social",
+        };
+        const themeToUse = autoThemeMap[pCat] || "academic";
+        const autoCover = generateAiCoverCanvas(data.titulo, pCat, themeToUse);
+        setImgPortada(autoCover);
+      }
+    }
+
     setCurrentStep((s) => Math.min(s + 1, 4));
   };
 
@@ -683,10 +700,19 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       return Math.round(diffHours * 10) / 10;
     };
     const checkedCategorias = categoriasHoras.filter((ch) => ch.checked);
-    const primaryCategoria = checkedCategorias.length > 0 ? checkedCategorias[0].categoria : "ACADEMICO";
+    const primaryCategoria = checkedCategorias.length > 0 ? checkedCategorias[0].categoria : data.categoria;
     const distribucion = data.tipo_evento === "HORAS_VOAE" && checkedCategorias.length > 0
       ? checkedCategorias.map((ch) => ({ categoria: ch.categoria, horas: ch.horas }))
       : undefined;
+
+    const autoThemeMap: Record<string, string> = {
+      ACADEMICO: "academic",
+      CULTURAL: "art",
+      DEPORTIVO: "sports",
+      SOCIAL: "social",
+    };
+    const themeToUse = autoThemeMap[primaryCategoria] || "academic";
+    const finalPortada = imgPortada || generateAiCoverCanvas(data.titulo, primaryCategoria, themeToUse);
 
     const payload = {
       titulo: data.titulo,
@@ -704,7 +730,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       hora_inicio: data.hora_inicio,
       hora_fin: data.hora_fin,
       enlace_virtual: data.enlace_virtual,
-      portada_url: imgPortada || null,
+      portada_url: finalPortada,
       imagenes_adicionales: images,
       tutor_responsable: data.tutor_responsable,
       tipo_duracion: data.tipo_duracion,
