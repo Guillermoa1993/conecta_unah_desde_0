@@ -61,8 +61,22 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem("cp-role") : null;
+    const sessionRole = typeof window !== "undefined" ? sessionStorage.getItem("unah_role") : null;
+
     if (stored && ["empleado", "voae", "student"].includes(stored)) {
       setRoleState(stored as Role);
+    } else if (sessionRole) {
+      const s = sessionRole.toLowerCase();
+      if (s === "tutor" || s === "empleado" || s === "docente") {
+        setRoleState("empleado");
+        localStorage.setItem("cp-role", "empleado");
+      } else if (s.startsWith("voae")) {
+        setRoleState("voae");
+        localStorage.setItem("cp-role", "voae");
+      } else if (s === "student" || s === "estudiante") {
+        setRoleState("student");
+        localStorage.setItem("cp-role", "student");
+      }
     }
   }, []);
 
