@@ -146,6 +146,53 @@ interface LocationPickerProps {
   lng?: string;
   onLocationChange?: (lat: string, lng: string) => void;
   titleBanner?: string;
+  height?: string;
+}
+
+export function resolveExactBuildingCoords(
+  centroRegional?: string,
+  lugarRaw?: string,
+  latRaw?: any,
+  lngRaw?: any
+): { lat: string; lng: string; buildingName: string } {
+  const pLat = typeof latRaw === "number" ? latRaw : (latRaw ? parseFloat(latRaw) : NaN);
+  const pLng = typeof lngRaw === "number" ? lngRaw : (lngRaw ? parseFloat(lngRaw) : NaN);
+
+  const fullLoc = lugarRaw && lugarRaw.includes("|") ? lugarRaw.split("|")[0] : (lugarRaw || "");
+  const pipeCoords = lugarRaw && lugarRaw.includes("|") && lugarRaw.split("|")[2] ? lugarRaw.split("|")[2] : "";
+
+  let pipeLat = NaN, pipeLng = NaN;
+  if (pipeCoords.includes(",")) {
+    const [cLat, cLng] = pipeCoords.split(",");
+    pipeLat = parseFloat(cLat);
+    pipeLng = parseFloat(cLng);
+  }
+
+  const sedeKey = centroRegional && SEDES_DATA[centroRegional] ? centroRegional : "Ciudad Universitaria";
+  const sedeObj = SEDES_DATA[sedeKey];
+
+  const matchedBuilding = sedeObj.buildings.find((b) => fullLoc.startsWith(b.name) || b.name === fullLoc);
+
+  let finalLat = "14.084952";
+  let finalLng = "-87.164929";
+  let buildingName = fullLoc || sedeObj.name;
+
+  if (matchedBuilding) {
+    finalLat = matchedBuilding.lat;
+    finalLng = matchedBuilding.lng;
+    buildingName = matchedBuilding.name;
+  } else if (!isNaN(pLat) && !isNaN(pLng) && pLat !== 0 && pLng !== 0) {
+    finalLat = String(pLat);
+    finalLng = String(pLng);
+  } else if (!isNaN(pipeLat) && !isNaN(pipeLng)) {
+    finalLat = String(pipeLat);
+    finalLng = String(pipeLng);
+  } else {
+    finalLat = sedeObj.lat;
+    finalLng = sedeObj.lng;
+  }
+
+  return { lat: finalLat, lng: finalLng, buildingName };
 }
 
 export function LocationPicker({
@@ -153,6 +200,7 @@ export function LocationPicker({
   lng = "-87.16492979656168",
   onLocationChange,
   titleBanner,
+  height = "260px",
 }: LocationPickerProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const fullMapRef = useRef<HTMLDivElement>(null);
@@ -363,9 +411,9 @@ export function LocationPicker({
         </div>
       </div>
 
-      {/* Mini Preview del Mapa Integrado (~280px) con Botón "Expandir" */}
+      {/* Mini Preview del Mapa Integrado con Botón "Expandir" */}
       <div className="relative rounded-xl border border-slate-300 overflow-hidden shadow-2xs group">
-        <div ref={mapRef} className="w-full h-[280px] z-0 cursor-default" />
+        <div ref={mapRef} style={{ height }} className="w-full z-0 cursor-default" />
 
         <button
           type="button"

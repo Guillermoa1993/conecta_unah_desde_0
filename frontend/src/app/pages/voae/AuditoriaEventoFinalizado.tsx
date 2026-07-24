@@ -1020,7 +1020,8 @@ export function AuditoriaEventoFinalizado() {
                     dist = R * c;
                   }
 
-                  const isWithinRange = dist !== null ? dist <= 3.0 : true;
+                  const hasCoords = dist !== null;
+                  const isWithinRange = dist !== null && dist <= 3.0;
 
                   return (
                     <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col justify-between space-y-2">
@@ -1033,11 +1034,11 @@ export function AuditoriaEventoFinalizado() {
                       </div>
                       {isWithinRange ? (
                         <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 text-[11px] font-bold text-emerald-800 flex items-center gap-1">
-                          <CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" /> ✓ Dentro del rango {dist !== null ? `(${dist.toFixed(1)} km)` : ""}
+                          <CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" /> ✓ Dentro del rango ({dist?.toFixed(1)} km)
                         </div>
                       ) : (
                         <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-[11px] font-bold text-amber-800 flex items-center gap-1">
-                          <AlertTriangle className="size-3.5 text-amber-600 shrink-0" /> ⚠️ Fuera del rango ({dist?.toFixed(1)} km)
+                          <AlertTriangle className="size-3.5 text-amber-600 shrink-0" /> ⚠️ Fuera del rango {hasCoords ? `(${dist?.toFixed(1)} km)` : "(Sin GPS)"}
                         </div>
                       )}
                     </div>
