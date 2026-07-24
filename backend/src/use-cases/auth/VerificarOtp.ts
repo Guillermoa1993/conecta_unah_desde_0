@@ -1,3 +1,4 @@
+import { cfg } from '../../infrastructure/config/configService';
 import { UsuarioRepository } from '../../domain/repositories/UsuarioRepository';
 import { UsuarioPublico } from '../../domain/entities/Usuario';
 import jwt from 'jsonwebtoken';
@@ -33,11 +34,11 @@ export class VerificarOtp {
     });
     if (!actualizado) throw new Error('No se pudo actualizar el usuario');
 
-    const secret = process.env.JWT_SECRET ?? 'dev-secret-change-in-prod';
+    const secret = cfg('JWT_SECRET', 'dev-secret-change-in-prod');
     const token = jwt.sign(
       { id: (actualizado as any).id_usuario, rol: (actualizado as any).rol },
       secret,
-      { expiresIn: '8h' }
+      cfg('SESION_PERMANENTE') === '1' ? {} : { expiresIn: parseInt(cfg('DURACION_SESION_HORAS', '8')) * 3600 }
     );
 
     const { password, microsoft_id, otp_code, otp_expira, ...usuarioPublico } = actualizado as any;

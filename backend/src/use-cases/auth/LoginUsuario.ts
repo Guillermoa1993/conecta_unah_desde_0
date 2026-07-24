@@ -1,3 +1,4 @@
+import { cfg } from '../../infrastructure/config/configService';
 import { UsuarioRepository } from '../../domain/repositories/UsuarioRepository';
 import { UsuarioPublico } from '../../domain/entities/Usuario';
 import bcrypt from 'bcryptjs';
@@ -24,11 +25,11 @@ export class LoginUsuario {
     const match = await bcrypt.compare(contrasena, usuario.password);
     if (!match) throw new Error('Credenciales inválidas');
 
-    const secret = process.env.JWT_SECRET ?? 'dev-secret-change-in-prod';
+    const secret = cfg('JWT_SECRET', 'dev-secret-change-in-prod');
     const token = jwt.sign(
       { id: usuario.id_usuario, rol: usuario.rol },
       secret,
-      { expiresIn: '8h' },
+      cfg('SESION_PERMANENTE') === '1' ? {} : { expiresIn: parseInt(cfg('DURACION_SESION_HORAS', '8')) * 3600 },
     );
 
     const { password, ...usuarioPublico } = usuario;

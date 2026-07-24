@@ -74,4 +74,15 @@ export class EventoController {
       res.json(await this.aprobarUC.rechazar(String(req.params.id), String(req.usuario!.id), req.body.motivo));
     } catch (err) { next(err); }
   };
+
+  delete = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const exito = await this.eventoRepo.delete(String(req.params.id));
+      if (!exito) {
+        res.status(404).json({ error: 'Evento no encontrado' });
+        return;
+      }
+      res.json({ success: true });
+    } catch (err) { next(err); }
+  };
 }

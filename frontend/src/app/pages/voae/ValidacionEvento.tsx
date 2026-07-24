@@ -1,30 +1,25 @@
 import { useRef, useState, useEffect } from "react";
-import { CheckCircle2, XCircle, Download, PenLine, RotateCcw, Stamp } from "lucide-react";
+import { useParams, useNavigate, Link } from "react-router";
+import { CheckCircle2, XCircle, PenLine, RotateCcw, Stamp, ArrowLeft, AlertTriangle, MapPin, Camera, Eye } from "lucide-react";
+import { api } from "../../../services/api";
 import { toast } from "sonner";
+import { Button } from "../../components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../components/ui/dialog";
+import { Input } from "../../components/ui/input";
 
-interface Student {
-  id: string; nombre: string; cuenta: string;
-  status: "aprobado" | "rechazado" | "pendiente"; horas: number;
-}
-
-const MOCK_EVENT = {
-  id: "e-live-1",
-  titulo: "Festival Cultural UNAH 2026",
-  tutor: "Dr. Carlos Paz",
-  fecha: "2026-06-25",
-  lugar: "Plaza Central CU",
-  horas: 2,
-  categoria: "Cultural",
+const CATEGORY_LABEL: Record<string, string> = {
+  ACADEMICO: "Académico",
+  CULTURAL: "Cultural",
+  DEPORTIVO: "Deportivo",
+  SOCIAL: "Social",
 };
 
-const MOCK_STUDENTS: Student[] = [
-  { id:"s1", nombre:"Miguel Torres",   cuenta:"2021001", status:"pendiente", horas:2 },
-  { id:"s2", nombre:"Valeria Rojas",   cuenta:"2021002", status:"pendiente", horas:2 },
-  { id:"s3", nombre:"Carlos Mendoza",  cuenta:"2021003", status:"pendiente", horas:2 },
-  { id:"s4", nombre:"Laura Paz",       cuenta:"2021004", status:"pendiente", horas:2 },
-  { id:"s5", nombre:"Ángela Reyes",    cuenta:"2021005", status:"pendiente", horas:2 },
-  { id:"s6", nombre:"José Martínez",   cuenta:"2021006", status:"pendiente", horas:2 },
-];
+const CATEGORY_COLORS: Record<string, string> = {
+  ACADEMICO: "#3b82f6",
+  CULTURAL: "#8b5cf6",
+  DEPORTIVO: "#22c55e",
+  SOCIAL: "#f59e0b",
+};
 
 function DigitalCanvas({ onSigned }: { onSigned: (dataUrl: string) => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -63,10 +58,10 @@ function DigitalCanvas({ onSigned }: { onSigned: (dataUrl: string) => void }) {
         <canvas ref={ref} width={480} height={120} className="w-full touch-none cursor-crosshair"/>
       </div>
       <div className="flex gap-2">
-        <button onClick={clear} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-bold text-[#717182] hover:bg-gray-50 transition-colors">
+        <button type="button" onClick={clear} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-bold text-[#717182] hover:bg-gray-50 transition-colors">
           <RotateCcw className="h-3.5 w-3.5"/>Limpiar
         </button>
-        <button onClick={confirm} className="flex items-center gap-1.5 px-4 py-1.5 bg-[#004B87] hover:bg-[#003366] text-white rounded-lg text-xs font-bold transition-colors">
+        <button type="button" onClick={confirm} className="flex items-center gap-1.5 px-4 py-1.5 bg-[#004B87] hover:bg-[#003366] text-white rounded-lg text-xs font-bold transition-colors">
           <PenLine className="h-3.5 w-3.5"/>Confirmar firma
         </button>
       </div>
@@ -74,195 +69,372 @@ function DigitalCanvas({ onSigned }: { onSigned: (dataUrl: string) => void }) {
   );
 }
 
-function SealAnimation({ visible }: { visible: boolean }) {
-  if (!visible) return null;
-  return (
-    <div className="flex flex-col items-center justify-center py-8 animate-fade-in">
-      <div className="relative w-28 h-28">
-        <svg viewBox="0 0 120 120" className="w-full h-full animate-[spin_3s_linear_infinite]">
-          <circle cx="60" cy="60" r="55" fill="none" stroke="#FFD100" strokeWidth="2" strokeDasharray="8 4"/>
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <div className="w-20 h-20 rounded-full bg-[#004B87] border-4 border-[#FFD100] flex flex-col items-center justify-center shadow-xl">
-            <Stamp className="h-6 w-6 text-[#FFD100] mb-0.5"/>
-            <p className="text-[8px] font-black text-white tracking-widest">VOAE</p>
-            <p className="text-[6px] text-white/70 tracking-widest">UNAH</p>
-          </div>
-        </div>
-      </div>
-      <p className="text-sm font-black text-[#003366] mt-4">¡Constancias firmadas!</p>
-      <p className="text-xs text-[#717182]">Listas para descargar</p>
-    </div>
-  );
-}
-
 export function ValidacionEvento() {
-  const [students, setStudents] = useState<Student[]>(MOCK_STUDENTS);
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [event, setEvent] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [signatureUrl, setSignatureUrl] = useState<string|null>(null);
-  const [sealed, setSealed] = useState(false);
   const [showSigning, setShowSigning] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string|null>(null);
+  const [motivoRechazo, setMotivoRechazo] = useState("");
 
-  const toggleStatus = (id: string) => {
-    setStudents(prev => prev.map(s => s.id !== id ? s : {
-      ...s,
-      status: s.status === "pendiente" ? "aprobado" : s.status === "aprobado" ? "rechazado" : "pendiente"
-    }));
+  const fetchEventDetails = async () => {
+    if (!id) return;
+    try {
+      setLoading(true);
+      const data = await api.get<any>(`/eventos/${id}`);
+      setEvent(data);
+    } catch (err: any) {
+      toast.error("Error al obtener los detalles del evento", { description: err.message });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const approvedCount = students.filter(s=>s.status==="aprobado").length;
-  const rejectedCount = students.filter(s=>s.status==="rechazado").length;
-  const pendingCount  = students.filter(s=>s.status==="pendiente").length;
+  useEffect(() => {
+    fetchEventDetails();
+  }, [id]);
 
   const handleSign = (dataUrl: string) => {
     setSignatureUrl(dataUrl);
     setShowSigning(false);
-    toast.success("Firma guardada — ya puedes emitir las constancias");
+    toast.success("Firma guardada — ya puedes validar o rechazar el evento");
   };
 
-  const emitirConstancias = () => {
-    if (!signatureUrl) { toast.error("Primero debes firmar digitalmente"); return; }
-    if (approvedCount === 0) { toast.error("Aprueba al menos un estudiante"); return; }
-    if (pendingCount > 0) { toast.error(`Quedan ${pendingCount} estudiantes sin revisar`); return; }
-    setSealed(true);
-    toast.success(`${approvedCount} constancias emitidas y firmadas`);
+  const handleAprobar = async () => {
+    if (!event) return;
+    try {
+      await api.patch(`/eventos/${event.id}/aprobar`);
+      toast.success("¡Evento aprobado con éxito!");
+      navigate("/voae");
+    } catch (err: any) {
+      toast.error("Error al aprobar el evento", { description: err.message });
+    }
   };
 
-  const downloadMock = (nombre: string) => {
-    toast.success(`Descargando constancia de ${nombre}...`);
+  const handleRechazar = async () => {
+    if (!motivoRechazo.trim()) {
+      toast.error("Debes ingresar un motivo de rechazo");
+      return;
+    }
+    if (!event) return;
+    try {
+      await api.patch(`/eventos/${event.id}/rechazar`, { motivo: motivoRechazo });
+      toast.success("Evento rechazado correctamente");
+      setRejectDialogOpen(false);
+      navigate("/voae");
+    } catch (err: any) {
+      toast.error("Error al rechazar el evento", { description: err.message });
+    }
   };
+
+  if (loading) {
+    return <div className="py-20 text-center text-sm text-muted-foreground">Cargando evento...</div>;
+  }
+
+  if (!event) {
+    return (
+      <div className="py-20 text-center">
+        <AlertTriangle className="size-12 mx-auto text-red-500 mb-3" />
+        <p className="text-sm font-semibold">Evento no encontrado.</p>
+        <Link to="/voae" className="text-xs text-[#004B87] underline mt-2 block">Volver al panel</Link>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-black text-[#003366]">Validación de Evento</h1>
-        <p className="text-sm text-[#717182]">Aprueba o rechaza asistencias y emite constancias con firma digital</p>
+    <div className="max-w-4xl mx-auto space-y-6 pb-12">
+      <Link
+        to="/voae"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition"
+      >
+        <ArrowLeft className="size-4" /> Volver al panel
+      </Link>
+
+      <div className="flex items-center gap-4">
+        <div className="size-12 rounded-full bg-[#004B87]/15 text-[#004B87] font-bold text-lg flex items-center justify-center">
+          {event.categoria?.slice(0, 2).toUpperCase()}
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-slate-800 leading-tight">{event.titulo}</h1>
+          <p className="text-xs text-slate-500 font-medium">
+            {CATEGORY_LABEL[event.categoria] || event.categoria} · {new Date(event.fecha_inicio).toLocaleDateString("es-HN", { day: "numeric", month: "long", year: "numeric" })} · {event.lugar?.split("|")[0]}
+          </p>
+          <div className="flex items-center gap-1 mt-1 font-semibold text-slate-600 text-xs">
+            <span>Tutor: {event.tutor_nombre}</span>
+            {event.aprobado_por && <span className="text-emerald-600">· Solicitado por: {event.tutor_nombre}</span>}
+          </div>
+        </div>
       </div>
 
-      {/* Info del evento */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 bg-[#004B87] text-[#FFD100] rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0">
-            {MOCK_EVENT.categoria[0]}
+      {/* Grid: Portada + Tarjeta de ubicación (Imagen 133) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Portada */}
+        <div className="md:col-span-2 relative rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm h-60 flex items-center justify-center">
+          {event.portada_url || event.imagen_url ? (
+            <img src={event.portada_url || event.imagen_url} alt="Banner del evento" className="w-full h-full object-cover" />
+          ) : (
+            <div className="text-slate-400 font-bold flex flex-col items-center gap-2">
+              <span className="text-4xl">AC</span>
+              <span className="text-xs">Imagen por categoría</span>
+            </div>
+          )}
+        </div>
+
+        {/* Ubicación y Botones */}
+        {(() => {
+          const loc = event.lugar || event.ubicacion || "No especificado";
+          let bName = loc;
+          let bCoordsOrLink = "";
+          if (loc.includes("|")) {
+            [bName, bCoordsOrLink] = loc.split("|");
+          }
+
+          const isVirtual = event.tipo_actividad === "Virtual";
+          const isHybrid = event.tipo_actividad === "Híbrido";
+
+          const mapsHref = bCoordsOrLink
+            ? (bCoordsOrLink.startsWith("http") ? bCoordsOrLink : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bCoordsOrLink)}`)
+            : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bName)}`;
+
+          return (
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between h-60">
+              <div className="space-y-1.5">
+                <div className="text-[10px] font-bold text-[#004B87] uppercase flex items-center gap-1">
+                  <MapPin className="size-3.5 shrink-0" />
+                  {isVirtual ? "Ubicación Virtual" : isHybrid ? "Ubicación Híbrida" : "Ubicación Presencial"}
+                </div>
+                <h3 className="font-bold text-slate-800 text-lg leading-snug">{bName}</h3>
+                <p className="text-xs text-slate-500 font-medium">{event.centro_regional || "Ciudad Universitaria"}</p>
+              </div>
+
+              <div className="space-y-2 mt-4 w-full">
+                {!isVirtual && (
+                  <a
+                    href={mapsHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 px-3 bg-[#004B87] hover:bg-[#003366] text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <MapPin className="size-3.5" /> Google Maps
+                  </a>
+                )}
+                {(isVirtual || isHybrid) && event.enlace_virtual && (
+                  <a
+                    href={event.enlace_virtual}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 px-3 bg-[#22c55e] hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <Eye className="size-3.5" /> Enlace Virtual
+                  </a>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Evidencias adicionales */}
+      {event.imagenes_adicionales && event.imagenes_adicionales.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
+          <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5 uppercase text-[#003366]">
+            <Camera className="size-4 text-[#004B87]" /> Imágenes adicionales del evento
+          </h4>
+          <div className="flex gap-3 flex-wrap">
+            {event.imagenes_adicionales.map((img: string, idx: number) => (
+              <div
+                key={idx}
+                onClick={() => setSelectedImage(img)}
+                className="border border-slate-200 rounded-xl overflow-hidden size-20 bg-slate-50 hover:opacity-85 transition-opacity shadow-sm flex items-center justify-center shrink-0 cursor-pointer"
+              >
+                <img src={img} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Ficha Técnica del Evento (Imagen 134) */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
+        <h3 className="font-bold text-[#003366] text-sm border-b pb-2">Ficha Técnica del Evento</h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-y-5 gap-x-6 text-xs text-slate-700">
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Título del evento</span>
+            <span className="font-semibold text-slate-800 text-xs leading-normal block">{event.titulo}</span>
           </div>
           <div>
-            <h2 className="font-black text-[#003366]">{MOCK_EVENT.titulo}</h2>
-            <p className="text-xs text-[#717182]">{MOCK_EVENT.tutor} · {MOCK_EVENT.fecha} · {MOCK_EVENT.lugar}</p>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Categorías / Ámbitos</span>
+            <span className="font-semibold text-slate-800 block leading-normal">
+              {event.distribucion_horas && event.distribucion_horas.length > 0 ? (
+                event.distribucion_horas.map((dh: any) => `${CATEGORY_LABEL[dh.categoria] || dh.categoria} (${dh.horas} hrs)`).join(", ")
+              ) : (
+                `${CATEGORY_LABEL[event.categoria] || event.categoria} (${event.duracion_horas} hrs)`
+              )}
+            </span>
           </div>
-          <span className="ml-auto text-xs bg-[#FFD100]/20 border border-[#FFD100]/40 text-[#003366] font-bold px-2.5 py-1 rounded-lg">
-            {MOCK_EVENT.horas}h VOAE
-          </span>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Tipo de Evento</span>
+            <span className="font-semibold text-slate-800 flex items-center gap-1 block">
+              🎓 {event.duracion_horas > 0 ? "Horas VOAE" : "Recreación / Sin Horas"}
+            </span>
+          </div>
+
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Fecha y Hora</span>
+            <span className="font-semibold text-slate-800 block">
+              {new Date(event.fecha_inicio).toLocaleDateString("es-HN", { day: "numeric", month: "long", year: "numeric" })} 
+              {` (${new Date(event.fecha_inicio).toLocaleTimeString("es-HN", { hour: "numeric", minute: "2-digit" })} - ${new Date(event.fecha_fin).toLocaleTimeString("es-HN", { hour: "numeric", minute: "2-digit" })})`}
+            </span>
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Tipo de Actividad</span>
+            <span className="font-semibold text-slate-800 block">{event.tipo_actividad}</span>
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Centro Regional</span>
+            <span className="font-semibold text-slate-800 block">{event.centro_regional || "Ciudad Universitaria"}</span>
+          </div>
+
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Ubicación / Lugar</span>
+            {(() => {
+              const loc = event.lugar || event.ubicacion || "No especificado";
+              const [bName, bCoordsOrLink] = loc.split("|");
+              const href = bCoordsOrLink
+                ? (bCoordsOrLink.startsWith("http") ? bCoordsOrLink : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bCoordsOrLink)}`)
+                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bName)}`;
+
+              return (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 mt-0.5"
+                >
+                  <MapPin className="size-3.5 shrink-0 text-[#004B87]" /> {bName || "No especificado"}
+                </a>
+              );
+            })()}
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Enlace de acceso</span>
+            <span className="font-semibold text-slate-800 block truncate">
+              {event.enlace_virtual ? (
+                <a href={event.enlace_virtual} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                  {event.enlace_virtual}
+                </a>
+              ) : (
+                "No aplica"
+              )}
+            </span>
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Cupo máximo</span>
+            <span className="font-semibold text-slate-800 block">{event.cupo_maximo} estudiantes</span>
+          </div>
+
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Audiencia</span>
+            <span className="font-semibold text-slate-800 block">Todo público / Estudiantes UNAH</span>
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Horas de Duración</span>
+            <span className="font-semibold text-slate-800 block">{event.duracion_horas} hrs (totales)</span>
+          </div>
         </div>
-        <div className="grid grid-cols-3 gap-2">
-          {[{ label:"Pendientes", val:pendingCount, c:"text-amber-600" },{ label:"Aprobados", val:approvedCount, c:"text-emerald-600" },{ label:"Rechazados", val:rejectedCount, c:"text-red-500" }].map(s=>(
-            <div key={s.label} className="text-center bg-gray-50 border border-gray-100 rounded-xl py-2">
-              <p className={`text-xl font-black ${s.c}`}>{s.val}</p>
-              <p className="text-[10px] text-[#717182] font-semibold">{s.label}</p>
-            </div>
-          ))}
+
+        <div className="pt-4 border-t">
+          <span className="text-[10px] text-slate-400 font-bold block uppercase mb-1">Descripción del evento</span>
+          <div className="bg-slate-50 p-4 rounded-xl text-slate-650 leading-relaxed font-medium">
+            {event.descripcion}
+          </div>
         </div>
       </div>
 
-      {/* Lista de estudiantes */}
-      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-sm font-black text-[#003366]">Lista de asistencia ({students.length} estudiantes)</h3>
-          <div className="flex gap-1.5">
-            <button onClick={()=>setStudents(p=>p.map(s=>({...s,status:"aprobado"})))}
-              className="px-2.5 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition-colors">
-              Aprobar todos
-            </button>
-          </div>
-        </div>
-        <div className="divide-y divide-gray-100">
-          {students.map(s=>(
-            <div key={s.id} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors">
-              <div className="w-9 h-9 bg-[#004B87] text-white rounded-full flex items-center justify-center font-bold text-[11px] flex-shrink-0">
-                {s.nombre.split(" ").map(p=>p[0]).slice(0,2).join("")}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-[#003366] truncate">{s.nombre}</p>
-                <p className="text-[10px] text-[#717182]">{s.cuenta}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                {sealed && s.status==="aprobado" && (
-                  <button onClick={()=>downloadMock(s.nombre)}
-                    className="flex items-center gap-1 px-2.5 py-1.5 bg-purple-50 border border-purple-200 text-purple-700 rounded-lg text-[10px] font-bold hover:bg-purple-100 transition-colors">
-                    <Download className="h-3 w-3"/>Constancia
-                  </button>
-                )}
-                <button onClick={()=>!sealed && toggleStatus(s.id)}
-                  disabled={sealed}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-colors ${sealed?"cursor-default":""} ${
-                    s.status==="aprobado" ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-                    : s.status==="rechazado" ? "bg-red-50 border-red-200 text-red-600 hover:bg-red-100"
-                    : "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
-                  }`}>
-                  {s.status==="aprobado" && <CheckCircle2 className="h-3.5 w-3.5"/>}
-                  {s.status==="rechazado" && <XCircle className="h-3.5 w-3.5"/>}
-                  {s.status==="aprobado" ? "Aprobado" : s.status==="rechazado" ? "Rechazado" : "Pendiente"}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+      {/* Acciones */}
+      <div className="flex gap-4 pt-2 justify-end">
+        <Button
+          variant="outline"
+          className="px-6 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 h-11 text-xs font-bold rounded-xl"
+          onClick={() => setRejectDialogOpen(true)}
+        >
+          <XCircle className="size-4 mr-1.5" /> Rechazar
+        </Button>
+        <Button
+          className="px-6 bg-[#22c55e] hover:bg-emerald-600 h-11 text-xs font-bold rounded-xl text-white"
+          onClick={() => setApproveDialogOpen(true)}
+        >
+          <CheckCircle2 className="size-4 mr-1.5" /> Aprobar y publicar en muro
+        </Button>
       </div>
 
-      {!sealed && (
-        <>
-          {/* Firma digital */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-black text-[#003366] flex items-center gap-2">
-                  <PenLine className="h-4 w-4 text-[#004B87]"/>Firma digital del coordinador VOAE
-                </h3>
-                <p className="text-xs text-[#717182]">Requerida para emitir las constancias</p>
-              </div>
-              {signatureUrl && <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">Firmado ✓</span>}
-            </div>
+      {/* Approve dialog */}
+      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-[#003366] flex items-center gap-1.5 font-bold">
+              ¿Está seguro de aprobar este evento?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 mt-1">
+              Al aprobar esta solicitud, el evento pasará al estado <strong>PROGRAMADO</strong> y estará disponible para que el tutor inicie el registro de asistencia. Los estudiantes podrán inscribirse.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex gap-2">
+            <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+              onClick={() => {
+                setApproveDialogOpen(false);
+                handleAprobar();
+              }}
+            >
+              Confirmar Aprobación
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-            {signatureUrl ? (
-              <div className="space-y-2">
-                <div className="border border-dashed border-[#004B87]/20 rounded-xl p-3 bg-gray-50">
-                  <img src={signatureUrl} alt="Firma" className="h-20 w-auto mx-auto opacity-80"/>
-                </div>
-                <button onClick={()=>{setSignatureUrl(null);setShowSigning(true);}}
-                  className="text-xs text-[#717182] underline hover:text-[#003366] transition-colors">
-                  Volver a firmar
-                </button>
-              </div>
-            ) : showSigning ? (
-              <DigitalCanvas onSigned={handleSign}/>
-            ) : (
-              <button onClick={()=>setShowSigning(true)}
-                className="w-full py-8 border-2 border-dashed border-[#004B87]/30 rounded-xl hover:border-[#004B87] hover:bg-blue-50/30 transition-all group">
-                <PenLine className="h-8 w-8 text-gray-300 group-hover:text-[#004B87] mx-auto mb-2 transition-colors"/>
-                <p className="text-sm font-semibold text-[#717182] group-hover:text-[#003366]">Haz clic para firmar</p>
-                <p className="text-xs text-gray-400">Traza tu firma con el mouse o dedo</p>
-              </button>
-            )}
+      {/* Reject dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-[#003366] font-bold">¿Está seguro de rechazar esta propuesta?</DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Escribe detalladamente los motivos del rechazo. El tutor recibirá una notificación con este motivo para poder corregir su propuesta.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Input
+              value={motivoRechazo}
+              onChange={(e) => setMotivoRechazo(e.target.value)}
+              placeholder="Ingresa el motivo del rechazo del evento..."
+              className="h-12"
+            />
           </div>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleRechazar}>Confirmar Rechazo</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          {/* Emitir */}
-          <button onClick={emitirConstancias}
-            disabled={!signatureUrl || approvedCount===0}
-            className="w-full py-3.5 bg-[#004B87] hover:bg-[#003366] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2">
-            <Stamp className="h-5 w-5"/>
-            Emitir {approvedCount} constancia{approvedCount!==1?"s":""} certificada{approvedCount!==1?"s":""}
-          </button>
-        </>
-      )}
-
-      <SealAnimation visible={sealed}/>
-
-      {sealed && (
-        <div className="flex justify-center">
-          <button onClick={()=>toast.success("Descargando todas las constancias...")}
-            className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-sm transition-colors">
-            <Download className="h-5 w-5"/>Descargar todas las constancias
-          </button>
-        </div>
-      )}
+      {/* Lightbox dialog */}
+      <Dialog open={selectedImage !== null} onOpenChange={(v) => !v && setSelectedImage(null)}>
+        <DialogContent className="max-w-3xl p-1 bg-black/10 border-none flex items-center justify-center">
+          {selectedImage && (
+            <div className="relative w-full max-h-[80vh] flex items-center justify-center bg-transparent">
+              <img src={selectedImage} alt="Vista ampliada" className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-lg" />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

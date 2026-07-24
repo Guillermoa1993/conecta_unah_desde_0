@@ -1,10 +1,12 @@
 import { EventoRepository } from '../../domain/repositories/EventoRepository';
 import { NotificacionRepository } from '../../domain/repositories/NotificacionRepository';
+import { UsuarioRepository } from '../../domain/repositories/UsuarioRepository';
 
 export class AprobarRechazarEvento {
   constructor(
     private readonly eventoRepo: EventoRepository,
     private readonly notificacionRepo: NotificacionRepository,
+    private readonly usuarioRepo: UsuarioRepository,
   ) {}
 
   async aprobar(evento_id: string, aprobado_por: string) {
@@ -19,6 +21,20 @@ export class AprobarRechazarEvento {
       mensaje: `Tu evento "${evento.titulo}" fue aprobado y ya está publicado.`,
       tipo: 'EVENTO_APROBADO',
     });
+
+    // Avisar a todos los estudiantes que hay un evento nuevo disponible
+    const estudiantes = await this.usuarioRepo.findAll({ rol: 'ESTUDIANTE' });
+    await Promise.all(
+      estudiantes.map((estudiante) =>
+        this.notificacionRepo.crear({
+          usuario_id: estudiante.id_usuario,
+          mensaje: `Nuevo evento disponible: "${evento.titulo}"`,
+          tipo: 'EVENTO_DISPONIBLE',
+          referencia_tipo: 'EVENTO',
+          referencia_id: Number(evento.id),
+        }),
+      ),
+    );
 
     return actualizado;
   }

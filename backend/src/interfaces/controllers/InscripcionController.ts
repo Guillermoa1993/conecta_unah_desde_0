@@ -35,4 +35,15 @@ export class InscripcionController {
       res.json({ message: 'Inscripción cancelada exitosamente' });
     } catch (err) { next(err); }
   };
+
+  cambiarEstado = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const updated = await this.inscripcionRepo.cambiarEstado(String(req.params.id), req.body.estado);
+      if (!updated) {
+        res.status(404).json({ message: 'Inscripción no encontrada' });
+        return;
+      }
+      res.json(updated);
+    } catch (err) { next(err); }
+  };
 }

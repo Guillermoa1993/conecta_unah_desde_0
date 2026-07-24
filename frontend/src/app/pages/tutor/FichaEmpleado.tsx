@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, useBlocker } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -7,6 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { toast } from "sonner";
 import { User, GraduationCap, Camera, CheckCircle2, Save, FileText, ArrowLeft, ArrowRight, ClipboardCheck, Scan, ShieldCheck, ShieldAlert, RefreshCw, AlertTriangle, FileSignature, Layers, Fingerprint } from "lucide-react";
 import Tesseract from "tesseract.js";
+import * as faceapi from '@vladmandic/face-api';
+
+const MODEL_URL = "https://vladmandic.github.io/face-api/model";
 
 interface EmpleadoFormData {
   nombre: string;
@@ -19,46 +22,25 @@ interface EmpleadoFormData {
   foto: string | null;
 }
 
-const UNAH_DEPARTAMENTOS = [
-  // Departamentos Académicos
-  "Departamento de Informática Administrativa",
-  "Departamento de Matemática y Física",
-  "Departamento de Ciencias de la Computación",
-  "Departamento de Ingeniería Civil",
-  "Departamento de Ingeniería Eléctrica e Industrial",
-  "Departamento de Química e Ingeniería Química",
-  "Departamento de Biología",
-  "Departamento de Medicina",
-  "Departamento de Odontología",
-  "Departamento de Ciencias Jurídicas",
-  "Departamento de Ciencias Económicas",
-  "Departamento de Ciencias Sociales",
-  "Departamento de Trabajo Social",
-  "Departamento de Historia y Geografía",
-  "Departamento de Filosofía",
-  "Departamento de Letras",
-  "Departamento de Arte",
-  "Departamento de Ciencias Espaciales",
-  // Dependencias Administrativas
-  "Vicerrectoría Académica",
-  "Vicerrectoría de Orientación y Asuntos Estudiantiles (VOAE)",
-  "Dirección de Docencia",
-  "Dirección de Investigación Científica y Postgrado (DICYP)",
-  "Dirección de Vinculación Universidad-Sociedad",
-  "Secretaría General",
-  "Dirección de Planificación y Evaluación de la Educación Superior",
-  "Unidad de Tecnología Educativa e Innovación Pedagógica (UTEIP)",
-  "Sistema de Administración de Documentos (SINADOC)",
-  "Dirección Ejecutiva de Gestión de Recursos Humanos",
-  "Dirección de Finanzas",
-  "Dirección de Servicios Generales",
-  "Auditoría Interna",
-  "Unidad de Comunicación Institucional",
-  "Biblioteca y Servicios de Información",
-  "Bienestar Universitario",
-  "Otra Dependencia / Área Administrativa",
-];
+const PAISES_TELEFONO: Record<string, { digitos: number; conGuion: boolean }> = {
+  "+504": { digitos: 8, conGuion: true },
+  "+503": { digitos: 8, conGuion: true },
+  "+502": { digitos: 8, conGuion: true },
+  "+505": { digitos: 8, conGuion: true },
+  "+506": { digitos: 8, conGuion: true },
+  "+507": { digitos: 8, conGuion: true },
+  "+1": { digitos: 10, conGuion: false },
+  "+52": { digitos: 10, conGuion: false },
+  "+34": { digitos: 9, conGuion: false },
+  "+57": { digitos: 10, conGuion: false },
+};
 
+function formatearTelefono(digitos: string, conGuion: boolean): string {
+  if (conGuion && digitos.length > 4) {
+    return `${digitos.slice(0, 4)}-${digitos.slice(4)}`;
+  }
+  return digitos;
+}
 
 export function FichaEmpleado() {
   const location = useLocation();
@@ -68,6 +50,7 @@ export function FichaEmpleado() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1); // 1: Personales, 2: Laborales, 3: Foto, 4: Verificación
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
+  const [departamentos, setDepartamentos] = useState<{ id_departamento: number; nombre: string; facultad: string }[]>([]);
   const [otpCode, setOtpCode] = useState("");
   const [showTerms, setShowTerms] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -86,6 +69,18 @@ export function FichaEmpleado() {
   // Local email split states
   const [correoUsuario, setCorreoUsuario] = useState("");
   const [correoDominio, setCorreoDominio] = useState("@unah.edu.hn");
+  const [correoYaExiste, setCorreoYaExiste] = useState(false);
+
+  useEffect(() => {
+    setFormData((prev) => ({ ...prev, correo: `${correoUsuario.trim()}${correoDominio}` }));
+  }, [correoUsuario, correoDominio]);
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/catalogos/departamentos")
+      .then((res) => res.json())
+      .then((data) => setDepartamentos(data))
+      .catch(() => toast.error("No se pudieron cargar los departamentos"));
+  }, []);
 
   useEffect(() => {
     setFormData((prev) => ({ ...prev, correo: `${correoUsuario.trim()}${correoDominio}` }));
@@ -159,6 +154,16 @@ export function FichaEmpleado() {
   const [similarityScore, setSimilarityScore] = useState<number | null>(null);
   const [scanProgress, setScanProgress] = useState(0);
   const [scanStepName, setScanStepName] = useState("");
+
+  useEffect(() => {
+    Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+    ]).catch(() => {
+      toast.error("No se pudieron cargar los modelos de verificación facial.");
+    });
+  }, []);
   const [validationDetails, setValidationDetails] = useState<{
     aspectRatio: number;
     aspectRatioOk: boolean;
@@ -204,7 +209,11 @@ export function FichaEmpleado() {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    let value = e.target.value;
+    if (e.target.name === "nombre") {
+      value = value.toUpperCase();
+    }
+    setFormData({ ...formData, [e.target.name]: value });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -225,12 +234,19 @@ export function FichaEmpleado() {
 
   // Validaciones antes de avanzar de paso
   const isStep1Valid = () => {
-    const correoValido = formData.correo.trim().toLowerCase().endsWith("@unah.edu.hn") && correoUsuario.trim() !== "";
+    const correoValido =
+      formData.correo.trim().toLowerCase().endsWith("@unah.edu.hn") &&
+      correoUsuario.trim() !== "";
+
+    const nombrePalabras = formData.nombre.trim().split(/\s+/).filter(w => w.length > 0);
+    const nombreValido = nombrePalabras.length >= 3;
+
     return (
-      formData.nombre.trim() !== "" &&
+      nombreValido &&
       formData.telefono.trim() !== "" &&
       correoValido &&
-      formData.genero !== ""
+      formData.genero !== "" &&
+      !correoYaExiste
     );
   };
 
@@ -286,49 +302,80 @@ export function FichaEmpleado() {
 
   const handleSendOtp = async () => {
     setEnviando(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setEnviando(false);
-    setShowOtp(true);
-    toast.success("Se ha enviado un código de verificación a su correo institucional.");
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/otp-registro/enviar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ correo: formData.correo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "No se pudo enviar el código");
+
+      setEnviando(false);
+      setShowOtp(true);
+      toast.success("Se ha enviado un código de verificación a su correo institucional.");
+    } catch (err) {
+      setEnviando(false);
+      toast.error(err instanceof Error ? err.message : "Error al enviar el código");
+    }
   };
 
-  const handleVerifySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleVerifySubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (otpCode.length < 4) {
       toast.error("Por favor ingrese el código completo.");
       return;
     }
     setEnviando(true);
-    // Simular guardado de base de datos
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    console.log("Datos del empleado enviados a PostgreSQL con Carnet verificado:", {
-      ...formData,
-      telefono: `${codigoPais} ${formData.telefono}`,
-      forma003
-    });
-    setEnviando(false);
-    setShowConfirmModal(false);
-    setExito(true);
-    toast.success("¡Ficha de empleado guardada y cuenta verificada correctamente!");
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/registro-empleado", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: formData.nombre,
+          correo: formData.correo,
+          telefono: `${codigoPais} ${formData.telefono}`,
+          genero: formData.genero,
+          numeroEmpleado: formData.numeroEmpleado,
+          facultad: formData.facultad,
+          centroRegional: formData.centroRegional,
+          foto_url: formData.foto,
+          forma003_base64: forma003,
+          codigoOtp: otpCode,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "No se pudo guardar el registro");
+
+      setEnviando(false);
+      setShowConfirmModal(false);
+      setShowOtp(false);
+      toast.success("¡Ficha de empleado guardada y cuenta verificada correctamente!");
+      navigate("/", { state: { email: formData.correo } });
+    } catch (err) {
+      setEnviando(false);
+      toast.error(err instanceof Error ? err.message : "Ocurrió un error al guardar los datos. Intenta de nuevo.");
+    }
   };
 
-  // Crops the photo region from the uploaded employee card (Photo is on the left)
+  // Crops the photo region from the uploaded employee card (Photo is on the right)
   const cropDocumentPhoto = (base64: string): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d')!;
-        
-        // Employee card photo region: ~4% to 42% width, ~25% to 80% height (left side)
-        let cropX = img.naturalWidth * 0.04;
-        let cropY = img.naturalHeight * 0.25;
-        let cropW = img.naturalWidth * 0.38;
-        let cropH = img.naturalHeight * 0.55;
-        
+
+        // Employee card photo region: ~70% to 95% width, ~8% to 58% height (right-aligned)
+        let cropX = img.naturalWidth * 0.70;
+        let cropY = img.naturalHeight * 0.08;
+        let cropW = img.naturalWidth * 0.25;
+        let cropH = img.naturalHeight * 0.50;
+
         canvas.width = 120;
         canvas.height = 150;
-        
+
         ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, 120, 150);
         resolve(canvas.toDataURL('image/jpeg'));
       };
@@ -336,6 +383,120 @@ export function FichaEmpleado() {
       img.src = base64;
     });
   };
+
+  const cargarImagenElemento = (base64: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("No se pudo cargar la imagen para el cotejo facial."));
+      img.src = base64;
+    });
+  };
+
+  const compararRostros = async (
+    fotoPerfilBase64: string,
+    fotoDocumentoBase64: string
+  ): Promise<{ docTieneFoto: boolean; coincide: boolean; similitud: number }> => {
+    const opciones = new faceapi.TinyFaceDetectorOptions({
+      inputSize: 320,
+      scoreThreshold: 0.3
+    });
+
+    const imgPerfil = await cargarImagenElemento(fotoPerfilBase64);
+
+    const rostroPerfil = await faceapi
+      .detectSingleFace(imgPerfil, opciones)
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    if (!rostroPerfil) {
+      throw new Error("No se detectó un rostro claro en tu fotografía de perfil.");
+    }
+
+    const imgDocumento = await cargarImagenElemento(fotoDocumentoBase64);
+
+    const rostroDocumento = await faceapi
+      .detectSingleFace(imgDocumento, opciones)
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    if (!rostroDocumento) {
+      return {
+        docTieneFoto: false,
+        coincide: true,
+        similitud: 0
+      };
+    }
+
+    const distancia = faceapi.euclideanDistance(
+      rostroPerfil.descriptor,
+      rostroDocumento.descriptor
+    );
+
+    const coincide = distancia < 0.6;
+    const similitud = Math.max(
+      0,
+      Math.round((1 - distancia) * 100)
+    );
+
+    return {
+      docTieneFoto: true,
+      coincide,
+      similitud
+    };
+  };
+
+  /**
+   * Preprocesa la imagen del carné para mejorar la lectura del OCR: la agranda,
+   * la convierte a escala de grises, invierte si el fondo es oscuro (como el carné azul)
+   * y aumenta el contraste (binarización), para que el texto resalte mucho más.
+   */
+  const preprocesarImagenParaOcr = (base64: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const escala = 2; // agrandamos la imagen para que el texto tenga más resolución
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth * escala;
+        canvas.height = img.naturalHeight * escala;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        // Paso 1: escala de grises + calcular brillo promedio
+        let sumaBrillo = 0;
+        const brillos: number[] = new Array(data.length / 4);
+        for (let i = 0; i < data.length; i += 4) {
+          const brillo = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+          brillos[i / 4] = brillo;
+          sumaBrillo += brillo;
+        }
+        const brilloPromedio = sumaBrillo / brillos.length;
+        // Si el fondo es oscuro (como el carné azul), invertimos para que el texto quede oscuro sobre fondo claro
+        const invertir = brilloPromedio < 128;
+
+        // Paso 2: binarizar (blanco y negro puro) usando el brillo promedio como umbral
+        for (let i = 0; i < data.length; i += 4) {
+          let brillo = brillos[i / 4];
+          if (invertir) brillo = 255 - brillo;
+          const valor = brillo > brilloPromedio ? 255 : 0;
+          data[i] = valor;
+          data[i + 1] = valor;
+          data[i + 2] = valor;
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = () => resolve(base64); // si falla, usamos la imagen original
+      img.src = base64;
+    });
+  };
+
+
 
   // Analiza la imagen con Canvas API para verificar la estructura visual y proporciones
   const analyzeImageAsDocument = (base64: string): Promise<{
@@ -372,11 +533,11 @@ export function FichaEmpleado() {
         ctx.drawImage(img, 0, 0, sampleW, sampleH);
         const data = ctx.getImageData(0, 0, sampleW, sampleH).data;
 
-        // 1. Región de la Foto de Perfil (costado izquierdo: X: 4% - 42%, Y: 25% - 80%)
-        const photoX = Math.round(0.04 * sampleW);
-        const photoY = Math.round(0.25 * sampleH);
-        const photoW = Math.round(0.38 * sampleW);
-        const photoH = Math.round(0.55 * sampleH);
+        // 1. Región de la Foto de Perfil (costado derecho: X: 70% - 95%, Y: 8% - 58%)
+        const photoX = Math.round(0.70 * sampleW);
+        const photoY = Math.round(0.08 * sampleH);
+        const photoW = Math.round(0.25 * sampleW);
+        const photoH = Math.round(0.50 * sampleH);
         let photoSum = 0;
         let photoSqSum = 0;
         let photoCount = 0;
@@ -385,7 +546,7 @@ export function FichaEmpleado() {
           for (let x = photoX; x < photoX + photoW; x++) {
             const idx = (y * sampleW + x) * 4;
             if (idx < data.length) {
-              const r = data[idx], g = data[idx+1], b = data[idx+2];
+              const r = data[idx], g = data[idx + 1], b = data[idx + 2];
               const val = (r + g + b) / 3;
               photoSum += val;
               photoSqSum += val * val;
@@ -397,11 +558,11 @@ export function FichaEmpleado() {
         const photoVariance = (photoSqSum / (photoCount || 1)) - (photoMean * photoMean);
         const photoDetected = photoVariance > 250;
 
-        // 2. Región del Código QR (abajo a la derecha: X: 65% - 98%, Y: 65% - 98%)
-        const qrX = Math.round(0.65 * sampleW);
-        const qrY = Math.round(0.65 * sampleH);
-        const qrW = Math.round(0.33 * sampleW);
-        const qrH = Math.round(0.33 * sampleH);
+        // 2. Región del Código o Sello/Logo (arriba a la izquierda: X: 4% - 22%, Y: 8% - 40%)
+        const qrX = Math.round(0.04 * sampleW);
+        const qrY = Math.round(0.08 * sampleH);
+        const qrW = Math.round(0.18 * sampleW);
+        const qrH = Math.round(0.32 * sampleH);
         let qrTransitions = 0;
         let qrRowsChecked = 0;
 
@@ -411,7 +572,7 @@ export function FichaEmpleado() {
           for (let x = qrX; x < qrX + qrW; x++) {
             const idx = (y * sampleW + x) * 4;
             if (idx < data.length) {
-              const r = data[idx], g = data[idx+1], b = data[idx+2];
+              const r = data[idx], g = data[idx + 1], b = data[idx + 2];
               const val = (r + g + b) / 3 > 128 ? 1 : 0;
               if (prevVal !== -1 && val !== prevVal) {
                 rowTransitions++;
@@ -425,17 +586,17 @@ export function FichaEmpleado() {
         const avgQrTransitions = qrTransitions / (qrRowsChecked || 1);
         const qrDetected = (avgQrTransitions > 3.0);
 
-        // 3. Región de Estructura / Código de barras (bottom center-left)
+        // 3. Región de Estructura (Y: 38% - 90%, X: 4% - 66%)
         let tableLinesCount = 0;
-        const startY = Math.round(sampleH * 0.70);
+        const startY = Math.round(sampleH * 0.38);
         const endY = Math.round(sampleH * 0.90);
         for (let y = startY; y < endY; y += 2) {
           let darkPixels = 0;
           let totalInRow = 0;
-          for (let x = Math.round(sampleW * 0.25); x < Math.round(sampleW * 0.65); x++) {
+          for (let x = Math.round(sampleW * 0.05); x < Math.round(sampleW * 0.65); x++) {
             const idx = (y * sampleW + x) * 4;
             if (idx < data.length) {
-              const r = data[idx], g = data[idx+1], b = data[idx+2];
+              const r = data[idx], g = data[idx + 1], b = data[idx + 2];
               const brightness = (r + g + b) / 3;
               if (brightness < 160) {
                 darkPixels++;
@@ -536,10 +697,14 @@ export function FichaEmpleado() {
 
       // Paso 2: Procesar OCR con Tesseract.js
       setScanProgress(45);
+      setScanStepName("Mejorando imagen para lectura OCR...");
+
+      const imagenParaOcr = await preprocesarImagenParaOcr(forma003);
+
       setScanStepName("Ejecutando OCR para lectura de texto oficial (esto puede demorar unos segundos)...");
 
       const ocrResult = await Tesseract.recognize(
-        forma003,
+        imagenParaOcr,
         'spa',
         {
           logger: (m) => {
@@ -550,6 +715,8 @@ export function FichaEmpleado() {
           }
         }
       );
+
+      console.log("RESULTADO OCR COMPLETO:", ocrResult.data.text);
 
       const ocrText = ocrResult.data.text;
       const cleanText = ocrText.toLowerCase();
@@ -581,36 +748,43 @@ export function FichaEmpleado() {
 
       // Paso 4: Validar coincidencia de datos del empleado registrados
       setScanProgress(80);
-      setScanStepName("Cotejando coherencia con los datos del perfil del empleado...");
 
-      // Comparación de nombre tolerante a fallas OCR y diferencias menores (ej: Giancarlos vs Giancarlo)
-      const nameParts = formData.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/\s+/).filter(w => w.length > 2);
-      const normalizedOcrText = cleanText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      
-      // Contar cuántas partes del nombre ingresado se encuentran (parcialmente) en el texto del OCR
+      // Normalizar OCR: colapsar saltos de línea en espacios para mejorar búsqueda de nombres
+      const normalizedOcrText = cleanText
+        .replace(/[\r\n]+/g, " ")
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+
+
+      const nameParts = formData.nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(/\s+/).filter(w => w.length > 2);
+
       let matchingNameParts = 0;
       nameParts.forEach(part => {
-        // Remover la última letra por si acaso hay plurales/errores tipográficos como Giancarlo vs Giancarlos
         const corePart = part.length > 4 ? part.substring(0, part.length - 1) : part;
         if (normalizedOcrText.includes(part) || normalizedOcrText.includes(corePart)) {
           matchingNameParts++;
         }
       });
-      
+
+      console.log("TEXTO OCR CARNET:", normalizedOcrText);
+      console.log("NOMBRE FORMULARIO:", formData.nombre);
+      console.log("PARTES DEL NOMBRE:", nameParts);
+      console.log("PARTES ENCONTRADAS:", matchingNameParts);
+
       // Con que coincida al menos 2 partes del nombre o el 50% de las partes ingresadas, se considera válido
       const nameMatchOk = nameParts.length > 0 ? (matchingNameParts >= Math.min(2, nameParts.length)) : true;
 
       // Comparación de número de empleado estricta
       const employeeNumClean = formData.numeroEmpleado.trim().replace(/\D/g, '');
       const ocrDigitsOnly = normalizedOcrText.replace(/\D/g, '');
-      
-      // El número debe coincidir en el OCR, o si es el carnet de prueba con el número correcto 12599 se aprueba directamente
-      let employeeNumMatchOk = false;
-      if (employeeNumClean === "12599") {
-        employeeNumMatchOk = true;
-      } else {
-        employeeNumMatchOk = employeeNumClean.length > 0 && ocrDigitsOnly.includes(employeeNumClean);
-      }
+
+      // Comparación estricta del número de empleado contra el OCR del carnet
+      const employeeNumMatchOk =
+        employeeNumClean.length > 0 &&
+        ocrDigitsOnly.includes(employeeNumClean);
 
       // Comparación de departamento (normalizando tildes y buscando palabras clave principales)
       const facultyClean = formData.facultad.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -623,21 +797,31 @@ export function FichaEmpleado() {
       // Si coincide al menos una palabra clave principal del departamento, se aprueba
       const facultyMatchOk = facultyWords.length > 0 ? (facultyMatches >= 1) : true;
 
+
+      if (!employeeNumMatchOk) {
+        detectedErrors.push(
+          `Número de Empleado incorrecto: el número ingresado (${formData.numeroEmpleado}) no coincide con el número del carnet.`
+        );
+      }
+
+      if (!nameMatchOk) {
+        detectedErrors.push(
+          `Nombre de Empleado incorrecto: el nombre ingresado (${formData.nombre}) no coincide con el nombre del carnet.`
+        );
+      }
+
       let dataMatchCount = 0;
       if (employeeNumMatchOk) dataMatchCount++;
 
       const dataMatchScore = employeeNumMatchOk ? 100 : 0;
 
-      if (!employeeNumMatchOk) {
-        detectedErrors.push(
-          `Número de Empleado incorrecto: el número ingresado (${formData.numeroEmpleado}) no se pudo constatar en el carnet.`
-        );
-      }
+
 
       // Paso 5: Cotejo Facial Biométrico (Requisito Crítico)
       setScanProgress(90);
       setScanStepName("Realizando cotejo facial biométrico con foto de perfil...");
-      
+      console.log("PASO 5: Entrando al cotejo facial");
+
       let faceMatchScore = 0;
       let faceMatchOk = false;
       let croppedPhotoUrl = "";
@@ -649,8 +833,9 @@ export function FichaEmpleado() {
         await new Promise(r => setTimeout(r, 600));
 
         setScanStepName("Analizando similitud facial y patrones biométricos...");
-        faceMatchScore = Math.round(92 + (formData.nombre.length % 5) + Math.random() * 1.2);
-        faceMatchOk = faceMatchScore >= 85;
+        const resultado = await compararRostros(formData.foto, croppedPhotoUrl);
+        faceMatchScore = resultado.similitud;
+        faceMatchOk = resultado.coincide;
         setFaceSimilarityScore(faceMatchScore);
         await new Promise(r => setTimeout(r, 600));
       } else {
@@ -662,8 +847,8 @@ export function FichaEmpleado() {
       }
 
       if (!faceMatchOk && analysis.photoDetected) {
-        detectedErrors.push(
-          "Verificación Facial incorrecta: la foto de perfil no coincide biométricamente con la imagen extraída del carnet de empleado."
+        console.log(
+          "Aviso biométrico: la similitud facial es baja, pero no bloquea la validación del carnet."
         );
       }
 
@@ -681,7 +866,7 @@ export function FichaEmpleado() {
       const dMatchStatus = [
         { label: "Número de Empleado", ok: employeeNumMatchOk, val: formData.numeroEmpleado },
         { label: "Nombre de Empleado", ok: nameMatchOk, val: formData.nombre },
-        { label: "Facultad / Dependencia", ok: facultyMatchOk, val: formData.facultad }
+        { label: "Departamento / Dependencia", ok: facultyMatchOk, val: formData.facultad }
       ];
 
       setValidationDetails({
@@ -699,12 +884,29 @@ export function FichaEmpleado() {
       });
 
       // El carnet se aprueba si cumple la estructura (layout, foto, qr), el número de empleado y la foto biométrica facial
-      const shouldApprove = analysis.aspectRatioOk && analysis.photoDetected && analysis.qrDetected && employeeNumMatchOk && faceMatchOk;
+      // El carnet se aprueba si cumple la estructura básica, el número de empleado y el nombre
+      const shouldApprove =
+        analysis.aspectRatioOk &&
+        analysis.qrDetected &&
+        employeeNumMatchOk &&
+        nameMatchOk;
+
+      console.log("ERRORES DETECTADOS:", detectedErrors);
 
       if (shouldApprove) {
         setErrors([]);
         setForma003Status('verified');
-        toast.success(`¡Carnet de empleado verificado y validado biométricamente! Similitud: ${finalSimilarity}%`);
+        toast.success(`¡Carnet de empleado verificado correctamente! Similitud general: ${finalSimilarity}%`);
+      } else {
+        setErrors(detectedErrors);
+        setForma003Status('failed');
+        toast.error(`La verificación del carnet ha fallado.`);
+      }
+
+      if (shouldApprove) {
+        setErrors([]);
+        setForma003Status('verified');
+        toast.success(`¡Carnet de empleado verificado correctamente! Similitud general: ${finalSimilarity}%`);
       } else {
         setErrors(detectedErrors);
         setForma003Status('failed');
@@ -719,39 +921,105 @@ export function FichaEmpleado() {
     }
   };
 
+  const handleStepClick = (targetStep: number) => {
+    // Si es el paso actual, no hacer nada
+    if (targetStep === step) return;
+
+    // Si es un paso anterior, regresar libremente
+    if (targetStep < step) {
+      setStep(targetStep as 1 | 2 | 3 | 4);
+      return;
+    }
+
+    // Si intenta avanzar, validar
+    if (!canNavigateToStep(targetStep)) {
+      const msgs: Record<number, string> = {
+        2: "Completa los datos personales antes de continuar.",
+        3: "Completa los datos laborales antes de continuar.",
+        4: "Carga tu fotografía antes de continuar.",
+      };
+
+      toast.error(msgs[targetStep] ?? "Completa el paso actual primero.");
+      return;
+    }
+
+    setStep(targetStep as 1 | 2 | 3 | 4);
+  };
+
+  const canNavigateToStep = (targetStep: number): boolean => {
+    if (targetStep === step) return false;
+
+    if (targetStep < step) return true;
+
+    for (let s = step; s < targetStep; s++) {
+
+      if (s === 1 && !isStep1Valid()) return false;
+
+      if (s === 2 && !isStep2Valid()) return false;
+
+      if (s === 3 && !isStep3Valid()) return false;
+
+      if (s === 4 && !isStep4Valid()) return false;
+    }
+
+    return true;
+  };
+
   const stepProgressBar = (
     <div className="flex items-center justify-between max-w-lg mx-auto mb-8 relative px-2">
       {/* Background Line */}
       <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-slate-200 -translate-y-1/2 z-0" />
+
       {/* Active Fill Line */}
-      <div 
-        className="absolute top-1/2 left-0 h-0.5 bg-[#004B87] -translate-y-1/2 transition-all duration-300 z-0" 
+      <div
+        className="absolute top-1/2 left-0 h-0.5 bg-[#004B87] -translate-y-1/2 transition-all duration-300 z-0"
         style={{ width: `${((step - 1) / 3) * 100}%` }}
       />
-      
+
       {[
         { label: "Personal", num: 1 },
         { label: "Laboral", num: 2 },
         { label: "Fotografía", num: 3 },
         { label: "Carnet", num: 4 }
-      ].map((s) => (
-        <div key={s.num} className="flex flex-col items-center z-10">
-          <div 
-            className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${
-              step >= s.num 
-                ? "bg-[#004B87] text-white shadow-md shadow-[#004B87]/20" 
-                : "bg-white text-slate-400 border-2 border-slate-200"
-            }`}
+      ].map((s) => {
+        const isActive = step >= s.num;
+        const isCurrent = step === s.num;
+
+        return (
+          <button
+            key={s.num}
+            type="button"
+            onClick={() => handleStepClick(s.num)}
+            title={
+              isCurrent
+                ? `Paso ${s.num}: ${s.label} (actual)`
+                : s.num < step
+                  ? `Volver al Paso ${s.num}: ${s.label}`
+                  : `Ir al Paso ${s.num}: ${s.label}`
+            }
+            className={`flex flex-col items-center z-10 bg-transparent border-0 p-0 transition-transform ${isCurrent
+              ? "cursor-default"
+              : "cursor-pointer hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[#FFD100] focus:ring-offset-2 rounded-full"
+              }`}
           >
-            {s.num}
-          </div>
-          <span className={`text-[10px] font-bold mt-1 tracking-wider uppercase ${
-            step >= s.num ? "text-[#004B87]" : "text-slate-400"
-          }`}>
-            {s.label}
-          </span>
-        </div>
-      ))}
+            <div
+              className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${isActive
+                ? "bg-[#004B87] text-white shadow-md shadow-[#004B87]/20"
+                : "bg-white text-slate-400 border-2 border-slate-200"
+                }`}
+            >
+              {s.num}
+            </div>
+
+            <span
+              className={`text-[10px] font-bold mt-1 tracking-wider uppercase ${isActive ? "text-[#004B87]" : "text-slate-400"
+                }`}
+            >
+              {s.label}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 
@@ -833,9 +1101,24 @@ export function FichaEmpleado() {
                     required
                     placeholder="Ej. Juan Carlos Pérez López"
                     value={formData.nombre}
-                    onChange={handleChange}
+                    onChange={(e) => {
+                      const soloLetras = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, "");
+                      handleChange({
+                        ...e,
+                        target: { ...e.target, name: "nombre", value: soloLetras },
+                      } as React.ChangeEvent<HTMLInputElement>);
+                    }}
                     className="h-11 rounded-lg bg-slate-50 focus-visible:ring-[#FFD100] border-slate-200 text-[#003366]"
                   />
+
+                  {formData.nombre && formData.nombre.trim().split(/\s+/).filter(w => w.length > 0).length < 3 && (
+                    <p className="text-xs text-red-500 font-medium mt-1">
+                      ⚠ Ingresa al menos 3 nombres/apellidos ({formData.nombre.trim().split(/\s+/).filter(w => w.length > 0).length}/3)
+                    </p>
+                  )}
+                  {formData.nombre.trim().split(/\s+/).filter(w => w.length > 0).length >= 3 && (
+                    <p className="text-xs text-emerald-600 font-medium mt-1">✓ Nombre completo válido</p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -864,15 +1147,31 @@ export function FichaEmpleado() {
                         type="text"
                         name="telefono"
                         required
-                        placeholder="99999999"
-                        value={formData.telefono}
+                        placeholder={PAISES_TELEFONO[codigoPais].conGuion ? "9999-9999" : "9999999999"}
+                        maxLength={PAISES_TELEFONO[codigoPais].digitos + (PAISES_TELEFONO[codigoPais].conGuion ? 1 : 0)}
+                        value={formatearTelefono(formData.telefono, PAISES_TELEFONO[codigoPais].conGuion)}
                         onChange={(e) => {
-                          e.target.value = e.target.value.replace(/\D/g, "");
-                          handleChange(e);
+                          const maxDigitos = PAISES_TELEFONO[codigoPais].digitos;
+                          const digits = e.target.value.replace(/\D/g, "").slice(0, maxDigitos);
+                          const fakeEvent = { ...e, target: { ...e.target, name: "telefono", value: digits } };
+                          handleChange(fakeEvent as React.ChangeEvent<HTMLInputElement>);
                         }}
-                        className="h-11 flex-1 rounded-lg bg-slate-50 focus-visible:ring-[#FFD100] border-slate-200 text-[#003366]"
+                        className={`h-11 flex-1 rounded-lg bg-slate-50 focus-visible:ring-[#FFD100] border-slate-200 text-[#003366] ${formData.telefono && formData.telefono.length !== PAISES_TELEFONO[codigoPais].digitos
+                          ? "border-red-400 focus-visible:ring-red-400"
+                          : formData.telefono.length === PAISES_TELEFONO[codigoPais].digitos
+                            ? "border-emerald-400"
+                            : ""
+                          }`}
                       />
                     </div>
+                    {formData.telefono && formData.telefono.length !== PAISES_TELEFONO[codigoPais].digitos && (
+                      <p className="text-xs text-red-500 font-medium mt-1">
+                        ⚠ El número debe tener exactamente {PAISES_TELEFONO[codigoPais].digitos} dígitos ({formData.telefono.length}/{PAISES_TELEFONO[codigoPais].digitos})
+                      </p>
+                    )}
+                    {formData.telefono.length === PAISES_TELEFONO[codigoPais].digitos && (
+                      <p className="text-xs text-emerald-600 font-medium mt-1">✓ Número válido</p>
+                    )}
                   </div>
                 </div>
 
@@ -887,21 +1186,16 @@ export function FichaEmpleado() {
                       placeholder="nombre.apellido"
                       value={correoUsuario}
                       onChange={(e) => setCorreoUsuario(e.target.value)}
-                      className={`h-11 flex-1 rounded-lg bg-slate-50 focus-visible:ring-[#FFD100] border-slate-200 text-[#003366] ${
-                        correoUsuario && !(correoDominio === "@unah.hn" || correoDominio === "@unah.edu.hn")
-                          ? "border-red-400 focus-visible:ring-red-400"
-                          : correoUsuario
+                      className={`h-11 flex-1 rounded-lg bg-slate-50 focus-visible:ring-[#FFD100] border-slate-200 text-[#003366] ${correoUsuario && !(correoDominio === "@unah.hn" || correoDominio === "@unah.edu.hn")
+                        ? "border-red-400 focus-visible:ring-red-400"
+                        : correoUsuario
                           ? "border-emerald-400"
                           : ""
-                      }`}
+                        }`}
                     />
-                    <select
-                      value={correoDominio}
-                      onChange={(e) => setCorreoDominio(e.target.value)}
-                      className="h-11 px-3 rounded-lg bg-slate-50 border border-slate-200 text-[#003366] text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD100]/50 focus:border-[#FFD100] font-bold"
-                    >
-                      <option value="@unah.edu.hn">@unah.edu.hn (Personal / Empleado)</option>
-                    </select>
+                    <div className="h-11 px-3 rounded-lg border border-slate-200 bg-slate-100 text-[#004B87] text-sm font-bold flex items-center select-none whitespace-nowrap">
+                      @unah.edu.hn
+                    </div>
                   </div>
                   {formData.correo && !formData.correo.toLowerCase().endsWith("@unah.edu.hn") && (
                     <p className="text-xs text-red-500 font-medium">⚠ El correo debe terminar en @unah.edu.hn</p>
@@ -923,11 +1217,10 @@ export function FichaEmpleado() {
                     ].map((opt) => (
                       <label
                         key={opt.value}
-                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer text-sm font-medium transition-all select-none ${
-                          formData.genero === opt.value
-                            ? "border-[#FFD100] bg-[#FFD100]/5 text-[#e8920a] font-bold"
-                            : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600"
-                        }`}
+                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer text-sm font-medium transition-all select-none ${formData.genero === opt.value
+                          ? "border-[#FFD100] bg-[#FFD100]/5 text-[#e8920a] font-bold"
+                          : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600"
+                          }`}
                       >
                         <input
                           type="radio"
@@ -988,10 +1281,10 @@ export function FichaEmpleado() {
                       onChange={handleChange}
                       className="w-full h-11 px-3 rounded-lg bg-slate-50 border border-slate-200 text-[#003366] text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD100]/50 focus:border-[#FFD100] font-medium"
                     >
-                      <option value="">Selecciona tu departamento / dependencia...</option>
-                      {UNAH_DEPARTAMENTOS.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
+                      <option value="">Selecciona tu departamento...</option>
+                      {departamentos.map((d) => (
+                        <option key={d.id_departamento} value={d.nombre}>
+                          {d.nombre}
                         </option>
                       ))}
                     </select>
@@ -1112,7 +1405,10 @@ export function FichaEmpleado() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                   {/* LEFT: Upload image box */}
                   <div className="lg:col-span-7 space-y-4">
-                    <div className="group relative border-2 border-dashed border-slate-200 hover:border-[#004B87]/50 rounded-xl overflow-hidden bg-slate-50/50 transition-colors duration-300">
+                    <div
+                      className="group relative border-2 border-dashed border-slate-200 hover:border-[#004B87]/50 rounded-xl overflow-hidden bg-slate-50/50 transition-colors duration-300 cursor-pointer"
+                      onClick={() => document.getElementById("forma003-upload")?.click()}
+                    >
                       {forma003 ? (
                         <div className="relative aspect-[1.58] max-w-md mx-auto overflow-hidden rounded-lg bg-black flex items-center justify-center shadow-inner">
                           <img
@@ -1130,7 +1426,7 @@ export function FichaEmpleado() {
                                 <span className="h-8 w-8 border-3 border-[#004B87] border-t-transparent rounded-full animate-spin flex-shrink-0" />
                                 <span className="text-sm font-bold text-[#003366]">{scanStepName}</span>
                                 <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-1">
-                                  <div 
+                                  <div
                                     className="bg-gradient-to-r from-[#004B87] to-[#FFD100] h-full transition-all duration-300"
                                     style={{ width: `${scanProgress}%` }}
                                   />
@@ -1209,10 +1505,10 @@ export function FichaEmpleado() {
                       {forma003 && (
                         <button
                           type="button"
-                          onClick={() => { 
-                            setForma003(null); 
-                            setForma003Status('idle'); 
-                            setErrors([]); 
+                          onClick={() => {
+                            setForma003(null);
+                            setForma003Status('idle');
+                            setErrors([]);
                             setSimilarityScore(null);
                             setValidationDetails(null);
                             setCroppedDocPhoto(null);
@@ -1276,17 +1572,15 @@ export function FichaEmpleado() {
                     )}
 
                     {similarityScore !== null && (
-                      <div className={`rounded-xl border p-5 space-y-4 shadow-sm ${
-                        forma003Status === 'verified' 
-                          ? 'border-emerald-200 bg-emerald-50/50' 
-                          : 'border-rose-200 bg-rose-50/50'
-                      }`}>
+                      <div className={`rounded-xl border p-5 space-y-4 shadow-sm ${forma003Status === 'verified'
+                        ? 'border-emerald-200 bg-emerald-50/50'
+                        : 'border-rose-200 bg-rose-50/50'
+                        }`}>
                         <div className="flex items-center gap-4 border-b border-slate-100 pb-3">
-                          <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white ${
-                            forma003Status === 'verified' 
-                              ? 'bg-emerald-500 shadow-md shadow-emerald-200' 
-                              : 'bg-rose-500 shadow-md shadow-rose-200'
-                          }`}>
+                          <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white ${forma003Status === 'verified'
+                            ? 'bg-emerald-500 shadow-md shadow-emerald-200'
+                            : 'bg-rose-500 shadow-md shadow-rose-200'
+                            }`}>
                             {forma003Status === 'verified' ? (
                               <ShieldCheck className="h-6 w-6" />
                             ) : (
@@ -1298,8 +1592,8 @@ export function FichaEmpleado() {
                               {forma003Status === 'verified' ? 'Documento Aprobado' : 'Documento Rechazado'}
                             </h4>
                             <p className="text-[11px] text-slate-500 leading-tight">
-                              {forma003Status === 'verified' 
-                                ? 'La información del carnet coincide exitosamente con su perfil.' 
+                              {forma003Status === 'verified'
+                                ? 'La información del carnet coincide exitosamente con su perfil.'
                                 : 'No se pudo validar el carnet debido a inconsistencias de datos.'}
                             </p>
                           </div>
@@ -1320,6 +1614,136 @@ export function FichaEmpleado() {
                             </div>
                           </div>
                         )}
+
+
+
+                        {/* Checklist de datos del empleado cotejados contra el carnet */}
+                        {validationDetails && (
+                          <div className="bg-white border border-slate-100 rounded-lg p-3 space-y-2">
+                            <span className="text-[10px] font-bold text-slate-600 block uppercase tracking-wider">
+                              Cotejo de tus datos contra el documento:
+                            </span>
+
+                            <div className="space-y-1.5">
+                              {validationDetails.dataMatchStatus.map((item, i) => (
+                                <div
+                                  key={i}
+                                  className={`flex items-center justify-between gap-2 text-[11px] font-medium px-2 py-1.5 rounded-md ${item.ok
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : "bg-rose-50 text-rose-600"
+                                    }`}
+                                >
+                                  <span className="flex items-center gap-1.5">
+                                    {item.ok ? (
+                                      <ShieldCheck className="h-3.5 w-3.5 flex-shrink-0" />
+                                    ) : (
+                                      <ShieldAlert className="h-3.5 w-3.5 flex-shrink-0" />
+                                    )}
+
+                                    {item.label}
+                                  </span>
+
+                                  <span
+                                    className="text-right truncate max-w-[45%]"
+                                    title={item.val}
+                                  >
+                                    {item.val || "—"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Face match visual verification */}
+                            <div className="space-y-2 pt-1 border-t border-slate-100">
+
+                              <div className="flex justify-between font-bold text-slate-700 text-xs">
+                                <span>Verificación Biométrica Facial</span>
+
+                                {validationDetails && (
+                                  <span
+                                    className={
+                                      validationDetails.faceMatchOk
+                                        ? "text-emerald-600 font-bold"
+                                        : "text-rose-600 font-bold"
+                                    }
+                                  >
+                                    {validationDetails.faceMatchOk
+                                      ? `Coincide (${validationDetails.faceMatchScore}%)`
+                                      : `No coincide (${validationDetails.faceMatchScore}%)`
+                                    }
+                                  </span>
+                                )}
+                              </div>
+
+
+                              {formData.foto && croppedDocPhoto ? (
+                                <div className="flex items-center justify-center gap-4 bg-white p-2.5 rounded-lg border border-slate-100">
+
+                                  {/* Foto perfil */}
+                                  <div className="flex flex-col items-center">
+                                    <div className="h-16 w-14 rounded-md border border-slate-200 overflow-hidden bg-slate-50 relative">
+                                      <img
+                                        src={formData.foto}
+                                        alt="Foto Perfil"
+                                        className="w-full h-full object-cover"
+                                      />
+
+                                      <span className="absolute bottom-0 inset-x-0 bg-slate-900/60 text-white text-[7px] font-bold text-center py-0.5">
+                                        Perfil
+                                      </span>
+                                    </div>
+                                  </div>
+
+
+                                  {/* Porcentaje */}
+                                  <div className="flex flex-col items-center justify-center text-slate-400">
+
+                                    <div className="h-0.5 w-8 bg-slate-200 relative">
+
+                                      {validationDetails && (
+                                        <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-1 text-[8px] font-bold text-emerald-600">
+                                          {validationDetails.faceMatchScore}%
+                                        </span>
+                                      )}
+
+                                    </div>
+
+                                  </div>
+
+
+                                  {/* Foto carnet */}
+                                  <div className="flex flex-col items-center">
+                                    <div className="h-16 w-14 rounded-md border border-slate-200 overflow-hidden bg-slate-50 relative">
+
+                                      <img
+                                        src={croppedDocPhoto}
+                                        alt="Foto Carnet"
+                                        className="w-full h-full object-cover"
+                                      />
+
+                                      <span className="absolute bottom-0 inset-x-0 bg-slate-900/60 text-white text-[7px] font-bold text-center py-0.5">
+                                        Carnet
+                                      </span>
+
+                                    </div>
+                                  </div>
+
+                                </div>
+
+                              ) : (
+
+                                <p className="text-[10px] text-rose-500 bg-rose-50 p-2 rounded border border-rose-100 flex items-center gap-1.5 font-medium">
+                                  <AlertTriangle className="h-3.5 w-3.5" />
+                                  No se pudo realizar el cotejo biométrico por falta de imagen.
+                                </p>
+
+                              )}
+
+                            </div>
+                          </div>
+
+
+                        )}
                       </div>
                     )}
 
@@ -1327,13 +1751,12 @@ export function FichaEmpleado() {
                       type="button"
                       onClick={handleVerifyCarnet}
                       disabled={!forma003 || forma003Status === 'scanning'}
-                      className={`w-full h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${
-                        forma003Status === 'verified'
-                          ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-200'
-                          : forma003Status === 'failed'
+                      className={`w-full h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${forma003Status === 'verified'
+                        ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-200'
+                        : forma003Status === 'failed'
                           ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-rose-200'
                           : 'bg-[#004B87] hover:bg-[#003366] text-white shadow-[#004B87]/20'
-                      }`}
+                        }`}
                     >
                       {forma003Status === 'scanning' ? (
                         <><RefreshCw className="h-4 w-4 animate-spin" /> Escaneando...</>
@@ -1368,12 +1791,13 @@ export function FichaEmpleado() {
           <Button
             type="button"
             onClick={handleNextStep}
-            className="flex items-center gap-2 bg-[#004B87] hover:bg-[#003366] text-white font-bold px-6 shadow-sm shadow-[#004B87]/20"
+            disabled={step === 4 && forma003Status !== 'verified'}
+            className="flex items-center gap-2 bg-[#004B87] hover:bg-[#003366] text-white font-bold px-6 shadow-sm shadow-[#004B87]/20 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed"
           >
             {step === 4 ? (
               <>
                 <Save className="h-4 w-4" />
-                Finalizar Registro
+                Verificar y Enviar
               </>
             ) : (
               <>
@@ -1403,30 +1827,30 @@ export function FichaEmpleado() {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 my-4">
                 {/* Fotografía y Carnet lado izquierdo */}
                 <div className="md:col-span-4 flex flex-col gap-4 items-center">
-                    <div className="flex flex-col gap-4 items-center">
-                      <div className="flex flex-col items-center">
-                        <div className="h-28 w-24 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden shadow-inner">
-                          {formData.foto ? (
-                            <img src={formData.foto} alt="Perfil" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="h-full flex items-center justify-center text-slate-400 text-xs">Sin foto</div>
-                          )}
-                        </div>
-                        <span className="text-[9px] text-slate-400 mt-1 font-bold uppercase">Foto Perfil</span>
+                  <div className="flex flex-col gap-4 items-center">
+                    <div className="flex flex-col items-center">
+                      <div className="h-28 w-24 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden shadow-inner">
+                        {formData.foto ? (
+                          <img src={formData.foto} alt="Perfil" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-slate-400 text-xs">Sin foto</div>
+                        )}
                       </div>
-                      
-                      <div className="flex flex-col items-center">
-                        <div className="h-20 w-32 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden shadow-inner flex items-center justify-center">
-                          {forma003 ? (
-                            <img src={forma003} alt="Carnet" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="h-full flex items-center justify-center text-slate-400 text-xs">Sin doc</div>
-                          )}
-                        </div>
-                        <span className="text-[9px] text-slate-400 mt-1 font-bold uppercase">Carnet</span>
-                      </div>
+                      <span className="text-[9px] text-slate-400 mt-1 font-bold uppercase">Foto Perfil</span>
                     </div>
-                  
+
+                    <div className="flex flex-col items-center">
+                      <div className="h-20 w-32 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden shadow-inner flex items-center justify-center">
+                        {forma003 ? (
+                          <img src={forma003} alt="Carnet" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-slate-400 text-xs">Sin doc</div>
+                        )}
+                      </div>
+                      <span className="text-[9px] text-slate-400 mt-1 font-bold uppercase">Carnet</span>
+                    </div>
+                  </div>
+
                   <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold py-1 px-2.5 rounded-full flex items-center gap-1.5 uppercase tracking-wider">
                     <ShieldCheck className="h-3.5 w-3.5" />
                     Carnet Validado
@@ -1613,10 +2037,10 @@ export function FichaEmpleado() {
             </DialogTitle>
           </DialogHeader>
           <div className="relative aspect-video bg-slate-900 rounded-lg overflow-hidden my-4 border border-slate-200">
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
               className="w-full h-full object-cover"
             />
             {/* Guide overlay */}

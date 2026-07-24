@@ -14,7 +14,6 @@ RUN apk add --no-cache postgresql-client
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
-RUN mkdir -p /app/backups
 EXPOSE 5000
 CMD ["node", "dist/infrastructure/server/index.js"]
 
@@ -25,6 +24,5 @@ RUN apk add --no-cache postgresql-client
 COPY package*.json ./
 RUN npm install
 COPY . .
-RUN mkdir -p /app/backups
 EXPOSE 5000
 CMD ["npm", "run", "dev"]

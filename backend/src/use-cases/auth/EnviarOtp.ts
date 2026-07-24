@@ -1,5 +1,6 @@
 import { UsuarioRepository } from '../../domain/repositories/UsuarioRepository';
 import { enviarCodigoOtp } from '../../infrastructure/mail/mailService';
+import { cfg } from '../../infrastructure/config/configService';
 
 export class EnviarOtp {
   constructor(private readonly usuarioRepo: UsuarioRepository) {}
@@ -10,7 +11,8 @@ export class EnviarOtp {
     if (usuario.estado !== 'ACTIVO') throw new Error('Cuenta suspendida o inactiva');
 
     const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-    const expira = new Date(Date.now() + 5 * 60 * 1000);
+    const minutos = parseInt(cfg('TIEMPO_EXPIRACION_OTP', '5'));
+    const expira = new Date(Date.now() + minutos * 60 * 1000);
 
     await this.usuarioRepo.update(usuario.id_usuario, {
       otp_code: codigo,

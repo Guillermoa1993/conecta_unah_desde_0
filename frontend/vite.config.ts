@@ -62,6 +62,7 @@ export default defineConfig({
         lang: 'es-HN'
       },
       workbox: {
+        maximumFileSizeToCacheInBytes: 5000000,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
@@ -90,6 +91,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
+      '@/components': path.resolve(__dirname, './src/app/components'),
       '@': path.resolve(__dirname, './src'),
     },
   },

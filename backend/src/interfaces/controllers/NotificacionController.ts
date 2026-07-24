@@ -10,6 +10,15 @@ export class NotificacionController {
       res.json(lista);
     } catch (err) { next(err); }
   };
+  
+  getNoLeidas = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const todas = await this.notificacionRepo.findByUsuario(req.usuario!.id);
+      const noLeidas = todas.filter((n) => !n.leida);
+      res.json({ count: noLeidas.length, notificaciones: noLeidas });
+    } catch (err) { next(err); }
+  };
+
 
   crear = async (req: Request, res: Response, next: NextFunction) => {
     try {
