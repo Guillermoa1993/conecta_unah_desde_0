@@ -465,14 +465,17 @@ export function ManageEvent() {
     const student = students.find((s) => s.id === studentId || s.estudiante_id === studentId);
     if (!student) return;
     try {
-      const newStatus = isChecked ? "ASISTIDO" : "INSCRITO";
+      const newStatus = isChecked ? "ASISTIDO" : "RECHAZADO";
       await api.put<any>(`/inscripciones/${student.id}/estado`, {
         estado: newStatus
       });
       setStudents((prev) =>
         prev.map((s) => (s.id === student.id ? { ...s, estado: newStatus } : s))
       );
-      toast.success(isChecked ? `Asistencia registrada para ${student.estudiante_nombre}` : `Asistencia revocada para ${student.estudiante_nombre}`);
+      toast.success(isChecked
+        ? `✅ Asistencia aprobada para ${student.estudiante_nombre}`
+        : `❌ Asistencia rechazada para ${student.estudiante_nombre} — marcado como No asistió`
+      );
     } catch (err: any) {
       toast.error("Error al actualizar asistencia", { description: err.message });
     }
@@ -1790,7 +1793,7 @@ export function ManageEvent() {
                       <div className="mt-2 text-[10px] font-bold">
                         {event.tipo_actividad === "Virtual" ? (
                           <span className="text-slate-500">— No requiere rango</span>
-                        ) : auditoriaStudent.estado === "ASISTIDO" ? (
+                        ) : latEntrada ? (
                           <span className="text-emerald-600">✓ Dentro del rango</span>
                         ) : (
                           <span className="text-amber-600">⚠ Fuera del rango</span>
