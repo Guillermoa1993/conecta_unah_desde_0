@@ -1,0 +1,157 @@
+=====================================================
+  API DE NOTIFICACIONES — Conecta Pumas UNAH
+  Base URL: http://localhost:5000/api
+=====================================================
+
+Todos los endpoints requieren autenticación:
+  Header: Authorization: Bearer <token>
+
+El token se obtiene al iniciar sesión por OTP o Microsoft.
+
+-----------------------------------------------------
+1. OBTENER MIS NOTIFICACIONES
+-----------------------------------------------------
+Método : GET
+Ruta   : /api/notificaciones
+Auth   : Requerida
+
+Respuesta exitosa (200):
+[
+  {
+    "id_notificacion": 1,
+    "id_usuario": 5,
+    "id_tipo": 2,
+    "tipo": "EVENTO",
+    "mensaje": "Te has inscrito al evento Taller de React",
+    "leida": false
+  },
+  {
+    "id_notificacion": 2,
+    "id_usuario": 5,
+    "id_tipo": 1,
+    "tipo": "SISTEMA",
+    "mensaje": "Bienvenido a Conecta Pumas",
+    "leida": true
+  }
+]
+
+-----------------------------------------------------
+2. CREAR UNA NOTIFICACIÓN
+-----------------------------------------------------
+Método : POST
+Ruta   : /api/notificaciones
+Auth   : Requerida
+Body   : application/json
+
+{
+  "usuario_id": 5,
+  "mensaje": "Tu evento fue aprobado",
+  "tipo": "EVENTO"
+}
+
+Campos requeridos:
+  - usuario_id : número  → ID del usuario que recibirá la notificación
+  - mensaje    : texto   → Contenido de la notificación
+  - tipo       : texto   → Debe coincidir con un nombre en tabla_grupo_1_tipo_notificacion
+
+Respuesta exitosa (201):
+{
+  "id_notificacion": 3,
+  "id_usuario": 5,
+  "id_tipo": 2,
+  "tipo": "EVENTO",
+  "mensaje": "Tu evento fue aprobado",
+  "leida": false
+}
+
+Error si faltan campos (400):
+{
+  "error": "usuario_id, mensaje y tipo son requeridos"
+}
+
+-----------------------------------------------------
+3. MARCAR UNA NOTIFICACIÓN COMO LEÍDA
+-----------------------------------------------------
+Método : PATCH
+Ruta   : /api/notificaciones/:id/leer
+Auth   : Requerida
+
+Ejemplo:
+  PATCH /api/notificaciones/3/leer
+
+Respuesta exitosa (200):
+{
+  "ok": true
+}
+
+Error si no existe o no pertenece al usuario (404):
+{
+  "error": "Notificación no encontrada"
+}
+
+-----------------------------------------------------
+4. MARCAR TODAS LAS NOTIFICACIONES COMO LEÍDAS
+-----------------------------------------------------
+Método : PATCH
+Ruta   : /api/notificaciones/leer-todas
+Auth   : Requerida
+
+Ejemplo:
+  PATCH /api/notificaciones/leer-todas
+
+Respuesta exitosa (200):
+{
+  "ok": true
+}
+
+=====================================================
+  EJEMPLOS CON fetch (JavaScript)
+=====================================================
+
+const TOKEN = localStorage.getItem('unah_token');
+const BASE  = 'http://localhost:5000/api';
+
+// 1. Obtener notificaciones
+const res = await fetch(`${BASE}/notificaciones`, {
+  headers: { Authorization: `Bearer ${TOKEN}` }
+});
+const lista = await res.json();
+
+// 2. Crear notificación
+await fetch(`${BASE}/notificaciones`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${TOKEN}`
+  },
+  body: JSON.stringify({
+    usuario_id: 5,
+    mensaje: 'Nuevo evento disponible',
+    tipo: 'EVENTO'
+  })
+});
+
+// 3. Marcar una como leída
+await fetch(`${BASE}/notificaciones/3/leer`, {
+  method: 'PATCH',
+  headers: { Authorization: `Bearer ${TOKEN}` }
+});
+
+// 4. Marcar todas como leídas
+await fetch(`${BASE}/notificaciones/leer-todas`, {
+  method: 'PATCH',
+  headers: { Authorization: `Bearer ${TOKEN}` }
+});
+
+=====================================================
+  TIPOS DE NOTIFICACIÓN DISPONIBLES
+=====================================================
+
+Consultar la tabla tabla_grupo_1_tipo_notificacion
+para ver los tipos registrados. Ejemplos comunes:
+  - SISTEMA
+  - EVENTO
+  - INSCRIPCION
+  - CONSTANCIA
+
+=====================================================

@@ -1,0 +1,96 @@
+=====================================================
+  ACCESO RÁPIDO PARA PRUEBAS — Conecta Pumas UNAH
+  (Sin OTP, sin Microsoft — solo para desarrollo)
+=====================================================
+
+REQUISITO: El backend debe estar corriendo en http://localhost:5000
+
+-----------------------------------------------------
+PASO 1 — Abre el navegador en http://localhost:5185
+PASO 2 — Presiona F12 para abrir DevTools
+PASO 3 — Ve a la pestaña "Console"
+PASO 4 — Copia y pega el siguiente código, cambia
+          el rol que necesitas y presiona Enter
+-----------------------------------------------------
+
+// ── CAMBIAR "admin" por el rol que necesitas ──────
+// Opciones: estudiante | admin | tutor | voae | dev
+
+const res = await fetch('http://localhost:5000/api/auth/dev-login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ rol: 'admin' })
+});
+const { token, usuario } = await res.json();
+
+localStorage.setItem('unah_token', token);
+localStorage.setItem('unah_usuario', JSON.stringify(usuario));
+sessionStorage.setItem('unah_session_active', 'true');
+sessionStorage.setItem('unah_role', usuario.rol.toLowerCase());
+
+window.location.replace('/admin'); // cambiar según la tabla de abajo
+
+-----------------------------------------------------
+  ROLES Y RUTAS
+-----------------------------------------------------
+
+  ROL          RUTA              CORREO EN DB
+  ----------   ---------------   ----------------------
+  estudiante   /student          guillermo.ayestas@unah.hn
+  admin        /admin            admin@unah.hn
+  tutor        /tutor            tutor@unah.edu.hn
+  voae         /voae             voae@unah.hn
+  dev          /student          dev@unah.hn (acceso total)
+
+-----------------------------------------------------
+  EJEMPLOS LISTOS PARA COPIAR
+-----------------------------------------------------
+
+-- Ingresar como ESTUDIANTE --
+const res = await fetch('http://localhost:5000/api/auth/dev-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rol: 'estudiante' }) });
+const { token, usuario } = await res.json();
+localStorage.setItem('unah_token', token); localStorage.setItem('unah_usuario', JSON.stringify(usuario));
+sessionStorage.setItem('unah_session_active', 'true'); sessionStorage.setItem('unah_role', usuario.rol.toLowerCase());
+window.location.replace('/student');
+
+-- Ingresar como ADMIN --
+const res = await fetch('http://localhost:5000/api/auth/dev-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rol: 'admin' }) });
+const { token, usuario } = await res.json();
+localStorage.setItem('unah_token', token); localStorage.setItem('unah_usuario', JSON.stringify(usuario));
+sessionStorage.setItem('unah_session_active', 'true'); sessionStorage.setItem('unah_role', usuario.rol.toLowerCase());
+window.location.replace('/admin');
+
+-- Ingresar como TUTOR --
+const res = await fetch('http://localhost:5000/api/auth/dev-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rol: 'tutor' }) });
+const { token, usuario } = await res.json();
+localStorage.setItem('unah_token', token); localStorage.setItem('unah_usuario', JSON.stringify(usuario));
+sessionStorage.setItem('unah_session_active', 'true'); sessionStorage.setItem('unah_role', usuario.rol.toLowerCase());
+window.location.replace('/tutor');
+
+-- Ingresar como VOAE --
+const res = await fetch('http://localhost:5000/api/auth/dev-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rol: 'voae' }) });
+const { token, usuario } = await res.json();
+localStorage.setItem('unah_token', token); localStorage.setItem('unah_usuario', JSON.stringify(usuario));
+sessionStorage.setItem('unah_session_active', 'true'); sessionStorage.setItem('unah_role', usuario.rol.toLowerCase());
+window.location.replace('/voae');
+
+-- Ingresar como DEV (acceso total) --
+const res = await fetch('http://localhost:5000/api/auth/dev-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rol: 'dev' }) });
+const { token, usuario } = await res.json();
+localStorage.setItem('unah_token', token); localStorage.setItem('unah_usuario', JSON.stringify(usuario));
+sessionStorage.setItem('unah_session_active', 'true'); sessionStorage.setItem('unah_role', usuario.rol.toLowerCase());
+window.location.replace('/student');
+
+-----------------------------------------------------
+  CERRAR SESIÓN
+-----------------------------------------------------
+
+localStorage.removeItem('unah_token');
+localStorage.removeItem('unah_usuario');
+sessionStorage.clear();
+window.location.replace('/');
+
+=====================================================
+  NOTA: Este endpoint solo funciona en desarrollo.
+  En producción (NODE_ENV=production) está desactivado.
+=====================================================
