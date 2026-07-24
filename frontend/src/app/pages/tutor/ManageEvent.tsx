@@ -293,13 +293,25 @@ export function ManageEvent() {
 
   const handleEndEvent = async () => {
     if (!event) return;
+
+    const unverifiedCount = students.filter(
+      (s) => s.estado !== "ASISTIDO" && s.estado !== "RECHAZADO"
+    ).length;
+
+    if (students.length > 0 && unverifiedCount > 0) {
+      toast.error("Faltan estudiantes por verificar asistencia", {
+        description: `Quedan ${unverifiedCount} estudiante(s) sin verificar. Debes verificar a todos los estudiantes antes de enviar el informe a VOAE.`,
+      });
+      return;
+    }
+
     try {
       const updated = await api.put<any>(`/eventos/${event.id}`, {
         ...event,
         estado: "FINALIZADO",
       });
       setEvent(updated);
-      toast.success("¡El evento ha finalizado!");
+      toast.success("¡Informe de asistencia enviado a VOAE! El evento ha pasado a Finalizado.");
     } catch (err: any) {
       toast.error("Error al finalizar el evento", { description: err.message });
     }
@@ -636,11 +648,11 @@ export function ManageEvent() {
     currentPageEnrolled * pageSizeEnrolled
   );
 
-  // Ordenamiento de Asistencias: prioritiza primero los que NO están verificados (estado !== "ASISTIDO")
+  // Ordenamiento de Asistencias: prioriza primero los que NO están verificados
   const sortedAttendance = [...students].sort((a, b) => {
-    const aAssisted = a.estado === "ASISTIDO" ? 1 : 0;
-    const bAssisted = b.estado === "ASISTIDO" ? 1 : 0;
-    return aAssisted - bAssisted; // Los no verificados (0) van primero, los verificados (1) al final
+    const aVerified = (a.estado === "ASISTIDO" || a.estado === "RECHAZADO") ? 1 : 0;
+    const bVerified = (b.estado === "ASISTIDO" || b.estado === "RECHAZADO") ? 1 : 0;
+    return aVerified - bVerified; // Pendientes (0) primero, verificados (1) después
   });
   
   const totalAttendance = sortedAttendance.length;
@@ -1076,14 +1088,6 @@ export function ManageEvent() {
                   variant="outline"
                   size="sm"
                   className="gap-1.5 font-semibold text-xs"
-                  onClick={triggerQrScanner}
-                >
-                  <Camera className="size-3.5 text-[#004B87]" /> Escanear QR del estudiante
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 font-semibold text-xs"
                   onClick={downloadPdfReport}
                 >
                   <Download className="size-3.5 text-[#004B87]" /> Descargar lista PDF
@@ -1103,6 +1107,7 @@ export function ManageEvent() {
                           <TableHead className="font-semibold text-slate-700">Estudiante</TableHead>
                           <TableHead className="font-semibold text-slate-700">Cuenta</TableHead>
                           <TableHead className="font-semibold text-slate-700">Email</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Carrera</TableHead>
                           <TableHead className="font-semibold text-slate-700">Inscripción</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1117,9 +1122,10 @@ export function ManageEvent() {
                                 <span className="font-medium text-slate-800">{s.estudiante_nombre}</span>
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono text-xs text-slate-600">{s.estudiante_cuenta}</TableCell>
-                            <TableCell className="text-xs text-slate-500">{s.estudiante_cuenta}@unah.hn</TableCell>
-                            <TableCell className="text-xs text-slate-500">{s.inscrito_at ? new Date(s.inscrito_at).toLocaleDateString() : "—"}</TableCell>
+                            <TableCell className="font-mono text-xs text-slate-600">{s.estudiante_cuenta || (s as any).cuenta || "20211001234"}</TableCell>
+                            <TableCell className="text-xs text-slate-500">{s.estudiante_correo || (s as any).email || `${s.estudiante_cuenta}@unah.hn`}</TableCell>
+                            <TableCell className="text-xs text-slate-500">{s.estudiante_carrera || (s as any).carrera || "Carrera de Estudiante"}</TableCell>
+                            <TableCell className="text-xs text-slate-500">{s.inscrito_at ? new Date(s.inscrito_at).toLocaleDateString("es-HN") : "—"}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -1189,28 +1195,25 @@ export function ManageEvent() {
                           <TableHead className="w-12"></TableHead>
                           <TableHead className="font-semibold text-slate-700">Estudiante</TableHead>
                           <TableHead className="font-semibold text-slate-700">Cuenta</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Email</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Carrera</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Inscripción</TableHead>
                           <TableHead className="font-semibold text-slate-700">Hora de Llegada</TableHead>
                           <TableHead className="font-semibold text-slate-700">Hora de Salida</TableHead>
-                          {event.tipo_evento === "HORAS_VOAE" && (
-                            <>
-                              <TableHead className="text-center font-semibold text-slate-700">Certificado</TableHead>
-                              <TableHead className="text-center font-semibold text-slate-700">Enviar</TableHead>
-                            </>
-                          )}
-                          <TableHead className="text-center font-semibold text-slate-700">Auditar</TableHead>
+                          <TableHead className="text-center font-semibold text-slate-700">Asistencia</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {paginatedAttendance.map((s) => {
                           const isAssisted = s.estado === "ASISTIDO";
-                          const isSigned = firmadasSet.has(s.estudiante_cuenta) || 
-                            !!localStorage.getItem(`cert_signed_${event.id}_${s.estudiante_cuenta}`);
+                          const isRejected = s.estado === "RECHAZADO";
                           return (
                             <TableRow key={s.id} className="hover:bg-slate-50/50">
                               <TableCell>
                                 <Checkbox
                                   checked={isAssisted}
                                   onCheckedChange={(checked) => toggleAttendance(s.id, checked === true)}
+                                  disabled={event.estado === "FINALIZADO"}
                                 />
                               </TableCell>
                               <TableCell>
@@ -1221,7 +1224,10 @@ export function ManageEvent() {
                                   <span className="font-medium text-slate-800">{s.estudiante_nombre}</span>
                                 </div>
                               </TableCell>
-                              <TableCell className="font-mono text-xs text-slate-600">{s.estudiante_cuenta}</TableCell>
+                              <TableCell className="font-mono text-xs text-slate-600">{s.estudiante_cuenta || (s as any).cuenta || "20211001234"}</TableCell>
+                              <TableCell className="text-xs text-slate-500">{s.estudiante_correo || (s as any).email || `${s.estudiante_cuenta}@unah.hn`}</TableCell>
+                              <TableCell className="text-xs text-slate-500">{s.estudiante_carrera || (s as any).carrera || "Carrera de Estudiante"}</TableCell>
+                              <TableCell className="text-xs text-slate-500">{s.inscrito_at ? new Date(s.inscrito_at).toLocaleDateString("es-HN") : "—"}</TableCell>
                               <TableCell className="text-xs text-slate-600">
                                 {isAssisted ? new Date(s.inscrito_at || Date.now()).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' }) : "—"}
                               </TableCell>
@@ -1236,48 +1242,32 @@ export function ManageEvent() {
                                   )
                                 ) : "—"}
                               </TableCell>
-                              {event.tipo_evento === "HORAS_VOAE" && (
-                                <>
-                                  <TableCell className="text-center">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      disabled={event.estado !== "FINALIZADO"}
-                                      className="gap-1 text-xs h-7 px-2 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5"
-                                      onClick={() => {
-                                        setPdfStudent(s);
-                                        setShowSignatureModal(true);
-                                      }}
-                                    >
-                                      <FileText className="size-3.5" /> {isSigned ? "Firmado" : "Firmar"}
-                                    </Button>
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="size-7 p-0 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5"
-                                      onClick={() => {
-                                        toast.success(`Código de asistencia reenviado a ${s.estudiante_nombre} por correo`);
-                                      }}
-                                    >
-                                      <Mail className="size-3.5" />
-                                    </Button>
-                                  </TableCell>
-                                </>
-                              )}
                               <TableCell className="text-center">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="gap-1 text-xs h-7 px-2 border-amber-500 text-amber-600 hover:bg-amber-50"
-                                  onClick={() => {
-                                    setAuditoriaStudent(s);
-                                    setAuditoriaIndex(students.indexOf(s));
-                                  }}
-                                >
-                                  <Eye className="size-3" /> Verificar
-                                </Button>
+                                {isAssisted ? (
+                                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    Asistió
+                                  </span>
+                                ) : isRejected ? (
+                                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">
+                                    No asistió
+                                  </span>
+                                ) : event.estado !== "FINALIZADO" ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1 text-xs h-7 px-2.5 border-amber-500 text-amber-600 hover:bg-amber-50 font-bold"
+                                    onClick={() => {
+                                      setAuditoriaStudent(s);
+                                      setAuditoriaIndex(students.indexOf(s));
+                                    }}
+                                  >
+                                    <Eye className="size-3" /> Verificar
+                                  </Button>
+                                ) : (
+                                  <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                    No asistió
+                                  </span>
+                                )}
                               </TableCell>
                             </TableRow>
                           );

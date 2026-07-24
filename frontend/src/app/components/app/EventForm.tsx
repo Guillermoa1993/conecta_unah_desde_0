@@ -876,134 +876,134 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
             </Select>
           </div>
         </div>
-        <div>
-          <Label>
-            Categorías / Ámbitos <span className="text-red-500">*</span>
-          </Label>
-        <div className="grid grid-cols-2 gap-4 mt-1">
+        {data.tipo_evento === "HORAS_VOAE" && (
           <div>
-            <div className="relative" ref={catDropdownRef}>
-              <div
-                className="flex items-center gap-1 flex-wrap min-h-[44px] rounded-lg border bg-background px-3 py-1.5 cursor-pointer"
-                style={{ borderColor: errors.categoria ? "#ef4444" : undefined }}
-                onClick={() => setCatDropdownOpen((o) => !o)}
-              >
-                {(() => {
-                  const selected = categoriasHoras.filter((ch) => ch.checked);
-                  if (selected.length === 0) return <span className="text-sm text-muted-foreground">Seleccionar categorías...</span>;
-                  return selected.map((ch) => (
-                    <span
-                      key={ch.categoria}
-                      className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border"
-                      style={{ backgroundColor: CATEGORY_COLORS[ch.categoria] + "15", borderColor: CATEGORY_COLORS[ch.categoria] + "40", color: CATEGORY_COLORS[ch.categoria] }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {CATEGORY_LABEL_LONG[ch.categoria]}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCategoriasHoras((prev) =>
-                            prev.map((c) =>
-                              c.categoria === ch.categoria ? { ...c, checked: false, horas: 0 } : c
-                            )
-                          );
-                        }}
-                        className="ml-0.5 hover:opacity-70"
-                      >
-                        ✕
-                      </button>
-                    </span>
-                  ));
-                })()}
-                <ChevronDown className="size-4 ml-auto shrink-0 text-muted-foreground" />
-              </div>
-              {catDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-lg border bg-card shadow-lg p-1.5">
-                  {categoriasHoras.map((ch) => (
-                    <div
-                      key={ch.categoria}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer"
-                      onClick={() => {
-                        setCategoriasHoras((prev) =>
-                          prev.map((c) =>
-                            c.categoria === ch.categoria
-                              ? { ...c, checked: !c.checked, horas: !c.checked ? c.horas : 0 }
-                              : c
-                          )
-                        );
-                      }}
-                    >
-                      <Checkbox checked={ch.checked} className="pointer-events-none" />
-                      <div className="size-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[ch.categoria] }} />
-                      <span className="text-sm">{CATEGORY_LABEL_LONG[ch.categoria]}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          {data.tipo_evento === "HORAS_VOAE" && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-muted-foreground">Asignar horas por categoría</p>
-              {categoriasHoras.filter((ch) => ch.checked).length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">Selecciona categorías arriba</p>
-              ) : (
-                categoriasHoras
-                  .filter((ch) => ch.checked)
-                  .map((ch) => {
-                    const exceededCat = ch.horas > 15;
-                    const isZero = ch.horas <= 0;
-                    const allChecked = categoriasHoras.filter((c) => c.checked);
-                    const totalAll = allChecked.reduce((s, c) => s + c.horas, 0);
-                    const totalExceeded = totalAll > 60;
-                    return (
-                      <div key={ch.categoria} className="flex items-center gap-2">
-                        <span className="text-xs w-24 truncate">{CATEGORY_LABEL_LONG[ch.categoria]}</span>
-                        <Input
-                          type="number"
-                          min={1}
-                          max={15}
-                          value={ch.horas || ""}
-                          onChange={(e) => {
-                            const raw = parseInt(e.target.value);
-                            const val = isNaN(raw) ? 0 : Math.min(raw, 15);
-                            const totalOther = categoriasHoras
-                              .filter((c) => c.checked && c.categoria !== ch.categoria)
-                              .reduce((s, c) => s + c.horas, 0);
-                            const clamped = totalOther + val > 60 ? 60 - totalOther : val;
+            <Label>
+              Categorías / Ámbitos <span className="text-red-500">*</span>
+            </Label>
+            <div className="grid grid-cols-2 gap-4 mt-1">
+              <div>
+                <div className="relative" ref={catDropdownRef}>
+                  <div
+                    className="flex items-center gap-1 flex-wrap min-h-[44px] rounded-lg border bg-background px-3 py-1.5 cursor-pointer"
+                    style={{ borderColor: errors.categoria ? "#ef4444" : undefined }}
+                    onClick={() => setCatDropdownOpen((o) => !o)}
+                  >
+                    {(() => {
+                      const selected = categoriasHoras.filter((ch) => ch.checked);
+                      if (selected.length === 0) return <span className="text-sm text-muted-foreground">Seleccionar categorías...</span>;
+                      return selected.map((ch) => (
+                        <span
+                          key={ch.categoria}
+                          className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border"
+                          style={{ backgroundColor: CATEGORY_COLORS[ch.categoria] + "15", borderColor: CATEGORY_COLORS[ch.categoria] + "40", color: CATEGORY_COLORS[ch.categoria] }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {CATEGORY_LABEL_LONG[ch.categoria]}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCategoriasHoras((prev) =>
+                                prev.map((c) =>
+                                  c.categoria === ch.categoria ? { ...c, checked: false, horas: 0 } : c
+                                )
+                              );
+                            }}
+                            className="ml-0.5 hover:opacity-70"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ));
+                    })()}
+                    <ChevronDown className="size-4 ml-auto shrink-0 text-muted-foreground" />
+                  </div>
+                  {catDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-lg border bg-card shadow-lg p-1.5">
+                      {categoriasHoras.map((ch) => (
+                        <div
+                          key={ch.categoria}
+                          className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer"
+                          onClick={() => {
                             setCategoriasHoras((prev) =>
                               prev.map((c) =>
-                                c.categoria === ch.categoria ? { ...c, horas: Math.max(0, clamped) } : c
+                                c.categoria === ch.categoria
+                                  ? { ...c, checked: !c.checked, horas: !c.checked ? c.horas : 0 }
+                                  : c
                               )
                             );
                           }}
-                          className={cn("h-8 w-16 text-sm", (exceededCat || totalExceeded || isZero) && "border-red-400")}
-                          placeholder="hrs"
-                        />
-                        {exceededCat && <span className="text-[10px] text-red-500">máx 15</span>}
-                        {isZero && <span className="text-[10px] text-red-500 font-medium">requerido</span>}
-                      </div>
-                    );
-                  })
-              )}
-              {(() => {
-                const checked = categoriasHoras.filter((ch) => ch.checked);
-                const total = checked.reduce((s, c) => s + c.horas, 0);
-                const exceeded = total > 60;
-                return (
-                  <p className={cn("text-xs", exceeded ? "text-red-500 font-medium" : "text-muted-foreground")}>
-                    Total: {total} / 60 horas
-                    {exceeded && " — Excede el límite"}
-                  </p>
-                );
-              })()}
+                        >
+                          <Checkbox checked={ch.checked} className="pointer-events-none" />
+                          <div className="size-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[ch.categoria] }} />
+                          <span className="text-sm">{CATEGORY_LABEL_LONG[ch.categoria]}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground">Asignar horas por categoría</p>
+                {categoriasHoras.filter((ch) => ch.checked).length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">Selecciona categorías arriba</p>
+                ) : (
+                  categoriasHoras
+                    .filter((ch) => ch.checked)
+                    .map((ch) => {
+                      const exceededCat = ch.horas > 15;
+                      const isZero = ch.horas <= 0;
+                      const allChecked = categoriasHoras.filter((c) => c.checked);
+                      const totalAll = allChecked.reduce((s, c) => s + c.horas, 0);
+                      const totalExceeded = totalAll > 60;
+                      return (
+                        <div key={ch.categoria} className="flex items-center gap-2">
+                          <span className="text-xs w-24 truncate">{CATEGORY_LABEL_LONG[ch.categoria]}</span>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={15}
+                            value={ch.horas || ""}
+                            onChange={(e) => {
+                              const raw = parseInt(e.target.value);
+                              const val = isNaN(raw) ? 0 : Math.min(raw, 15);
+                              const totalOther = categoriasHoras
+                                .filter((c) => c.checked && c.categoria !== ch.categoria)
+                                .reduce((s, c) => s + c.horas, 0);
+                              const clamped = totalOther + val > 60 ? 60 - totalOther : val;
+                              setCategoriasHoras((prev) =>
+                                prev.map((c) =>
+                                  c.categoria === ch.categoria ? { ...c, horas: Math.max(0, clamped) } : c
+                                )
+                              );
+                            }}
+                            className={cn("h-8 w-16 text-sm", (exceededCat || totalExceeded || isZero) && "border-red-400")}
+                            placeholder="hrs"
+                          />
+                          {exceededCat && <span className="text-[10px] text-red-500">máx 15</span>}
+                          {isZero && <span className="text-[10px] text-red-500 font-medium">requerido</span>}
+                        </div>
+                      );
+                    })
+                )}
+                {(() => {
+                  const checked = categoriasHoras.filter((ch) => ch.checked);
+                  const total = checked.reduce((s, c) => s + c.horas, 0);
+                  const exceeded = total > 60;
+                  return (
+                    <p className={cn("text-xs", exceeded ? "text-red-500 font-medium" : "text-muted-foreground")}>
+                      Total: {total} / 60 horas
+                      {exceeded && " — Excede el límite"}
+                    </p>
+                  );
+                })()}
+              </div>
             </div>
-          )}
-        </div>
-        {categoriasHoras.filter((ch) => ch.checked).length === 0 && (
-          <p className="text-xs text-red-500 mt-1">Selecciona al menos una categoría</p>
+            {categoriasHoras.filter((ch) => ch.checked).length === 0 && (
+              <p className="text-xs text-red-500 mt-1">Selecciona al menos una categoría</p>
+            )}
+          </div>
         )}
-      </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label>Audiencia — Quién puede inscribirse</Label>
