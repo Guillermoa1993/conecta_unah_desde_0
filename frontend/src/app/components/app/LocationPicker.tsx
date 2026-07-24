@@ -1,40 +1,124 @@
 import { useEffect, useRef, useState } from "react";
-import { Layers, Maximize2, Check, MapPin } from "lucide-react";
+import { Layers, Maximize2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
-const defaultCenter: [number, number] = [14.083902, -87.161601]; // UNAH CU
+const defaultCenter: [number, number] = [14.084952, -87.16493]; // UNAH CU
 
-export const UNAH_SEDES = [
-  { name: "Ciudad Universitaria (Tegucigalpa)", lat: "14.083902", lng: "-87.161601" },
-  { name: "UNAH-VS (San Pedro Sula)", lat: "15.531200", lng: "-88.026400" },
-  { name: "UNAH-CURLA (La Ceiba)", lat: "15.753800", lng: "-86.822900" },
-  { name: "UNAH-CURLP (Choluteca)", lat: "13.308700", lng: "-87.190600" },
-  { name: "UNAH-CURC (Comayagua)", lat: "14.457800", lng: "-87.640300" },
-  { name: "UNAH-CUROC (Santa Rosa de Copán)", lat: "14.770500", lng: "-88.784200" },
-  { name: "UNAH-CURN (Nacaome)", lat: "13.535000", lng: "-87.490000" },
-  { name: "UNAH-CURNO (Olancho - Juticalpa)", lat: "14.675600", lng: "-86.208100" },
-  { name: "UNAH-CURO (Danlí)", lat: "14.032600", lng: "-86.568400" },
-  { name: "UNAH-Tec Aguán (Yoro)", lat: "15.580200", lng: "-86.234600" },
-];
-
-export const PREDEFINED_BUILDINGS: { keywords: string[]; lat: string; lng: string; name: string }[] = [
-  { keywords: ["alma mater", "administrativo", "rectoria"], lat: "14.083902", lng: "-87.161601", name: "Alma Mater" },
-  { keywords: ["1847"], lat: "14.084850", lng: "-87.162850", name: "Edificio 1847" },
-  { keywords: ["d1", "ingenieria", "sistemas"], lat: "14.082823", lng: "-87.163972", name: "Edificio D1" },
-  { keywords: ["b1", "economicas"], lat: "14.083850", lng: "-87.164100", name: "Edificio B1" },
-  { keywords: ["b2"], lat: "14.084128", lng: "-87.163850", name: "Edificio B2" },
-  { keywords: ["c1", "sociales"], lat: "14.083318", lng: "-87.163706", name: "Edificio C1" },
-  { keywords: ["c2"], lat: "14.083618", lng: "-87.163506", name: "Edificio C2" },
-  { keywords: ["c3", "lenguas"], lat: "14.083950", lng: "-87.163300", name: "Edificio C3" },
-  { keywords: ["f1", "fisica"], lat: "14.082348", lng: "-87.163016", name: "Edificio F1" },
-  { keywords: ["g1", "biologia"], lat: "14.082248", lng: "-87.162316", name: "Edificio G1" },
-  { keywords: ["i1", "derecho", "juridicas"], lat: "14.083548", lng: "-87.165316", name: "Edificio I1" },
-  { keywords: ["j1", "odontologia", "salud"], lat: "14.083908", lng: "-87.163316", name: "Edificio J1" },
-  { keywords: ["polideportivo", "palacio de los deportes"], lat: "14.082400", lng: "-87.165900", name: "Polideportivo" },
-  { keywords: ["plaza de las cuatro culturas", "4 culturas", "cuatro culturas"], lat: "14.082834", lng: "-87.164845", name: "Plaza 4 Culturas" },
-  { keywords: ["crai", "biblioteca central"], lat: "14.082531", lng: "-87.165323", name: "CRAI Biblioteca" },
-  { keywords: ["juan lindo", "auditorio juan lindo"], lat: "14.082950", lng: "-87.164500", name: "Auditorio Juan Lindo" },
-];
+export const SEDES_DATA: Record<
+  string,
+  {
+    name: string;
+    lat: string;
+    lng: string;
+    buildings: { name: string; lat: string; lng: string }[];
+  }
+> = {
+  "Ciudad Universitaria": {
+    name: "Ciudad Universitaria",
+    lat: "14.08495201746369",
+    lng: "-87.16492979656168",
+    buildings: [
+      { name: "Edificio 1847", lat: "14.085680781376468", lng: "-87.16497398788229" },
+      { name: "Edificio A1", lat: "14.085073816208418", lng: "-87.16236818190535" },
+      { name: "Edificio A2", lat: "14.085675203214366", lng: "-87.16234928106398" },
+      { name: "Edificio B1", lat: "14.086105572168691", lng: "-87.1617859874194" },
+      { name: "Edificio B2", lat: "14.08668643973484", lng: "-87.16204041452343" },
+      { name: "Edificio C1", lat: "14.086752055032203", lng: "-87.16347528406372" },
+      { name: "Edificio C2", lat: "14.086795900193511", lng: "-87.1650403504828" },
+      { name: "Edificio C3", lat: "14.08642172740938", lng: "-87.16523386379184" },
+      { name: "Edificio D1", lat: "14.085611901988056", lng: "-87.1640688717249" },
+      { name: "Edificio E1", lat: "14.084148287843714", lng: "-87.1623470968732" },
+      { name: "Edificio F1", lat: "14.085005329264273", lng: "-87.16420832822966" },
+      { name: "Edificio G1", lat: "14.083914563033325", lng: "-87.1658849008035" },
+      { name: "Edificio H1", lat: "14.08383545755685", lng: "-87.16675990014004" },
+      { name: "Edificio I1", lat: "14.084083424381717", lng: "-87.16739233491666" },
+      { name: "Edificio J1", lat: "14.08611712911209", lng: "-87.16665587832145" },
+      { name: "Edificio K2", lat: "14.087826105791576", lng: "-87.15989838658267" },
+      { name: "Edificio Alma Mater", lat: "14.083893438520747", lng: "-87.16158336462048" },
+      { name: "UNAH – Plaza Central", lat: "14.085137462369", lng: "-87.16379514414831" },
+      { name: "UNAH – Anfiteatro", lat: "14.084495025197668", lng: "-87.16537733871743" },
+      { name: "UNAH - Palacio Universitario de los Deportes", lat: "14.084898374141375", lng: "-87.17011992884017" },
+      { name: "Estadio Olímpico – UNAH", lat: "14.084916223126891", lng: "-87.16886467836136" },
+      { name: "Piscina Olímpica – UNAH", lat: "14.08840646661159", lng: "-87.16052073557765" },
+      { name: "UNAH - Canchas de Básquetbol", lat: "14.083493181873324", lng: "-87.16231908649024" },
+      { name: "UNAH - Canchas de Voleibol", lat: "14.083390230709723", lng: "-87.1620167431988" },
+      { name: "UNAH - Auditorio Juan Lindo", lat: "14.084577783412305", lng: "-87.16275912235449" },
+      { name: "Biblioteca – UNAH", lat: "14.085334010280228", lng: "-87.16327853681811" },
+      { name: "UNAH-Biblioteca de estudiantes de Física", lat: "14.084203469547557", lng: "-87.16263280968678" },
+      { name: "UNAH – Mariposario", lat: "14.085315077802093", lng: "-87.16617670311959" },
+      { name: "UNAH – Observatorio Astronómico", lat: "14.087394454679938", lng: "-87.15944866122724" },
+    ],
+  },
+  "UNAH-CURLA": {
+    name: "UNAH-CURLA",
+    lat: "15.737930954248155",
+    lng: "-86.85631224495717",
+    buildings: [
+      { name: "Museo de Entomología del CURLA", lat: "15.73752134643521", lng: "-86.85625735613837" },
+      { name: "Biblioteca – UNAH-CURLA", lat: "15.738184000339679", lng: "-86.85204969494599" },
+      { name: "Vinculación UNAH-Sociedad", lat: "15.738717174345721", lng: "-86.8515942190944" },
+      { name: "Edificio 1", lat: "15.735925839871552", lng: "-86.85346948121804" },
+      { name: "Edificio 2 Enfermería", lat: "15.736366579283935", lng: "-86.85261570789693" },
+      { name: "Edificio Carrera de Economía Agrícola", lat: "15.737321613620566", lng: "-86.85529739638339" },
+      { name: "Nodo de Matemáticas", lat: "15.736919300700777", lng: "-86.8542524456425" },
+      { name: "Nodo de Deportes", lat: "15.73661735596144", lng: "-86.85364605086521" },
+      { name: "Nodo de Enfermería", lat: "15.737261142550562", lng: "-86.85379847731652" },
+      { name: "Nodo de Producción Animal", lat: "15.73956836549316", lng: "-86.85202496779895" },
+      { name: "Parque del Sol UNAH", lat: "15.73626129200829", lng: "-86.85537434409055" },
+      { name: "Observatorio Universitario – CURLA", lat: "15.736922575268622", lng: "-86.85083033199236" },
+      { name: "Herbario CURLA", lat: "15.737432120881408", lng: "-86.85293380270137" },
+    ],
+  },
+  "CURLP": {
+    name: "CURLP",
+    lat: "13.327611127584316",
+    lng: "-87.1360166537021",
+    buildings: [
+      { name: "Laboratorio de Microbiología", lat: "13.327205844553678", lng: "-87.13603712618585" },
+      { name: "Procesos y Laboratorios Unah-Curlp", lat: "13.326881660263478", lng: "-87.1350569569034" },
+      { name: "Biblioteca-UNAH-CURLP", lat: "13.327014858655184", lng: "-87.13535979700293" },
+      { name: "Parque del sol – UNAH-CURLA", lat: "13.328142519213268", lng: "-87.13562487097226" },
+    ],
+  },
+  "CURC": {
+    name: "CURC",
+    lat: "14.42936402958184",
+    lng: "-87.63346640175627",
+    buildings: [
+      { name: "Parque del Sol – UNAH CURC", lat: "14.429476870818501", lng: "-87.63368312828906" },
+      { name: "Complejo de laboratorios UNAH-CURC", lat: "14.428928361695531", lng: "-87.63457171615717" },
+      { name: "Edificio 1", lat: "14.429088208364549", lng: "-87.6348734624165" },
+      { name: "Edificio 2", lat: "14.429272628897008", lng: "-87.63404665976893" },
+    ],
+  },
+  "UNAH-VS": {
+    name: "UNAH-VS",
+    lat: "15.529722161329282",
+    lng: "-88.03749009134847",
+    buildings: [
+      { name: "UNAH-VS-Edificio 1", lat: "15.529168891373383", lng: "-88.03724470254508" },
+      { name: "UNAH-VS-Edificio 2", lat: "15.530066709894214", lng: "-88.03720906593323" },
+      { name: "UNAH-VS-Edificio 3", lat: "15.530554505109503", lng: "-88.03651515273316" },
+      { name: "UNAH-VS-Edificio 4", lat: "15.531295538785933", lng: "-88.03599887508378" },
+      { name: "UNAH-VS-Edificio 5", lat: "15.5314537881732", lng: "-88.03789445504385" },
+      { name: "UNAH-VS-Anexos", lat: "15.529703928738515", lng: "-88.0376770704869" },
+      { name: "UNAH-VS-Torre Médica", lat: "15.528743900500974", lng: "-88.03864357269961" },
+      { name: "UNAH-VS-Biblioteca", lat: "15.52914333559055", lng: "-88.03632511071785" },
+      { name: "Canchas Deportivas UNAH-VS", lat: "15.530479157223265", lng: "-88.03795574253161" },
+      { name: "UNAH-VS-Campo de Fútbol", lat: "15.53099796714967", lng: "-88.03893062971234" },
+      { name: "Parque del sol UNAH-VS", lat: "15.53133946849754", lng: "-88.03688539199612" },
+    ],
+  },
+  "UNAH-TEC Danli": {
+    name: "UNAH-TEC Danli",
+    lat: "13.99312784958775",
+    lng: "-86.57026951532075",
+    buildings: [
+      { name: "Edificio Principal", lat: "13.993079588786044", lng: "-86.57042869940112" },
+      { name: "Parque del Sol UNAH-TEC-Danli", lat: "13.993525936702095", lng: "-86.57068887367457" },
+    ],
+  },
+};
 
 const TILE_LAYERS = {
   google_roadmap: {
@@ -58,21 +142,17 @@ const TILE_LAYERS = {
 };
 
 interface LocationPickerProps {
-  buildingName?: string;
-  centroRegional?: string;
   lat?: string;
   lng?: string;
   onLocationChange?: (lat: string, lng: string) => void;
-  selectedSede?: string;
-  onSedeSelect?: (sedeName: string, lat: string, lng: string) => void;
+  titleBanner?: string;
 }
 
 export function LocationPicker({
-  buildingName = "",
-  centroRegional = "Ciudad Universitaria",
-  lat = "14.083902",
-  lng = "-87.161601",
+  lat = "14.08495201746369",
+  lng = "-87.16492979656168",
   onLocationChange,
+  titleBanner,
 }: LocationPickerProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const fullMapRef = useRef<HTMLDivElement>(null);
@@ -87,7 +167,6 @@ export function LocationPicker({
 
   const [activeLayerKey, setActiveLayerKey] = useState<keyof typeof TILE_LAYERS>("google_roadmap");
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [geocodingStatus, setGeocodingStatus] = useState<string>("");
 
   useEffect(() => {
     (async () => {
@@ -163,66 +242,17 @@ export function LocationPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leaflet]);
 
-  // Geocodificación Automática por Texto al escribir el edificio o cambiar de centro regional
+  // Actualizar reactivamente la posición y centrado del mapa cuando cambian lat/lng
   useEffect(() => {
     if (!leaflet || !mapInstance.current || !markerInstance.current) return;
+    const nLat = parseFloat(lat);
+    const nLng = parseFloat(lng);
 
-    const cleanBuilding = buildingName.trim().toLowerCase();
-    const cleanCentro = centroRegional.trim();
-
-    if (!cleanBuilding) {
-      // Buscar sede por defecto
-      const sedeObj = UNAH_SEDES.find((s) => s.name.toLowerCase().includes(cleanCentro.toLowerCase())) || UNAH_SEDES[0];
-      const targetLat = parseFloat(sedeObj.lat);
-      const targetLng = parseFloat(sedeObj.lng);
-      mapInstance.current.setView([targetLat, targetLng], 16, { animate: true });
-      markerInstance.current.setLatLng([targetLat, targetLng]);
-      if (onLocationChange) onLocationChange(sedeObj.lat, sedeObj.lng);
-      setGeocodingStatus(`📍 Centrado en ${sedeObj.name}`);
-      return;
-    }
-
-    // 1. Verificación previa en nuestro diccionario de coordenadas exactas de la UNAH
-    const matched = PREDEFINED_BUILDINGS.find((b) =>
-      b.keywords.some((k) => cleanBuilding.includes(k))
-    );
-
-    if (matched) {
-      const nLat = parseFloat(matched.lat);
-      const nLng = parseFloat(matched.lng);
+    if (!isNaN(nLat) && !isNaN(nLng)) {
       mapInstance.current.setView([nLat, nLng], 18, { animate: true });
       markerInstance.current.setLatLng([nLat, nLng]);
-      if (onLocationChange) onLocationChange(matched.lat, matched.lng);
-      setGeocodingStatus(`📍 Ubicación exactas fijada: UNAH • ${matched.name}`);
-      return;
     }
-
-    // 2. Consulta en segundo plano a Nominatim OpenStreetMap (Debounce 450ms)
-    const timeoutId = setTimeout(async () => {
-      try {
-        const queryStr = `${cleanBuilding} ${cleanCentro} UNAH Honduras`;
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryStr)}`);
-        const data = await res.json();
-
-        if (data && data.length > 0) {
-          const first = data[0];
-          const foundLat = parseFloat(first.lat);
-          const foundLng = parseFloat(first.lon);
-
-          mapInstance.current.setView([foundLat, foundLng], 18, { animate: true });
-          markerInstance.current.setLatLng([foundLat, foundLng]);
-          if (onLocationChange) onLocationChange(foundLat.toFixed(6), foundLng.toFixed(6));
-          setGeocodingStatus(`📍 Geocodificado: ${first.display_name.split(",")[0]}`);
-        } else {
-          setGeocodingStatus(`📍 Buscando ubicación de "${buildingName}"...`);
-        }
-      } catch (err) {
-        // Silencioso
-      }
-    }, 450);
-
-    return () => clearTimeout(timeoutId);
-  }, [buildingName, centroRegional, leaflet]);
+  }, [lat, lng, leaflet]);
 
   // Inicializar Mapa Expandido de Pantalla Completa
   useEffect(() => {
@@ -361,9 +391,9 @@ export function LocationPicker({
           <Maximize2 className="size-3.5" /> Expandir Mapa
         </button>
 
-        {geocodingStatus && (
+        {titleBanner && (
           <div className="absolute bottom-2.5 left-2.5 bg-white/90 text-slate-800 text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-sm border border-slate-200 z-10">
-            {geocodingStatus}
+            📍 {titleBanner}
           </div>
         )}
       </div>
@@ -373,7 +403,7 @@ export function LocationPicker({
         <DialogContent className="max-w-4xl w-[95vw] h-[85vh] flex flex-col p-4">
           <DialogHeader className="pb-2 border-b">
             <DialogTitle className="text-base text-[#003366] font-bold flex items-center justify-between">
-              <span>📍 Inspección de Ubicación en Mapa (Pantalla Completa)</span>
+              <span>📍 Vista de Inspección en Pantalla Completa</span>
             </DialogTitle>
           </DialogHeader>
 
@@ -382,15 +412,15 @@ export function LocationPicker({
           </div>
 
           <div className="flex items-center justify-between pt-3 border-t mt-2">
-            <span className="text-xs font-semibold text-slate-600">
-              {geocodingStatus || "Mapa en vista de inspección ampliada"}
+            <span className="text-xs font-mono text-slate-600 font-bold">
+              Lat: {lat}, Lng: {lng}
             </span>
             <button
               type="button"
               onClick={() => setIsFullscreen(false)}
               className="bg-[#004B87] hover:bg-[#003366] text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors"
             >
-              ✓ Cerrar Mapa
+              ✓ Confirmar Ubicación
             </button>
           </div>
         </DialogContent>

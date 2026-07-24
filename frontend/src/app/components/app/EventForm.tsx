@@ -17,7 +17,7 @@ import {
   Sparkles,
   Wand2,
 } from "lucide-react";
-import { LocationPicker } from "./LocationPicker";
+import { LocationPicker, SEDES_DATA } from "./LocationPicker";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -1012,18 +1012,21 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
           </div>
         </div>
         <div>
-          <Label>Centro regional <span className="text-red-500">*</span></Label>
+          <Label>
+            Centro regional <span className="text-red-500">*</span>
+          </Label>
           <Select
             value={data.centro_regional}
             onValueChange={(v) => {
+              const sedeInfo = SEDES_DATA[v] || SEDES_DATA["Ciudad Universitaria"];
               setData((prev) => {
-                const currentName = prev.ubicacion.includes("|") ? prev.ubicacion.split("|")[0] : prev.ubicacion;
-                const query = currentName ? `${currentName} ${v}`.trim() : "";
-                const link = query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : "";
+                const link = `https://www.google.com/maps/search/?api=1&query=${sedeInfo.lat},${sedeInfo.lng}`;
                 return {
                   ...prev,
                   centro_regional: v,
-                  ubicacion: currentName ? `${currentName}|${link}` : ""
+                  latitud: sedeInfo.lat,
+                  longitud: sedeInfo.lng,
+                  ubicacion: `${v}|${link}|${sedeInfo.lat},${sedeInfo.lng}`
                 };
               });
             }}
@@ -1032,7 +1035,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {CENTROS_REGIONALES.map((cr) => (
+              {Object.keys(SEDES_DATA).map((cr) => (
                 <SelectItem key={cr} value={cr}>
                   {cr}
                 </SelectItem>
@@ -1050,28 +1053,44 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
             ? fullUbicacion.split(" - ")
             : [fullUbicacion, ""];
 
+          const currentSedeData = SEDES_DATA[data.centro_regional] || SEDES_DATA["Ciudad Universitaria"];
+
           return (
             <div className="space-y-4 animate-in fade-in duration-200">
               <div>
                 <Label>
                   Edificio / Ubicación física <span className="text-red-500">*</span>
                 </Label>
-                <Input
+                <select
                   value={buildingName}
                   onChange={(e) => {
                     const val = e.target.value;
+                    const matchedBuilding = currentSedeData.buildings.find((b) => b.name === val);
+                    const bLat = matchedBuilding ? matchedBuilding.lat : currentSedeData.lat;
+                    const bLng = matchedBuilding ? matchedBuilding.lng : currentSedeData.lng;
                     const fullLoc = aulaName ? `${val} - ${aulaName}` : val;
-                    const query = val ? `${val} ${data.centro_regional}`.trim() : "";
-                    const link = query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : "";
+                    const link = `https://www.google.com/maps/search/?api=1&query=${bLat},${bLng}`;
+
                     setData((prev) => ({
                       ...prev,
-                      ubicacion: val ? `${fullLoc}|${link}` : ""
+                      latitud: bLat,
+                      longitud: bLng,
+                      ubicacion: val ? `${fullLoc}|${link}|${bLat},${bLng}` : ""
                     }));
                   }}
                   onBlur={() => blur("ubicacion")}
-                  placeholder="Ej. Edificio D1, Auditorio Juan Lindo, Plaza Cuatro Culturas..."
-                  className={cn("mt-1 h-11 bg-white", errors.ubicacion && "border-red-500")}
-                />
+                  className={cn(
+                    "mt-1 h-11 w-full rounded-xl border border-input bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer font-medium text-slate-800 shadow-2xs",
+                    errors.ubicacion && "border-red-500"
+                  )}
+                >
+                  <option value="">Seleccionar edificio de {data.centro_regional}...</option>
+                  {currentSedeData.buildings.map((b) => (
+                    <option key={b.name} value={b.name}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
                 {errors.ubicacion && <p className="text-xs mt-0.5 text-red-800">{errors.ubicacion}</p>}
               </div>
 
@@ -1084,11 +1103,10 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                   onChange={(e) => {
                     const val = e.target.value;
                     const fullLoc = val ? `${buildingName} - ${val}` : buildingName;
-                    const query = buildingName ? `${buildingName} ${data.centro_regional}`.trim() : "";
-                    const link = query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : "";
+                    const link = `https://www.google.com/maps/search/?api=1&query=${data.latitud || currentSedeData.lat},${data.longitud || currentSedeData.lng}`;
                     setData((prev) => ({
                       ...prev,
-                      ubicacion: buildingName ? `${fullLoc}|${link}` : ""
+                      ubicacion: buildingName ? `${fullLoc}|${link}|${prev.latitud},${prev.longitud}` : ""
                     }));
                   }}
                   placeholder="Ej. Aula 101, Cubículo 4, Laboratorio B..."
@@ -1122,16 +1140,15 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                 </div>
               )}
 
-              {/* Mini Preview del Mapa con Geocodificación Automática por Texto */}
+              {/* Mini Preview del Mapa con Coordenadas Predefinidas Exactas */}
               <div className="space-y-1 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs">
                 <Label className="text-xs font-bold text-[#003366] uppercase tracking-wider block">
-                  📍 Inspección de Ubicación en Mapa (Geocodificación Automática)
+                  📍 Ubicación en Mapa (Coordenadas Predefinidas Exactas)
                 </Label>
                 <LocationPicker
-                  buildingName={buildingName}
-                  centroRegional={data.centro_regional}
-                  lat={data.latitud || "14.083902"}
-                  lng={data.longitud || "-87.161601"}
+                  lat={data.latitud || currentSedeData.lat}
+                  lng={data.longitud || currentSedeData.lng}
+                  titleBanner={buildingName ? `${buildingName} (${data.centro_regional})` : data.centro_regional}
                   onLocationChange={(nLat: string, nLng: string) => {
                     setData((prev) => ({
                       ...prev,
