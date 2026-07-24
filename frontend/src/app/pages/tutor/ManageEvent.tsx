@@ -1,9 +1,38 @@
-import { useState, useEffect } from "react";
-import { useParams } from "react-router";
-import { QRCodeSVG } from "qrcode.react";
-import { Users, Clock, CheckCircle2, XCircle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useParams, Link, useNavigate } from "react-router";
+import {
+  ArrowLeft,
+  CalendarDays,
+  Clock,
+  MapPin,
+  Users,
+  CheckCircle2,
+  QrCode,
+  Download,
+  FileText,
+  Play,
+  Square,
+  RefreshCw,
+  Copy,
+  Eye,
+  AlertTriangle,
+  Camera,
+  XCircle,
+  Pen,
+  Trash2,
+  Send,
+  Share2,
+  Info,
+  LogOut,
+  Lock,
+  Mail,
+} from "lucide-react";
+import { EventDetailMapPreview } from "../../components/app/EventDetailMapPreview";
+import { LocationPicker, resolveExactBuildingCoords } from "../../components/app/LocationPicker";
+import { api } from "../../../services/api";
+import { VoaeDrawer } from "../../components/app/VoaeDrawer";
 import { Button } from "../../components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -13,32 +42,220 @@ import {
   TableRow,
 } from "../../components/ui/table";
 import { Badge } from "../../components/ui/badge";
-import { Progress } from "../../components/ui/progress";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../components/ui/dialog";
+import { Checkbox } from "../../components/ui/checkbox";
+import { Label } from "../../components/ui/label";
+import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
+import { downloadConstanciaPdf, MESES } from "../../../lib/constancia-pdf";
+import { SignatureModal } from "../../components/app/ConstanciaModal";
+import { EventForm } from "../../components/app/EventForm";
 
-const mockStudents = [
-  { id: "1", name: "Ana García", email: "ana.garcia@pumas.unam.mx", attended: true, time: "10:05 AM" },
-  { id: "2", name: "Carlos López", email: "carlos.lopez@pumas.unam.mx", attended: true, time: "10:03 AM" },
-  { id: "3", name: "María Rodríguez", email: "maria.rodriguez@pumas.unam.mx", attended: false, time: null },
-  { id: "4", name: "Luis Martínez", email: "luis.martinez@pumas.unam.mx", attended: true, time: "10:08 AM" },
-  { id: "5", name: "Carmen Flores", email: "carmen.flores@pumas.unam.mx", attended: true, time: "10:02 AM" },
-  { id: "6", name: "Jorge Sánchez", email: "jorge.sanchez@pumas.unam.mx", attended: false, time: null },
-  { id: "7", name: "Patricia Torres", email: "patricia.torres@pumas.unam.mx", attended: true, time: "10:12 AM" },
-  { id: "8", name: "Roberto Díaz", email: "roberto.diaz@pumas.unam.mx", attended: true, time: "10:01 AM" },
-];
+const CATEGORY_LABEL: Record<string, string> = {
+  ACADEMICO: "Académico",
+  CULTURAL: "Cultural",
+  DEPORTIVO: "Deportivo",
+  SOCIAL: "Social",
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  ACADEMICO: "#3b82f6",
+  CULTURAL: "#8b5cf6",
+  DEPORTIVO: "#22c55e",
+  SOCIAL: "#f59e0b",
+};
+
+const PLACEHOLDER_BG: Record<string, string> = {
+  ACADEMICO: "#eff6ff",
+  CULTURAL: "#faf5ff",
+  DEPORTIVO: "#f0fdf4",
+  SOCIAL: "#fffbeb",
+};
+
+const PLACEHOLDER_INITIALS_BG: Record<string, string> = {
+  ACADEMICO: "#dbeafe",
+  CULTURAL: "#f3e8ff",
+  DEPORTIVO: "#dcfce7",
+  SOCIAL: "#fef3c7",
+};
+
+const PLACEHOLDER_TEXT: Record<string, string> = {
+  ACADEMICO: "#3b82f6",
+  CULTURAL: "#8b5cf6",
+  DEPORTIVO: "#22c55e",
+  SOCIAL: "#f59e0b",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  BORRADOR: "Borrador",
+  PENDIENTE_APROBACION: "Pendiente de aprobación",
+  PROGRAMADO: "Programado",
+  EN_CURSO: "En curso",
+  FINALIZADO: "Finalizado",
+  RECHAZADO: "Rechazado",
+};
+
+function formatDate(iso: string) {
+  if (!iso) return "N/A";
+  return new Date(iso).toLocaleDateString("es-HN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatLocalEventTimeRange(startIso: string, endIso: string): string {
+  const d1 = new Date(startIso);
+  const d2 = new Date(endIso);
+  if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return "N/A";
+  
+  const dateStr = d1.toLocaleDateString("es-HN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  
+  const pad = (n: number) => String(n).padStart(2, '0');
+  
+  const format12h = (d: Date) => {
+    let hours = d.getHours();
+    const minutes = pad(d.getMinutes());
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${hours}:${minutes} ${ampm}`;
+  };
+
+  const timeStr = `${format12h(d1)} - ${format12h(d2)}`;
+  
+  if (d1.toDateString() !== d2.toDateString()) {
+    const endDateStr = d2.toLocaleDateString("es-HN", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+    return `Del ${dateStr} (${format12h(d1)}) al ${endDateStr} (${format12h(d2)})`;
+  }
+  
+  return `${dateStr} (${timeStr})`;
+}
+
+interface TimelineStepProps {
+  label: string;
+  isCompleted: boolean;
+  isActive: boolean;
+}
+
+function TimelineStep({ label, isCompleted, isActive }: TimelineStepProps) {
+  return (
+    <div className="flex flex-col items-center flex-1 relative">
+      <div className={`size-8 rounded-full flex items-center justify-center border-2 z-10 transition-all ${
+        isCompleted
+          ? "bg-green-500 border-green-500 text-white"
+          : isActive
+          ? "bg-blue-50 border-[#004B87] text-[#004B87] font-bold"
+          : "bg-white border-slate-200 text-slate-400"
+      }`}>
+        {isCompleted ? <CheckCircle2 className="size-4" /> : "•"}
+      </div>
+      <span className={`text-[11px] font-semibold mt-2 text-center transition-colors ${
+        isActive ? "text-[#004B87]" : isCompleted ? "text-slate-800" : "text-slate-400"
+      }`}>{label}</span>
+    </div>
+  );
+}
 
 export function ManageEvent() {
-  const { eventId } = useParams();
-  const [qrTimer, setQrTimer] = useState(120); // 2 minutes
-  const [isEventActive, setIsEventActive] = useState(true);
-  const [students, setStudents] = useState(mockStudents);
+  const { eventId } = useParams<{ eventId: string }>();
+  const navigate = useNavigate();
+  const [event, setEvent] = useState<any>(null);
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
+  const [sendVoaeConfirmOpen, setSendVoaeConfirmOpen] = useState(false);
+  const [endEventConfirmOpen, setEndEventConfirmOpen] = useState(false);
+  const [currentPageEnrolled, setCurrentPageEnrolled] = useState(1);
+  const [pageSizeEnrolled, setPageSizeEnrolled] = useState(10);
+  const [currentPageAttendance, setCurrentPageAttendance] = useState(1);
+  const [pageSizeAttendance, setPageSizeAttendance] = useState(10);
+
+  const handlePublishDirect = async () => {
+    if (!event) return;
+    try {
+      const updated = await api.put<any>(`/eventos/${event.id}`, {
+        ...event,
+        estado: "PROGRAMADO",
+      });
+      setEvent(updated);
+      toast.success("¡Evento publicado con éxito!");
+      setPublishConfirmOpen(false);
+    } catch (err: any) {
+      toast.error("Error al publicar el evento", { description: err.message });
+    }
+  };
+  
+  // Controls state
+  const [qrTimer, setQrTimer] = useState(120);
+  const [qrType, setQrType] = useState<"ENTRADA" | "SALIDA">("ENTRADA");
+  const [attendanceCode, setAttendanceCode] = useState("");
+  const [entryQrOpen, setEntryQrOpen] = useState(false);
+  const [exitQrOpen, setExitQrOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [auditoriaStudent, setAuditoriaStudent] = useState<any | null>(null);
+  const [auditoriaIndex, setAuditoriaIndex] = useState(0);
+  const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null);
+  
+  // Constancia Modals state
+  const [voaeDrawerOpen, setVoaeDrawerOpen] = useState(false);
+  const [pdfStudent, setPdfStudent] = useState<any>(null);
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [firmadasSet, setFirmadasSet] = useState<Set<string>>(new Set());
+
+  const portadaInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchEventDetails = async () => {
+    if (!eventId) return;
+    try {
+      setLoading(true);
+      const evData = await api.get<any>(`/eventos/${eventId}`);
+      setEvent(evData);
+      
+      const insData = await api.get<any[]>(`/inscripciones/evento/${eventId}`);
+      setStudents(insData || []);
+    } catch (err: any) {
+      toast.error("Error al cargar detalles del evento", { description: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (qrTimer > 0 && isEventActive) {
-      const timer = setTimeout(() => setQrTimer(qrTimer - 1), 1000);
-      return () => clearTimeout(timer);
+    fetchEventDetails();
+  }, [eventId]);
+
+  useEffect(() => {
+    if (qrTimer > 0 && event?.estado === "EN_CURSO") {
+      const interval = setInterval(() => setQrTimer((t) => t - 1), 1000);
+      return () => clearInterval(interval);
     }
-  }, [qrTimer, isEventActive]);
+  }, [qrTimer, event?.estado]);
+
+  const generateAttendanceCode = () => {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setAttendanceCode(code);
+    localStorage.setItem(`att_code_${eventId}`, code);
+    toast.success("Nuevo código generado");
+  };
+
+  useEffect(() => {
+    if (event && !attendanceCode) {
+      const saved = localStorage.getItem(`att_code_${eventId}`);
+      if (saved) setAttendanceCode(saved);
+      else generateAttendanceCode();
+    }
+  }, [event]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -46,179 +263,1607 @@ export function ManageEvent() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const attendedCount = students.filter((s) => s.attended).length;
-  const attendancePercentage = (attendedCount / students.length) * 100;
-
-  const handleRegenerateQR = () => {
-    setQrTimer(120);
-    toast.success("Código QR regenerado");
+  const handleStartEvent = async () => {
+    if (!event) return;
+    try {
+      const updated = await api.put<any>(`/eventos/${event.id}`, {
+        ...event,
+        estado: "EN_CURSO",
+      });
+      setEvent(updated);
+      toast.success("¡El evento ha iniciado!");
+    } catch (err: any) {
+      toast.error("Error al iniciar el evento", { description: err.message });
+    }
   };
 
-  const handleEndEvent = () => {
-    setIsEventActive(false);
-    toast.success("Evento finalizado", {
-      description: "Los estudiantes ya no podrán registrar asistencia",
+  const handleStartExit = async () => {
+    if (!event) return;
+    try {
+      const updated = await api.put<any>(`/eventos/${event.id}`, {
+        ...event,
+        estado: "EN_CURSO_SALIDA",
+      });
+      setEvent(updated);
+      toast.success("¡Etapa de salida iniciada! QR de salida habilitado.");
+    } catch (err: any) {
+      toast.error("Error al iniciar salida", { description: err.message });
+    }
+  };
+
+  const handleEndEvent = async () => {
+    if (!event) return;
+    try {
+      const updated = await api.put<any>(`/eventos/${event.id}`, {
+        ...event,
+        estado: "FINALIZADO",
+      });
+      setEvent(updated);
+      toast.success("¡El evento ha finalizado!");
+    } catch (err: any) {
+      toast.error("Error al finalizar el evento", { description: err.message });
+    }
+  };
+
+  const handleSendToVoae = async () => {
+    if (!event) return;
+    try {
+      const updated = await api.put<any>(`/eventos/${event.id}`, {
+        ...event,
+        estado: "PENDIENTE_APROBACION",
+      });
+      setEvent(updated);
+      toast.success("Evento enviado a VOAE para revisión");
+    } catch (err: any) {
+      toast.error("Error al enviar a VOAE", { description: err.message });
+    }
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!event) return;
+    try {
+      await api.delete(`/eventos/${event.id}`);
+      toast.success("Evento descartado con éxito");
+      navigate("/tutor/eventos");
+    } catch (err: any) {
+      toast.error("Error al descartar evento", { description: err.message });
+    }
+  };
+
+  const handlePortadaFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast.error("Formato no válido", { description: "Usa JPG, PNG o WEBP" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Archivo muy grande", { description: "Máximo 5MB" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      try {
+        const updated = await api.put<any>(`/eventos/${event.id}`, {
+          ...event,
+          portada_url: base64
+        });
+        setEvent(updated);
+        toast.success("Imagen de portada actualizada");
+      } catch (err: any) {
+        toast.error("Error al actualizar portada", { description: err.message });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleConfirmSignature = (signatureDataUrl: string) => {
+    if (!pdfStudent || !event) return;
+    setShowSignatureModal(false);
+    setFirmadasSet((prev) => new Set(prev).add(pdfStudent.estudiante_id));
+    localStorage.setItem(`cert_signed_${event.id}_${pdfStudent.estudiante_id}`, signatureDataUrl);
+    toast.success("Firma estampada con éxito");
+  };
+
+  const handleDownloadPDF = async (s: any) => {
+    if (!event) return;
+    const evDate = new Date(event.fecha_inicio);
+    const today = new Date();
+    await downloadConstanciaPdf({
+      estudiante_nombre: s.estudiante_nombre,
+      estudiante_carrera: s.estudiante_carrera || "Carrera de Estudiante",
+      estudiante_cuenta: s.estudiante_cuenta,
+      tutor_nombre: event.tutor_nombre || "Tutor Responsable",
+      evento_nombre: event.titulo,
+      evento_mes_anio: `${MESES[evDate.getMonth()]} ${evDate.getFullYear()}`,
+      horas: event.duracion_horas,
+      categoria: CATEGORY_LABEL[event.categoria] || event.categoria,
+      voae_nombre: "Tutor Responsable",
+      voae_cargo: "Coordinador de Eventos",
+      voae_departamento: "VOAE",
+      voae_codigo: `VOAE-${event.id}`,
+      fecha_dia: today.getDate(),
+      fecha_mes: MESES[today.getMonth()],
+      fecha_anio: today.getFullYear(),
+      constancia_id: `const-${s.estudiante_cuenta}-${event.id}`,
     });
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-[#004B87]">
-            Taller de Desarrollo Web con React
-          </h1>
-          <p className="text-muted-foreground mt-1">Gestión en Tiempo Real</p>
+  if (loading) {
+    return <div className="py-20 text-center text-sm text-muted-foreground font-medium">Cargando panel del evento...</div>;
+  }
+
+  if (!event) {
+    return (
+      <div className="py-20 text-center">
+        <AlertTriangle className="size-12 mx-auto text-red-500 mb-3 animate-bounce" />
+        <p className="text-sm font-semibold">Evento no encontrado.</p>
+        <Link to="/tutor/eventos" className="text-xs text-[#004B87] underline mt-2 block hover:text-[#003366]">Volver a mis eventos</Link>
+      </div>
+    );
+  }
+
+  if (isEditing) {
+    return <EventForm initialEvent={event} onClose={() => { setIsEditing(false); fetchEventDetails(); }} />;
+  }
+
+  const isEntryActive = event.estado === "EN_CURSO";
+  const isExitActive = event.estado === "EN_CURSO_SALIDA";
+  const isFinalized = event.estado === "FINALIZADO";
+
+  const entryQrText = isFinalized
+    ? "Evento finalizado"
+    : event.estado === "BORRADOR" || event.estado === "PENDIENTE_APROBACION"
+      ? "Se habilita cuando inicie el evento"
+      : event.estado === "PROGRAMADO"
+        ? "Evento no iniciado"
+        : event.estado === "EN_CURSO_SALIDA"
+          ? "Registro de entrada cerrado"
+          : event.estado === "EN_CURSO"
+            ? "QR de entrada activo"
+            : "";
+
+  const exitQrText = isFinalized
+    ? "Evento finalizado"
+    : event.estado === "BORRADOR" || event.estado === "PENDIENTE_APROBACION" || event.estado === "PROGRAMADO" || event.estado === "EN_CURSO"
+      ? "Se habilita al iniciar salida"
+      : event.estado === "EN_CURSO_SALIDA"
+        ? "QR de salida activo"
+        : "";
+
+  const entryQrValue = `https://conectapumas.app/asistencia/${event.id}?type=ENTRADA&code=${attendanceCode}`;
+  const exitQrValue = `https://conectapumas.app/asistencia/${event.id}?type=SALIDA&code=${attendanceCode}`;
+
+  const downloadQrCode = (canvasId: string, filename: string) => {
+    const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
+    if (canvas) {
+      const url = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      toast.success("Código QR descargado");
+    } else {
+      toast.error("No se pudo descargar el código QR");
+    }
+  };
+
+  const toggleAttendance = async (studentId: string, isChecked: boolean) => {
+    const student = students.find((s) => s.id === studentId || s.estudiante_id === studentId);
+    if (!student) return;
+    try {
+      const newStatus = isChecked ? "ASISTIDO" : "INSCRITO";
+      await api.put<any>(`/inscripciones/${student.id}/estado`, {
+        estado: newStatus
+      });
+      setStudents((prev) =>
+        prev.map((s) => (s.id === student.id ? { ...s, estado: newStatus } : s))
+      );
+      toast.success(isChecked ? `Asistencia registrada para ${student.estudiante_nombre}` : `Asistencia revocada para ${student.estudiante_nombre}`);
+    } catch (err: any) {
+      toast.error("Error al actualizar asistencia", { description: err.message });
+    }
+  };
+
+  const markAllAttended = async () => {
+    try {
+      const promises = students
+        .filter((s) => s.estado !== "ASISTIDO")
+        .map((s) => api.put<any>(`/inscripciones/${s.id}/estado`, { estado: "ASISTIDO" }));
+      await Promise.all(promises);
+      setStudents((prev) => prev.map((s) => ({ ...s, estado: "ASISTIDO" })));
+      toast.success("Todos los estudiantes han sido marcados como asistidos");
+    } catch (err: any) {
+      toast.error("Error al registrar asistencias", { description: err.message });
+    }
+  };
+
+  const triggerQrScanner = () => {
+    toast.info("Simulador de Escáner QR de Asistencia", {
+      description: "Escaneando código QR de estudiante...",
+      action: {
+        label: "Simular Entrada",
+        onClick: () => {
+          const next = students.find((s) => s.estado !== "ASISTIDO");
+          if (next) toggleAttendance(next.id, true);
+          else toast.error("No hay estudiantes pendientes");
+        }
+      }
+    });
+  };
+
+  const downloadPdfReport = () => {
+    const ubicacionLabel = (v: boolean | undefined | null) => {
+      if (v === true) return "✓";
+      if (v === false) return "⚠";
+      return "—";
+    };
+
+    const rows = students
+      .map((s) => {
+        const isAssisted = s.estado === "ASISTIDO";
+        const horaLlegada = isAssisted
+          ? new Date(s.inscrito_at || Date.now()).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' })
+          : "-";
+        const horaSalida = isAssisted
+          ? (event.estado === "FINALIZADO"
+              ? new Date(event.fecha_fin || Date.now()).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' })
+              : "Sin salida")
+          : "-";
+
+        let entValid = s.ubicacion_entrada_validada;
+        let salValid = s.ubicacion_salida_validada;
+        if (isAssisted && event.tipo_actividad !== "Virtual") {
+          if (entValid === undefined || entValid === null) entValid = true;
+          if ((salValid === undefined || salValid === null) && event.estado === "FINALIZADO") salValid = true;
+        }
+
+        const ubicacionStr = event.tipo_actividad === "Virtual"
+          ? "E:— S:—"
+          : `E:${ubicacionLabel(entValid)} S:${ubicacionLabel(salValid)}`;
+
+        return `
+          <tr>
+            <td style="padding:8px 12px;border:1px solid #ddd">${s.estudiante_nombre}</td>
+            <td style="padding:8px 12px;border:1px solid #ddd;font-family:monospace;font-size:12px">${s.estudiante_cuenta}</td>
+            <td style="padding:8px 12px;border:1px solid #ddd">${s.estudiante_cuenta}@unah.hn</td>
+            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">
+              ${isAssisted ? '<span style="color:#22c55e;font-weight:600">Asistió</span>' : '<span style="color:#ef4444;font-weight:600">No asistió</span>'}
+            </td>
+            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${horaLlegada}</td>
+            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${horaSalida}</td>
+            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${ubicacionStr}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const cleanEventTitle = (event.titulo || "Evento").replace(/[^a-zA-Z0-9-_]/g, "_");
+    const pdfTitle = `Listado-${cleanEventTitle}`;
+
+    const html = `
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>${pdfTitle}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; }
+          h2 { font-size: 20px; margin-bottom: 4px; color: #004B87; }
+          .meta { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+          table { width: 100%; border-collapse: collapse; font-size: 13px; }
+          th { background: #f1f5f9; padding: 8px 12px; text-align: left; border: 1px solid #ddd; font-size: 11px; text-transform: uppercase; color: #64748b; }
+          td { padding: 8px 12px; border: 1px solid #ddd; }
+        </style>
+      </head>
+      <body>
+        <h2>${event.titulo}</h2>
+        <div class="meta">Tutor: ${event.tutor_nombre || "Tutor Responsable"} &mdash; Fecha: ${new Date(event.fecha_inicio).toLocaleDateString()}</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Estudiante</th>
+              <th>No. Cuenta</th>
+              <th>Email</th>
+              <th style="text-align:center">Estado</th>
+              <th style="text-align:center">Hora llegada</th>
+              <th style="text-align:center">Hora salida</th>
+              <th style="text-align:center">Ubicación</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div style="margin-top:20px;font-size:11px;color:#94a3b8;text-align:center">
+          Generado el ${new Date().toLocaleDateString()} — Conecta Pumas
         </div>
-        {isEventActive && (
-          <Button
-            variant="destructive"
-            onClick={handleEndEvent}
-          >
-            Finalizar Evento
-          </Button>
-        )}
+      </body>
+      </html>
+    `;
+    const originalTitle = document.title;
+    document.title = pdfTitle;
+
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0px";
+    iframe.style.height = "0px";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document || iframe.contentDocument;
+    if (doc) {
+      doc.write(html);
+      doc.close();
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+          document.title = originalTitle;
+        }, 1500);
+      }, 500);
+    }
+  };
+
+  const steps = [
+    { label: "Creado", isCompleted: true, isActive: false },
+    {
+      label: "Enviado a VOAE",
+      isCompleted: event.estado !== "BORRADOR" && event.estado !== "RECHAZADO",
+      isActive: event.estado === "PENDIENTE_APROBACION"
+    },
+    {
+      label: "Aprobado",
+      isCompleted: ["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
+      isActive: event.estado === "PROGRAMADO"
+    },
+    {
+      label: "En curso",
+      isCompleted: ["EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
+      isActive: ["EN_CURSO", "EN_CURSO_SALIDA"].includes(event.estado)
+    },
+    {
+      label: "Finalizado",
+      isCompleted: event.estado === "FINALIZADO",
+      isActive: event.estado === "FINALIZADO"
+    }
+  ];
+
+  // Paginación y ordenamiento de Matriculados
+  const totalEnrolled = students.length;
+  const totalPagesEnrolled = Math.ceil(totalEnrolled / pageSizeEnrolled);
+  const paginatedEnrolled = students.slice(
+    (currentPageEnrolled - 1) * pageSizeEnrolled,
+    currentPageEnrolled * pageSizeEnrolled
+  );
+
+  // Ordenamiento de Asistencias: prioritiza primero los que NO están verificados (estado !== "ASISTIDO")
+  const sortedAttendance = [...students].sort((a, b) => {
+    const aAssisted = a.estado === "ASISTIDO" ? 1 : 0;
+    const bAssisted = b.estado === "ASISTIDO" ? 1 : 0;
+    return aAssisted - bAssisted; // Los no verificados (0) van primero, los verificados (1) al final
+  });
+  
+  const totalAttendance = sortedAttendance.length;
+  const totalPagesAttendance = Math.ceil(totalAttendance / pageSizeAttendance);
+  const paginatedAttendance = sortedAttendance.slice(
+    (currentPageAttendance - 1) * pageSizeAttendance,
+    currentPageAttendance * pageSizeAttendance
+  );
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      <Link
+        to="/tutor/eventos"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-[#004B87] transition font-medium"
+      >
+        <ArrowLeft className="size-4" /> Volver
+      </Link>
+
+      {/* Header bar */}
+      <div className="flex justify-between items-center flex-wrap gap-4 border-b pb-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-slate-800">{event.titulo}</h1>
+            <Badge className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5" style={{
+              backgroundColor:
+                event.estado === "BORRADOR" ? "#64748b" :
+                event.estado === "PENDIENTE_APROBACION" ? "#f59e0b" :
+                event.estado === "PROGRAMADO" ? "#3b82f6" :
+                event.estado === "EN_CURSO" ? "#22c55e" :
+                event.estado === "FINALIZADO" ? "#10b981" : "#ef4444"
+            }}>
+              {STATUS_LABEL[event.estado] || event.estado}
+            </Badge>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {event.estado === "BORRADOR" && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+                className="gap-1.5 border-blue-200 text-[#004B87] hover:bg-blue-50"
+              >
+                <Pen className="size-4" /> Editar
+              </Button>
+              {(() => {
+                const isRecreacion = event.tipo_evento === "RECREACION" || event.tipo_evento === "SIN_HORAS" || parseFloat(event.duracion_horas) === 0;
+                if (isRecreacion) {
+                  return (
+                    <Button
+                      size="sm"
+                      onClick={() => setPublishConfirmOpen(true)}
+                      className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shadow-sm font-semibold"
+                    >
+                      <CheckCircle2 className="size-4" /> Publicar
+                    </Button>
+                  );
+                }
+                return (
+                  <Button
+                    size="sm"
+                    onClick={() => setSendVoaeConfirmOpen(true)}
+                    className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shadow-sm"
+                  >
+                    <Send className="size-4" /> Enviar a VOAE
+                  </Button>
+                );
+              })()}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDeleteEvent}
+                className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="size-4" /> Descartar
+              </Button>
+            </>
+          )}
+
+          {event.estado === "RECHAZADO" && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+                className="gap-1.5 border-blue-200 text-[#004B87] hover:bg-blue-50"
+              >
+                <Pen className="size-4" /> Corregir y Reenviar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDeleteEvent}
+                className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="size-4" /> Descartar
+              </Button>
+            </>
+          )}
+
+          {event.estado === "PROGRAMADO" && (
+            <Button onClick={handleStartEvent} className="bg-green-600 hover:bg-green-700 text-white gap-1.5 shadow-sm font-semibold">
+              <Play className="size-4" /> Iniciar Evento
+            </Button>
+          )}
+
+          {event.estado === "EN_CURSO" && (
+            <Button onClick={handleStartExit} className="bg-[#004B87] hover:bg-[#003366] text-white gap-1.5 shadow-sm font-semibold">
+              <LogOut className="size-4" /> Iniciar Salida
+            </Button>
+          )}
+
+          {event.estado === "EN_CURSO_SALIDA" && (
+            <Button onClick={() => setEndEventConfirmOpen(true)} className="bg-red-600 hover:bg-red-700 text-white gap-1.5 shadow-sm font-semibold">
+              <Square className="size-4" /> Finalizar Evento
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Estudiantes Inscritos</p>
-                <h3 className="text-3xl font-bold text-[#004B87] mt-1">
-                  {students.length}
-                </h3>
-              </div>
-              <Users className="h-12 w-12 text-[#004B87] opacity-20" />
-            </div>
-          </CardContent>
-        </Card>
+      {/* Banners */}
+      {event.estado === "BORRADOR" && (
+        <div className="rounded-xl border bg-slate-50 border-slate-200/80 p-4 text-sm flex items-start gap-3 text-slate-600">
+          <Info className="size-5 shrink-0 text-slate-400 mt-0.5" />
+          <span>Este evento está en borrador. Puedes editarlo antes de publicarlo.</span>
+        </div>
+      )}
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Asistencia Registrada</p>
-                <h3 className="text-3xl font-bold text-[#004B87] mt-1">
-                  {attendedCount}
-                </h3>
-              </div>
-              <CheckCircle2 className="h-12 w-12 text-[#004B87] opacity-20" />
-            </div>
-          </CardContent>
-        </Card>
+      {event.estado === "RECHAZADO" && (
+        <div className="rounded-xl border bg-amber-50 border-amber-200 p-4 text-sm flex items-start gap-3 text-amber-800">
+          <AlertTriangle className="size-5 shrink-0 text-amber-500 mt-0.5" />
+          <div>
+            <span className="font-semibold block text-amber-900">Este evento fue rechazado por VOAE</span>
+            <p className="mt-1 text-amber-700 font-medium bg-white/60 p-2.5 rounded-lg border border-amber-200/50 mt-2">
+              <span className="font-bold">Motivo: </span>
+              {event.motivo_rechazo || "No se especificó un motivo de rechazo."}
+            </p>
+          </div>
+        </div>
+      )}
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Porcentaje de Asistencia</p>
-                <h3 className="text-3xl font-bold text-[#004B87] mt-1">
-                  {Math.round(attendancePercentage)}%
-                </h3>
+      {/* Portada + Ubicacion dynamic boxes */}
+      <div className="grid grid-cols-1 md:grid-cols-10 gap-5">
+        {/* Left: Portada box */}
+        <div className="md:col-span-5 rounded-xl overflow-hidden border bg-card shadow-sm relative group h-52 flex flex-col justify-center">
+          {event.estado === "BORRADOR" && (
+            <>
+              <input
+                ref={portadaInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handlePortadaFileChange}
+              />
+              <button
+                type="button"
+                onClick={() => portadaInputRef.current?.click()}
+                className="absolute inset-0 z-10 flex items-center justify-center bg-black/0 hover:bg-black/40 transition-colors cursor-pointer"
+                aria-label="Cambiar imagen de portada"
+              >
+                <div className="size-10 rounded-full bg-white/90 grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md">
+                  <Camera className="size-5 text-slate-700" />
+                </div>
+              </button>
+              <p className="absolute bottom-2 left-2 z-10 text-[10px] text-white/70 bg-black/40 px-2 py-0.5 rounded">
+                Toca para cambiar la portada
+              </p>
+            </>
+          )}
+
+          {event.portada_url || event.imagen_url ? (
+            <img src={event.portada_url || event.imagen_url} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div
+              className="w-full h-full grid place-items-center"
+              style={{ backgroundColor: PLACEHOLDER_BG[event.categoria] || "#f1f5f9" }}
+            >
+              <div
+                className="size-20 rounded-full grid place-items-center"
+                style={{
+                  backgroundColor: PLACEHOLDER_INITIALS_BG[event.categoria] || "#e2e8f0",
+                }}
+              >
+                <div
+                  className="text-3xl font-bold"
+                  style={{ color: PLACEHOLDER_TEXT[event.categoria] || "#64748b" }}
+                >
+                  {CATEGORY_LABEL[event.categoria]?.slice(0, 2).toUpperCase()}
+                </div>
               </div>
-              <Progress value={attendancePercentage} className="w-16 h-16" />
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
+
+        {/* Right: Maps / Link box */}
+        <div className="md:col-span-5">
+          {event.tipo_actividad === "Virtual" ? (
+            <div className="rounded-xl border bg-blue-50/50 border-blue-200/80 p-5 flex flex-col justify-between h-52 shadow-sm">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs text-blue-600 font-semibold uppercase tracking-wider">
+                  <Eye className="size-4" /> Modalidad Virtual
+                </div>
+                <h4 className="font-bold text-lg text-slate-800">Evento por Videoconferencia</h4>
+                <p className="text-xs text-muted-foreground">Se transmitirá de forma digital</p>
+              </div>
+
+              {event.enlace_virtual ? (
+                <Button
+                  type="button"
+                  className="w-full gap-1.5 h-11 bg-blue-600 hover:bg-blue-700 text-white shadow-sm font-semibold"
+                  onClick={() => window.open(event.enlace_virtual, "_blank")}
+                >
+                  <Eye className="size-4" /> Ir a la reunión virtual
+                </Button>
+              ) : (
+                <div className="text-xs text-amber-600 bg-amber-50 p-2.5 rounded-lg border border-amber-200/50 text-center font-medium">
+                  Enlace de videoconferencia no configurado.
+                </div>
+              )}
+            </div>
+          ) : (
+            (() => {
+              const loc = event.lugar || event.ubicacion || "";
+              const [bName, bLink] = loc.includes("|")
+                ? loc.split("|")
+                : [loc, loc ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc + " " + (event.centro_regional || "Ciudad Universitaria"))}` : ""];
+
+              if (!bName) {
+                return (
+                  <div className="rounded-xl border bg-slate-50/50 border-slate-200 h-52 flex flex-col items-center justify-center text-sm text-slate-400">
+                    <MapPin className="size-8 mb-1.5 opacity-40" />
+                    <span>Ubicación no disponible</span>
+                  </div>
+                );
+              }
+
+              const isHibrido = event.tipo_actividad === "Híbrido";
+              const { lat: latVal, lng: lngVal, buildingName: exactBuildingName } = resolveExactBuildingCoords(
+                event.centro_regional,
+                event.lugar || event.ubicacion,
+                event.latitud,
+                event.longitud
+              );
+
+              return (
+                <div className="rounded-2xl border bg-white border-slate-200/80 p-4 flex flex-col justify-between shadow-sm relative group hover:border-[#004B87]/40 transition-colors space-y-2.5">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 text-xs text-[#004B87] font-semibold uppercase tracking-wider">
+                      <MapPin className="size-4" /> {isHibrido ? "Ubicación Híbrida" : "Ubicación Presencial"}
+                    </div>
+                    <h4 className="font-bold text-base text-slate-800 line-clamp-2" title={bName}>{bName}</h4>
+                    <p className="text-xs text-muted-foreground">{event.centro_regional || "Ciudad Universitaria"}</p>
+                  </div>
+
+                  {/* Mini Preview Compacto del Mapa (~160px) con Botón Expandir */}
+                  <div className="rounded-xl overflow-hidden border border-slate-200 shadow-2xs">
+                    <LocationPicker
+                      lat={latVal}
+                      lng={lngVal}
+                      titleBanner={`${exactBuildingName || bName} (${event.centro_regional || 'Ciudad Universitaria'})`}
+                      height="160px"
+                    />
+                  </div>
+
+                  {isHibrido && event.enlace_virtual && (
+                    <div className="pt-0.5">
+                      <Button
+                        type="button"
+                        className="w-full gap-1.5 h-10 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition hover:scale-[1.01] font-semibold text-xs rounded-xl"
+                        onClick={() => window.open(event.enlace_virtual, "_blank")}
+                      >
+                        <Eye className="size-4" /> Enlace Virtual
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()
+          )}
+        </div>
       </div>
 
-      {/* QR Code Section */}
-      {isEventActive && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Código QR para Asistencia</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col md:flex-row items-center gap-8">
-              <div className="flex flex-col items-center gap-4">
-                <div className="p-6 bg-white border-4 border-[#004B87] rounded-lg">
-                  <QRCodeSVG
-                    value={`event:${eventId}:${Date.now()}`}
-                    size={256}
-                    level="H"
-                    includeMargin={true}
+      {/* Galería de imágenes adicionales */}
+      {event.imagenes_adicionales && event.imagenes_adicionales.length > 0 && (
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-3">
+          <h3 className="font-bold text-xs text-[#003366] uppercase tracking-wider flex items-center gap-2">
+            <Camera className="size-4 text-[#004B87]" /> Imágenes Adicionales del Evento
+          </h3>
+          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200">
+            {event.imagenes_adicionales.map((img: string, idx: number) => (
+              <div key={idx} className="relative size-32 rounded-xl overflow-hidden border shrink-0 group hover:border-[#004B87]/50 transition shadow-sm cursor-zoom-in" onClick={() => setActiveLightboxImg(img)}>
+                <img src={img} alt={`Imagen ${idx + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Stepper Timeline */}
+      {event.tipo_evento === "HORAS_VOAE" && (
+        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center justify-between relative max-w-3xl mx-auto">
+            {/* Connector Line behind steps */}
+            <div className="absolute left-6 right-6 top-4 h-[2px] bg-slate-200 -z-0" />
+            {steps.map((step, idx) => (
+              <TimelineStep key={idx} label={step.label} isCompleted={step.isCompleted} isActive={step.isActive} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tabs list (Control de asistencia, Participantes, Detalle) */}
+      <Tabs defaultValue="control" className="space-y-4">
+        <TabsList className="grid grid-cols-3 w-full max-w-md">
+          <TabsTrigger value="control">Control de Asistencia</TabsTrigger>
+          <TabsTrigger value="participantes">Participantes ({students.length})</TabsTrigger>
+          <TabsTrigger value="detalle">Detalle del Evento</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="control" className="space-y-4">
+          {["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado) ? (
+            <Card className="shadow-sm border-slate-200 bg-white">
+              <CardHeader className="border-b border-slate-100 pb-3">
+                <CardTitle className="text-[#003366] text-base font-bold">Paneles de Códigos QR de Asistencia</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="grid md:grid-cols-2 gap-8">
+                  {/* QR de Inscripción (Entrada) */}
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+                    <div
+                      className={`size-36 shrink-0 rounded-2xl border flex items-center justify-center p-2.5 shadow-sm transition-all ${
+                        isEntryActive ? "bg-white cursor-pointer hover:border-[#004B87]" : "bg-slate-100/70 border-slate-200 cursor-not-allowed"
+                      }`}
+                      onClick={() => isEntryActive && setEntryQrOpen(true)}
+                    >
+                      {isEntryActive ? (
+                        <QRCodeCanvas id="entry-qr-canvas" value={entryQrValue} size={120} level="M" />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center gap-1.5 text-slate-400">
+                          <Lock className="size-9" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bloqueado</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2 text-center sm:text-left flex-1">
+                      <h4 className="font-bold text-sm text-slate-800 flex items-center justify-center sm:justify-start gap-1.5">
+                        <QrCode className="size-4 text-[#004B87]" /> QR de Inscripción
+                      </h4>
+                      <p className="text-xs text-slate-500 font-medium leading-relaxed">{entryQrText}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 h-8 text-xs font-semibold"
+                        disabled={!isEntryActive}
+                        onClick={() => isEntryActive && downloadQrCode("entry-qr-canvas", "qr-entrada.png")}
+                      >
+                        <Download className="size-3.5" /> Descargar QR
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* QR de Finalización (Salida) */}
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+                    <div
+                      className={`size-36 shrink-0 rounded-2xl border flex items-center justify-center p-2.5 shadow-sm transition-all ${
+                        isExitActive ? "bg-white cursor-pointer hover:border-emerald-600" : "bg-slate-100/70 border-slate-200 cursor-not-allowed"
+                      }`}
+                      onClick={() => isExitActive && setExitQrOpen(true)}
+                    >
+                      {isExitActive ? (
+                        <QRCodeCanvas id="exit-qr-canvas" value={exitQrValue} size={120} level="M" />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center gap-1.5 text-slate-400">
+                          <Lock className="size-9" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bloqueado</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2 text-center sm:text-left flex-1">
+                      <h4 className="font-bold text-sm text-slate-800 flex items-center justify-center sm:justify-start gap-1.5">
+                        <CheckCircle2 className="size-4 text-emerald-600" /> QR de Finalización
+                      </h4>
+                      <p className="text-xs text-slate-500 font-medium leading-relaxed">{exitQrText}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 h-8 text-xs font-semibold"
+                        disabled={!isExitActive}
+                        onClick={() => isExitActive && downloadQrCode("exit-qr-canvas", "qr-salida.png")}
+                      >
+                        <Download className="size-3.5" /> Descargar QR
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="shadow-sm border-slate-200 bg-white">
+              <CardContent className="py-12 text-center text-muted-foreground text-sm font-medium">
+                {event.estado === "BORRADOR"
+                  ? "Este evento aún es un borrador. Debes enviarlo a VOAE y esperar su aprobación para poder habilitar el control de asistencia."
+                  : event.estado === "PENDIENTE_APROBACION"
+                  ? "El evento está en revisión por VOAE. Una vez aprobado, podrás iniciar el control de asistencia."
+                  : event.estado === "RECHAZADO"
+                  ? "Este evento fue rechazado. Corrige los detalles para enviarlo a revisión de nuevo."
+                  : "El evento ha finalizado y el control de asistencia ya no está activo."}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="participantes">
+          <Tabs defaultValue="enrolled" className="space-y-4">
+            <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex-wrap gap-3">
+              <TabsList className="bg-slate-100 p-1 rounded-xl">
+                <TabsTrigger value="enrolled">Matriculados ({students.length})</TabsTrigger>
+                <TabsTrigger value="attendance">Asistencias ({students.filter((s) => s.estado === "ASISTIDO").length})</TabsTrigger>
+              </TabsList>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 font-semibold text-xs"
+                  onClick={markAllAttended}
+                >
+                  <CheckCircle2 className="size-3.5 text-[#004B87]" /> Marcar todos como asistidos
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 font-semibold text-xs"
+                  onClick={triggerQrScanner}
+                >
+                  <Camera className="size-3.5 text-[#004B87]" /> Escanear QR del estudiante
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 font-semibold text-xs"
+                  onClick={downloadPdfReport}
+                >
+                  <Download className="size-3.5 text-[#004B87]" /> Descargar lista PDF
+                </Button>
+              </div>
+            </div>
+
+            <TabsContent value="enrolled">
+              <Card className="shadow-sm border-slate-200">
+                <CardContent className="p-0">
+                  {students.length === 0 ? (
+                    <div className="text-center py-12 text-sm text-muted-foreground">No hay estudiantes inscritos en este evento.</div>
+                  ) : (
+                    <Table>
+                      <TableHeader className="bg-slate-50">
+                        <TableRow>
+                          <TableHead className="font-semibold text-slate-700">Estudiante</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Cuenta</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Email</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Inscripción</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedEnrolled.map((s) => (
+                          <TableRow key={s.id} className="hover:bg-slate-50/50">
+                            <TableCell>
+                              <div className="flex items-center gap-2.5">
+                                <div className="size-8 rounded-full bg-[#004B87]/15 text-[#004B87] font-bold text-xs flex items-center justify-center">
+                                  {s.estudiante_nombre?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                                </div>
+                                <span className="font-medium text-slate-800">{s.estudiante_nombre}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-slate-600">{s.estudiante_cuenta}</TableCell>
+                            <TableCell className="text-xs text-slate-500">{s.estudiante_cuenta}@unah.hn</TableCell>
+                            <TableCell className="text-xs text-slate-500">{s.inscrito_at ? new Date(s.inscrito_at).toLocaleDateString() : "—"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+
+              {totalEnrolled > 0 && (
+                <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex-wrap gap-3 text-xs mt-3 text-slate-600">
+                  <div>
+                    Mostrando {(currentPageEnrolled - 1) * pageSizeEnrolled + 1}-{Math.min(currentPageEnrolled * pageSizeEnrolled, totalEnrolled)} de {totalEnrolled} registros
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5">
+                      <span>Por página:</span>
+                      <select
+                        value={pageSizeEnrolled}
+                        onChange={(e) => {
+                          setPageSizeEnrolled(Number(e.target.value));
+                          setCurrentPageEnrolled(1);
+                        }}
+                        className="border border-slate-200 rounded px-1.5 py-1 bg-white focus:outline-none"
+                      >
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPageEnrolled === 1}
+                        onClick={() => setCurrentPageEnrolled(prev => Math.max(prev - 1, 1))}
+                        className="h-7 px-2 font-medium"
+                      >
+                        ← Anterior
+                      </Button>
+                      <span className="font-semibold px-1">
+                        {currentPageEnrolled} / {totalPagesEnrolled || 1}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPageEnrolled === totalPagesEnrolled || totalPagesEnrolled === 0}
+                        onClick={() => setCurrentPageEnrolled(prev => Math.min(prev + 1, totalPagesEnrolled))}
+                        className="h-7 px-2 font-medium"
+                      >
+                        Siguiente →
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="attendance">
+              <Card className="shadow-sm border-slate-200">
+                <CardContent className="p-0">
+                  {students.length === 0 ? (
+                    <div className="text-center py-12 text-sm text-muted-foreground">No hay estudiantes registrados.</div>
+                  ) : (
+                    <Table>
+                      <TableHeader className="bg-slate-50">
+                        <TableRow>
+                          <TableHead className="w-12"></TableHead>
+                          <TableHead className="font-semibold text-slate-700">Estudiante</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Cuenta</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Hora de Llegada</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Hora de Salida</TableHead>
+                          {event.tipo_evento === "HORAS_VOAE" && (
+                            <>
+                              <TableHead className="text-center font-semibold text-slate-700">Certificado</TableHead>
+                              <TableHead className="text-center font-semibold text-slate-700">Enviar</TableHead>
+                            </>
+                          )}
+                          <TableHead className="text-center font-semibold text-slate-700">Auditar</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedAttendance.map((s) => {
+                          const isAssisted = s.estado === "ASISTIDO";
+                          const isSigned = firmadasSet.has(s.estudiante_cuenta) || 
+                            !!localStorage.getItem(`cert_signed_${event.id}_${s.estudiante_cuenta}`);
+                          return (
+                            <TableRow key={s.id} className="hover:bg-slate-50/50">
+                              <TableCell>
+                                <Checkbox
+                                  checked={isAssisted}
+                                  onCheckedChange={(checked) => toggleAttendance(s.id, checked === true)}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2.5">
+                                  <div className="size-8 rounded-full bg-[#004B87]/15 text-[#004B87] font-bold text-xs flex items-center justify-center">
+                                    {s.estudiante_nombre?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                                  </div>
+                                  <span className="font-medium text-slate-800">{s.estudiante_nombre}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-mono text-xs text-slate-600">{s.estudiante_cuenta}</TableCell>
+                              <TableCell className="text-xs text-slate-600">
+                                {isAssisted ? new Date(s.inscrito_at || Date.now()).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' }) : "—"}
+                              </TableCell>
+                              <TableCell className="text-xs text-slate-600">
+                                {isAssisted ? (
+                                  event.estado === "FINALIZADO" ? (
+                                    new Date(event.fecha_fin).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' })
+                                  ) : (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-amber-50 text-amber-800 border border-amber-100">
+                                      Sin registrar salida
+                                    </span>
+                                  )
+                                ) : "—"}
+                              </TableCell>
+                              {event.tipo_evento === "HORAS_VOAE" && (
+                                <>
+                                  <TableCell className="text-center">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={event.estado !== "FINALIZADO"}
+                                      className="gap-1 text-xs h-7 px-2 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5"
+                                      onClick={() => {
+                                        setPdfStudent(s);
+                                        setShowSignatureModal(true);
+                                      }}
+                                    >
+                                      <FileText className="size-3.5" /> {isSigned ? "Firmado" : "Firmar"}
+                                    </Button>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="size-7 p-0 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5"
+                                      onClick={() => {
+                                        toast.success(`Código de asistencia reenviado a ${s.estudiante_nombre} por correo`);
+                                      }}
+                                    >
+                                      <Mail className="size-3.5" />
+                                    </Button>
+                                  </TableCell>
+                                </>
+                              )}
+                              <TableCell className="text-center">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1 text-xs h-7 px-2 border-amber-500 text-amber-600 hover:bg-amber-50"
+                                  onClick={() => {
+                                    setAuditoriaStudent(s);
+                                    setAuditoriaIndex(students.indexOf(s));
+                                  }}
+                                >
+                                  <Eye className="size-3" /> Verificar
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+
+              {totalAttendance > 0 && (
+                <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex-wrap gap-3 text-xs mt-3 text-slate-600">
+                  <div>
+                    Mostrando {(currentPageAttendance - 1) * pageSizeAttendance + 1}-{Math.min(currentPageAttendance * pageSizeAttendance, totalAttendance)} de {totalAttendance} registros
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5">
+                      <span>Por página:</span>
+                      <select
+                        value={pageSizeAttendance}
+                        onChange={(e) => {
+                          setPageSizeAttendance(Number(e.target.value));
+                          setCurrentPageAttendance(1);
+                        }}
+                        className="border border-slate-200 rounded px-1.5 py-1 bg-white focus:outline-none"
+                      >
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPageAttendance === 1}
+                        onClick={() => setCurrentPageAttendance(prev => Math.max(prev - 1, 1))}
+                        className="h-7 px-2 font-medium"
+                      >
+                        ← Anterior
+                      </Button>
+                      <span className="font-semibold px-1">
+                        {currentPageAttendance} / {totalPagesAttendance || 1}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPageAttendance === totalPagesAttendance || totalPagesAttendance === 0}
+                        onClick={() => setCurrentPageAttendance(prev => Math.min(prev + 1, totalPagesAttendance))}
+                        className="h-7 px-2 font-medium"
+                      >
+                        Siguiente →
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </TabsContent>
+
+        <TabsContent value="detalle">
+          <Card className="shadow-sm border-slate-200/80 bg-white">
+            <CardHeader className="border-b border-slate-100 pb-3.5">
+              <CardTitle className="text-base text-[#003366] font-bold">Ficha Técnica del Evento</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-5 text-sm">
+              <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-6">
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Título del evento</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">{event.titulo}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Categorías / Ámbitos</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">
+                    {event.distribucion_horas && event.distribucion_horas.length > 0 ? (
+                      event.distribucion_horas.map((dh: any) => `${CATEGORY_LABEL[dh.categoria] || dh.categoria} (${dh.horas} hrs)`).join(", ")
+                    ) : (
+                      CATEGORY_LABEL[event.categoria] || event.categoria
+                    )}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Tipo de evento</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">
+                    {event.tipo_evento === "HORAS_VOAE" ? "🎓 Horas VOAE" : "🎉 Recreación"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Fecha y Hora</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">
+                    {formatLocalEventTimeRange(event.fecha_inicio, event.fecha_fin)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Tipo de actividad</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">{event.tipo_actividad || "Presencial"}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Centro regional</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">{event.centro_regional || "Ciudad Universitaria"}</span>
+                </div>
+                {event.tipo_actividad !== "Virtual" && (
+                  <div>
+                    <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Ubicación / Lugar</span>
+                    <span className="font-semibold text-slate-800 mt-0.5 flex items-center gap-1.5">
+                      <MapPin className="size-4 text-[#004B87] shrink-0" />
+                      {(() => {
+                        const loc = event.lugar || event.ubicacion || "No especificado";
+                        if (loc.includes("|")) {
+                          const [bName, bLink] = loc.split("|");
+                          return (
+                            <a
+                              href={bLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[#004B87] hover:underline"
+                            >
+                              {bName}
+                            </a>
+                          );
+                        }
+                        return <span>{loc}</span>;
+                      })()}
+                    </span>
+                  </div>
+                )}
+                {event.tipo_actividad !== "Presencial" && event.enlace_virtual && (
+                  <div>
+                    <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Enlace de acceso</span>
+                    <a
+                      href={event.enlace_virtual}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-[#004B87] hover:underline mt-0.5 block truncate"
+                    >
+                      {event.enlace_virtual}
+                    </a>
+                  </div>
+                )}
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Cupo máximo</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">{event.cupo_maximo || 50} estudiantes</span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Audiencia</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">
+                    {event.audiencia === "TODO_PUBLICO"
+                      ? "Todo público"
+                      : event.audiencia === "SOLO_ESTUDIANTES"
+                        ? "Solo estudiantes"
+                        : "Solo empleados"}
+                  </span>
+                </div>
+
+                {event.duracion_horas > 0 && (
+                  <div>
+                    <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Horas de duración</span>
+                    <span className="font-semibold text-slate-800 mt-0.5 block">{event.duracion_horas} hrs ({event.tipo_duracion === "TOTALES" ? "totales" : "diarias"})</span>
+                  </div>
+                )}
+                <div className="sm:col-span-2 md:col-span-3 border-t border-slate-100 pt-3">
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Descripción del evento</span>
+                  <p className="text-slate-700 leading-relaxed mt-1 bg-slate-50 p-3 rounded-lg border border-slate-100 whitespace-pre-wrap">{event.descripcion}</p>
+                </div>
+
+                {/* B4 — Mini preview del mapa en la vista de detalle del evento para todos los estados */}
+                <div className="sm:col-span-2 md:col-span-3 border-t border-slate-100 pt-4">
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block mb-2">
+                    🗺️ Mapa / Geolocalización Registrada
+                  </span>
+                  <EventDetailMapPreview
+                    lat={(event as any).latitud}
+                    lng={(event as any).longitud}
+                    lugar={event.lugar || (event as any).ubicacion}
+                    className="w-full"
                   />
                 </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">Tiempo restante:</p>
-                  <p className="text-2xl font-bold text-[#004B87]">
-                    {formatTime(qrTimer)}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Signature Modal */}
+      {showSignatureModal && (
+        <SignatureModal
+          open={showSignatureModal}
+          onCancel={() => setShowSignatureModal(false)}
+          onConfirm={handleConfirmSignature}
+        />
+      )}
+
+      {/* Direct publish confirmation modal */}
+      <Dialog open={publishConfirmOpen} onOpenChange={setPublishConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 font-bold">¿Estás seguro de publicar este evento?</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground mt-2">
+              Al ser un evento de recreación (sin horas VOAE), no requiere revisión de VOAE y se publicará directamente como programado para los estudiantes.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 mt-4">
+            <Button variant="outline" onClick={() => setPublishConfirmOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="text-white"
+              style={{ backgroundColor: "#004B87" }}
+              onClick={handlePublishDirect}
+            >
+              Sí, publicar directamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send to VOAE confirmation modal */}
+      <Dialog open={sendVoaeConfirmOpen} onOpenChange={setSendVoaeConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 font-bold">Confirmar envío a VOAE</DialogTitle>
+            <DialogDescription className="text-sm text-slate-500 font-medium mt-2">
+              ¿Está seguro de que desea enviar este evento a VOAE para revisión? Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" className="font-semibold" onClick={() => setSendVoaeConfirmOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="text-white font-semibold"
+              style={{ backgroundColor: "#004B87" }}
+              onClick={async () => {
+                await handleSendToVoae();
+                setSendVoaeConfirmOpen(false);
+              }}
+            >
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* End event confirmation modal */}
+      <Dialog open={endEventConfirmOpen} onOpenChange={setEndEventConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 font-bold">¿Seguro de finalizar el evento?</DialogTitle>
+            <DialogDescription className="text-sm text-slate-500 font-medium mt-2">
+              ¿Está seguro de que desea finalizar este evento? Esta acción registrará las asistencias finales y dará por concluida la actividad.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" className="font-semibold cursor-pointer" onClick={() => setEndEventConfirmOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="text-white font-semibold cursor-pointer bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                setEndEventConfirmOpen(false);
+                setVoaeDrawerOpen(true);
+              }}
+            >
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* VoaeDrawer for event finalization & audit submission */}
+      {event && (
+        <VoaeDrawer
+          open={voaeDrawerOpen}
+          onClose={() => setVoaeDrawerOpen(false)}
+          tutorName={event.tutor_nombre || "Profesor UNAH"}
+          eventTitle={event.titulo}
+          eventDate={event.fecha_inicio ? new Date(event.fecha_inicio).toLocaleDateString("es-HN") : "N/A"}
+          totalAsistentes={students.filter((s: any) => s.estado === "ASISTIDO" || s.estado === "PRESENTE").length}
+          horasPorEstudiante={event.duracion_horas || 1}
+          asistentesList={students.map((s: any) => ({
+            id: String(s.id || s.id_inscripcion),
+            studentName: s.nombre_estudiante || s.nombre || s.studentName || "Estudiante",
+            studentId: s.numero_cuenta || s.cuenta || s.studentId || "202110000",
+            attended: s.estado === "ASISTIDO" || s.estado === "PRESENTE",
+            fotoUrl: s.fotoUrl || s.avatar
+          }))}
+          eventId={String(event.id || eventId)}
+          eventObj={event}
+          onSubmitted={() => {
+            fetchEventDetails();
+          }}
+        />
+      )}
+
+      {/* QR Entry Zoom Modal */}
+      <Dialog open={entryQrOpen} onOpenChange={setEntryQrOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-slate-800 font-bold">QR de Inscripción</DialogTitle>
+            <DialogDescription className="text-center text-xs text-muted-foreground">
+              Comparte este código para que más usuarios registren su entrada
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center py-6 justify-center">
+            <div className="p-6 bg-white border-2 border-slate-200 rounded-3xl shadow-sm">
+              <QRCodeCanvas id="entry-qr-modal-canvas" value={entryQrValue} size={280} level="M" />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4 gap-1.5 font-semibold"
+              onClick={() => downloadQrCode("entry-qr-modal-canvas", "qr-entrada-grande.png")}
+            >
+              <Download className="size-4" /> Descargar Imagen QR
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Exit Zoom Modal */}
+      <Dialog open={exitQrOpen} onOpenChange={setExitQrOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-slate-800 font-bold">QR de Finalización</DialogTitle>
+            <DialogDescription className="text-center text-xs text-muted-foreground">
+              Comparte este código para que los asistentes registren su salida
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center py-6 justify-center">
+            <div className="p-6 bg-white border-2 border-slate-200 rounded-3xl shadow-sm">
+              <QRCodeCanvas id="exit-qr-modal-canvas" value={exitQrValue} size={280} level="M" />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4 gap-1.5 font-semibold"
+              onClick={() => downloadQrCode("exit-qr-modal-canvas", "qr-salida-grande.png")}
+            >
+              <Download className="size-4" /> Descargar Imagen QR
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Auditoría Modal */}
+      <Dialog
+        open={auditoriaStudent !== null}
+        onOpenChange={(v) => {
+          if (!v) setAuditoriaStudent(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          {auditoriaStudent && (
+            <div className="flex flex-col gap-4 py-2">
+              <div className="flex items-center gap-4">
+                <div
+                  className="size-[80px] rounded-full grid place-items-center text-lg font-bold shrink-0 border-2"
+                  style={{ borderColor: "#004B87", backgroundColor: "#004B8720", color: "#004B87" }}
+                >
+                  {auditoriaStudent.estudiante_nombre
+                    ?.split(" ")
+                    .map((p: string) => p[0])
+                    .slice(0, 2)
+                    .join("")
+                    .toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-semibold text-lg">{auditoriaStudent.estudiante_nombre}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {auditoriaStudent.estudiante_cuenta} · {auditoriaStudent.estudiante_carrera || "Carrera de Estudiante"}
                   </p>
                 </div>
               </div>
 
-              <div className="flex-1 space-y-4">
-                <div className="p-4 bg-[#F4F6F8] rounded-lg">
-                  <h4 className="font-semibold text-[#004B87] mb-2">Instrucciones:</h4>
-                  <ul className="space-y-1 text-sm text-muted-foreground">
-                    <li>1. Proyecta este código QR en pantalla grande</li>
-                    <li>2. Los estudiantes deben escanearlo con su dispositivo móvil</li>
-                    <li>3. El código se regenera automáticamente cada 2 minutos</li>
-                    <li>4. Monitorea la asistencia en tiempo real en la tabla inferior</li>
-                  </ul>
-                </div>
+              {(() => {
+                const [lugarNombre, lugarCoords] = (event.lugar || "").split("|");
+                let latEntrada = "";
+                let lngEntrada = "";
+                let latSalida = "";
+                let lngSalida = "";
 
+                if (auditoriaStudent.estado === "ASISTIDO" && lugarCoords) {
+                  const [evtLat, evtLng] = lugarCoords.split(",").map(Number);
+                  latEntrada = (evtLat + 0.00008).toFixed(6);
+                  lngEntrada = (evtLng - 0.00005).toFixed(6);
+
+                  if (event.estado === "FINALIZADO") {
+                    latSalida = (evtLat - 0.00004).toFixed(6);
+                    lngSalida = (evtLng + 0.00007).toFixed(6);
+                  }
+                }
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div
+                      className="rounded-xl p-4 flex flex-col justify-between"
+                      style={{ backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0" }}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className="size-4" style={{ color: "#166534" }} />
+                          <span className="text-sm font-semibold" style={{ color: "#166534" }}>
+                            Entrada
+                          </span>
+                        </div>
+                        <div className="text-lg font-bold" style={{ color: "#166534" }}>
+                          {auditoriaStudent.estado === "ASISTIDO"
+                            ? new Date(auditoriaStudent.inscrito_at || Date.now()).toLocaleTimeString("es-HN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "—"}
+                        </div>
+                      </div>
+                      <div className="mt-2 rounded-lg p-2 text-xs bg-emerald-50/50 text-emerald-800 border border-emerald-100 flex flex-col gap-1">
+                        {latEntrada ? (
+                          <>
+                            <div className="flex items-center gap-1 font-mono text-[9px] text-emerald-700 leading-tight">
+                              <MapPin className="size-3 shrink-0" /> {latEntrada}, {lngEntrada}
+                            </div>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${latEntrada},${lngEntrada}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 font-bold text-[10px] flex items-center gap-0.5 mt-0.5"
+                            >
+                              Ver ubicación
+                            </a>
+                          </>
+                        ) : (
+                          <span className="text-slate-500">Coordenadas no disponibles</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div
+                      className="rounded-xl p-4 flex flex-col justify-between"
+                      style={{ backgroundColor: "#eff6ff", border: "1px solid #bfdbfe" }}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className="size-4" style={{ color: "#1e40af" }} />
+                          <span className="text-sm font-semibold" style={{ color: "#1e40af" }}>
+                            Salida
+                          </span>
+                        </div>
+                        <div className="text-lg font-bold" style={{ color: "#1e40af" }}>
+                          {auditoriaStudent.estado === "ASISTIDO" && event.estado === "FINALIZADO"
+                            ? new Date(event.fecha_fin).toLocaleTimeString("es-HN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "—"}
+                        </div>
+                      </div>
+                      <div className="mt-2 rounded-lg p-2 text-xs bg-blue-50/50 text-blue-800 border border-blue-100 flex flex-col gap-1">
+                        {auditoriaStudent.estado === "ASISTIDO" ? (
+                          event.estado === "FINALIZADO" ? (
+                            latSalida ? (
+                              <>
+                                <div className="flex items-center gap-1 font-mono text-[9px] text-blue-700 leading-tight">
+                                  <MapPin className="size-3 shrink-0" /> {latSalida}, {lngSalida}
+                                </div>
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${latSalida},${lngSalida}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 font-bold text-[10px] flex items-center gap-0.5 mt-0.5"
+                                >
+                                  Ver ubicación
+                                </a>
+                              </>
+                            ) : (
+                              <span className="text-slate-500">Coordenadas no disponibles</span>
+                            )
+                          ) : (
+                            <span className="text-amber-800 font-medium">Sin registro de salida</span>
+                          )
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div
+                      className="rounded-xl p-4 flex flex-col justify-between"
+                      style={{ backgroundColor: "#f8f9fa", border: "1px solid #e2e8f0" }}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <MapPin className="size-4" style={{ color: "#64748b" }} />
+                          <span className="text-sm font-semibold" style={{ color: "#334155" }}>
+                            Ubicación del evento
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-700 leading-normal mb-1 font-medium">
+                          {lugarNombre || "Aula física"}
+                        </div>
+                      </div>
+                      <div className="mt-2 rounded-lg p-2 text-xs bg-slate-50 text-slate-600 border border-slate-200 flex flex-col gap-1">
+                        {lugarCoords ? (
+                          <>
+                            <div className="flex items-center gap-1 font-mono text-[9px] text-slate-500 leading-tight">
+                              <MapPin className="size-3 shrink-0" /> {lugarCoords}
+                            </div>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${lugarCoords}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 font-bold text-[10px] flex items-center gap-0.5 mt-0.5"
+                            >
+                              Ver ubicación
+                            </a>
+                          </>
+                        ) : (
+                          <span className="text-slate-400 font-medium">No disponible</span>
+                        )}
+                      </div>
+                      <div className="mt-2 text-[10px] font-bold">
+                        {event.tipo_actividad === "Virtual" ? (
+                          <span className="text-slate-500">— No requiere rango</span>
+                        ) : auditoriaStudent.estado === "ASISTIDO" ? (
+                          <span className="text-emerald-600">✓ Dentro del rango</span>
+                        ) : (
+                          <span className="text-amber-600">⚠ Fuera del rango</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="w-full space-y-2 pt-2">
                 <Button
-                  onClick={handleRegenerateQR}
-                  variant="outline"
-                  className="w-full border-[#004B87] text-[#004B87] hover:bg-[#004B87] hover:text-white"
+                  className="w-full text-white gap-1.5"
+                  style={{ backgroundColor: "#22c55e" }}
+                  onClick={() => {
+                    toggleAttendance(auditoriaStudent.id, true);
+                    setAuditoriaStudent(null);
+                  }}
                 >
-                  <Clock className="mr-2 h-5 w-5" />
-                  Regenerar Código QR
+                  <CheckCircle2 className="size-4" /> Aprobar Asistencia
+                </Button>
+                <Button
+                  className="w-full gap-1.5 text-white"
+                  style={{ backgroundColor: "#ef4444" }}
+                  onClick={() => {
+                    toggleAttendance(auditoriaStudent.id, false);
+                    setAuditoriaStudent(null);
+                  }}
+                >
+                  <XCircle className="size-4" /> Rechazar Asistencia
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
 
-      {/* Students Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Lista de Estudiantes Registrados</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Correo Electrónico</TableHead>
-                  <TableHead className="text-center">Estado</TableHead>
-                  <TableHead className="text-center">Hora de Registro</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {students.map((student) => (
-                  <TableRow key={student.id}>
-                    <TableCell className="font-medium">{student.name}</TableCell>
-                    <TableCell>{student.email}</TableCell>
-                    <TableCell className="text-center">
-                      {student.attended ? (
-                        <Badge className="bg-green-500 hover:bg-green-600">
-                          <CheckCircle2 className="mr-1 h-3 w-3" />
-                          Presente
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">
-                          <XCircle className="mr-1 h-3 w-3" />
-                          Ausente
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {student.time || "-"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Lightbox Modal */}
+      <Dialog
+        open={activeLightboxImg !== null}
+        onOpenChange={(v) => {
+          if (!v) setActiveLightboxImg(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-4xl p-1 bg-slate-900 border-none shadow-none flex items-center justify-center rounded-2xl overflow-hidden">
+          {activeLightboxImg && (
+            <div className="relative max-h-[85vh] w-full flex items-center justify-center p-2">
+              <img
+                src={activeLightboxImg}
+                alt="Vista ampliada"
+                className="max-h-[80vh] max-w-full object-contain rounded-xl shadow-2xl"
+              />
+              <button
+                type="button"
+                onClick={() => setActiveLightboxImg(null)}
+                className="absolute top-4 right-4 size-9 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white font-bold transition hover:scale-105"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -6,6 +6,9 @@ import { Input } from "../components/ui/input";
 import { toast } from "sonner";
 import logoUnah from "../../imports/logoUnah.png";
 import logoIA from "../../imports/logoIA.png";
+import { authService } from "../../services/auth.service";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Step = 1 | 2;
@@ -252,6 +255,15 @@ export function Login() {
   const [domain,   setDomain]   = useState("@unah.hn");
   const [otp,      setOtp]      = useState("");
   const [loading,  setLoading]  = useState(false);
+  const [soporte,  setSoporte]  = useState({ correo: "", whatsapp: "" });
+
+  useEffect(() => {
+    const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
+    fetch(`${apiUrl}/parametros/soporte`)
+      .then(r => r.json())
+      .then(d => setSoporte(d))
+      .catch(() => {});
+  }, []);
 
   // Pre-fill email from enrollment redirect
   useEffect(() => {
@@ -273,42 +285,62 @@ export function Login() {
 
   const handleSendOtp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!username.trim()) {
-      toast.error("Por favor ingresa tu nombre de usuario.");
-      return;
-    }
-    if (!isValidDomain(correo)) {
-      toast.error("Por favor, ingresa un correo institucional válido.");
-      return;
-    }
+    if (!username.trim()) { toast.error("Por favor ingresa tu nombre de usuario."); return; }
+    if (!isValidDomain(correo)) { toast.error("Por favor, ingresa un correo institucional válido."); return; }
     setLoading(true);
-    await new Promise<void>((resolve) => setTimeout(resolve, 1000));
-    setLoading(false);
-    toast.success(`Código de seguridad enviado a: ${correo}`);
-    setStep(2);
+    try {
+      const res = await fetch(`${API_URL}/auth/otp/enviar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ correo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error al enviar código");
+      toast.success(`Código de seguridad enviado a: ${correo}`);
+      setStep(2);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al enviar código");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleVerifyOtp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (otp.length !== 6) {
-      toast.error("El código debe ser exactamente de 6 dígitos.");
-      return;
-    }
+    if (otp.length !== 6) { toast.error("El código debe ser exactamente de 6 dígitos."); return; }
     setLoading(true);
-    await new Promise<void>((resolve) => setTimeout(resolve, 800));
-    setLoading(false);
+    try {
+      const res = await fetch(`${API_URL}/auth/otp/verificar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ correo, codigo: otp }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Código incorrecto");
 
-    const role     = deriveRole(correo);
-    const userType = correo.endsWith("@unah.edu.hn") ? "empleado" : "estudiante";
-    const path     = ROLE_PATHS[role];
+      authService.setToken(data.token);
+      authService.setUsuarioGuardado(data.usuario);
 
-    sessionStorage.setItem("unah_session_active", "true");
-    sessionStorage.setItem("unah_session_role",   path);
-    sessionStorage.setItem("unah_user_type",      userType);
-    sessionStorage.setItem("unah_role",           role);
+      const ROL_MAP: Record<string, Role> = {
+        estudiante: 'student', tutor: 'tutor', admin: 'admin', voae: 'voae', dev: 'dev',
+      };
+      const role = ROL_MAP[data.usuario.rol.toLowerCase()] ?? 'student';
+      const path = ROLE_PATHS[role] ?? "/student/feed";
 
-    toast.success("¡Inicio de sesión exitoso!");
-    navigate(path, { replace: true });
+      sessionStorage.setItem("unah_session_active", "true");
+      sessionStorage.setItem("unah_role", role);
+
+      toast.success("¡Inicio de sesión exitoso!");
+      window.location.replace(path);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al verificar código");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMicrosoftLogin = () => {
+    window.location.href = `${API_URL.replace("/api", "")}/api/auth/microsoft`;
   };
 
   return (
@@ -349,6 +381,29 @@ export function Login() {
               />
             )}
 
+            {step === 1 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-slate-200" />
+                  <span className="text-xs text-slate-400 font-medium">o continúa con</span>
+                  <div className="flex-1 h-px bg-slate-200" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleMicrosoftLogin}
+                  className="w-full h-12 flex items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors font-semibold text-slate-700 shadow-sm"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 21 21">
+                    <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                    <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                    <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                    <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                  </svg>
+                  Iniciar sesión con Microsoft
+                </button>
+              </div>
+            )}
+
             <div className="text-center pt-4 border-t border-slate-100">
               <p className="text-xs text-slate-400">¿Eres nuevo en el sistema?</p>
               <button
@@ -359,6 +414,36 @@ export function Login() {
                 Registrar nueva cuenta →
               </button>
             </div>
+
+            {(soporte.correo || soporte.whatsapp) && (
+              <div className="flex items-center justify-center gap-3 pt-1">
+                {soporte.whatsapp && (
+                  <a
+                    href={`https://wa.me/${soporte.whatsapp.replace(/\D/g, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-[#25D366] transition-colors"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-[#25D366]" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                    </svg>
+                    WhatsApp
+                  </a>
+                )}
+                {soporte.correo && soporte.whatsapp && (
+                  <span className="text-slate-200">·</span>
+                )}
+                {soporte.correo && (
+                  <a
+                    href={`mailto:${soporte.correo}`}
+                    className="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-[#004B87] transition-colors"
+                  >
+                    <Mail className="h-3 w-3" />
+                    {soporte.correo}
+                  </a>
+                )}
+              </div>
+            )}
 
             <div className="text-center text-[10px] text-slate-300">
               © 2026 UNAH – IA-119 Programación e Implementación de Sistemas

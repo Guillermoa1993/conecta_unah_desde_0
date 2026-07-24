@@ -52,6 +52,12 @@ export const api = {
     }).then((r) => handleResponse<T>(r));
   },
 
+  getWithToken<T>(path: string, token: string): Promise<T> {
+    return fetch(`${BASE_URL}${path}`, {
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    }).then((r) => handleResponse<T>(r));
+  },
+
   delete<T>(path: string): Promise<T> {
     return fetch(`${BASE_URL}${path}`, {
       method: 'DELETE',

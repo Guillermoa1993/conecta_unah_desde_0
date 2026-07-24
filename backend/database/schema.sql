@@ -34,7 +34,9 @@ CREATE TABLE IF NOT EXISTS tabla_grupo_1_usuario (
   password   VARCHAR(255) NOT NULL,
   id_rol     INT NOT NULL REFERENCES tabla_grupo_1_rol(id_rol),
   id_estado  INT NOT NULL REFERENCES tabla_grupo_1_estado_usuario(id_estado),
-  id_carrera INT REFERENCES tabla_grupo_1_carreras(id_carrera)
+  id_carrera INT REFERENCES tabla_grupo_1_carreras(id_carrera),
+  permite_reacciones_perfil BOOLEAN NOT NULL DEFAULT TRUE
+);
 );
 
 -- ── Tablas de registro y auditoría ───────────────────────────
@@ -43,8 +45,27 @@ CREATE TABLE IF NOT EXISTS tabla_grupo_1_notificaciones (
   id_notificacion SERIAL PRIMARY KEY,
   id_usuario      INT NOT NULL REFERENCES tabla_grupo_1_usuario(id_usuario),
   id_tipo         INT NOT NULL REFERENCES tabla_grupo_1_tipo_notificacion(id_tipo),
-  mensaje         TEXT NOT NULL
+  mensaje         TEXT NOT NULL,
+  leida           BOOLEAN NOT NULL DEFAULT FALSE,
+  fecha_creacion  TIMESTAMP NOT NULL DEFAULT NOW(),
+  id_emisor       INT REFERENCES tabla_grupo_1_usuario(id_usuario) ON DELETE SET NULL,
+  referencia_tipo VARCHAR(100),
+  referencia_id   INT
 );
+
+CREATE TABLE IF NOT EXISTS tabla_grupo_1_reacciones_pumita (
+  id_reaccion SERIAL PRIMARY KEY,
+  id_emisor INT NOT NULL REFERENCES tabla_grupo_1_usuario(id_usuario) ON DELETE CASCADE,
+  id_receptor INT NOT NULL REFERENCES tabla_grupo_1_usuario(id_usuario) ON DELETE CASCADE,
+  tipo VARCHAR(30) NOT NULL CHECK (tipo IN ('APOYO', 'FELICITACION', 'SALUDO', 'RUGIDO_PUMA')),
+  fecha_creacion TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reacciones_pumita_receptor_fecha
+  ON tabla_grupo_1_reacciones_pumita (id_receptor, fecha_creacion DESC);
+
+CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario_fecha
+  ON tabla_grupo_1_notificaciones (id_usuario, fecha_creacion DESC);
 
 CREATE TABLE IF NOT EXISTS tabla_grupo_1_sesion (
   id_sesion   SERIAL PRIMARY KEY,
@@ -77,7 +98,8 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO tabla_grupo_1_tipo_notificacion (nombre) VALUES
   ('EVENTO_APROBADO'), ('EVENTO_RECHAZADO'), ('NUEVA_INSCRIPCION'),
-  ('EVENTO_CANCELADO'), ('CONSTANCIA_EMITIDA'), ('RECORDATORIO'), ('SISTEMA')
+ ('EVENTO_CANCELADO'), ('CONSTANCIA_EMITIDA'), ('RECORDATORIO'), ('SISTEMA'),
+  ('REACCION_PUMITA')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO tabla_grupo_1_carreras (nombre) VALUES

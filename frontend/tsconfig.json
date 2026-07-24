@@ -18,7 +18,13 @@
     "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
+    "paths": {
+      "@/components/*": ["src/app/components/*"],
+      "@/*": ["src/*"]
+    }
   },
   "include": ["src"]
 }

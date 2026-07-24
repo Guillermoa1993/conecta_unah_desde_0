@@ -1,8 +1,9 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 import { RootLayout } from "./components/layouts/RootLayout";
 import { ProtectedRoute } from "./components/guards/ProtectedRoute";
 
 // Auth & registro (públicas)
+import { AuthCallback } from "./pages/AuthCallback";
 import { Login } from "./pages/Login";
 import { RoleSelector } from "./pages/RoleSelector";
 import { RegistroSelector } from "./pages/RegistroSelector";
@@ -33,6 +34,8 @@ import { SystemSettings } from "./pages/admin/SystemSettings";
 import { CommentsReview } from "./pages/admin/CommentsReview";
 import { Roles } from "./pages/admin/Roles";
 import { Permissions } from "./pages/admin/Permissions";
+import { BackupRestore } from "./pages/admin/BackupRestore";
+import { Parametros } from "./pages/admin/Parametros";
 
 // Grupo 3 — Student
 import { SolicitarEvento } from "./pages/student/SolicitarEvento";
@@ -40,20 +43,24 @@ import { SolicitarEvento } from "./pages/student/SolicitarEvento";
 // Grupo 3 — Tutor
 import { LiveEvent } from "./pages/tutor/LiveEvent";
 import { TutorEventos } from "./pages/tutor/TutorEventos";
+import { TutorHistory } from "./pages/tutor/History";
 
 // VOAE
 import { VOAEDashboard } from "./pages/voae/VOAEDashboard";
 import { OfficialReports } from "./pages/voae/OfficialReports";
-
-// Grupo 3 — VOAE
 import { Moderadores } from "./pages/voae/Moderadores";
 import { VOAERecords } from "./pages/voae/Records";
 import { CentrosRegionales } from "./pages/voae/CentrosRegionales";
 import { ValidacionEvento } from "./pages/voae/ValidacionEvento";
+import { AuditoriaEventoFinalizado } from "./pages/voae/AuditoriaEventoFinalizado";
 
 // Employees (compartido por tutor/admin/voae)
 import { Notifications } from "./pages/employees/Notifications";
 import { Logs } from "./pages/employees/Logs";
+
+// Grupo 4 — Employees
+import { Aplicativos } from "./pages/employees/Aplicativos";
+import { AcercaDe } from "./pages/employees/AcercaDe";
 
 // Mantenimiento (compartido por admin/tutor/voae)
 import {
@@ -80,6 +87,7 @@ export const router = createBrowserRouter([
     children: [
       // ── Públicas (sin guard) ──────────────────────────────
       { index: true,                    element: <Login /> },
+      { path: "auth/callback",          element: <AuthCallback /> },
       { path: "roles",                  element: <RoleSelector /> },
       { path: "registro",               element: <RegistroSelector /> },
       { path: "registro/estudiante",    element: <FichaEstudiante /> },
@@ -88,6 +96,8 @@ export const router = createBrowserRouter([
       // ── Empleados (tutor/admin/voae comparten) ────────────
       { path: "employees/notifications", element: P(<Notifications />) },
       { path: "employees/logs",          element: P(<Logs />) },
+      { path: "employees/aplicativos",   element: P(<Aplicativos />) },
+      { path: "employees/acerca-de",     element: P(<AcercaDe />) },
 
       // ── Estudiante ────────────────────────────────────────
       { path: "student",                element: P(<StudentDashboard />) },
@@ -101,13 +111,15 @@ export const router = createBrowserRouter([
       ...maintenanceRoutes("student"),
 
       // ── Tutor ─────────────────────────────────────────────
-      { path: "tutor",                  element: P(<TutorDashboard />) },
+      { path: "tutor",                  element: P(<Navigate to="/tutor/eventos" replace />) },
       { path: "tutor/create-event",     element: P(<CreateEvent />) },
       { path: "tutor/event/:eventId",   element: P(<ManageEvent />) },
       { path: "tutor/reports",          element: P(<TutorReports />) },
       { path: "tutor/ficha",             element: P(<FichaEmpleado />) },
       { path: "tutor/live",              element: P(<LiveEvent />) },
       { path: "tutor/eventos",           element: P(<TutorEventos />) },
+      { path: "tutor/history",           element: P(<TutorHistory />) },
+      { path: "tutor/feed",              element: P(<SocialFeed />) },
       ...maintenanceRoutes("tutor"),
 
       // ── Admin ─────────────────────────────────────────────
@@ -119,6 +131,8 @@ export const router = createBrowserRouter([
       { path: "admin/comments",         element: P(<CommentsReview />) },
       { path: "admin/roles",            element: P(<Roles />) },
       { path: "admin/permissions",      element: P(<Permissions />) },
+      { path: "admin/backup",            element: P(<BackupRestore />) },
+      { path: "admin/parametros",        element: P(<Parametros />) },
       ...maintenanceRoutes("admin"),
 
       // ── VOAE ──────────────────────────────────────────────
@@ -128,6 +142,8 @@ export const router = createBrowserRouter([
       { path: "voae/records",           element: P(<VOAERecords />) },
       { path: "voae/centros",           element: P(<CentrosRegionales />) },
       { path: "voae/events/:id/validar",element: P(<ValidacionEvento />) },
+      { path: "voae/events/:id/validacion",element: P(<AuditoriaEventoFinalizado />) },
+      { path: "voae/feed",               element: P(<SocialFeed />) },
       ...maintenanceRoutes("voae"),
     ],
   },

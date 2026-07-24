@@ -12,6 +12,23 @@ export interface Usuario {
   estado?: string;
   id_carrera?: number;
   carrera?: string;
+  facultad?: string | null;
+  created_at?: Date | string;
+  microsoft_id?: string | null;
+  otp_code?: string | null;
+  otp_expira?: Date | null;
+  permite_reacciones_perfil: boolean;
+  telefono?: string | null;
+  numero_cuenta?: string | null;
+  id_centro_regional?: number | null;
+  centro_regional?: string | null;
+  genero?: string | null;
+  biografia?: string | null;
+  foto_url?: string | null;
+  forma003_base64?: string | null;
+  numero_empleado?: string | null;
+  id_departamento?: number | null;
+  departamento?: string | null;
 }
 
 export interface UsuarioPublico {
@@ -24,4 +41,17 @@ export interface UsuarioPublico {
   estado?: string;
   id_carrera?: number;
   carrera?: string;
+  facultad?: string | null;
+  created_at?: Date | string;
+  permite_reacciones_perfil: boolean;
+  telefono?: string | null;
+  numero_cuenta?: string | null;
+  id_centro_regional?: number | null;
+  centro_regional?: string | null;
+  genero?: string | null;
+  biografia?: string | null;
+  foto_url?: string | null;
+  numero_empleado?: string | null;
+  id_departamento?: number | null;
+  departamento?: string | null;
 }
