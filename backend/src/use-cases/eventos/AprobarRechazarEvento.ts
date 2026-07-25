@@ -9,16 +9,38 @@ export class AprobarRechazarEvento {
     private readonly usuarioRepo: UsuarioRepository,
   ) {}
 
-  async aprobar(evento_id: string, aprobado_por: string) {
+  async aprobar(evento_id: string, aprobado_por: string, rol_aprobador?: string) {
     const evento = await this.eventoRepo.findById(evento_id);
     if (!evento) throw new Error('Evento no encontrado');
-    if (evento.estado !== 'PENDIENTE_APROBACION') throw new Error('El evento no está pendiente de aprobación');
 
+    const estadoActual = evento.estado;
+    const esPendienteDepto = estadoActual === 'PENDIENTE_APROBACION_DEPTO' || estadoActual === 'PENDIENTE_APROBACION';
+    const esPendienteVoae = estadoActual === 'PENDIENTE_APROBACION_VOAE';
+
+    if (!esPendienteDepto && !esPendienteVoae) {
+      throw new Error('El evento no está pendiente de aprobación');
+    }
+
+    const rolUpper = (rol_aprobador || '').toUpperCase();
+    const esDepto = rolUpper.includes('DEPTO') || rolUpper.includes('DEPARTAMENTO') || rolUpper.includes('COORDINACION');
+
+    // Si está en primera fase (Coordinación Depto) o el que aprueba es Depto -> pasa a PENDIENTE_APROBACION_VOAE
+    if (esPendienteDepto || esDepto) {
+      const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'PENDIENTE_APROBACION_VOAE', { aprobado_por });
+      await this.notificacionRepo.crear({
+        usuario_id: Number(evento.tutor_id),
+        mensaje: `Tu evento "${evento.titulo}" fue aprobado por Coordinación de Departamento y enviado a Dirección VOAE.`,
+        tipo: 'EVENTO_APROBADO_DEPTO',
+      });
+      return actualizado;
+    }
+
+    // Aprobación final por Dirección VOAE -> pasa a PROGRAMADO
     const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'PROGRAMADO', { aprobado_por });
 
     await this.notificacionRepo.crear({
       usuario_id: Number(evento.tutor_id),
-      mensaje: `Tu evento "${evento.titulo}" fue aprobado y ya está publicado.`,
+      mensaje: `Tu evento "${evento.titulo}" fue aprobado por Dirección VOAE y ya está publicado.`,
       tipo: 'EVENTO_APROBADO',
     });
 
@@ -44,7 +66,13 @@ export class AprobarRechazarEvento {
 
     const evento = await this.eventoRepo.findById(evento_id);
     if (!evento) throw new Error('Evento no encontrado');
-    if (evento.estado !== 'PENDIENTE_APROBACION') throw new Error('El evento no está pendiente de aprobación');
+
+    const estadoActual = evento.estado;
+    const esPendiente = estadoActual === 'PENDIENTE_APROBACION_DEPTO' || 
+                        estadoActual === 'PENDIENTE_APROBACION_VOAE' || 
+                        estadoActual === 'PENDIENTE_APROBACION';
+
+    if (!esPendiente) throw new Error('El evento no está pendiente de aprobación');
 
     const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'RECHAZADO', { aprobado_por, motivo_rechazo });
 

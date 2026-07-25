@@ -143,7 +143,16 @@ export class PostgresEventoRepository implements EventoRepository {
     return rows.map(r => this.mapRowToEvento(r));
   }
 
-  async findPendientesAprobacion(): Promise<Evento[]> {
+  async findPendientesAprobacion(tipoFase?: string): Promise<Evento[]> {
+    let whereCondition = `e.estado IN ('PENDIENTE_APROBACION_DEPTO', 'PENDIENTE_APROBACION_VOAE', 'PENDIENTE_APROBACION')`;
+    
+    const faseUpper = (tipoFase || '').toUpperCase();
+    if (faseUpper.includes('DEPTO') || faseUpper.includes('DEPARTAMENTO') || faseUpper.includes('COORDINACION')) {
+      whereCondition = `e.estado IN ('PENDIENTE_APROBACION_DEPTO', 'PENDIENTE_APROBACION')`;
+    } else if (faseUpper.includes('VOAE') || faseUpper.includes('DIRECCION')) {
+      whereCondition = `e.estado = 'PENDIENTE_APROBACION_VOAE'`;
+    }
+
     const { rows } = await this.pool.query(
       `SELECT e.*, u.nombre AS tutor_nombre, p.foto_url AS tutor_foto,
               TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
@@ -153,8 +162,7 @@ export class PostgresEventoRepository implements EventoRepository {
        FROM tabla_grupo_3_eventos e
        LEFT JOIN tabla_grupo_1_usuario u ON e.tutor_id::text = u.id_usuario::text
        LEFT JOIN tabla_grupo_1_perfil  p ON u.id_usuario = p.id_usuario
-       WHERE e.estado IN ('PENDIENTE_APROBACION', 'PENDIENTE_DEPARTAMENTO', 'PENDIENTE_DIRECCION')
-       ORDER BY e.created_at ASC`,
+       WHERE ${whereCondition} ORDER BY e.created_at ASC`,
     );
     return rows.map(r => this.mapRowToEvento(r));
   }

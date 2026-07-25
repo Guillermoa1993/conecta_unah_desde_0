@@ -55,14 +55,14 @@ import { QRCodeCanvas } from "qrcode.react";
 
 
 
-type Tab = "borradores" | "programados" | "pendientes" | "finalizados" | "rechazados";
+type Tab = "borradores" | "programados" | "pendientes_depto" | "pendientes_voae" | "finalizados" | "rechazados";
 
 interface TabConfig {
   key: Tab;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   activeColor: string;
-  estados: EventStatus[];
+  estados: string[];
 }
 
 const TABS: TabConfig[] = [
@@ -81,11 +81,18 @@ const TABS: TabConfig[] = [
     estados: ["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA"],
   },
   {
-    key: "pendientes",
-    label: "Pendientes de aprobación",
+    key: "pendientes_depto",
+    label: "Pendiente aprobación Coordinación",
     icon: Clock,
     activeColor: "#f59e0b",
-    estados: ["PENDIENTE_APROBACION"],
+    estados: ["PENDIENTE_APROBACION_DEPTO", "PENDIENTE_APROBACION"],
+  },
+  {
+    key: "pendientes_voae",
+    label: "Pendiente aprobación VOAE",
+    icon: Clock,
+    activeColor: "#0284c7",
+    estados: ["PENDIENTE_APROBACION_VOAE"],
   },
   {
     key: "finalizados",
@@ -108,7 +115,9 @@ const STATUS_BADGE: Record<string, { bg: string; text: string; label: string }> 
   PROGRAMADO: { bg: "#dbeafe", text: "#1e40af", label: "Programado" },
   EN_CURSO: { bg: "#dcfce7", text: "#166534", label: "En curso" },
   EN_CURSO_SALIDA: { bg: "#dcfce7", text: "#166534", label: "En curso (salida)" },
-  PENDIENTE_APROBACION: { bg: "#fef3c7", text: "#92400e", label: "Pendiente de aprobación" },
+  PENDIENTE_APROBACION: { bg: "#fef3c7", text: "#92400e", label: "Pendiente Coordinación" },
+  PENDIENTE_APROBACION_DEPTO: { bg: "#fef3c7", text: "#92400e", label: "Pendiente Coordinación" },
+  PENDIENTE_APROBACION_VOAE: { bg: "#e0f2fe", text: "#0369a1", label: "Pendiente VOAE Dirección" },
   FINALIZADO: { bg: "#f1f5f9", text: "#64748b", label: "Finalizado" },
   RECHAZADO: { bg: "#fee2e2", text: "#991b1b", label: "Rechazado" },
 };
@@ -171,7 +180,7 @@ function EventCard({
   const handlePublish = async () => {
     try {
       const isRecreacion = event.tipo_evento === "RECREACION" || event.tipo_evento === "SIN_HORAS" || parseFloat(event.duracion_horas || "0") === 0;
-      const newEstado = isRecreacion ? "PROGRAMADO" : "PENDIENTE_APROBACION";
+      const newEstado = isRecreacion ? "PROGRAMADO" : "PENDIENTE_APROBACION_DEPTO";
       const payload = {
         ...event,
         estado: newEstado
@@ -180,7 +189,7 @@ function EventCard({
       toast.success(
         isRecreacion
           ? "¡Evento publicado automáticamente!"
-          : "¡Evento enviado a VOAE para revisión!"
+          : "¡Evento enviado a Coordinación de Departamento para revisión!"
       );
       setPublishConfirm(false);
       onRefresh();

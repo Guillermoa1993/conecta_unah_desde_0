@@ -30,11 +30,19 @@ const roles = [
   },
   {
     id: "voae",
-    title: "Personal VOAE",
-    description: "Auditoría, validación de certificados y reportes oficiales",
+    title: "VOAE Dirección",
+    description: "Aprobación final, auditoría de certificados y firmas oficiales",
     icon: Shield,
     path: "/voae",
     color: "from-[#003366] to-[#004B87]",
+  },
+  {
+    id: "voae_depto",
+    title: "VOAE Departamento (Coordinación)",
+    description: "Revisión inicial y filtro de solicitudes por facultad y carrera",
+    icon: Shield,
+    path: "/voae-depto",
+    color: "from-[#004B87] to-[#003366]",
   },
 ];
 

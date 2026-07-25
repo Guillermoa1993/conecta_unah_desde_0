@@ -8,7 +8,8 @@ export function eventoRouter(ctrl: EventoController): Router {
   // Públicos (requieren solo autenticación)
   r.get('/', autenticar, ctrl.getAll);
   r.get('/mis-eventos', autenticar, autorizar('TUTOR'), ctrl.getMios);
-  r.get('/pendientes', autenticar, autorizar('VOAE', 'ADMIN'), ctrl.getPendientes);
+  // VOAE / Depto / Admin: pendientes, aprobar o rechazar
+  r.get('/pendientes', autenticar, autorizar('VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'ADMIN'), ctrl.getPendientes);
   r.get('/:id', autenticar, ctrl.getById);
 
   // Tutor: crear y editar sus eventos
@@ -16,9 +17,9 @@ export function eventoRouter(ctrl: EventoController): Router {
   r.put('/:id', autenticar, autorizar('TUTOR', 'ADMIN'), ctrl.update);
   r.delete('/:id', autenticar, autorizar('TUTOR', 'ADMIN'), ctrl.delete);
 
-  // VOAE/Admin: aprobar o rechazar
-  r.patch('/:id/aprobar', autenticar, autorizar('VOAE', 'ADMIN'), ctrl.aprobar);
-  r.patch('/:id/rechazar', autenticar, autorizar('VOAE', 'ADMIN'), ctrl.rechazar);
+  // VOAE / Depto / Admin: aprobar o rechazar
+  r.patch('/:id/aprobar', autenticar, autorizar('VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'ADMIN'), ctrl.aprobar);
+  r.patch('/:id/rechazar', autenticar, autorizar('VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'ADMIN'), ctrl.rechazar);
 
   return r;
 }

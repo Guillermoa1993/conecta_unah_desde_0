@@ -47,14 +47,23 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
   
   ],
   voae: [
-    { icon: Home,           label: "Panel de gestión",   path: "/voae"             },
-    { icon: Rss,            label: "Muro Social",       path: "/voae/feed"        },
-    { icon: FileText,       label: "Reportes Oficiales",path: "/voae/reports"     },
-    { icon: ClipboardList,  label: "Histórico de eventos", path: "/voae/records"     },
-    { icon: MapPin,         label: "Centros Regionales",path: "/voae/centros"     },
-    { icon: ShieldCheck,    label: "Moderadores",       path: "/voae/moderadores" },
-    { icon: Bell,           label: "Notificaciones",    path: "/employees/notifications" },
-    { icon: History,        label: "Bitácora",          path: "/employees/logs"   },
+    { icon: Home,           label: "Panel de gestión VOAE", path: "/voae"             },
+    { icon: Rss,            label: "Muro Social",           path: "/voae/feed"        },
+    { icon: FileText,       label: "Reportes Oficiales",    path: "/voae/reports"     },
+    { icon: ClipboardList,  label: "Histórico de eventos VOAE", path: "/voae/records" },
+    { icon: MapPin,         label: "Centros Regionales",    path: "/voae/centros"     },
+    { icon: ShieldCheck,    label: "Moderadores",           path: "/voae/moderadores" },
+    { icon: Bell,           label: "Notificaciones",        path: "/employees/notifications" },
+    { icon: History,        label: "Bitácora",              path: "/employees/logs"   },
+  ],
+  voae_depto: [
+    { icon: Home,           label: "Panel de Gestión Coordinación", path: "/voae-depto"       },
+    { icon: Rss,            label: "Muro Social",                  path: "/voae/feed"         },
+    { icon: FileText,       label: "Reportes Oficiales",           path: "/voae/reports"      },
+    { icon: ClipboardList,  label: "Histórico de eventos Coordinación", path: "/voae-depto/records" },
+    { icon: MapPin,         label: "Centros Regionales",           path: "/voae/centros"      },
+    { icon: Bell,           label: "Notificaciones",               path: "/employees/notifications" },
+    { icon: History,        label: "Bitácora",                     path: "/employees/logs"    },
   ],
   dev: [
     { icon: Home,          label: "Dashboard Estudiante",path: "/student"        },
@@ -86,11 +95,12 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  student: "Estudiante",
-  tutor:   "Empleado / Tutor",
-  admin:   "Administrador",
-  voae:    "VOAE",
-  dev:     "⚡ Dev / Preview",
+  student:    "Estudiante",
+  tutor:      "Empleado / Tutor",
+  admin:      "Administrador",
+  voae:       "VOAE Dirección",
+  voae_depto: "VOAE Departamento",
+  dev:        "⚡ Dev / Preview",
 };
 
 const MAINTENANCE_ITEMS = [
@@ -132,6 +142,10 @@ export function AppSidebar() {
     docente: "tutor",
     voae: "voae",
     voae_direccion: "voae",
+    voae_departamento: "voae_depto",
+    voae_depto: "voae_depto",
+    coordinacion: "voae_depto",
+    departamento: "voae_depto",
     admin: "admin",
     student: "student",
     estudiante: "student",
@@ -140,6 +154,7 @@ export function AppSidebar() {
 
   const role = NORM_ROLE[rawRole] ?? (
     location.pathname.startsWith("/tutor") ? "tutor" :
+    location.pathname.startsWith("/voae-depto") ? "voae_depto" :
     location.pathname.startsWith("/voae")  ? "voae" :
     location.pathname.startsWith("/admin") ? "admin" :
     "student"

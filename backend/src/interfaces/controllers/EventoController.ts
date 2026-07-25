@@ -44,9 +44,10 @@ export class EventoController {
     } catch (err) { next(err); }
   };
 
-  getPendientes = async (_req: Request, res: Response, next: NextFunction) => {
+  getPendientes = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.json(await this.eventoRepo.findPendientesAprobacion());
+      const fase = (req.query.fase as string) || req.usuario?.rol;
+      res.json(await this.eventoRepo.findPendientesAprobacion(fase));
     } catch (err) { next(err); }
   };
 
@@ -65,7 +66,7 @@ export class EventoController {
 
   aprobar = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.json(await this.aprobarUC.aprobar(String(req.params.id), String(req.usuario!.id)));
+      res.json(await this.aprobarUC.aprobar(String(req.params.id), String(req.usuario!.id), req.usuario!.rol));
     } catch (err) { next(err); }
   };
 

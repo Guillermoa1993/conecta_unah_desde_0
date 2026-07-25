@@ -48,7 +48,6 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { Label } from "../../components/ui/label";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
-import { cn } from "../../../lib/utils";
 import { downloadConstanciaPdf, MESES } from "../../../lib/constancia-pdf";
 import { SignatureModal } from "../../components/app/ConstanciaModal";
 import { EventForm } from "../../components/app/EventForm";
@@ -90,9 +89,7 @@ const PLACEHOLDER_TEXT: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = {
   BORRADOR: "Borrador",
-  PENDIENTE_APROBACION: "Pendiente VOAE",
-  PENDIENTE_DEPARTAMENTO: "Pendiente Aprobación Depto.",
-  PENDIENTE_DIRECCION: "Pendiente VOAE Dirección",
+  PENDIENTE_APROBACION: "Pendiente de aprobación",
   PROGRAMADO: "Programado",
   EN_CURSO: "En curso",
   FINALIZADO: "Finalizado",
@@ -325,12 +322,12 @@ export function ManageEvent() {
     try {
       const updated = await api.put<any>(`/eventos/${event.id}`, {
         ...event,
-        estado: "PENDIENTE_DEPARTAMENTO",
+        estado: "PENDIENTE_APROBACION_DEPTO",
       });
       setEvent(updated);
-      toast.success("Propuesta enviada a VOAE Departamento para revisión inicial");
+      toast.success("Evento enviado a Coordinación de Departamento para revisión");
     } catch (err: any) {
-      toast.error("Error al enviar a VOAE", { description: err.message });
+      toast.error("Error al enviar a Coordinación", { description: err.message });
     }
   };
 
@@ -623,14 +620,28 @@ export function ManageEvent() {
   };
 
   const steps = [
-    { label: "Creado", isCompleted: true, isActive: false },
     {
-      label: "Enviado a VOAE",
-      isCompleted: event.estado !== "BORRADOR" && event.estado !== "RECHAZADO",
-      isActive: event.estado === "PENDIENTE_APROBACION"
+      label: "Creado",
+      isCompleted: true,
+      isActive: event.estado === "BORRADOR"
     },
     {
-      label: "Aprobado",
+      label: "Enviado a Coordinación",
+      isCompleted: event.estado !== "BORRADOR" && event.estado !== "RECHAZADO",
+      isActive: event.estado === "PENDIENTE_APROBACION_DEPTO" || event.estado === "PENDIENTE_APROBACION"
+    },
+    {
+      label: "Aprobado Coordinación",
+      isCompleted: ["PENDIENTE_APROBACION_VOAE", "PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
+      isActive: false
+    },
+    {
+      label: "Enviado a VOAE",
+      isCompleted: ["PENDIENTE_APROBACION_VOAE", "PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
+      isActive: event.estado === "PENDIENTE_APROBACION_VOAE"
+    },
+    {
+      label: "Aprobado VOAE",
       isCompleted: ["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
       isActive: event.estado === "PROGRAMADO"
     },
@@ -723,9 +734,9 @@ export function ManageEvent() {
                   <Button
                     size="sm"
                     onClick={() => setSendVoaeConfirmOpen(true)}
-                    className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shadow-sm"
+                    className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shadow-sm font-semibold"
                   >
-                    <Send className="size-4" /> Enviar a VOAE
+                    <Send className="size-4" /> Enviar a Coordinación
                   </Button>
                 );
               })()}
@@ -778,60 +789,6 @@ export function ManageEvent() {
               <Square className="size-4" /> Finalizar Evento
             </Button>
           )}
-        </div>
-      </div>
-
-      {/* Stepper de Doble Nivel de Aprobación Institucional */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-        <p className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-          <CheckCircle2 className="size-4 text-[#004B87]" /> Flujo de Aprobación Institucional (Doble Nivel)
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-center text-xs">
-          {/* Paso 1: Creado */}
-          <div className={cn("p-2.5 rounded-lg border font-medium flex flex-col items-center gap-1", 
-            event.estado === "BORRADOR" ? "bg-slate-100 border-slate-300 text-slate-800" : "bg-emerald-50 border-emerald-200 text-emerald-800")}>
-            <span className="size-5 rounded-full bg-[#004B87] text-white flex items-center justify-center text-[10px] font-bold">1</span>
-            <span className="font-bold">Creado / Borrador</span>
-            <span className="text-[10px] text-slate-500">Tutor / Solicitante</span>
-          </div>
-
-          {/* Paso 2: Aprobación Departamental */}
-          <div className={cn("p-2.5 rounded-lg border font-medium flex flex-col items-center gap-1",
-            event.estado === "PENDIENTE_DEPARTAMENTO" || event.estado === "PENDIENTE_APROBACION"
-              ? "bg-amber-50 border-amber-300 text-amber-900 animate-pulse"
-              : (event.estado === "PENDIENTE_DIRECCION" || event.estado === "PROGRAMADO" || event.estado === "EN_CURSO" || event.estado === "FINALIZADO")
-              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-              : "bg-slate-50 border-slate-200 text-slate-400")}>
-            <span className="size-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold">2</span>
-            <span className="font-bold">VOAE Departamento</span>
-            <span className="text-[10px] font-medium">
-              {event.estado === "PENDIENTE_DEPARTAMENTO" || event.estado === "PENDIENTE_APROBACION" ? "En revisión de carrera" : "Aprobado por Depto."}
-            </span>
-          </div>
-
-          {/* Paso 3: VOAE Dirección */}
-          <div className={cn("p-2.5 rounded-lg border font-medium flex flex-col items-center gap-1",
-            event.estado === "PENDIENTE_DIRECCION"
-              ? "bg-blue-50 border-blue-300 text-blue-900 animate-pulse"
-              : (event.estado === "PROGRAMADO" || event.estado === "EN_CURSO" || event.estado === "FINALIZADO")
-              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-              : "bg-slate-50 border-slate-200 text-slate-400")}>
-            <span className="size-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">3</span>
-            <span className="font-bold">VOAE Dirección</span>
-            <span className="text-[10px] font-medium">
-              {event.estado === "PENDIENTE_DIRECCION" ? "En firma final" : (event.estado === "PROGRAMADO" || event.estado === "FINALIZADO" || event.estado === "EN_CURSO" ? "Certificado Final" : "Pendiente de Depto.")}
-            </span>
-          </div>
-
-          {/* Paso 4: Programado */}
-          <div className={cn("p-2.5 rounded-lg border font-medium flex flex-col items-center gap-1",
-            event.estado === "PROGRAMADO" || event.estado === "EN_CURSO" || event.estado === "FINALIZADO"
-              ? "bg-emerald-100 border-emerald-300 text-emerald-900"
-              : "bg-slate-50 border-slate-200 text-slate-400")}>
-            <span className="size-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">4</span>
-            <span className="font-bold">Publicado / Activo</span>
-            <span className="text-[10px] text-slate-500">Disponible a alumnos</span>
-          </div>
         </div>
       </div>
 
