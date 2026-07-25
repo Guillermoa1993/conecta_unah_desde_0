@@ -77,6 +77,56 @@ export function AppNavbar() {
     return "Estudiante";
   };
 
+  const getModuleName = () => {
+    const path = location.pathname;
+
+    // Módulos de Administración
+    if (path.includes("/admin/parametros")) return "Parámetros del Sistema";
+    if (path.includes("/admin/administracion")) return "Administración";
+    if (path.includes("/admin/usuarios")) return "Usuarios";
+    if (path.includes("/admin/roles")) return "Roles";
+    if (path.includes("/admin/permisos")) return "Permisos";
+    if (path.includes("/admin/eventos")) return "Gestión de Eventos";
+    if (path.includes("/admin/comentarios")) return "Comentarios";
+    if (path.includes("/admin/backup")) return "Respaldo y Restauración";
+    if (path.includes("/admin/reportes")) return "Reportes del Sistema";
+    if (path.includes("/admin/notificaciones")) return "Notificaciones";
+    if (path.includes("/admin/bitacora")) return "Bitácora de Auditoría";
+    if (path.includes("/admin/catalogos")) return "Catálogos del Sistema";
+
+    // Módulos de Tutor / Empleado
+    if (path.includes("/tutor/dashboard")) return "Panel de Gestión";
+    if (path.includes("/tutor/eventos")) return "Histórico de Eventos";
+    if (path.includes("/tutor/mis-eventos")) return "Mis Eventos";
+    if (path.includes("/tutor/crear-evento")) return "Crear Evento";
+    if (path.includes("/tutor/reportes")) return "Reportes de Tutor";
+    if (path.includes("/tutor/ficha")) return "Ficha de Empleado";
+
+    // Módulos de VOAE
+    if (path.includes("/voae/dashboard")) return "Panel VOAE";
+    if (path.includes("/voae/validacion")) return "Validación de Eventos";
+    if (path.includes("/voae/auditoria")) return "Auditoría de Eventos";
+    if (path.includes("/voae/registros")) return "Histórico de Registros";
+    if (path.includes("/voae/reportes")) return "Reportes Oficiales";
+    if (path.includes("/voae/centros")) return "Centros Regionales";
+    if (path.includes("/voae/moderadores")) return "Moderadores";
+
+    // Módulos de Estudiante
+    if (path.includes("/student/feed")) return "Muro Social";
+    if (path.includes("/student/events")) return "Eventos Disponibles";
+    if (path.includes("/student/academic")) return "Historial Académico";
+    if (path.includes("/student/profile")) return "Perfil Estudiantil";
+    if (path.includes("/student/ficha")) return "Ficha Estudiantil";
+    if (path.includes("/student/qr-scanner")) return "Escanear QR";
+
+    // Varios
+    if (path.includes("/acerca-de")) return "Acerca de UNAH Conecta";
+    if (path.includes("/aplicativos")) return "Aplicativos";
+    if (path.includes("/logs")) return "Bitácora de Logs";
+
+    return getRoleName();
+  };
+
   const isRegistrationPage = location.pathname.includes("/registro") || location.pathname.includes("/estudiante") || location.pathname.includes("/empleado");
   const isFeedScreen = location.pathname.startsWith("/student/feed");
 
@@ -86,7 +136,7 @@ export function AppNavbar() {
         <SidebarTrigger />
         <div>
           <h1 className="text-lg font-semibold text-[#004B87]">Conecta Pumas</h1>
-          <p className="text-xs text-muted-foreground">{getRoleName()}</p>
+          <p className="text-xs text-muted-foreground">{getModuleName()}</p>
         </div>
       </div>
 
