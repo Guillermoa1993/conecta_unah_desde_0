@@ -808,7 +808,8 @@ export function TutorEventos() {
     const c: Record<Tab, number> = {
       borradores: 0,
       programados: 0,
-      pendientes: 0,
+      pendientes_depto: 0,
+      pendientes_voae: 0,
       finalizados: 0,
       rechazados: 0,
     };
@@ -940,22 +941,26 @@ export function TutorEventos() {
               ? "Aún no tienes borradores"
               : tab === "programados"
                 ? "No hay eventos programados"
-                : tab === "pendientes"
-                  ? "No hay eventos pendientes"
-                  : tab === "finalizados"
-                    ? "No hay eventos finalizados"
-                    : "No hay eventos rechazados"}
+                : tab === "pendientes_depto"
+                  ? "No hay eventos pendientes de aprobación en Coordinación"
+                  : tab === "pendientes_voae"
+                    ? "No hay eventos pendientes de aprobación en Dirección VOAE"
+                    : tab === "finalizados"
+                      ? "No hay eventos finalizados"
+                      : "No hay eventos rechazados"}
           </p>
           <p className="text-sm text-muted-foreground/70 mt-1">
             {tab === "borradores"
               ? "Crea un nuevo evento para empezar."
               : tab === "programados"
                 ? "Los eventos programados aparecerán aquí."
-                : tab === "pendientes"
-                  ? "Los eventos enviados a VOAE aparecerán aquí."
-                  : tab === "finalizados"
-                    ? "Los eventos finalizados aparecerán aquí."
-                    : "Los eventos rechazados por VOAE aparecerán aquí."}
+                : tab === "pendientes_depto"
+                  ? "Los eventos enviados a Coordinación de Departamento aparecerán aquí."
+                  : tab === "pendientes_voae"
+                    ? "Los eventos en revisión de Dirección VOAE aparecerán aquí."
+                    : tab === "finalizados"
+                      ? "Los eventos finalizados aparecerán aquí."
+                      : "Los eventos rechazados aparecerán aquí."}
           </p>
           {tab === "borradores" && (
             <Button

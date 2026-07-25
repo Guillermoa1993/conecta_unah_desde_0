@@ -197,21 +197,25 @@ export function ValidacionDeptoEvento() {
           </h3>
           {(() => {
             const rawLoc = event.lugar || event.ubicacion || "";
-            const [buildingName, rawCoords] = rawLoc.split("|");
-            let lat = 14.0842;
-            let lng = -87.1643;
-            if (rawCoords) {
-              const [clat, clng] = rawCoords.split(",").map(Number);
-              if (!isNaN(clat) && !isNaN(clng)) { lat = clat; lng = clng; }
-            } else if (buildingName) {
-              const res = resolveExactBuildingCoords(buildingName);
-              lat = res.lat; lng = res.lng;
-            }
+            const [bName] = rawLoc.includes("|") ? rawLoc.split("|") : [rawLoc];
+
+            const coords = resolveExactBuildingCoords(
+              event.centro_regional,
+              rawLoc,
+              event.latitud,
+              event.longitud
+            );
+
             return (
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-slate-800">{buildingName || "Instalaciones UNAH"}</p>
-                <div className="rounded-xl overflow-hidden border border-slate-200 shadow-sm" style={{ height: "160px" }}>
-                  <LocationPicker value={{ name: buildingName, lat, lng }} readOnly height="160px" />
+                <p className="text-sm font-semibold text-slate-800">{bName || coords.buildingName || "Instalaciones UNAH"}</p>
+                <div className="rounded-xl overflow-hidden border border-slate-200 shadow-sm font-sans" style={{ height: "160px" }}>
+                  <LocationPicker
+                    lat={coords.lat}
+                    lng={coords.lng}
+                    titleBanner={`${bName || coords.buildingName || 'Instalaciones UNAH'} (${event.centro_regional || 'Ciudad Universitaria'})`}
+                    height="160px"
+                  />
                 </div>
               </div>
             );

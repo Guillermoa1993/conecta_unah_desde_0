@@ -72,11 +72,7 @@ export function VOAEDashboard() {
   const pendingEvents = useMemo(
     () =>
       events
-        .filter((e) =>
-          ["PENDIENTE_APROBACION", "PENDIENTE_DEPARTAMENTO", "PENDIENTE_DIRECCION"].includes(
-            String(e.estado).trim().toUpperCase()
-          )
-        )
+        .filter((e) => e.estado === "PENDIENTE_APROBACION" || String(e.estado).trim().toUpperCase() === "PENDIENTE_APROBACION")
         .sort((a, b) => new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime()),
     [events]
   );
