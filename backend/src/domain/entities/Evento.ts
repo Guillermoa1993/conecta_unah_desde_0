@@ -5,6 +5,8 @@ export type VisibilidadEvento = 'PUBLICO' | 'PRIVADO';
 export type EstadoEvento =
   | 'BORRADOR'
   | 'PENDIENTE_APROBACION'
+  | 'PENDIENTE_DEPARTAMENTO'
+  | 'PENDIENTE_DIRECCION'
   | 'PROGRAMADO'
   | 'EN_CURSO'
   | 'EN_CURSO_SALIDA'
@@ -37,6 +39,8 @@ export interface Evento {
   portada_url?: string;
   tutor_id: string;
   aprobado_por?: string;
+  aprobado_depto_por?: string;
+  aprobado_depto_at?: Date;
   motivo_rechazo?: string;
   created_at: Date;
   updated_at: Date;
@@ -51,6 +55,8 @@ export interface Evento {
   creador_nombre?: string;
   tutor_foto?: string;
   creador_foto?: string;
+  creador_carrera?: string;
+  creador_facultad?: string;
 }
 
 export interface CrearEventoDto {

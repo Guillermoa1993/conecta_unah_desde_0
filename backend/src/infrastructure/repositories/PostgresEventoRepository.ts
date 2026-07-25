@@ -153,7 +153,8 @@ export class PostgresEventoRepository implements EventoRepository {
        FROM tabla_grupo_3_eventos e
        LEFT JOIN tabla_grupo_1_usuario u ON e.tutor_id::text = u.id_usuario::text
        LEFT JOIN tabla_grupo_1_perfil  p ON u.id_usuario = p.id_usuario
-       WHERE e.estado = 'PENDIENTE_APROBACION' ORDER BY e.created_at ASC`,
+       WHERE e.estado IN ('PENDIENTE_APROBACION', 'PENDIENTE_DEPARTAMENTO', 'PENDIENTE_DIRECCION')
+       ORDER BY e.created_at ASC`,
     );
     return rows.map(r => this.mapRowToEvento(r));
   }
