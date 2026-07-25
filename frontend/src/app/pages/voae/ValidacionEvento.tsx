@@ -108,8 +108,18 @@ export function ValidacionEvento() {
   const handleAprobar = async () => {
     if (!event) return;
     try {
-      await api.patch(`/eventos/${event.id}/aprobar`);
-      toast.success("¡Evento aprobado con éxito!");
+      const isDeptoLevel = event.estado === "PENDIENTE_DEPARTAMENTO";
+      const nextStatus = isDeptoLevel ? "PENDIENTE_DIRECCION" : "PROGRAMADO";
+      await api.put(`/eventos/${event.id}`, {
+        ...event,
+        estado: nextStatus,
+        aprobado_por: isDeptoLevel ? event.aprobado_por : "VOAE Dirección",
+        aprobado_depto_por: isDeptoLevel ? "VOAE Departamento" : (event.aprobado_depto_por || "VOAE Departamento"),
+      });
+      toast.success(isDeptoLevel 
+        ? "¡Propuesta aprobada a nivel departamental! Enviada a VOAE Dirección para visto bueno final." 
+        : "¡Evento certificado y aprobado con éxito por VOAE Dirección! El evento ha sido programado."
+      );
       navigate("/voae");
     } catch (err: any) {
       toast.error("Error al aprobar el evento", { description: err.message });
