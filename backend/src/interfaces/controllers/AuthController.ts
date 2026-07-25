@@ -177,11 +177,15 @@ actualizarPerfil = async (req: Request, res: Response, next: NextFunction) => {
   devLogin = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const ROL_CORREO: Record<string, string> = {
-        estudiante: 'guillermo.ayestas@unah.hn',
-        admin:      'admin@unah.hn',
-        tutor:      'tutor@unah.edu.hn',
-        voae:       'voae@unah.hn',
-        dev:        'dev@unah.hn',
+        estudiante:        'guillermo.ayestas@unah.hn',
+        admin:             'admin@unah.hn',
+        tutor:             'tutor@unah.edu.hn',
+        voae:              'voae@unah.hn',
+        voae_direccion:    'voae@unah.hn',
+        voae_departamento: 'voae_depto@unah.hn',
+        voae_depto:        'voae_depto@unah.hn',
+        coordinacion:      'voae_depto@unah.hn',
+        dev:               'dev@unah.hn',
       };
 
       const rol = (req.body.rol as string)?.toLowerCase();
@@ -191,15 +195,25 @@ actualizarPerfil = async (req: Request, res: Response, next: NextFunction) => {
         return;
       }
 
-      const usuario = await this.usuarioRepo!.findByCorreo(correo) as any;
+      let usuario = await this.usuarioRepo!.findByCorreo(correo) as any;
       if (!usuario) {
-        res.status(404).json({ error: `Usuario de prueba "${correo}" no encontrado en la DB` });
-        return;
+        if (rol.includes('depto') || rol.includes('departamento') || rol.includes('coordinacion')) {
+          usuario = {
+            id_usuario: 99,
+            id: 99,
+            nombre: 'Coordinador de Departamento (Prueba)',
+            correo: 'voae_depto@unah.hn',
+            rol: 'VOAE_DEPARTAMENTO',
+          };
+        } else {
+          res.status(404).json({ error: `Usuario de prueba "${correo}" no encontrado en la DB` });
+          return;
+        }
       }
 
       const secret = cfg('JWT_SECRET', 'dev-secret-change-in-prod');
       const token = jwt.sign(
-        { id: usuario.id_usuario, rol: usuario.rol },
+        { id: usuario.id_usuario || usuario.id, rol: usuario.rol },
         secret,
         { expiresIn: '8h' }
       );
