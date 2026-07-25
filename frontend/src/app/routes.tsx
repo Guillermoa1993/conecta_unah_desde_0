@@ -93,6 +93,11 @@ export const router = createBrowserRouter([
       { path: "registro/estudiante",    element: <FichaEstudiante /> },
       { path: "registro/empleado",      element: <FichaEmpleado /> },
 
+      // ── Alias cortos usados por el sidebar actual (Red Social) ──
+      { path: "muro",                   element: P(<SocialFeed />) },
+      { path: "perfil",                 element: P(<StudentProfile />) },
+      { path: "eventos",                element: P(<AvailableEvents />) },
+
       // ── Empleados (tutor/admin/voae comparten) ────────────
       { path: "employees/notifications", element: P(<Notifications />) },
       { path: "employees/logs",          element: P(<Logs />) },
