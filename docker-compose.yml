@@ -11,6 +11,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      target: production
     container_name: unah_backend
     ports:
       - "5000:5000"
@@ -45,6 +46,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: production
     container_name: unah_frontend
     ports:
       - "5173:80"
