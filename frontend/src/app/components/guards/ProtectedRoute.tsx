@@ -9,23 +9,29 @@ const NORM_ROLE: Record<string, string> = {
   admin: "admin",
   voae: "voae",
   voae_direccion: "voae",
+  voae_departamento: "voae_depto",
+  voae_depto: "voae_depto",
+  coordinacion: "voae_depto",
+  departamento: "voae_depto",
   dev: "dev",
 };
 
 const ROLE_PREFIXES: Record<string, string[]> = {
-  student: ["/student", "/employees"],
-  tutor:   ["/tutor",   "/employees"],
-  admin:   ["/admin",   "/employees", "/student", "/tutor", "/voae"],
-  voae:    ["/voae",    "/employees"],
-  dev:     ["/"],   // acceso total
+  student:    ["/student", "/employees"],
+  tutor:      ["/tutor",   "/employees"],
+  admin:      ["/admin",   "/employees", "/student", "/tutor", "/voae", "/voae-depto"],
+  voae:       ["/voae",    "/employees"],
+  voae_depto: ["/voae-depto", "/voae", "/employees"],
+  dev:        ["/"],   // acceso total
 };
 
 const ROLE_HOME: Record<string, string> = {
-  student: "/student/feed",
-  tutor:   "/tutor",
-  admin:   "/admin",
-  voae:    "/voae",
-  dev:     "/student/feed",
+  student:    "/student/feed",
+  tutor:      "/tutor",
+  admin:      "/admin",
+  voae:       "/voae",
+  voae_depto: "/voae-depto",
+  dev:        "/student/feed",
 };
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {

@@ -43,10 +43,10 @@ export function AppNavbar() {
 
   const getRoleName = () => {
     const rawRole = (sessionStorage.getItem("unah_role") || sessionStorage.getItem("unah_user_type") || "").toLowerCase();
-    if (rawRole.includes("depto") || rawRole.includes("coordinac") || location.pathname.startsWith("/voae-depto")) return "VOAE Departamento (Coordinación)";
-    if (rawRole.startsWith("voae") || location.pathname.startsWith("/voae")) return "Personal VOAE Dirección";
-    if (rawRole === "tutor" || rawRole === "empleado" || location.pathname.startsWith("/tutor")) return "Empleado / Tutor";
-    if (rawRole === "admin" || location.pathname.startsWith("/admin")) return "Administrador";
+    if (location.pathname.startsWith("/voae-depto") || rawRole.includes("depto") || rawRole.includes("coordinac")) return "VOAE Departamento (Coordinación)";
+    if (location.pathname.startsWith("/voae") || rawRole.startsWith("voae")) return "Personal VOAE Dirección";
+    if (location.pathname.startsWith("/tutor") || rawRole === "tutor" || rawRole === "empleado") return "Empleado / Tutor";
+    if (location.pathname.startsWith("/admin") || rawRole === "admin") return "Administrador";
     return "Estudiante";
   };
 
