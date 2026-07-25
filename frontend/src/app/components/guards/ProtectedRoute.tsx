@@ -1,19 +1,30 @@
 import { Navigate, useLocation } from "react-router";
 
+/**
+ * Prefijos permitidos por rol.
+ * Todos incluyen /muro, /perfil, /mensajes y /eventos para que la
+ * experiencia de "red social" sea igual para cualquier rol autenticado.
+ */
+const COMMON_SOCIAL = ["/muro", "/perfil", "/mensajes", "/eventos", "/conexiones", "/employees"];
+
 const ROLE_PREFIXES: Record<string, string[]> = {
-  student: ["/student", "/employees"],
-  tutor:   ["/tutor",   "/employees"],
-  admin:   ["/admin",   "/employees", "/student", "/tutor", "/voae"],
-  voae:    ["/voae",    "/employees"],
-  dev:     ["/"],   // acceso total
+  student: [...COMMON_SOCIAL, "/student"],
+  tutor:   [...COMMON_SOCIAL, "/tutor"],
+  admin:   [...COMMON_SOCIAL, "/admin", "/student", "/tutor", "/voae"],
+  voae:    [...COMMON_SOCIAL, "/voae", "/tutor"],
+  dev:     ["/"], // acceso total
 };
 
+/**
+ * Home unificado: TODOS los roles aterrizan en el muro tras login.
+ * La administración vive dentro de una pestaña colapsada en la sidebar.
+ */
 const ROLE_HOME: Record<string, string> = {
-  student: "/student/feed",
-  tutor:   "/tutor",
-  admin:   "/admin",
-  voae:    "/voae",
-  dev:     "/student/feed",
+  student: "/muro",
+  tutor:   "/muro",
+  admin:   "/muro",
+  voae:    "/muro",
+  dev:     "/muro",
 };
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -32,8 +43,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const canAccess = allowed.some(prefix => location.pathname.startsWith(prefix));
 
   if (!canAccess) {
-    return <Navigate to={ROLE_HOME[role] ?? "/student/feed"} replace />;
+    return <Navigate to={ROLE_HOME[role] ?? "/muro"} replace />;
   }
 
   return <>{children}</>;
 }
+
+export { ROLE_HOME };

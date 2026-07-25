@@ -17,16 +17,16 @@ services:
       - ./backend/.env
     environment:
       - PORT=5000
-      - DATABASE_URL=postgresql://unah_conecta2_user:jNjG22SbWrJlJwf35Vuk3qcMZqXMsnXo@dpg-d931mbugvqtc739qj7h0-a.virginia-postgres.render.com/unah_conecta2
-      - JWT_SECRET=unah_conecta_pumas_2026_jwt_secret_key_cambiar_en_produccion
-      - FRONTEND_URL=http://localhost:5173
+      - DATABASE_URL=${DATABASE_URL:-postgresql://usuario:password@localhost:5432/db_ejemplo}
+      - JWT_SECRET=${JWT_SECRET:-cambiar_en_produccion}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
       - NODE_OPTIONS=--dns-result-order=ipv4first
-      - AZURE_CLIENT_ID=3539454f-3ef2-43e9-8b17-2424b171504d
-      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
-      - AZURE_TENANT_ID=0dfe615a-5e05-412a-bfb2-0bf859e3563e
-      - AZURE_REDIRECT_URI=http://localhost:5000/api/auth/microsoft/callback
-      - GMAIL_USER=josecarlosaguilar71123@gmail.com
-      - GMAIL_APP_PASSWORD=yenfgvryovntbmub
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID:-tu_client_id}
+      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET:-tu_client_secret}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID:-tu_tenant_id}
+      - AZURE_REDIRECT_URI=${AZURE_REDIRECT_URI:-http://localhost:5000/api/auth/microsoft/callback}
+      - GMAIL_USER=${GMAIL_USER:-tu_correo@gmail.com}
+      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:-tu_app_password}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
@@ -46,11 +46,11 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      - PORT=${PORT}
+      - PORT=${PORT:-5000}
       - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET}
       - FRONTEND_URL=${FRONTEND_URL}
-      - NODE_OPTIONS=${NODE_OPTIONS}
+      - NODE_OPTIONS=${NODE_OPTIONS:---dns-result-order=ipv4first}
       - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
       - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
       - AZURE_TENANT_ID=${AZURE_TENANT_ID}

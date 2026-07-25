@@ -34,7 +34,7 @@ const GROUPS: { label: string; icon: React.ElementType; keys: string[] }[] = [
   {
     label: "Servidor",
     icon: Code2,
-    keys: ["PORT", "FRONTEND_URL", "VITE_API_URL"],
+    keys: ["PORT", "FRONTEND_URL", "VITE_API_URL", "CORS_ORIGENES_ADICIONALES"],
   },
   {
     label: "Seguridad y Sesión",
@@ -70,6 +70,7 @@ const LABEL_MAP: Record<string, string> = {
   PORT:                     "Puerto del servidor",
   FRONTEND_URL:             "URL del Frontend",
   VITE_API_URL:             "URL de la API (frontend)",
+  CORS_ORIGENES_ADICIONALES:"Orígenes CORS adicionales (separados por coma)",
   JWT_SECRET:               "Clave secreta JWT",
   SSL_ACTIVO:               "SSL Activo",
   SSL_CERTIFICADO:          "Certificado SSL",
