@@ -315,24 +315,41 @@ export function ValidacionDeptoEvento() {
         >
           <XCircle className="size-4 mr-1.5" /> Rechazar
         </Button>
-        <Button
-          className="px-6 bg-[#22c55e] hover:bg-emerald-600 h-11 text-xs font-bold rounded-xl text-white shadow-sm"
-          onClick={() => setApproveDialogOpen(true)}
-        >
-          <CheckCircle2 className="size-4 mr-1.5" /> Aprobar y enviar a VOAE
-        </Button>
+        {(() => {
+          const isRecreativo = event.tipo_evento === "RECREACION" || Number(event.duracion_horas || 0) === 0;
+          return (
+            <Button
+              className="px-6 bg-[#22c55e] hover:bg-emerald-600 h-11 text-xs font-bold rounded-xl text-white shadow-sm"
+              onClick={() => setApproveDialogOpen(true)}
+            >
+              <CheckCircle2 className="size-4 mr-1.5" />
+              {isRecreativo ? "Aprobar y publicar evento" : "Aprobar y enviar a VOAE"}
+            </Button>
+          );
+        })()}
       </div>
 
       {/* Approve dialog */}
       <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-[#003366] flex items-center gap-1.5 font-bold">
-              ¿Está seguro de aprobar y enviar este evento a VOAE Dirección?
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500 mt-1">
-              Al aprobar esta propuesta en Coordinación, el evento pasará a revisión final de <strong>Dirección VOAE</strong> antes de su publicación en el Muro Social.
-            </DialogDescription>
+            {(() => {
+              const isRecreativo = event.tipo_evento === "RECREACION" || Number(event.duracion_horas || 0) === 0;
+              return (
+                <>
+                  <DialogTitle className="text-[#003366] flex items-center gap-1.5 font-bold">
+                    {isRecreativo
+                      ? "¿Está seguro de aprobar y publicar este evento recreativo?"
+                      : "¿Está seguro de aprobar y enviar este evento a VOAE Dirección?"}
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-slate-500 mt-1">
+                    {isRecreativo
+                      ? "Al ser un evento recreativo (sin horas VOAE), al ser aprobado por Coordinación de Departamento se publicará inmediatamente en el Muro Social sin requerir aprobación de Dirección VOAE."
+                      : "Al aprobar esta propuesta en Coordinación, el evento pasará a revisión final de Dirección VOAE antes de su publicación en el Muro Social."}
+                  </DialogDescription>
+                </>
+              );
+            })()}
           </DialogHeader>
           <DialogFooter className="mt-4 flex gap-2">
             <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>

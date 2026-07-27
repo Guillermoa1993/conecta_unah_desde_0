@@ -23,41 +23,44 @@ export class AprobarRechazarEvento {
 
     const rolUpper = (rol_aprobador || '').toUpperCase();
     const esDepto = rolUpper.includes('DEPTO') || rolUpper.includes('DEPARTAMENTO') || rolUpper.includes('COORDINACION');
+    const isRecreativo = evento.tipo_evento === 'RECREACION' || Number((evento as any).duracion_horas || 0) === 0;
 
-    // Si está en primera fase (Coordinación Depto) o el que aprueba es Depto -> pasa a PENDIENTE_APROBACION_VOAE
-    if (esPendienteDepto || esDepto) {
-      const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'PENDIENTE_APROBACION_VOAE', { aprobado_por });
+    // Si es evento Recreativo O si es aprobación por Dirección VOAE -> pasa directamente a PROGRAMADO
+    if (isRecreativo || (!esPendienteDepto && !esDepto)) {
+      const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'PROGRAMADO', { aprobado_por });
+
       await this.notificacionRepo.crear({
         usuario_id: Number(evento.tutor_id),
-        mensaje: `Tu evento "${evento.titulo}" fue aprobado por Coordinación de Departamento y enviado a Dirección VOAE.`,
-        tipo: 'EVENTO_APROBADO_DEPTO',
+        mensaje: isRecreativo
+          ? `Tu evento recreativo "${evento.titulo}" fue aprobado por Coordinación de Departamento y ya está publicado.`
+          : `Tu evento "${evento.titulo}" fue aprobado por Dirección VOAE y ya está publicado.`,
+        tipo: 'EVENTO_APROBADO',
       });
+
+      // Avisar a todos los estudiantes que hay un evento nuevo disponible
+      const estudiantes = await this.usuarioRepo.findAll({ rol: 'ESTUDIANTE' });
+      await Promise.all(
+        estudiantes.map((estudiante) =>
+          this.notificacionRepo.crear({
+            usuario_id: estudiante.id_usuario,
+            mensaje: `Nuevo evento disponible: "${evento.titulo}"`,
+            tipo: 'EVENTO_DISPONIBLE',
+            referencia_tipo: 'EVENTO',
+            referencia_id: Number(evento.id),
+          }),
+        ),
+      );
+
       return actualizado;
     }
 
-    // Aprobación final por Dirección VOAE -> pasa a PROGRAMADO
-    const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'PROGRAMADO', { aprobado_por });
-
+    // Para eventos con horas VOAE aprobados por primera vez por Coordinación Depto -> pasa a PENDIENTE_APROBACION_VOAE
+    const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'PENDIENTE_APROBACION_VOAE', { aprobado_por });
     await this.notificacionRepo.crear({
       usuario_id: Number(evento.tutor_id),
-      mensaje: `Tu evento "${evento.titulo}" fue aprobado por Dirección VOAE y ya está publicado.`,
-      tipo: 'EVENTO_APROBADO',
+      mensaje: `Tu evento "${evento.titulo}" fue aprobado por Coordinación de Departamento y enviado a Dirección VOAE.`,
+      tipo: 'EVENTO_APROBADO_DEPTO',
     });
-
-    // Avisar a todos los estudiantes que hay un evento nuevo disponible
-    const estudiantes = await this.usuarioRepo.findAll({ rol: 'ESTUDIANTE' });
-    await Promise.all(
-      estudiantes.map((estudiante) =>
-        this.notificacionRepo.crear({
-          usuario_id: estudiante.id_usuario,
-          mensaje: `Nuevo evento disponible: "${evento.titulo}"`,
-          tipo: 'EVENTO_DISPONIBLE',
-          referencia_tipo: 'EVENTO',
-          referencia_id: Number(evento.id),
-        }),
-      ),
-    );
-
     return actualizado;
   }
 

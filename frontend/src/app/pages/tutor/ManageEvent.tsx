@@ -619,43 +619,73 @@ export function ManageEvent() {
     }
   };
 
-  const steps = [
-    {
-      label: "Creado",
-      isCompleted: true,
-      isActive: event.estado === "BORRADOR"
-    },
-    {
-      label: "Enviado a Coordinación",
-      isCompleted: event.estado !== "BORRADOR" && event.estado !== "RECHAZADO",
-      isActive: event.estado === "PENDIENTE_APROBACION_DEPTO" || event.estado === "PENDIENTE_APROBACION"
-    },
-    {
-      label: "Aprobado Coordinación",
-      isCompleted: ["PENDIENTE_APROBACION_VOAE", "PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
-      isActive: false
-    },
-    {
-      label: "Enviado a VOAE",
-      isCompleted: ["PENDIENTE_APROBACION_VOAE", "PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
-      isActive: event.estado === "PENDIENTE_APROBACION_VOAE"
-    },
-    {
-      label: "Aprobado VOAE",
-      isCompleted: ["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
-      isActive: event.estado === "PROGRAMADO"
-    },
-    {
-      label: "En curso",
-      isCompleted: ["EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
-      isActive: ["EN_CURSO", "EN_CURSO_SALIDA"].includes(event.estado)
-    },
-    {
-      label: "Finalizado",
-      isCompleted: event.estado === "FINALIZADO",
-      isActive: event.estado === "FINALIZADO"
-    }
-  ];
+  const isRecreativo = event.tipo_evento === "RECREACION" || event.tipo_evento === "SIN_HORAS" || parseFloat(event.duracion_horas || "0") === 0;
+
+  const steps = isRecreativo
+    ? [
+        {
+          label: "Creado",
+          isCompleted: true,
+          isActive: event.estado === "BORRADOR"
+        },
+        {
+          label: "Enviado a Coordinación",
+          isCompleted: event.estado !== "BORRADOR" && event.estado !== "RECHAZADO",
+          isActive: event.estado === "PENDIENTE_APROBACION_DEPTO" || event.estado === "PENDIENTE_APROBACION"
+        },
+        {
+          label: "Aprobado Coordinación",
+          isCompleted: ["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
+          isActive: event.estado === "PROGRAMADO"
+        },
+        {
+          label: "En curso",
+          isCompleted: ["EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
+          isActive: ["EN_CURSO", "EN_CURSO_SALIDA"].includes(event.estado)
+        },
+        {
+          label: "Finalizado",
+          isCompleted: event.estado === "FINALIZADO",
+          isActive: event.estado === "FINALIZADO"
+        }
+      ]
+    : [
+        {
+          label: "Creado",
+          isCompleted: true,
+          isActive: event.estado === "BORRADOR"
+        },
+        {
+          label: "Enviado a Coordinación",
+          isCompleted: event.estado !== "BORRADOR" && event.estado !== "RECHAZADO",
+          isActive: event.estado === "PENDIENTE_APROBACION_DEPTO" || event.estado === "PENDIENTE_APROBACION"
+        },
+        {
+          label: "Aprobado Coordinación",
+          isCompleted: ["PENDIENTE_APROBACION_VOAE", "PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
+          isActive: false
+        },
+        {
+          label: "Enviado a VOAE",
+          isCompleted: ["PENDIENTE_APROBACION_VOAE", "PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
+          isActive: event.estado === "PENDIENTE_APROBACION_VOAE"
+        },
+        {
+          label: "Aprobado VOAE",
+          isCompleted: ["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
+          isActive: event.estado === "PROGRAMADO"
+        },
+        {
+          label: "En curso",
+          isCompleted: ["EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
+          isActive: ["EN_CURSO", "EN_CURSO_SALIDA"].includes(event.estado)
+        },
+        {
+          label: "Finalizado",
+          isCompleted: event.estado === "FINALIZADO",
+          isActive: event.estado === "FINALIZADO"
+        }
+      ];
 
   // Paginación y ordenamiento de Matriculados
   const totalEnrolled = students.length;
