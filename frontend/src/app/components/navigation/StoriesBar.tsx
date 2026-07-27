@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { estadosService, Estado } from '../../../services/estados.service';
 import { authService } from '../../../services/auth.service';
@@ -17,7 +17,8 @@ const EMOJIS_PUMA = [
 
 export function StoriesBar() {
   const [estados, setEstados] = useState<Estado[]>([]);
-  const [activeStory, setActiveStory] = useState<Estado | null>(null);
+  const [activeGroup, setActiveGroup] = useState<Estado[] | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [texto, setTexto] = useState('');
   const [imagenPreview, setImagenPreview] = useState<string | null>(null);
@@ -42,6 +43,21 @@ export function StoriesBar() {
     const interval = setInterval(cargarEstados, 60000); // refresca cada minuto
     return () => clearInterval(interval);
   }, []);
+
+  // Agrupa los estados por usuario, para mostrar un solo círculo por persona
+  // (en vez de uno por cada estado publicado). Dentro de cada grupo, ordenados
+  // del más viejo al más nuevo, igual que WhatsApp/Instagram.
+  const gruposPorUsuario = useMemo(() => {
+    const mapa = new Map<number, Estado[]>();
+    estados.forEach((e) => {
+      const lista = mapa.get(e.usuario_id_usuario) ?? [];
+      lista.push(e);
+      mapa.set(e.usuario_id_usuario, lista);
+    });
+    return Array.from(mapa.values()).map((lista) =>
+      [...lista].sort((a, b) => new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime())
+    );
+  }, [estados]);
 
   const handleImagenChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -219,29 +235,64 @@ export function StoriesBar() {
           <span className="story-name-h">Tu estado</span>
         </div>
 
-        {estados.map((e) => (
-          <div key={e.id_estado_temporal} className="story-item-h" onClick={() => setActiveStory(e)}>
-            <div className="story-ring-h has-story-h">
-              <div className="story-ava-h">
-                {e.foto_url ? <img src={e.foto_url} alt={e.nombre_usuario} /> : iniciales(e.nombre_usuario)}
+        {gruposPorUsuario.map((grupo) => {
+          const masReciente = grupo[grupo.length - 1];
+          return (
+            <div
+              key={masReciente.usuario_id_usuario}
+              className="story-item-h"
+              onClick={() => { setActiveGroup(grupo); setActiveIndex(grupo.length - 1); }}
+            >
+              <div className="story-ring-h has-story-h">
+                <div className="story-ava-h">
+                  {masReciente.foto_url ? <img src={masReciente.foto_url} alt={masReciente.nombre_usuario} /> : iniciales(masReciente.nombre_usuario)}
+                </div>
               </div>
+              <span className="story-name-h">{masReciente.nombre_usuario}</span>
             </div>
-            <span className="story-name-h">{e.nombre_usuario}</span>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {activeStory && ReactDOM.createPortal(
-        <div className="story-overlay-h" onClick={() => setActiveStory(null)}>
+      {activeGroup && ReactDOM.createPortal(
+        <div className="story-overlay-h" onClick={() => setActiveGroup(null)}>
           <div className="story-viewer-h" onClick={(e) => e.stopPropagation()}>
-            <div className="story-bar-h" />
-            <button className="story-close-h" onClick={() => setActiveStory(null)}>✕</button>
-            <div className="story-ava-big-h">{iniciales(activeStory.nombre_usuario)}</div>
-            <div className="story-vname-h">{activeStory.nombre_usuario}</div>
-            {activeStory.foto_url && (
-              <img className="story-vimg-h" src={activeStory.foto_url} alt="" />
+            <div style={{ display: 'flex', gap: 4, position: 'absolute', top: 14, left: 16, right: 16 }}>
+              {activeGroup.map((_, i) => (
+                <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, overflow: 'hidden', background: 'rgba(255,255,255,0.3)' }}>
+                  {i === activeIndex && <div className="story-bar-h" style={{ position: 'static', height: '100%' }} />}
+                  {i < activeIndex && <div style={{ width: '100%', height: '100%', background: '#FFD100' }} />}
+                </div>
+              ))}
+            </div>
+            <button className="story-close-h" onClick={() => setActiveGroup(null)}>✕</button>
+            <div className="story-ava-big-h">{iniciales(activeGroup[activeIndex].nombre_usuario)}</div>
+            <div className="story-vname-h">{activeGroup[activeIndex].nombre_usuario}</div>
+            {activeGroup[activeIndex].foto_url && (
+              <img className="story-vimg-h" src={activeGroup[activeIndex].foto_url} alt="" />
             )}
-            {activeStory.texto_estado && <div className="story-vtext-h">{activeStory.texto_estado}</div>}
+            {activeGroup[activeIndex].texto_estado && <div className="story-vtext-h">{activeGroup[activeIndex].texto_estado}</div>}
+
+            {activeGroup.length > 1 && (
+              <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+                <button
+                  className="story-btn-h story-btn-cancel-h"
+                  disabled={activeIndex === 0}
+                  onClick={() => setActiveIndex((i) => Math.max(0, i - 1))}
+                  style={{ opacity: activeIndex === 0 ? 0.4 : 1 }}
+                >
+                  ‹ Anterior
+                </button>
+                <button
+                  className="story-btn-h story-btn-publicar-h"
+                  disabled={activeIndex === activeGroup.length - 1}
+                  onClick={() => setActiveIndex((i) => Math.min(activeGroup.length - 1, i + 1))}
+                  style={{ opacity: activeIndex === activeGroup.length - 1 ? 0.4 : 1 }}
+                >
+                  Siguiente ›
+                </button>
+              </div>
+            )}
           </div>
         </div>,
         document.body,

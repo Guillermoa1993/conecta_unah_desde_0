@@ -82,6 +82,11 @@ import { perfilReaccionRouter } from '../../interfaces/routes/perfilReaccionRout
 import { parametrosRouter } from '../../interfaces/routes/parametrosRoutes';
 import { solicitudCambioCarreraRouter } from '../../interfaces/routes/solicitudCambioCarreraRoutes';
 import { grupo2EventoRouter } from '../../interfaces/routes/grupo2EventoRoutes';
+import { comentarioRouter } from '../../interfaces/routes/comentarioRoutes';
+import { publicacionRouter } from '../../interfaces/routes/publicacionRoutes';
+import { reaccionPostRouter } from '../../interfaces/routes/reaccionPostRoutes';
+import { reaccionComentarioRouter } from '../../interfaces/routes/reaccionComentarioRoutes';
+
 
 // Middleware
 import { errorMiddleware } from '../../interfaces/middlewares/errorMiddleware';
@@ -189,10 +194,14 @@ app.use('/api/notificaciones', notificacionRouter(notificacionCtrl));
 app.use('/api/estados', estadoRouter(estadoCtrl));
 app.use('/api/forma003', forma003Router(forma003Ctrl));
 app.use('/api/pumitas', pumitaRouter(pumitaCtrl));
-app.use('/api/perfil/reacciones', perfilReaccionRouter(perfilReaccionCtrl));
+app.use('/api/perfil/reacciones', perfilReaccionRouter(perfilReaccionCtrl, pool));
 app.use('/api/parametros',    parametrosRouter);
 app.use('/api/solicitudes-cambio-carrera', solicitudCambioCarreraRouter(solicitudCambioCarreraCtrl));
 app.use('/api/grupo2/mis-eventos', grupo2EventoRouter(grupo2EventoCtrl));
+app.use('/api/comentarios',            comentarioRouter);
+app.use('/api/publicaciones',          publicacionRouter);
+app.use('/api/reacciones-post',        reaccionPostRouter);
+app.use('/api/reacciones-comentario',  reaccionComentarioRouter);
 
 
 

@@ -42,6 +42,7 @@ interface DocumentoForma003 {
 }
 
 interface PublicacionGuardada {
+  id?: number;
   titulo: string;
   autor: string;
   fechaGuardado: string;
@@ -50,6 +51,7 @@ interface PublicacionGuardada {
 }
 
 interface EventoGuardado {
+  id?: number;
   titulo: string;
   fecha: string;
   estado: string;
@@ -131,54 +133,65 @@ interface NotificacionPerfil {
 
 const reaccionesPumita = ['👍 Apoyo', '🎉 Felicitación', '👋 Saludo', '🐾 Rugido Puma'];
 
+// El botón "🔖 Guardar" del Feed (SocialFeed.tsx) guarda los posts marcados
+// como "saved" en localStorage bajo la clave "unah_posts" (todavía no hay
+// endpoint de backend para esto). Aquí leemos esos mismos datos reales,
+// en vez de usar una lista fija de ejemplo.
+function leerGuardadosReales(): { publicaciones: PublicacionGuardada[]; eventos: EventoGuardado[] } {
+  try {
+    const raw = localStorage.getItem('unah_posts');
+    const posts: any[] = raw ? JSON.parse(raw) : [];
+    const guardados = posts.filter((p) => p?.saved);
 
-const publicacionesGuardadas: PublicacionGuardada[] = [
-  {
-    titulo: 'Guía rápida para preparar una tutoría efectiva',
-    autor: 'Comunidad Académica UNAH',
-    fechaGuardado: '18/06/2026',
-    descripcion: 'Consejos breves para organizar materiales, objetivos y tiempos antes de una tutoría.',
-    detalle: 'Esta publicación resume pasos prácticos para planificar sesiones de estudio, definir objetivos claros y registrar avances entre compañeros.',
-  },
-  {
-    titulo: 'Convocatoria de voluntariado estudiantil',
-    autor: 'VOAE',
-    fechaGuardado: '16/06/2026',
-    descripcion: 'Información sobre apoyo estudiantil en actividades culturales y académicas.',
-    detalle: 'La convocatoria invita a estudiantes a participar en actividades de apoyo institucional, con seguimiento de participación desde la plataforma.',
-  },
-  {
-    titulo: 'Recursos para mejorar tu perfil universitario',
-    autor: 'Conecta Puma',
-    fechaGuardado: '12/06/2026',
-    descripcion: 'Recomendaciones para mantener actualizada la información académica y tus conexiones.',
-    detalle: 'Incluye sugerencias sobre biografía, contactos relevantes, documentos académicos y participación en eventos dentro de la red universitaria.',
-  },
-];
+    const publicaciones: PublicacionGuardada[] = guardados
+      .filter((p) => p.type === 'Publicacion')
+      .map((p) => ({
+        id: p.id,
+        titulo: p.title || 'Sin título',
+        autor: p.author || 'UNAH',
+        fechaGuardado: p.savedAt || p.time || '',
+        descripcion: p.desc || '',
+        detalle: p.desc || '',
+      }));
 
-const eventosGuardadosLista: EventoGuardado[] = [
-  {
-    titulo: 'Seminario de Ciberseguridad UNAH',
-    fecha: '25/06/2026',
-    estado: 'En curso',
-    descripcion: 'Introducción al análisis de vulnerabilidades en entornos controlados.',
-    detalle: 'Evento académico orientado a estudiantes interesados en seguridad informática, buenas prácticas y herramientas introductorias.',
-  },
-  {
-    titulo: 'Taller de Liderazgo',
-    fecha: '15/10/2026',
-    estado: 'Programado',
-    descripcion: 'Taller presencial sobre habilidades blandas y liderazgo estudiantil.',
-    detalle: 'Actividad de cuatro semanas con dinámicas grupales, seguimiento de participación y enfoque en comunicación efectiva.',
-  },
-  {
-    titulo: 'Webinar de Marketing Digital y SEO',
-    fecha: '20/09/2026',
-    estado: 'Finalizado',
-    descripcion: 'Sesión virtual sobre posicionamiento orgánico y estrategias digitales.',
-    detalle: 'Webinar introductorio sobre SEO, contenido digital y herramientas básicas para proyectos universitarios.',
-  },
-];
+    const eventos: EventoGuardado[] = guardados
+      .filter((p) => p.type === 'Evento')
+      .map((p) => ({
+        id: p.id,
+        titulo: p.title || 'Sin título',
+        fecha: p.fecha || p.time || '',
+        estado: p.hidden ? 'Oculto' : (p.time || ''),
+        descripcion: p.desc || '',
+        detalle: p.desc || '',
+      }));
+
+    return { publicaciones, eventos };
+  } catch {
+    return { publicaciones: [], eventos: [] };
+  }
+}
+
+// Refleja en localStorage (para que el Feed quede sincronizado) que un post
+// dejó de estar guardado o volvió a guardarse.
+function sincronizarGuardadoEnLocalStorage(id: number | undefined, titulo: string, guardado: boolean) {
+  try {
+    const raw = localStorage.getItem('unah_posts');
+    if (!raw) return;
+    const posts: any[] = JSON.parse(raw);
+    const actualizados = posts.map((p) => {
+      const coincide = id !== undefined ? p.id === id : p.title === titulo;
+      if (!coincide) return p;
+      return {
+        ...p,
+        saved: guardado,
+        savedAt: guardado ? new Date().toLocaleDateString() : undefined,
+      };
+    });
+    localStorage.setItem('unah_posts', JSON.stringify(actualizados));
+  } catch {
+    // si falla, no bloqueamos la UI de Perfil por esto
+  }
+}
 
 const ESTADO_LABEL: Record<string, string> = {
   ACTIVO: 'Activo',
@@ -319,6 +332,26 @@ const notificacionesPerfil: NotificacionPerfil[] = notificacionesReales
   const [dejadosDeSeguir, setDejadosDeSeguir] = useState<string[]>([]);
   const [pumitaPorDejar, setPumitaPorDejar] = useState<PumitaData | null>(null);
   const [interaccionesActivas, setInteraccionesActivas] = useState(true);
+  const [cargandoInteraccionSocial, setCargandoInteraccionSocial] = useState(false);
+
+  useEffect(() => {
+    reaccionesService.obtenerInteraccionSocial()
+      .then((res) => setInteraccionesActivas(res.activo))
+      .catch(() => {}); // si falla, se queda en el valor por defecto (true)
+  }, []);
+
+  const alternarInteraccionSocial = async () => {
+    const nuevoValor = !interaccionesActivas;
+    setInteraccionesActivas(nuevoValor); // optimista: cambia ya en la UI
+    setCargandoInteraccionSocial(true);
+    try {
+      await reaccionesService.actualizarInteraccionSocial(nuevoValor);
+    } catch {
+      setInteraccionesActivas(!nuevoValor); // si falla, revertimos
+    } finally {
+      setCargandoInteraccionSocial(false);
+    }
+  };
   const [mostrarAdvertenciaHoras, setMostrarAdvertenciaHoras] = useState(false);
   const [mostrarCambioCarrera, setMostrarCambioCarrera] = useState(false);
   const [nuevaCarrera, setNuevaCarrera] = useState('');
@@ -342,11 +375,11 @@ const notificacionesPerfil: NotificacionPerfil[] = notificacionesReales
   const [forma003Registro, setForma003Registro] = useState('');
   const [mensajeDocumento, setMensajeDocumento] = useState('');
   const [mostrarEventosGuardados, setMostrarEventosGuardados] = useState(false);
-  const [eventosGuardadosLocales, setEventosGuardadosLocales] = useState(eventosGuardadosLista);
+  const [eventosGuardadosLocales, setEventosGuardadosLocales] = useState<EventoGuardado[]>(() => leerGuardadosReales().eventos);
   const [eventoQuitado, setEventoQuitado] = useState<{ evento: EventoGuardado; indice: number } | null>(null);
   const [timeoutEventoQuitado, setTimeoutEventoQuitado] = useState<number | null>(null);
   const [mostrarPublicacionesGuardadas, setMostrarPublicacionesGuardadas] = useState(false);
-  const [publicacionesGuardadasLocales, setPublicacionesGuardadasLocales] = useState(publicacionesGuardadas);
+  const [publicacionesGuardadasLocales, setPublicacionesGuardadasLocales] = useState<PublicacionGuardada[]>(() => leerGuardadosReales().publicaciones);
   const [publicacionQuitada, setPublicacionQuitada] = useState<{ publicacion: PublicacionGuardada; indice: number } | null>(null);
   const [timeoutPublicacionQuitada, setTimeoutPublicacionQuitada] = useState<number | null>(null);
   const [publicacionSeleccionada, setPublicacionSeleccionada] = useState<PublicacionGuardada | null>(null);
@@ -699,6 +732,7 @@ const manejarClickNotificacion = (notificacion: NotificacionPerfil) => {
     const publicacion = publicacionesGuardadasLocales[indice];
     if (!publicacion) return;
 
+    sincronizarGuardadoEnLocalStorage(publicacion.id, publicacion.titulo, false);
     setPublicacionQuitada({ publicacion, indice });
     setPublicacionesGuardadasLocales((actuales) => actuales.filter((item) => item.titulo !== titulo));
     if (publicacionSeleccionada?.titulo === titulo) setPublicacionSeleccionada(null);
@@ -714,6 +748,7 @@ const manejarClickNotificacion = (notificacion: NotificacionPerfil) => {
     if (!publicacionQuitada) return;
     if (timeoutPublicacionQuitada) window.clearTimeout(timeoutPublicacionQuitada);
 
+    sincronizarGuardadoEnLocalStorage(publicacionQuitada.publicacion.id, publicacionQuitada.publicacion.titulo, true);
     setPublicacionesGuardadasLocales((actuales) => {
       if (actuales.some((publicacion) => publicacion.titulo === publicacionQuitada.publicacion.titulo)) return actuales;
       const restauradas = [...actuales];
@@ -731,6 +766,7 @@ const manejarClickNotificacion = (notificacion: NotificacionPerfil) => {
     const evento = eventosGuardadosLocales[indice];
     if (!evento) return;
 
+    sincronizarGuardadoEnLocalStorage(evento.id, evento.titulo, false);
     setEventoQuitado({ evento, indice });
     setEventosGuardadosLocales((actuales) => actuales.filter((evento) => evento.titulo !== titulo));
     if (eventoSeleccionado?.titulo === titulo) setEventoSeleccionado(null);
@@ -741,11 +777,11 @@ const manejarClickNotificacion = (notificacion: NotificacionPerfil) => {
     }, 5000);
     setTimeoutEventoQuitado(timeoutId);
   };
-
-  const deshacerQuitarEvento = () => {
+const deshacerQuitarEvento = () => {
     if (!eventoQuitado) return;
     if (timeoutEventoQuitado) window.clearTimeout(timeoutEventoQuitado);
 
+    sincronizarGuardadoEnLocalStorage(eventoQuitado.evento.id, eventoQuitado.evento.titulo, true);
     setEventosGuardadosLocales((actuales) => {
       if (actuales.some((evento) => evento.titulo === eventoQuitado.evento.titulo)) return actuales;
       const restaurados = [...actuales];
@@ -1190,7 +1226,7 @@ return (
               className="relative w-11 h-11 rounded-xl bg-[#F4F6F8] border border-gray-200 text-[#003366] hover:border-[#FFD100] hover:bg-[#FFD100]/20 transition-colors"
               aria-label="Ver notificaciones del perfil"
             >
-              <i className="fa-solid fa-bell"></i>
+              <span style={{ fontSize: 18 }}>🔔</span>
               {notificacionesPerfil.some((notificacion) => !notificacion.leida) && (
                 <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-[#FFD100] text-[10px] font-bold text-[#003366] flex items-center justify-center">
                   {notificacionesPerfil.filter((notificacion) => !notificacion.leida).length}
@@ -1511,10 +1547,11 @@ return (
               <span className="text-sm font-bold text-[#003366]">{interaccionesActivas ? 'ON' : 'OFF'}</span>
               <button
                 type="button"
-                onClick={() => setInteraccionesActivas((actual) => !actual)}
+                onClick={alternarInteraccionSocial}
+                disabled={cargandoInteraccionSocial}
                 className={`relative w-14 h-8 rounded-full border shadow-inner transition-all duration-300 ${
                   interaccionesActivas ? 'bg-[#FFD100] border-[#FFD100]' : 'bg-white border-gray-300'
-                }`}
+                } ${cargandoInteraccionSocial ? 'opacity-60 cursor-wait' : ''}`}
                 aria-label="Activar o desactivar interacciones sociales"
               >
                 <span

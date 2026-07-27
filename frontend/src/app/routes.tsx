@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router";
 import { RootLayout } from "./components/layouts/RootLayout";
 import { ProtectedRoute } from "./components/guards/ProtectedRoute";
+import { PostDetail } from "./pages/PostDetail";
 
 // Auth & registro (públicas)
 import { AuthCallback } from "./pages/AuthCallback";
@@ -93,6 +94,7 @@ export const router = createBrowserRouter([
       { path: "registro",               element: <RegistroSelector /> },
       { path: "registro/estudiante",    element: <FichaEstudiante /> },
       { path: "registro/empleado",      element: <FichaEmpleado /> },
+     { path: "post/:id",               element: P(<PostDetail />) },
 
       // ── Empleados (tutor/admin/voae comparten) ────────────
       { path: "employees/notifications", element: P(<Notifications />) },

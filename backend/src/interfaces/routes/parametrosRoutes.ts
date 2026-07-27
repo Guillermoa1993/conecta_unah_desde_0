@@ -69,6 +69,16 @@ r.get('/status', async (_req: Request, res: Response) => {
   } catch { res.json({ mantenimiento: false }); }
 });
 
+// Público — sin token — el frontend lo usa para mostrar/validar el período activo de Forma 003
+r.get('/periodo-actual', async (_req: Request, res: Response) => {
+  try {
+    const result = await pool.query(
+      "SELECT valor FROM tabla_grupo_1_parametros WHERE nombre = 'PERIODO_ACADEMICO_ACTUAL'"
+    );
+    res.json({ periodo: result.rows[0]?.valor ?? null });
+  } catch { res.json({ periodo: null }); }
+});
+
 r.get('/', autenticar, async (_req: Request, res: Response) => {
   try {
     const result = await pool.query('SELECT * FROM tabla_grupo_1_parametros ORDER BY id_parametro');

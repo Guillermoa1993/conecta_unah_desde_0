@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { useLocation, Link, useNavigate } from "react-router";
 import {
   Home, Calendar, QrCode, History, Plus, BarChart3, Users, Settings,
   Shield, FileText, MessageSquare, ChevronDown, ChevronUp,
-  GraduationCap, MapPin, Bell, LogOut, Rss, KeyRound, User,
+  GraduationCap, MapPin, Bell, LogOut, Rss, Lightbulb, KeyRound, User,
   Wifi, ShieldCheck, ClipboardList, SendHorizonal, Database, SlidersHorizontal, Mail,
 } from "lucide-react";
 import {
@@ -15,7 +15,7 @@ import {
 /* ─── MENÚS POR ROL ─── */
 type MenuItem = { icon: React.ElementType; label: string; path: string };
 const STUDENT_ACTIVITY_ITEMS = [
-  { icon: Rss,      label: "Feed",        path: "/student/feed"   },
+  { icon: Lightbulb, label: "Feed",        path: "/student/feed"   },
   { icon: User,     label: "Perfil",      path: "/student/ficha"  },
   { icon: Calendar, label: "Mis Eventos", path: "/student/events" },
 ];
@@ -181,13 +181,14 @@ export function AppSidebar() {
                     )}
                   </button>
 
-                  {activityOpen && !isCollapsed && (
+              {activityOpen && !isCollapsed && (
                     <div className="pl-6 mt-1 space-y-1 border-l border-white/20 ml-5">
                       {STUDENT_ACTIVITY_ITEMS.map((item) => {
                         const isActive = location.pathname === item.path;
                         return (
                           <SidebarMenuButton
-                            key={item.path} asChild isActive={isActive} tooltip={item.label}
+                            key={item.path} asChild isActive={isActive}
+                            tooltip={isCollapsed ? item.label : undefined}
                             className={isActive
                               ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8"
                               : "text-white/80 hover:bg-[#003366] hover:text-white h-8"}
