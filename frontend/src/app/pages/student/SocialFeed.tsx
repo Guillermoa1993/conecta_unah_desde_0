@@ -2229,7 +2229,8 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
           --white:#003366;--gray-mid:#717182;--text-primary:#003366;--text-secondary:#717182;
           --green-ok:#22c55e;--radius:14px;--radius-sm:8px;--shadow:0 4px 20px rgba(0,0,0,0.08);}
        
-        .app{display:flex;min-height:100vh;}
+        .app *{box-sizing:border-box;}
+        .app{display:flex;min-height:100vh;width:100%;}
 
         /* TOPBAR */
         .topbar{background:#004B87;border-bottom:1px solid #003366;padding:0 20px;height:60px;

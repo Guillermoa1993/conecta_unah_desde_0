@@ -51,8 +51,8 @@ export function LocationPicker({ lat, lng, onChange }: Props) {
       });
 
       tileRef.current = L.tileLayer(
-        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        { attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>' }
+        "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
+        { attribution: '© Google Maps', maxZoom: 20 }
       ).addTo(map);
 
       // Custom UNAH-colored icon

@@ -1,4 +1,4 @@
-export type EstadoInscripcion = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'ASISTIO' | 'NO_ASISTIO';
+export type EstadoInscripcion = 'INSCRITO' | 'ASISTIDO' | 'RECHAZADO' | 'CANCELADO' | 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'ASISTIO' | 'NO_ASISTIO';
 
 export interface Inscripcion {
   id: string;
@@ -15,4 +15,6 @@ export interface InscripcionDetalle extends Inscripcion {
   evento_horas?: number;
   estudiante_nombre?: string;
   estudiante_cuenta?: string;
+  estudiante_correo?: string;
+  estudiante_carrera?: string;
 }

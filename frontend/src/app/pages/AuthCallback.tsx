@@ -3,12 +3,15 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { authService } from '../../services/auth.service';
 
 const ROL_MAP: Record<string, string> = {
-  estudiante: 'student',
-  tutor:      'tutor',
-  admin:      'admin',
-  voae:       'voae',
-  dev:        'dev',
-  student:    'student',
+  estudiante:        'student',
+  tutor:             'tutor',
+  empleado:          'tutor',
+  admin:             'admin',
+  voae:              'voae',
+  voae_direccion:    'voae',
+  voae_departamento: 'voae',
+  dev:               'dev',
+  student:           'student',
 };
 
 const ROL_PATH: Record<string, string> = {

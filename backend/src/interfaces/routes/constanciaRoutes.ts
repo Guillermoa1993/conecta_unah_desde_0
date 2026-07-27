@@ -6,10 +6,10 @@ export function constanciaRouter(ctrl: ConstanciaController): Router {
   const r = Router();
 
   r.get('/mis-constancias', autenticar, autorizar('ESTUDIANTE'), ctrl.getMias);
-  r.get('/pendientes', autenticar, autorizar('VOAE', 'ADMIN'), ctrl.getPendientes);
+  r.get('/pendientes', autenticar, autorizar('VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'ADMIN'), ctrl.getPendientes);
   r.post('/evento/:eventoId', autenticar, autorizar('ESTUDIANTE'), ctrl.solicitar);
-  r.patch('/:id/aprobar', autenticar, autorizar('VOAE', 'ADMIN'), ctrl.aprobar);
-  r.patch('/:id/rechazar', autenticar, autorizar('VOAE', 'ADMIN'), ctrl.rechazar);
+  r.patch('/:id/aprobar', autenticar, autorizar('VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'ADMIN'), ctrl.aprobar);
+  r.patch('/:id/rechazar', autenticar, autorizar('VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'ADMIN'), ctrl.rechazar);
 
   return r;
 }

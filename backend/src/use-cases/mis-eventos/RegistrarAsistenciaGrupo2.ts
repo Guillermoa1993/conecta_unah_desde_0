@@ -42,6 +42,31 @@ export class RegistrarAsistenciaGrupo2 {
       }
     }
 
+    // Validación razonable de rango de distancia GPS (<= 3.0 km del punto oficial del evento)
+    if (lat && lng && (evento as any).EVENTO_LATITUD && (evento as any).EVENTO_LONGITUD) {
+      const eLat = (evento as any).EVENTO_LATITUD;
+      const eLng = (evento as any).EVENTO_LONGITUD;
+      const dist = getDistanceKm(lat, lng, eLat, eLng);
+
+      if (dist > 3.0) {
+        throw new Error(`📍 Te encuentras a ${dist.toFixed(1)} km de la ubicación del evento (máximo permitido: 3.0 km). Por favor acércate al campus/lugar del evento.`);
+      }
+    }
+
     await this.repo.registrarAsistencia(id_usuario, id_evento, tipo, lat, lng);
   }
+}
+
+function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Radio de la Tierra en km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }

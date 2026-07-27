@@ -1,4 +1,4 @@
-export type RolUsuario = 'ESTUDIANTE' | 'TUTOR' | 'ADMIN' | 'VOAE';
+export type RolUsuario = 'ESTUDIANTE' | 'EMPLEADO' | 'ADMIN' | 'VOAE_DIRECCION' | 'VOAE_DEPARTAMENTO';
 export type EstadoUsuario = 'ACTIVO' | 'INACTIVO' | 'SUSPENDIDO';
 
 export interface Usuario {
@@ -26,6 +26,9 @@ export interface Usuario {
   biografia?: string | null;
   foto_url?: string | null;
   forma003_base64?: string | null;
+  numero_empleado?: string | null;
+  id_departamento?: number | null;
+  departamento?: string | null;
 }
 
 export interface UsuarioPublico {
@@ -48,4 +51,7 @@ export interface UsuarioPublico {
   genero?: string | null;
   biografia?: string | null;
   foto_url?: string | null;
+  numero_empleado?: string | null;
+  id_departamento?: number | null;
+  departamento?: string | null;
 }

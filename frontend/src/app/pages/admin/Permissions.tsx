@@ -1,231 +1,214 @@
-﻿import React, { useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { rolesSeguridadService } from '../../../services/rolesSeguridad.service';
+import { permisosSeguridadService } from '../../../services/permisosSeguridad.service';
+import type { RolSeguridad, PermisoSeguridad } from '../../../types';
+import { toast } from 'sonner';
 
-// Interfaces para el flujo secuencial por persona
-interface Usuario {
-  id_usuario: number;
-  nombre: string;
-  correo: string;
-  cuenta: string;
-  rol: string;
-}
-
-interface Permiso {
-  id: number;
-  nombre: string;
-  modulo: string;
-}
+// Módulo 4 · Seguridad — Matriz ACL (rol × permiso), contra
+// /api/seguridad/roles y /api/seguridad/permisos.
+//
+// Nota de diseño: la versión original de esta pantalla usaba una grilla FIJA
+// de 4 acciones (crear/leer/editar/eliminar) por 4 módulos fijos. El catálogo
+// real de la base de datos es más granular y no siempre encaja en ese patrón
+// (p. ej. "Bitácora" solo tiene el permiso "ver"; "Respaldos" solo tiene
+// "gestionar"; "Seguridad" tiene 8 permisos repartidos en dos subrecursos:
+// roles y permisos). Por eso aquí cada módulo despliega la lista REAL de
+// permisos que existen para él, en vez de forzar 4 casillas que no siempre
+// aplican. Se conserva el mismo diseño visual (acordeón azul + switches).
+//
+// Cada switch llama de inmediato a la API (asignar/revocar permiso del rol);
+// no existe un botón "Guardar" separado porque no hay nada pendiente que
+// guardar: el cambio ya quedó aplicado en la base de datos.
 
 export function Permissions() {
-  // CONTROL DE ACCESO (sessionStorage del manual institucional)
-  const rolActivo = sessionStorage.getItem("unah_role");
-  const esAdminValido = rolActivo === "admin" || rolActivo === "dev";
+  const rolActivo = sessionStorage.getItem('unah_role');
+  const esAdminValido = rolActivo === 'admin' || rolActivo === 'dev';
+
+  const [roles, setRoles] = useState<RolSeguridad[]>([]);
+  const [permisos, setPermisos] = useState<PermisoSeguridad[]>([]);
+  const [rolSeleccionado, setRolSeleccionado] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [modulosAbiertos, setModulosAbiertos] = useState<{ [key: string]: boolean }>({});
+  const [togglingId, setTogglingId] = useState<number | null>(null);
+
+  const cargarDatos = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const [rolesData, permisosData] = await Promise.all([
+        rolesSeguridadService.getAll(),
+        permisosSeguridadService.getAll(),
+      ]);
+      setRoles(rolesData);
+      setPermisos(permisosData);
+      setRolSeleccionado((prev) => prev || String(rolesData[0]?.id_rol ?? ''));
+
+      const modulos = Array.from(new Set(permisosData.map((p) => p.modulo)));
+      setModulosAbiertos((prev) => {
+        if (Object.keys(prev).length) return prev;
+        return Object.fromEntries(modulos.map((m, i) => [m, i === 0]));
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo cargar la matriz de permisos';
+      setLoadError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (esAdminValido) cargarDatos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [esAdminValido]);
 
   if (!esAdminValido) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] bg-slate-50 p-6 rounded-xl border border-slate-200">
         <div className="bg-red-50 text-[#003366] border border-red-200 p-4 rounded-lg font-bold max-w-md text-center shadow-xs">
-          🛑 ACCESO RESTRINGIDO: El módulo de configuración de permisos individuales es de uso exclusivo para el rol de Administrador.
+          🛑 ACCESO RESTRINGIDO: El módulo de configuración de permisos es de uso exclusivo para el rol de Administrador.
         </div>
       </div>
     );
   }
 
-  // 1. Selector de Rol Base (Paso 1 del flujo)
-  const [rolSeleccionado, setRolSeleccionado] = useState<string>('tutor');
-  
-  // 2. Estado para el Usuario seleccionado de la lista (Paso 2 y 3 del flujo)
-  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState<Usuario | null>(null);
+  const rolActual = roles.find((r) => String(r.id_rol) === rolSeleccionado);
+  const modulos = Array.from(new Set(permisos.map((p) => p.modulo)));
 
-  // MOCK DE USUARIOS REGISTRADOS EN LA PLATAFORMA
-  const [usuarios] = useState<Usuario[]>([
-    { id_usuario: 101, nombre: 'Fabian Castillo', correo: 'fabian.castillo@unah.edu.hn', cuenta: '20211002345', rol: 'admin' },
-    { id_usuario: 102, nombre: 'Carlos Mendoza', correo: 'carlos.mendoza@unah.edu.hn', cuenta: '20191005432', rol: 'tutor' },
-    { id_usuario: 103, nombre: 'Ing. Elena Flores', correo: 'elena.flores@unah.edu.hn', cuenta: '01011985002', rol: 'tutor' },
-    { id_usuario: 104, nombre: 'Andrea Paz', correo: 'andrea.paz@unah.edu.hn', cuenta: '20201001122', rol: 'voae' },
-    { id_usuario: 105, nombre: 'Juan Pérez', correo: 'juan.perez@unah.hn', cuenta: '20231008899', rol: 'student' },
-    { id_usuario: 106, nombre: 'María Rodríguez', correo: 'maria.rod@unah.hn', cuenta: '20221004455', rol: 'student' }
-  ]);
+  const toggleModuloDesplegable = (modulo: string) => {
+    setModulosAbiertos((prev) => ({ ...prev, [modulo]: !prev[modulo] }));
+  };
 
-  // CATÁLOGO DE ACCIONES MOCK POR MÓDULOS
-  const [todosLosPermisos] = useState<Permiso[]>([
-    { id: 1, nombre: 'Crear Eventos Universitarios', modulo: 'Eventos' },
-    { id: 2, nombre: 'Aprobar/Rechazar Solicitudes VOAE', modulo: 'Eventos' },
-    { id: 3, nombre: 'Escanear QR de Asistencia', modulo: 'Asistencia' },
-    { id: 4, nombre: 'Control Manual de Lista', modulo: 'Asistencia' },
-    { id: 5, nombre: 'Emitir Constancias Oficiales', modulo: 'Constancias' },
-    { id: 6, nombre: 'Descargar Historial de Horas', modulo: 'Constancias' },
-    { id: 7, nombre: 'Moderar Comentarios del Muro', modulo: 'Seguridad' },
-    { id: 8, nombre: 'Alterar Configuración del Sistema', modulo: 'Seguridad' }
-  ]);
+  const tienePermiso = (idPermiso: number) =>
+    !!rolActual?.permisos.some((p) => p.id_permiso === idPermiso);
 
-  // MATRIZ DE PERMISOS ATÓMICOS POR ID DE USUARIO INDIVIDUAL
-  const [permisosPorUsuario, setPermisosPorUsuario] = useState<{ [key: number]: number[] }>({
-    101: [1, 2, 3, 4, 5, 6, 7, 8], // Fabian tiene todo por ser admin
-    102: [1, 3],                   // Carlos solo crea y escanea
-    103: [1, 3, 4],                // Elena maneja listas manuales también
-    104: [2, 5, 6],                // Andrea (VOAE) aprueba y emite
-    105: [3],                      // Juan (Estudiante) solo escanea su asistencia
-    106: [3, 6]                    // María escanea y descarga historial
-  });
-
-  // Filtrar los usuarios según el rol de la caja desplegable superior
-  const usuariosFiltrados = usuarios.filter(u => u.rol === rolSeleccionado);
-
-  // Permisos activos del usuario que está seleccionado actualmente para edición
-  const permisosActualesDelUsuario = usuarioSeleccionado ? (permisosPorUsuario[usuarioSeleccionado.id_usuario] || []) : [];
-
-  // Manejar el toggle manual de cada switch asignado a la persona
-  const handleTogglePermisoPersona = (idPermiso: number) => {
-    if (!usuarioSeleccionado) return;
-
-    const copiaMatriz = { ...permisosPorUsuario };
-    const listaActual = copiaMatriz[usuarioSeleccionado.id_usuario] || [];
-
-    if (listaActual.includes(idPermiso)) {
-      copiaMatriz[usuarioSeleccionado.id_usuario] = listaActual.filter(id => id !== idPermiso);
-    } else {
-      copiaMatriz[usuarioSeleccionado.id_usuario] = [...listaActual, idPermiso];
+  const handleTogglePermiso = async (permiso: PermisoSeguridad) => {
+    if (!rolActual) return;
+    setTogglingId(permiso.id_permiso);
+    try {
+      if (tienePermiso(permiso.id_permiso)) {
+        await rolesSeguridadService.revocarPermiso(rolActual.id_rol, permiso.id_permiso);
+      } else {
+        await rolesSeguridadService.asignarPermiso(rolActual.id_rol, permiso.id_permiso);
+      }
+      // Solo se refresca el rol activo, no todo el catálogo.
+      const actualizado = await rolesSeguridadService.getById(rolActual.id_rol);
+      setRoles((prev) => prev.map((r) => (r.id_rol === actualizado.id_rol ? actualizado : r)));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'No se pudo actualizar el permiso');
+    } finally {
+      setTogglingId(null);
     }
-
-    setPermisosPorUsuario(copiaMatriz);
   };
-
-  const handleGuardarCambiosExcepcion = () => {
-    if (!usuarioSeleccionado) return;
-    alert(`¡Permisos asignados manualmente a [${usuarioSeleccionado.nombre}] guardados con éxito en su ficha de usuario!`);
-  };
-
-  // Agrupar el catálogo por modulo
-  const modulosAgrupados = todosLosPermisos.reduce((acc: { [key: string]: Permiso[] }, p) => {
-    if (!acc[p.modulo]) acc[p.modulo] = [];
-    acc[p.modulo].push(p);
-    return acc;
-  }, {});
 
   return (
-    <div className="p-6 bg-white rounded-xl shadow-sm border border-slate-100 max-w-5xl mx-auto space-y-6">
-      
+    <div className="p-6 bg-white rounded-xl shadow-sm border border-slate-100 max-w-4xl mx-auto space-y-6">
+
       {/* CABECERA */}
       <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#003366]">Asignación Manual de Permisos</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Filtre por rol, elija un usuario y altere sus privilegios individuales de manera atómica.</p>
+          <h1 className="text-2xl font-bold text-[#003366]">Configuración de Permisos de Administrador</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Gestione y altere las capacidades de los distintos perfiles del sistema.</p>
         </div>
-        {usuarioSeleccionado && (
-          <button
-            onClick={handleGuardarCambiosExcepcion}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm px-5 py-2.5 rounded-lg shadow-xs transition-all active:scale-95"
-          >
-            💾 Guardar Permisos de {usuarioSeleccionado.nombre.split(' ')[0]}
-          </button>
-        )}
+        <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold text-xs px-4 py-2 rounded-lg">
+          ✓ Los cambios se aplican de inmediato
+        </span>
       </div>
 
-      {/* BLOQUE DE FILTRO DE ROL */}
+      {/* FILTRO DE ROL PRINCIPAL */}
       <div className="bg-slate-50 rounded-xl p-5 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <label className="text-xs font-bold uppercase tracking-wider text-[#004B87] block mb-1">1. Seleccione Perfil de Rol</label>
-          <p className="text-xs text-slate-400">Despliegue el listado de usuarios vinculados a este rol institucional.</p>
+          <label className="text-xs font-bold uppercase tracking-wider text-[#004B87] block mb-1">Seleccione Perfil de Rol</label>
+          <p className="text-xs text-slate-400">Los cambios afectarán automáticamente a todos los usuarios que pertenezcan a este grupo.</p>
         </div>
         <select
           value={rolSeleccionado}
-          onChange={(e) => {
-            setRolSeleccionado(e.target.value);
-            setUsuarioSeleccionado(null); // Resetear usuario al cambiar de rol
-          }}
+          onChange={(e) => setRolSeleccionado(e.target.value)}
           className="bg-white border border-slate-300 rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#004B87] shadow-xs min-w-[220px]"
         >
-          <option value="admin">Administradores</option>
-          <option value="tutor">Tutores / Empleados</option>
-          <option value="voae">Personal VOAE</option>
-          <option value="student">Estudiantes</option>
+          {roles.map((rol) => (
+            <option key={rol.id_rol} value={String(rol.id_rol)}>
+              {rol.nombre_rol}
+            </option>
+          ))}
         </select>
       </div>
 
-      {/* RESTRICCIÓN DE FLUJO: LISTA DE USUARIOS FILTRADOS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        {/* COLUMNA IZQUIERDA: LISTADO DE PERSONAS */}
-        <div className="md:col-span-1 space-y-3">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 px-1">2. Usuarios Disponibles ({usuariosFiltrados.length})</h2>
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 max-h-[380px] overflow-y-auto space-y-1">
-            {usuariosFiltrados.map(user => {
-              const esActivo = usuarioSeleccionado?.id_usuario === user.id_usuario;
-              return (
+      {loading && (
+        <p className="text-center text-sm text-slate-400 py-10">Cargando matriz de permisos...</p>
+      )}
+
+      {!loading && loadError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-4">
+          <span><strong>No se pudo cargar la informacion.</strong> {loadError}</span>
+          <button onClick={cargarDatos} className="shrink-0 px-3 py-1.5 rounded-lg border border-red-300 text-red-700 hover:bg-red-100 text-xs font-bold">
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      {/* SECCIÓN DE MÓDULOS EN AZUL FUERTE */}
+      {!loading && !loadError && rolActual && (
+        <div className="space-y-3">
+          {modulos.map((modulo) => {
+            const isOpen = modulosAbiertos[modulo];
+            const permisosModulo = permisos.filter((p) => p.modulo === modulo);
+
+            return (
+              <div key={modulo} className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+
                 <button
-                  key={user.id_usuario}
-                  onClick={() => setUsuarioSeleccionado(user)}
-                  className={`w-full text-left p-3 rounded-lg transition-all border ${
-                    esActivo 
-                      ? 'bg-[#004B87] text-white border-[#004B87] shadow-xs scale-[1.01]' 
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                  }`}
+                  onClick={() => toggleModuloDesplegable(modulo)}
+                  className="w-full bg-[#003366] text-white px-5 py-3.5 font-bold text-sm flex items-center justify-between transition-colors hover:bg-[#002244]"
                 >
-                  <p className="text-sm font-bold truncate">{user.nombre}</p>
-                  <p className={`text-xs ${esActivo ? 'text-blue-100' : 'text-slate-400'} font-mono mt-0.5`}>{user.cuenta}</p>
-                  <p className={`text-[11px] ${esActivo ? 'text-blue-200' : 'text-slate-400'} truncate mt-1`}>{user.correo}</p>
+                  <span className="uppercase tracking-wider flex items-center gap-2">
+                    📦 Módulo: {modulo}
+                  </span>
+                  <span className="text-xs font-mono bg-[#004B87] px-2.5 py-0.5 rounded-sm">
+                    {isOpen ? '▲ OCULTAR' : '▼ DESPLEGAR'}
+                  </span>
                 </button>
-              );
-            })}
-          </div>
-        </div>
 
-        {/* COLUMNA DERECHA: ASIGNACIÓN DE MATRIZ DE PERMISOS */}
-        <div className="md:col-span-2">
-          {usuarioSeleccionado ? (
-            <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5 flex justify-between items-center">
-                <span className="text-xs font-semibold text-[#003366]">
-                  Configurando Excepciones para: <strong className="text-[#004B87] font-bold">{usuarioSeleccionado.nombre}</strong>
-                </span>
-                <span className="text-[10px] bg-[#003366] text-white px-2 py-0.5 rounded font-mono">
-                  ID_{usuarioSeleccionado.id_usuario}
-                </span>
-              </div>
-
-              <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1">
-                {Object.keys(modulosAgrupados).map(moduloKey => (
-                  <div key={moduloKey} className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
-                    <div className="bg-[#003366] px-4 py-2 text-white font-bold text-xs uppercase tracking-wider">
-                      Módulo: {moduloKey}
-                    </div>
-                    
-                    <div className="bg-white divide-y divide-slate-100 px-4 py-1">
-                      {modulosAgrupados[moduloKey].map(permiso => {
-                        const estaActivo = permisosActualesDelUsuario.includes(permiso.id);
-                        return (
-                          <div key={permiso.id} className="flex items-center justify-between py-2.5 hover:bg-slate-50/50 transition-colors">
-                            <div>
-                              <p className="text-xs font-bold text-slate-700">{permiso.nombre}</p>
-                              <p className="text-[10px] text-slate-400 font-mono">unah_action_0{permiso.id}</p>
-                            </div>
-
-                            {/* Switch iOS */}
-                            <label className="relative inline-flex items-center cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={estaActivo}
-                                onChange={() => handleTogglePermisoPersona(permiso.id)}
-                                className="sr-only peer"
-                              />
-                              <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
-                            </label>
+                {isOpen && (
+                  <div className="bg-white divide-y divide-slate-100 px-5 py-1">
+                    {permisosModulo.map((permiso) => {
+                      const estaActivo = tienePermiso(permiso.id_permiso);
+                      const isToggling = togglingId === permiso.id_permiso;
+                      return (
+                        <div key={permiso.id_permiso} className="flex items-center justify-between py-3 hover:bg-slate-50/50 transition-colors">
+                          <div>
+                            <p className="text-xs font-bold text-slate-700">
+                              {permiso.descripcion || permiso.nombre_permiso}
+                            </p>
+                            <p className="text-[10px] text-slate-400 font-mono">
+                              {permiso.nombre_permiso}
+                            </p>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full min-h-[250px] border-2 border-dashed border-slate-200 rounded-xl p-6 text-center text-slate-400 text-sm">
-              <span>👈 3. Selecciona un usuario del listado izquierdo para abrir sus llaves de control y configurarlo manualmente.</span>
-            </div>
-          )}
-        </div>
 
-      </div>
+                          <label className={`relative inline-flex items-center ${isToggling ? 'opacity-50 pointer-events-none' : 'cursor-pointer'}`}>
+                            <input
+                              type="checkbox"
+                              checked={estaActivo}
+                              onChange={() => handleTogglePermiso(permiso)}
+                              disabled={isToggling}
+                              className="sr-only peer"
+                            />
+                            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                          </label>
+                        </div>
+                      );
+                    })}
+                    {permisosModulo.length === 0 && (
+                      <p className="text-xs text-slate-400 py-3">Este módulo no tiene permisos registrados.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

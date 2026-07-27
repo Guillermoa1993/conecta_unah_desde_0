@@ -23,8 +23,8 @@ export class RegistrarEstudiante {
     const existente = await this.usuarioRepo.findByCorreo(datos.correo);
     if (existente) throw new Error('Este correo ya está registrado');
 
-    if (!datos.correo.endsWith('@unah.hn') && !datos.correo.endsWith('@unah.edu.hn')) {
-      throw new Error('Solo se permiten correos institucionales @unah.hn o @unah.edu.hn');
+    if (!datos.correo.endsWith('@unah.hn')) {
+      throw new Error('Solo se permiten correos institucionales @unah.hn para estudiantes');
     }
 
     const codigoValido = verificarOtpRegistro(datos.correo, datos.codigoOtp);

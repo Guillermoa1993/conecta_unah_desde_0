@@ -125,7 +125,26 @@ export function AppSidebar() {
   
 
 
-  const role = sessionStorage.getItem("unah_role") ?? "student";
+  const rawRole = (sessionStorage.getItem("unah_role") ?? "").toLowerCase();
+  const NORM_ROLE: Record<string, string> = {
+    tutor: "tutor",
+    empleado: "tutor",
+    docente: "tutor",
+    voae: "voae",
+    voae_direccion: "voae",
+    admin: "admin",
+    student: "student",
+    estudiante: "student",
+    dev: "dev",
+  };
+
+  const role = NORM_ROLE[rawRole] ?? (
+    location.pathname.startsWith("/tutor") ? "tutor" :
+    location.pathname.startsWith("/voae")  ? "voae" :
+    location.pathname.startsWith("/admin") ? "admin" :
+    "student"
+  );
+
   const menuItems = MENU_BY_ROLE[role] ?? MENU_BY_ROLE.student;
   const menuLabel = ROLE_LABELS[role] ?? "Estudiante";
 

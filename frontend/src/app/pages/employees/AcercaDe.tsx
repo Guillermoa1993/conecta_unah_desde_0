@@ -28,8 +28,20 @@ const FEATURES = [
 const TECH_FRONTEND = ["React", "TypeScript", "Vite", "Tailwind CSS", "shadcn/ui", "React Router", "PWA / Workbox"];
 const TECH_BACKEND = ["Node.js", "Express.js", "TypeScript", "MySQL", "Docker", "Clean Architecture", "JWT"];
 
-/* ─── Equipo — 7 roles, según la división de trabajo del proyecto ─── */
-const TEAM = [
+/* ─── Equipo — 7 roles, según la división de trabajo del proyecto ───
+   Para agregar tu foto: importá la imagen arriba del archivo (junto a
+   logoUnah/logoIA) y ponela en el campo `foto` de tu integrante, ej:
+     import fotoFabian from "../../../imports/equipo/fabian.jpg";
+     ...
+     { role: "...", foto: fotoFabian, ... }
+   Si `foto` se deja sin definir, se muestra el ícono como ahora. */
+const TEAM: {
+  role: string;
+  responsibility: string;
+  icon: React.ElementType;
+  color: string;
+  foto?: string;
+}[] = [
   { role: "Líder Técnico", responsibility: "Arquitectura general, diseño de base de datos y estándares del equipo.", icon: Compass, color: "from-blue-500 to-indigo-600" },
   { role: "Desarrollo de Roles", responsibility: "CRUD de roles: pantallas, modelo y API.", icon: KeyRound, color: "from-emerald-500 to-teal-600" },
   { role: "Desarrollo de Permisos", responsibility: "Matriz de acceso: asignación de permisos por módulo y rol.", icon: Lock, color: "from-amber-500 to-orange-600" },
@@ -159,9 +171,17 @@ export function AcercaDe() {
             const Icon = member.icon;
             return (
               <div key={member.role} className="rounded-lg border border-slate-150 p-4 text-center hover:border-slate-300 hover:shadow-sm transition-all">
-                <div className={`h-12 w-12 mx-auto rounded-full bg-gradient-to-br ${member.color} text-white flex items-center justify-center shadow-md mb-2`}>
-                  <Icon className="h-6 w-6" />
-                </div>
+                {member.foto ? (
+                  <img
+                    src={member.foto}
+                    alt={member.role}
+                    className="h-12 w-12 mx-auto rounded-full object-cover shadow-md mb-2"
+                  />
+                ) : (
+                  <div className={`h-12 w-12 mx-auto rounded-full bg-gradient-to-br ${member.color} text-white flex items-center justify-center shadow-md mb-2`}>
+                    <Icon className="h-6 w-6" />
+                  </div>
+                )}
                 <p className="text-xs font-bold text-[#003366]">{member.role}</p>
                 <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">{member.responsibility}</p>
               </div>

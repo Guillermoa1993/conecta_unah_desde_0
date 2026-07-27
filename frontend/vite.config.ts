@@ -62,6 +62,7 @@ export default defineConfig({
         lang: 'es-HN'
       },
       workbox: {
+        maximumFileSizeToCacheInBytes: 5000000,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
@@ -96,7 +97,7 @@ export default defineConfig({
   },
   server: {
     host: true,
-    port: 5185,
+    port: 5173,
     watch: {
       usePolling: true,
       interval: 500,

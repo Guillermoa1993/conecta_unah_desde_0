@@ -49,12 +49,11 @@ import { TutorHistory } from "./pages/tutor/History";
 // VOAE
 import { VOAEDashboard } from "./pages/voae/VOAEDashboard";
 import { OfficialReports } from "./pages/voae/OfficialReports";
-
-// Grupo 3 — VOAE
 import { Moderadores } from "./pages/voae/Moderadores";
 import { VOAERecords } from "./pages/voae/Records";
 import { CentrosRegionales } from "./pages/voae/CentrosRegionales";
 import { ValidacionEvento } from "./pages/voae/ValidacionEvento";
+import { AuditoriaEventoFinalizado } from "./pages/voae/AuditoriaEventoFinalizado";
 
 // Employees (compartido por tutor/admin/voae)
 import { Notifications } from "./pages/employees/Notifications";
@@ -95,6 +94,11 @@ export const router = createBrowserRouter([
       { path: "registro/estudiante",    element: <FichaEstudiante /> },
       { path: "registro/empleado",      element: <FichaEmpleado /> },
      { path: "post/:id",               element: P(<PostDetail />) },
+
+      // ── Alias cortos usados por el sidebar actual (Red Social) ──
+      { path: "muro",                   element: P(<SocialFeed />) },
+      { path: "perfil",                 element: P(<StudentProfile />) },
+      { path: "eventos",                element: P(<AvailableEvents />) },
 
       // ── Empleados (tutor/admin/voae comparten) ────────────
       { path: "employees/notifications", element: P(<Notifications />) },
@@ -145,6 +149,7 @@ export const router = createBrowserRouter([
       { path: "voae/records",           element: P(<VOAERecords />) },
       { path: "voae/centros",           element: P(<CentrosRegionales />) },
       { path: "voae/events/:id/validar",element: P(<ValidacionEvento />) },
+      { path: "voae/events/:id/validacion",element: P(<AuditoriaEventoFinalizado />) },
       { path: "voae/feed",               element: P(<SocialFeed />) },
       ...maintenanceRoutes("voae"),
     ],

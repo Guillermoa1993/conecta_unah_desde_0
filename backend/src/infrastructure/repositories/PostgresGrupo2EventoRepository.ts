@@ -18,6 +18,8 @@ export class PostgresGrupo2EventoRepository implements Grupo2EventoRepository {
          e.categoria AS "Categoria",
          e.imagen_url AS "AVATAR_URL",
          e.duracion_horas AS "HORAS_VOAE",
+         e.latitud AS "EVENTO_LATITUD",
+         e.longitud AS "EVENTO_LONGITUD",
          t.nombre AS "INSTRUCTOR",
          i.id_inscripcion,
          i.estado AS "INSCRIPCION_ESTADO",
@@ -76,6 +78,8 @@ export class PostgresGrupo2EventoRepository implements Grupo2EventoRepository {
         HORAS_VOAE: parseFloat(row.HORAS_VOAE) || 0,
         UBICACION: ubicacionNombre || undefined,
         UBICACION_LINK: ubicacionLink || undefined,
+        EVENTO_LATITUD: row.EVENTO_LATITUD ? parseFloat(row.EVENTO_LATITUD) : undefined,
+        EVENTO_LONGITUD: row.EVENTO_LONGITUD ? parseFloat(row.EVENTO_LONGITUD) : undefined,
         Categoria: row.Categoria,
       };
 
