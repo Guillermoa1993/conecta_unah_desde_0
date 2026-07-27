@@ -1,6 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-[#004B87]" ? undefined : undefined;
-import { useParams as useReactParams, useNavigate as useReactNavigate, Link as ReactLink } from "react-router";
+import { useParams, useNavigate, Link } from "react-router";
 import { CheckCircle2, XCircle, ArrowLeft, AlertTriangle, MapPin, Camera, Eye, Building2 } from "lucide-react";
 import { api } from "../../../services/api";
 import { toast } from "sonner";
@@ -24,8 +23,8 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 export function ValidacionDeptoEvento() {
-  const { id } = useReactParams<{ id: string }>();
-  const navigate = useReactNavigate();
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
   const [event, setEvent] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -87,19 +86,19 @@ export function ValidacionDeptoEvento() {
       <div className="py-20 text-center">
         <AlertTriangle className="size-12 mx-auto text-red-500 mb-3" />
         <p className="text-sm font-semibold">Propuesta no encontrada.</p>
-        <ReactLink to="/voae-depto" className="text-xs text-[#004B87] underline mt-2 block">Volver al panel de Coordinación</ReactLink>
+        <Link to="/voae-depto" className="text-xs text-[#004B87] underline mt-2 block">Volver al panel de Coordinación</Link>
       </div>
     );
   }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12 animate-fade-in">
-      <ReactLink
+      <Link
         to="/voae-depto"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition"
       >
         <ArrowLeft className="size-4" /> Volver al panel de Coordinación
-      </ReactLink>
+      </Link>
 
       {/* Encabezado Principal (Idéntico a Imagen 211) */}
       <div className="flex items-center gap-4">
