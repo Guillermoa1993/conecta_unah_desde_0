@@ -523,8 +523,8 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       e.titulo =
         "Solo se permiten letras, números, puntos, comas, dos puntos, asteriscos e iguales";
     if (!d.descripcion.trim()) e.descripcion = "La descripción del evento es obligatoria";
-    else if (d.descripcion.trim().split(/\s+/).length > 100)
-      e.descripcion = "La descripción no puede exceder 100 palabras";
+    else if (d.descripcion.trim().split(/\s+/).length > 250)
+      e.descripcion = "La descripción no puede exceder 250 palabras";
     else if (!DESC_RE.test(d.descripcion)) e.descripcion = "Caracteres no permitidos detectados";
     if (d.ubicacion && d.ubicacion.length > 200) e.ubicacion = "No puede exceder 200 caracteres";
     if (d.ubicacion && !UBICACION_RE.test(d.ubicacion))
@@ -593,8 +593,8 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
     if (field === "descripcion") {
       const cleaned = value.replace(/[<>{}[\]]/g, "");
       const words = cleaned.trim() ? cleaned.trim().split(/\s+/) : [];
-      if (words.length <= 100) return cleaned;
-      return words.slice(0, 100).join(" ");
+      if (words.length <= 250) return cleaned;
+      return words.slice(0, 250).join(" ");
     }
     if (field === "ubicacion")
       return value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9\s,.\-#:=*()+#@!?¿¡"'/_&|%?=+&]/g, "").slice(0, 250);
@@ -605,10 +605,8 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
     const filtered = typeof value === "string" ? filterInput(field, value) : value;
     const next = { ...data, [field]: filtered };
     setData(next);
-    if (touched[field]) {
-      const errs = validate(next);
-      setErrors(errs);
-    }
+    const errs = validate(next);
+    setErrors(errs);
   };
 
   const blur = (field: keyof FormData) => {
@@ -844,6 +842,8 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
     reader.readAsDataURL(file);
   };
 
+  const creatorName = sessionStorage.getItem("unah_usuario") || sessionStorage.getItem("unah_nombre") || user.name || "Lic. Roberto Fiallos";
+
   const renderStep1 = () => (
     <div className="h-full flex flex-col justify-center">
       <div className="space-y-3">
@@ -851,7 +851,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
           <CheckCircle2 className="size-5 text-green-500 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium">
-              Evento creado por: <span className="font-semibold">{user.name}</span>
+              Evento creado por: <span className="font-semibold">{creatorName}</span>
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
               Detectado automáticamente desde tu cuenta institucional.
@@ -1092,14 +1092,14 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
             onChange={(e) => set("descripcion", e.target.value)}
             onBlur={() => blur("descripcion")}
             rows={2}
-            placeholder="Describe los objetivos y contenido del evento (máximo 100 palabras)..."
+            placeholder="Describe los objetivos y contenido del evento (máximo 250 palabras)..."
             className={cn("mt-1", errors.descripcion && "border-red-500")}
           />
           {errors.descripcion && (
             <p className="text-xs mt-0.5 text-red-800">{errors.descripcion}</p>
           )}
           <p className="text-[10px] text-muted-foreground text-right mt-0.5">
-            {data.descripcion.trim() ? data.descripcion.trim().split(/\s+/).length : 0} / 100
+            {data.descripcion.trim() ? data.descripcion.trim().split(/\s+/).length : 0} / 250
             palabras
           </p>
         </div>
@@ -1297,6 +1297,15 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                     }));
                   }}
                 />
+                <div className="mt-2 flex items-center justify-between gap-2 px-3.5 py-2 bg-slate-50 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 shadow-2xs">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <MapPin className="size-4 text-[#004B87] shrink-0" />
+                    <span className="truncate">Coordenadas GPS:</span>
+                  </div>
+                  <span className="font-mono bg-white px-2.5 py-0.5 rounded-md border border-slate-200 text-[#004B87] shrink-0">
+                    Lat: {resolvedLat} | Lng: {resolvedLng}
+                  </span>
+                </div>
               </div>
             </div>
           );
@@ -1398,42 +1407,57 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <select
-                      value={aiTheme}
-                      onChange={(e) => setAiTheme(e.target.value)}
-                      className="h-9 text-xs rounded-xl border border-indigo-200 bg-white px-3 font-semibold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                    >
-                      <option value="academic">🎓 Académico UNAH</option>
-                      <option value="tech">🚀 Tech & Futurista</option>
-                      <option value="art">🎨 Arte & Cultura</option>
-                      <option value="sports">🏆 Deportes & Salud</option>
-                      <option value="social">🤝 Social & Comunidad</option>
-                    </select>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setIsGeneratingAiCover(true);
+                      setTimeout(() => {
+                        let detectedCategory = "INSTITUCIONAL";
+                        let themeToUse = "academic";
 
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        setIsGeneratingAiCover(true);
-                        setTimeout(() => {
-                          const aiImg = generateAiCoverCanvas(data.titulo, data.categoria, aiTheme);
-                          if (aiImg) {
-                            setImgPortada(aiImg);
-                            set("usa_imagen_personalizada", true);
-                            toast.success("¡Portada generada exitosamente con IA!");
-                          } else {
-                            toast.error("Error al generar portada con IA");
+                        if (data.tipo_evento === "SIN_HORAS") {
+                          detectedCategory = "RECREATIVO";
+                          themeToUse = "recreational";
+                        } else {
+                          const checkedCats = categoriasHoras.filter((c) => c.checked);
+                          if (checkedCats.length > 0) {
+                            const catNames = checkedCats.map((c) => {
+                              const labelMap: Record<string, string> = {
+                                ACADEMICO: "Académico",
+                                CULTURAL: "Cultural",
+                                DEPORTIVO: "Deportivo",
+                                SOCIAL: "Social",
+                                RECREACION: "Recreativo",
+                              };
+                              return labelMap[c.categoria] || c.categoria;
+                            });
+                            detectedCategory = catNames.join(" / ");
+
+                            const primaryCat = checkedCats[0].categoria;
+                            if (primaryCat === "CULTURAL") themeToUse = "art";
+                            else if (primaryCat === "DEPORTIVO") themeToUse = "sports";
+                            else if (primaryCat === "SOCIAL") themeToUse = "social";
+                            else if (primaryCat === "ACADEMICO") themeToUse = "academic";
                           }
-                          setIsGeneratingAiCover(false);
-                        }, 250);
-                      }}
-                      disabled={isGeneratingAiCover}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs h-9 gap-1.5 rounded-xl shadow-xs transition-colors"
-                    >
-                      <Wand2 className="size-3.5" />
-                      {isGeneratingAiCover ? "Generando..." : "Generar Portada IA"}
-                    </Button>
-                  </div>
+                        }
+
+                        const aiImg = generateAiCoverCanvas(data.titulo, detectedCategory, themeToUse);
+                        if (aiImg) {
+                          setImgPortada(aiImg);
+                          set("usa_imagen_personalizada", true);
+                          toast.success(`¡Portada IA generada automáticamente para ámbito(s): ${detectedCategory}!`);
+                        } else {
+                          toast.error("Error al generar portada con IA");
+                        }
+                        setIsGeneratingAiCover(false);
+                      }, 250);
+                    }}
+                    disabled={isGeneratingAiCover}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs h-9 gap-1.5 rounded-xl shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Wand2 className="size-3.5" />
+                    {isGeneratingAiCover ? "Generando..." : "Generar Portada IA"}
+                  </Button>
                 </div>
               </div>
 
