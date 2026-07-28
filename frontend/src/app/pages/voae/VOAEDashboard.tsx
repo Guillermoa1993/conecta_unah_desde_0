@@ -104,16 +104,30 @@ export function VOAEDashboard() {
     [events]
   );
 
-  // 2. Finalizados para Auditoría
+  // 2. Finalizados para Auditoría (Excluye eventos recreativos / sin horas, ya que no requieren auditoría ni certificados)
   const closedEvents = useMemo(
     () =>
       events
-        .filter(
-          (e) =>
+        .filter((e) => {
+          const isFinalizado =
             e.estado === "FINALIZADO" ||
-            String(e.estado).trim().toUpperCase() === "FINALIZADO"
-        )
-        .sort((a, b) => new Date(b.fecha_fin || b.fecha_inicio).getTime() - new Date(a.fecha_fin || a.fecha_inicio).getTime()),
+            String(e.estado).trim().toUpperCase() === "FINALIZADO";
+          if (!isFinalizado) return false;
+
+          const isRecreativo =
+            e.tipo_evento === "RECREACION" ||
+            e.tipo_evento === "SIN_HORAS" ||
+            e.categoria === "RECREACION" ||
+            Number(e.duracion_horas || 0) === 0;
+
+          // Eventos recreativos sin horas no requieren auditoría ni certificados en VOAE Dirección
+          return !isRecreativo;
+        })
+        .sort(
+          (a, b) =>
+            new Date(b.fecha_fin || b.fecha_inicio).getTime() -
+            new Date(a.fecha_fin || a.fecha_inicio).getTime()
+        ),
     [events]
   );
 
@@ -178,7 +192,7 @@ export function VOAEDashboard() {
       <div>
         <h1 className="text-3xl font-bold text-[#003366]">Panel de Gestión VOAE</h1>
         <p className="text-muted-foreground mt-1">
-          Operaciones de validación y auditoría de eventos de estudiantes y tutores.
+          Operación de aprobación, validación y auditoría de eventos con horas
         </p>
       </div>
 
@@ -292,11 +306,11 @@ export function VOAEDashboard() {
         )}
       </section>
 
-      {/* ── 2. Historial de Eventos Finalizados / Auditoría (Imagen 215) ── */}
+      {/* ── 2. Historial de Eventos Finalizados / Auditoría (Imagen 215 & 220) ── */}
       <section className="bg-white rounded-xl border p-6 shadow-sm space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h2 className="text-lg font-semibold flex items-center gap-2 text-slate-700">
-            <History className="size-5 text-slate-500" /> Historial de Eventos Finalizados ({closedEvents.length})
+            <History className="size-5 text-slate-500" /> Auditoría de eventos finalizados ({closedEvents.length})
           </h2>
           {closedEvents.length > 0 && (
             <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
