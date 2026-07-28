@@ -328,7 +328,7 @@ export function VOAEDashboard() {
                     </p>
                   </div>
                   <Button asChild size="sm" variant="outline" className="border-slate-300 hover:border-[#004B87] hover:text-[#004B87] font-semibold">
-                    <Link to={`/voae/records`}>
+                    <Link to={`/voae/events/${ev.id}/validacion`}>
                       <ShieldCheck className="size-3.5 mr-1.5 text-emerald-600" /> Ver validaciones
                     </Link>
                   </Button>
