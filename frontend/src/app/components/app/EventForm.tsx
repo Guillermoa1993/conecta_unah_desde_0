@@ -631,6 +631,44 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
     return typeof v === "string" && v.trim().length > 0;
   });
 
+  const getDetectedCategoryInfo = () => {
+    if (data.tipo_evento === "SIN_HORAS") {
+      return { labelText: "Recreación", theme: "recreational" };
+    }
+    const checkedCats = categoriasHoras.filter((c) => c.checked);
+    if (checkedCats.length > 0) {
+      const labelMap: Record<string, string> = {
+        ACADEMICO: "Académico",
+        CULTURAL: "Cultural",
+        DEPORTIVO: "Deportivo",
+        SOCIAL: "Social",
+        RECREACION: "Recreativo",
+      };
+      const catNames = checkedCats.map((c) => labelMap[c.categoria] || c.categoria);
+      const labelText = catNames.join(" / ");
+
+      const primaryCat = checkedCats[0].categoria;
+      let theme = "academic";
+      if (primaryCat === "CULTURAL") theme = "art";
+      else if (primaryCat === "DEPORTIVO") theme = "sports";
+      else if (primaryCat === "SOCIAL") theme = "social";
+      else if (primaryCat === "ACADEMICO") theme = "academic";
+
+      return { labelText, theme };
+    }
+    const labelMap: Record<string, string> = {
+      ACADEMICO: "Académico",
+      CULTURAL: "Cultural",
+      DEPORTIVO: "Deportivo",
+      SOCIAL: "Social",
+      RECREACION: "Recreativo",
+    };
+    return {
+      labelText: labelMap[data.categoria] || data.categoria || "Académico",
+      theme: "academic",
+    };
+  };
+
   const handleNext = () => {
     const errs = validate(data);
     setErrors(errs);
@@ -652,7 +690,11 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       }
     }
     const currentFields =
-      currentStep === 1 ? (["titulo", "descripcion"] as (keyof FormData)[]) : step2RequiredFields();
+      currentStep === 1
+        ? (["titulo", "descripcion"] as (keyof FormData)[])
+        : currentStep === 2
+          ? step2RequiredFields()
+          : [];
     setTouched((prev) => {
       const next = { ...prev };
       currentFields.forEach((f) => {
@@ -668,24 +710,8 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
 
     if (currentStep === 3) {
       if (!imgPortada) {
-        const isRecreativo = data.tipo_evento !== "HORAS_VOAE";
-        let pCat = "RECREACION";
-        let themeToUse = "recreational";
-        if (!isRecreativo) {
-          const checkedCatsWithHours = categoriasHoras.filter((c) => c.checked && c.horas > 0);
-          const checkedCatsAll = categoriasHoras.filter((c) => c.checked);
-          pCat = checkedCatsWithHours.length > 0
-            ? checkedCatsWithHours[0].categoria
-            : (checkedCatsAll.length > 0 ? checkedCatsAll[checkedCatsAll.length - 1].categoria : data.categoria);
-          const autoThemeMap: Record<string, string> = {
-            ACADEMICO: "academic",
-            CULTURAL: "art",
-            DEPORTIVO: "sports",
-            SOCIAL: "social",
-          };
-          themeToUse = autoThemeMap[pCat] || "academic";
-        }
-        const autoCover = generateAiCoverCanvas(data.titulo, isRecreativo ? "Recreación" : pCat, themeToUse);
+        const { labelText, theme } = getDetectedCategoryInfo();
+        const autoCover = generateAiCoverCanvas(data.titulo, labelText, theme);
         setImgPortada(autoCover);
       }
     }
@@ -750,19 +776,8 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       ? checkedCategorias.map((ch) => ({ categoria: ch.categoria, horas: ch.horas }))
       : undefined;
 
-    const isRecreativoSubmit = data.tipo_evento !== "HORAS_VOAE";
-    const autoThemeMap: Record<string, string> = {
-      ACADEMICO: "academic",
-      CULTURAL: "art",
-      DEPORTIVO: "sports",
-      SOCIAL: "social",
-    };
-    const themeToUse = isRecreativoSubmit ? "recreational" : (autoThemeMap[primaryCategoria] || "academic");
-    const finalPortada = imgPortada || generateAiCoverCanvas(
-      data.titulo,
-      isRecreativoSubmit ? "Recreación" : primaryCategoria,
-      themeToUse
-    );
+    const { labelText, theme } = getDetectedCategoryInfo();
+    const finalPortada = imgPortada || generateAiCoverCanvas(data.titulo, labelText, theme);
 
     const payload = {
       titulo: data.titulo,
