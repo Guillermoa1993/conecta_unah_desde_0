@@ -64,7 +64,7 @@ export class AprobarRechazarEvento {
     return actualizado;
   }
 
-  async rechazar(evento_id: string, aprobado_por: string, motivo_rechazo: string) {
+  async rechazar(evento_id: string, aprobado_por: string, motivo_rechazo: string, rol_aprobador?: string) {
     if (!motivo_rechazo?.trim()) throw new Error('El motivo de rechazo es obligatorio');
 
     const evento = await this.eventoRepo.findById(evento_id);
@@ -77,7 +77,14 @@ export class AprobarRechazarEvento {
 
     if (!esPendiente) throw new Error('El evento no está pendiente de aprobación');
 
-    const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'RECHAZADO', { aprobado_por, motivo_rechazo });
+    const rolUpper = (rol_aprobador || '').toUpperCase();
+    const esDepto = rolUpper.includes('DEPTO') || rolUpper.includes('DEPARTAMENTO') || rolUpper.includes('COORDINACION');
+    const esPendienteDepto = estadoActual === 'PENDIENTE_APROBACION_DEPTO' || estadoActual === 'PENDIENTE_APROBACION';
+
+    const fueRechazadoPorDepto = esPendienteDepto || esDepto;
+    const motivoFinal = fueRechazadoPorDepto ? `[DEPTO] ${motivo_rechazo.trim()}` : `[VOAE] ${motivo_rechazo.trim()}`;
+
+    const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'RECHAZADO', { aprobado_por, motivo_rechazo: motivoFinal });
 
     await this.notificacionRepo.crear({
       usuario_id: Number(evento.tutor_id),

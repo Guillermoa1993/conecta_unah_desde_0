@@ -97,13 +97,17 @@ export function VOAEDeptoDashboard() {
     [allEvents]
   );
 
-  // 3. Rechazados por Coordinación
+  // 3. Rechazados por Coordinación (excluye los rechazados por Dirección VOAE)
   const rejectedDeptoEvents = useMemo(
     () =>
       allEvents
-        .filter(
-          (e) => String(e.estado).trim().toUpperCase() === "RECHAZADO"
-        )
+        .filter((e) => {
+          if (String(e.estado).trim().toUpperCase() !== "RECHAZADO") return false;
+          const m = String(e.motivo_rechazo || "");
+          // Excluir eventos que fueron rechazados en la fase de Dirección VOAE
+          if (m.startsWith("[VOAE]")) return false;
+          return true;
+        })
         .sort(
           (a, b) =>
             new Date(b.updated_at || b.fecha_inicio).getTime() -
@@ -466,7 +470,7 @@ export function VOAEDeptoDashboard() {
                         </div>
                         {ev.motivo_rechazo && (
                           <p className="text-xs text-red-700 font-medium mt-1.5 bg-white/70 p-2 rounded-md border border-red-200">
-                            Motivo de rechazo: {ev.motivo_rechazo}
+                            Motivo de rechazo: {String(ev.motivo_rechazo).replace(/^\[(DEPTO|VOAE)\]\s*/, "")}
                           </p>
                         )}
                       </div>

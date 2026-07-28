@@ -91,7 +91,14 @@ export function VOAEDashboard() {
   );
 
   const rejectedEvents = useMemo(
-    () => events.filter((e) => e.estado === "RECHAZADO" || String(e.estado).trim().toUpperCase() === "RECHAZADO"),
+    () =>
+      events.filter((e) => {
+        if (String(e.estado).trim().toUpperCase() !== "RECHAZADO") return false;
+        const m = String(e.motivo_rechazo || "");
+        // Excluir eventos que fueron rechazados por Coordinación de Departamento
+        if (m.startsWith("[DEPTO]")) return false;
+        return true;
+      }),
     [events]
   );
 
@@ -233,7 +240,7 @@ export function VOAEDashboard() {
                   <p className="text-[11px] text-muted-foreground mt-1 font-medium">Tutor: {ev.tutor_nombre} · Rechazado</p>
                   {ev.motivo_rechazo && (
                     <p className="text-[11px] text-red-500 mt-1 font-medium bg-red-50 p-2 rounded border border-red-100">
-                      Motivo: {ev.motivo_rechazo}
+                      Motivo: {String(ev.motivo_rechazo).replace(/^\[(DEPTO|VOAE)\]\s*/, "")}
                     </p>
                   )}
                 </div>

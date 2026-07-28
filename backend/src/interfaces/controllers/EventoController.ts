@@ -72,8 +72,10 @@ export class EventoController {
 
   rechazar = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.json(await this.aprobarUC.rechazar(String(req.params.id), String(req.usuario!.id), req.body.motivo));
-    } catch (err) { next(err); }
+      res.json(await this.aprobarUC.rechazar(String(req.params.id), String(req.usuario!.id), req.body.motivo, req.usuario?.rol));
+    } catch (e) {
+      next(e);
+    }
   };
 
   delete = async (req: Request, res: Response, next: NextFunction) => {
