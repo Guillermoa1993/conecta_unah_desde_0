@@ -224,9 +224,9 @@ function EventCard({
 
   return (
     <>
-      <div className="rounded-xl border bg-card shadow-soft overflow-hidden flex flex-col">
+      <div className="rounded-xl border bg-card shadow-soft overflow-hidden flex flex-col w-full">
         {/* Portada / Placeholder */}
-        <div className="relative h-28 sm:h-40 group">
+        <div className="relative h-40 group">
           {localPortadaUrl ? (
             <img src={localPortadaUrl} alt="" className="w-full h-full object-cover" />
           ) : (
@@ -234,7 +234,7 @@ function EventCard({
               className="w-full h-full grid place-items-center"
               style={{ backgroundColor: catColor + "20" }}
             >
-              <span className="text-xl sm:text-3xl font-bold text-white opacity-60">
+              <span className="text-3xl font-bold text-white opacity-60">
                 {(CATEGORY_LABEL as any)[event.categoria]?.slice(0, 2).toUpperCase() || "EV"}
               </span>
             </div>
@@ -285,7 +285,8 @@ function EventCard({
             {statusStyle.label}
           </span>
         </div>
-        {/* Info */}
+
+        {/* Content */}
         <div className="p-4 flex-1 flex flex-col gap-2">
           <div className="min-w-0">
             <h3 className="font-semibold text-sm leading-snug">
@@ -827,22 +828,22 @@ export function TutorEventos() {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Header card */}
-      <div className="rounded-xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
+      <div className="rounded-xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] p-4 sm:p-5 w-full">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             <CalendarIllustration />
             <div>
-              <h1 className="text-2xl font-bold" style={{ color: "#004B87" }}>
+              <h1 className="text-xl sm:text-2xl font-bold" style={{ color: "#004B87" }}>
                 Gestión de eventos
               </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
                 Gestiona y da seguimiento a tus eventos.
               </p>
             </div>
           </div>
           <Button
             asChild
-            className="gap-1.5 text-white shadow-md shrink-0"
+            className="gap-1.5 text-white shadow-md w-full sm:w-auto shrink-0 font-semibold"
             style={{ backgroundColor: "#004B87" }}
           >
             <Link to="/tutor/create-event">
@@ -853,7 +854,7 @@ export function TutorEventos() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b overflow-x-auto bg-white rounded-t-lg">
+      <div className="flex gap-1 border-b overflow-x-auto bg-white rounded-t-lg w-full max-w-full">
         {TABS.map((t) => {
           const Icon = t.icon;
           const isActive = tab === t.key;
@@ -863,7 +864,7 @@ export function TutorEventos() {
               key={t.key}
               onClick={() => setTab(t.key)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition border-b-2 -mb-px shrink-0 whitespace-nowrap",
+                "flex items-center gap-2 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium transition border-b-2 -mb-px shrink-0 whitespace-nowrap",
                 isActive
                   ? "border-current"
                   : "border-transparent text-muted-foreground hover:text-foreground",
@@ -890,11 +891,11 @@ export function TutorEventos() {
 
       {/* Content */}
       {loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
           {[1, 2, 3].map((i) => (
             <div key={i} className="rounded-xl border bg-card overflow-hidden animate-pulse">
-              <div className="h-32 sm:h-40 bg-gray-200" />
-              <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
+              <div className="h-40 bg-gray-200" />
+              <div className="p-4 space-y-3">
                 <div className="h-4 bg-gray-200 rounded w-3/4" />
                 <div className="h-3 bg-gray-200 rounded w-1/2" />
                 <div className="h-3 bg-gray-200 rounded w-1/3" />
@@ -964,7 +965,7 @@ export function TutorEventos() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
           {filteredEvents.map((event) => (
             <EventCard key={event.id || event.id_evento} event={event} onDelete={() => {}} onEdit={handleEdit} onRefresh={fetchEvents} />
           ))}
