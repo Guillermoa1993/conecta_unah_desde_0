@@ -400,7 +400,10 @@ export function AuditoriaEventoFinalizado() {
     toast.success(`Auditoría finalizada con éxito. Se han emitido ${asistentes.length} certificados oficiales.`);
   };
 
-  const categoriaNombre = CATEGORY_LABEL[event.categoria] || event.categoria || "Académico";
+  const categoriaNombre =
+    event.distribucion_horas && Array.isArray(event.distribucion_horas) && event.distribucion_horas.length > 0
+      ? event.distribucion_horas.map((dh: any) => CATEGORY_LABEL[dh.categoria] || dh.categoria).join(" / ")
+      : CATEGORY_LABEL[event.categoria] || event.categoria || "Académico";
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-fade-in pb-12">
