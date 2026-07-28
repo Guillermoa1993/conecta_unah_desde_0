@@ -9,6 +9,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   CULTURAL: "#d97706",
   DEPORTIVO: "#059669",
   SOCIAL: "#7c3aed",
+  RECREACION: "#8b5cf6",
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -16,6 +17,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   CULTURAL: "Cultural",
   DEPORTIVO: "Deportivo",
   SOCIAL: "Social",
+  RECREACION: "Recreativo",
 };
 
 function formatDate(iso: string): string {
@@ -25,6 +27,33 @@ function formatDate(iso: string): string {
     month: "short",
     year: "numeric",
   });
+}
+
+function getEventCategoryInfo(ev: any): { label: string; color: string } {
+  const isRecreativo =
+    ev.tipo_evento === "RECREACION" ||
+    ev.tipo_evento === "SIN_HORAS" ||
+    ev.categoria === "RECREACION" ||
+    Number(ev.duracion_horas || 0) === 0;
+
+  if (isRecreativo) {
+    return { label: "Recreativo", color: "#8b5cf6" };
+  }
+
+  if (ev.distribucion_horas && Array.isArray(ev.distribucion_horas) && ev.distribucion_horas.length > 0) {
+    const cats = ev.distribucion_horas.map((dh: any) => dh.categoria).filter(Boolean);
+    const primaryCat = String(cats[0] || "").toUpperCase();
+    const label = cats
+      .map((c: string) => CATEGORY_LABELS[c.toUpperCase()] || c)
+      .join(", ");
+    const color = CATEGORY_COLORS[primaryCat] || "#003366";
+    return { label, color };
+  }
+
+  const catKey = String(ev.categoria || "").toUpperCase();
+  const label = CATEGORY_LABELS[catKey] || ev.categoria || "Académico";
+  const color = CATEGORY_COLORS[catKey] || "#003366";
+  return { label, color };
 }
 
 type TabType = "aprobados" | "rechazados";
@@ -104,7 +133,6 @@ export function VOAEDeptoDashboard() {
         .filter((e) => {
           if (String(e.estado).trim().toUpperCase() !== "RECHAZADO") return false;
           const m = String(e.motivo_rechazo || "");
-          // Excluir eventos que fueron rechazados en la fase de Dirección VOAE
           if (m.startsWith("[VOAE]")) return false;
           return true;
         })
@@ -195,60 +223,60 @@ export function VOAEDeptoDashboard() {
         ) : (
           <div className="space-y-4">
             <div className="space-y-3">
-              {paginatedPending.map((ev) => (
-                <div
-                  key={ev.id}
-                  className="rounded-lg border p-4 flex items-center gap-4 bg-slate-50 hover:bg-slate-100 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-slate-800 text-sm truncate">
-                        {ev.titulo}
-                      </h3>
-                      <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                        <Building2 className="size-3" /> Facultad / Depto
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1 flex-wrap font-medium">
-                      {(() => {
-                        const rawLoc = ev.lugar || ev.ubicacion || "N/A";
-                        const [cleanLoc] = rawLoc.split("|");
-                        const solicitante =
-                          ev.creador_nombre ||
-                          ev.tutor_nombre ||
-                          ev.solicitante ||
-                          ev.organizador ||
-                          "Solicitante";
+              {paginatedPending.map((ev) => {
+                const catInfo = getEventCategoryInfo(ev);
+                return (
+                  <div
+                    key={ev.id}
+                    className="rounded-lg border p-4 flex items-center gap-4 bg-slate-50 hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-slate-800 text-sm truncate">
+                          {ev.titulo}
+                        </h3>
+                        <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                          <Building2 className="size-3" /> Facultad / Depto
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1 flex-wrap font-medium">
+                        {(() => {
+                          const rawLoc = ev.lugar || ev.ubicacion || "N/A";
+                          const [cleanLoc] = rawLoc.split("|");
+                          const solicitante =
+                            ev.creador_nombre ||
+                            ev.tutor_nombre ||
+                            ev.solicitante ||
+                            ev.organizador ||
+                            "Solicitante";
 
-                        return (
-                          <>
-                            <span>
-                              Solicitante:{" "}
-                              <strong className="text-slate-700">{solicitante}</strong>
-                            </span>
-                            <span>Fecha: {formatDate(ev.fecha_inicio)}</span>
-                            <span>Lugar: {cleanLoc}</span>
-                          </>
-                        );
-                      })()}
-                      <span
-                        className="px-2 py-0.5 rounded text-[10px] font-semibold text-white"
-                        style={{
-                          backgroundColor:
-                            CATEGORY_COLORS[ev.categoria] || "#64748b",
-                        }}
-                      >
-                        {CATEGORY_LABELS[ev.categoria] || ev.categoria}
-                      </span>
+                          return (
+                            <>
+                              <span>
+                                Solicitante:{" "}
+                                <strong className="text-slate-700">{solicitante}</strong>
+                              </span>
+                              <span>Fecha: {formatDate(ev.fecha_inicio)}</span>
+                              <span>Lugar: {cleanLoc}</span>
+                            </>
+                          );
+                        })()}
+                        <span
+                          className="px-2 py-0.5 rounded text-[10px] font-semibold text-white"
+                          style={{ backgroundColor: catInfo.color }}
+                        >
+                          {catInfo.label}
+                        </span>
+                      </div>
                     </div>
+                    <Button asChild size="sm" className="bg-[#004B87] hover:bg-[#003366] text-white font-semibold shadow-sm">
+                      <Link to={`/voae-depto/events/${ev.id}/validar`}>
+                        <Eye className="size-3.5 mr-1" /> Revisar propuesta
+                      </Link>
+                    </Button>
                   </div>
-                  <Button asChild size="sm" className="bg-[#004B87] hover:bg-[#003366] text-white font-semibold shadow-sm">
-                    <Link to={`/voae-depto/events/${ev.id}/validar`}>
-                      <Eye className="size-3.5 mr-1" /> Revisar propuesta
-                    </Link>
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Paginación de Pendientes */}
@@ -351,41 +379,41 @@ export function VOAEDeptoDashboard() {
             ) : (
               <div className="space-y-4">
                 <div className="space-y-3">
-                  {paginatedApproved.map((ev) => (
-                    <div
-                      key={ev.id}
-                      className="rounded-lg border p-4 flex items-center gap-4 bg-slate-50 hover:bg-slate-100 transition-colors"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-slate-800 text-sm truncate">
-                            {ev.titulo}
-                          </h3>
-                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
-                            {ev.estado === "PENDIENTE_APROBACION_VOAE" ? "Aprobado por Depto → Enviado a VOAE" : "Aprobado Final"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1 flex-wrap font-medium">
-                          <span>
-                            Solicitante:{" "}
-                            <strong className="text-slate-700">
-                              {ev.creador_nombre || ev.tutor_nombre || "Solicitante"}
-                            </strong>
-                          </span>
-                          <span>Fecha: {formatDate(ev.fecha_inicio)}</span>
-                          <span
-                            className="px-2 py-0.5 rounded text-[10px] font-semibold text-white"
-                            style={{
-                              backgroundColor:
-                                CATEGORY_COLORS[ev.categoria] || "#64748b",
-                            }}
-                          >
-                            {CATEGORY_LABELS[ev.categoria] || ev.categoria}
-                          </span>
+                  {paginatedApproved.map((ev) => {
+                    const catInfo = getEventCategoryInfo(ev);
+                    return (
+                      <div
+                        key={ev.id}
+                        className="rounded-lg border p-4 flex items-center gap-4 bg-slate-50 hover:bg-slate-100 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-slate-800 text-sm truncate">
+                              {ev.titulo}
+                            </h3>
+                            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                              Aprobado por Coordinación
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1 flex-wrap font-medium">
+                            <span>
+                              Solicitante:{" "}
+                              <strong className="text-slate-700">
+                                {ev.creador_nombre || ev.tutor_nombre || "Solicitante"}
+                              </strong>
+                            </span>
+                            <span>Fecha: {formatDate(ev.fecha_inicio)}</span>
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-semibold text-white"
+                              style={{ backgroundColor: catInfo.color }}
+                            >
+                              {catInfo.label}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Paginación de Aprobados (Siempre visible) */}
@@ -436,46 +464,46 @@ export function VOAEDeptoDashboard() {
             ) : (
               <div className="space-y-4">
                 <div className="space-y-3">
-                  {paginatedRejected.map((ev) => (
-                    <div
-                      key={ev.id}
-                      className="rounded-lg border p-4 flex items-center gap-4 bg-red-50/50 hover:bg-red-50 transition-colors border-red-200"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-slate-800 text-sm truncate">
-                            {ev.titulo}
-                          </h3>
-                          <span className="text-[10px] bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded-full">
-                            Rechazado
-                          </span>
+                  {paginatedRejected.map((ev) => {
+                    const catInfo = getEventCategoryInfo(ev);
+                    return (
+                      <div
+                        key={ev.id}
+                        className="rounded-lg border p-4 flex items-center gap-4 bg-red-50/50 hover:bg-red-50 transition-colors border-red-200"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-slate-800 text-sm truncate">
+                              {ev.titulo}
+                            </h3>
+                            <span className="text-[10px] bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded-full">
+                              Rechazado por Coordinación
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1 flex-wrap font-medium">
+                            <span>
+                              Solicitante:{" "}
+                              <strong className="text-slate-700">
+                                {ev.creador_nombre || ev.tutor_nombre || "Solicitante"}
+                              </strong>
+                            </span>
+                            <span>Fecha: {formatDate(ev.fecha_inicio)}</span>
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-semibold text-white"
+                              style={{ backgroundColor: catInfo.color }}
+                            >
+                              {catInfo.label}
+                            </span>
+                          </div>
+                          {ev.motivo_rechazo && (
+                            <p className="text-xs text-red-700 font-medium mt-1.5 bg-white/70 p-2 rounded-md border border-red-200">
+                              Motivo de rechazo: {String(ev.motivo_rechazo).replace(/^\[(DEPTO|VOAE)\]\s*/, "")}
+                            </p>
+                          )}
                         </div>
-                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1 flex-wrap font-medium">
-                          <span>
-                            Solicitante:{" "}
-                            <strong className="text-slate-700">
-                              {ev.creador_nombre || ev.tutor_nombre || "Solicitante"}
-                            </strong>
-                          </span>
-                          <span>Fecha: {formatDate(ev.fecha_inicio)}</span>
-                          <span
-                            className="px-2 py-0.5 rounded text-[10px] font-semibold text-white"
-                            style={{
-                              backgroundColor:
-                                CATEGORY_COLORS[ev.categoria] || "#64748b",
-                            }}
-                          >
-                            {CATEGORY_LABELS[ev.categoria] || ev.categoria}
-                          </span>
-                        </div>
-                        {ev.motivo_rechazo && (
-                          <p className="text-xs text-red-700 font-medium mt-1.5 bg-white/70 p-2 rounded-md border border-red-200">
-                            Motivo de rechazo: {String(ev.motivo_rechazo).replace(/^\[(DEPTO|VOAE)\]\s*/, "")}
-                          </p>
-                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Paginación de Rechazados (Siempre visible) */}

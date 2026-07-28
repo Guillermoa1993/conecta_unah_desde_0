@@ -9,6 +9,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   CULTURAL: "#d97706",
   DEPORTIVO: "#059669",
   SOCIAL: "#7c3aed",
+  RECREACION: "#8b5cf6",
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -16,6 +17,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   CULTURAL: "Cultural",
   DEPORTIVO: "Deportivo",
   SOCIAL: "Social",
+  RECREACION: "Recreativo",
 };
 
 function formatDate(iso: string): string {
@@ -27,26 +29,31 @@ function formatDate(iso: string): string {
   });
 }
 
-function EstatusBadge({ estado }: { estado: string }) {
-  const colores: Record<string, string> = {
-    PROGRAMADO: "#22c55e",
-    EN_CURSO: "#3b82f6",
-    EN_CURSO_SALIDA: "#3b82f6",
-    PENDIENTE_APROBACION_VOAE: "#f59e0b",
-    PENDIENTE_APROBACION: "#f59e0b",
-    FINALIZADO: "#64748b",
-    RECHAZADO: "#ef4444",
-  };
-  return (
-    <span
-      className="text-[10px] font-semibold text-white px-2 py-0.5 rounded-full"
-      style={{ backgroundColor: colores[estado] || "#64748b" }}
-    >
-      {estado.startsWith("PENDIENTE")
-        ? "Pendiente VOAE"
-        : estado.charAt(0) + estado.slice(1).toLowerCase()}
-    </span>
-  );
+function getEventCategoryInfo(ev: any): { label: string; color: string } {
+  const isRecreativo =
+    ev.tipo_evento === "RECREACION" ||
+    ev.tipo_evento === "SIN_HORAS" ||
+    ev.categoria === "RECREACION" ||
+    Number(ev.duracion_horas || 0) === 0;
+
+  if (isRecreativo) {
+    return { label: "Recreativo", color: "#8b5cf6" };
+  }
+
+  if (ev.distribucion_horas && Array.isArray(ev.distribucion_horas) && ev.distribucion_horas.length > 0) {
+    const cats = ev.distribucion_horas.map((dh: any) => dh.categoria).filter(Boolean);
+    const primaryCat = String(cats[0] || "").toUpperCase();
+    const label = cats
+      .map((c: string) => CATEGORY_LABELS[c.toUpperCase()] || c)
+      .join(", ");
+    const color = CATEGORY_COLORS[primaryCat] || "#003366";
+    return { label, color };
+  }
+
+  const catKey = String(ev.categoria || "").toUpperCase();
+  const label = CATEGORY_LABELS[catKey] || ev.categoria || "Académico";
+  const color = CATEGORY_COLORS[catKey] || "#003366";
+  return { label, color };
 }
 
 type VoaeTab = "aprobados" | "rechazados";
@@ -127,7 +134,6 @@ export function VOAEDashboard() {
       events.filter((e) => {
         if (String(e.estado).trim().toUpperCase() !== "RECHAZADO") return false;
         const m = String(e.motivo_rechazo || "");
-        // Excluir eventos rechazados por Coordinación Depto ([DEPTO])
         if (m.startsWith("[DEPTO]")) return false;
         return true;
       }),
@@ -213,39 +219,42 @@ export function VOAEDashboard() {
         ) : (
           <div className="space-y-4">
             <div className="space-y-3">
-              {paginatedPending.map((ev) => (
-                <div key={ev.id} className="rounded-lg border p-4 flex items-center gap-4 bg-slate-50 hover:bg-slate-100 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-slate-800 text-sm truncate">{ev.titulo}</h3>
-                    <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1 flex-wrap font-medium">
-                      {(() => {
-                        const rawLoc = ev.lugar || ev.ubicacion || "N/A";
-                        const [cleanLoc] = rawLoc.split("|");
-                        const solicitante = ev.creador_nombre || ev.tutor_nombre || ev.solicitante || ev.organizador || "Solicitante";
+              {paginatedPending.map((ev) => {
+                const catInfo = getEventCategoryInfo(ev);
+                return (
+                  <div key={ev.id} className="rounded-lg border p-4 flex items-center gap-4 bg-slate-50 hover:bg-slate-100 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-slate-800 text-sm truncate">{ev.titulo}</h3>
+                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1 flex-wrap font-medium">
+                        {(() => {
+                          const rawLoc = ev.lugar || ev.ubicacion || "N/A";
+                          const [cleanLoc] = rawLoc.split("|");
+                          const solicitante = ev.creador_nombre || ev.tutor_nombre || ev.solicitante || ev.organizador || "Solicitante";
 
-                        return (
-                          <>
-                            <span>Solicitante: <strong className="text-slate-700">{solicitante}</strong></span>
-                            <span>Fecha: {formatDate(ev.fecha_inicio)}</span>
-                            <span>Lugar: {cleanLoc}</span>
-                          </>
-                        );
-                      })()}
-                      <span
-                        className="px-2 py-0.5 rounded text-[10px] font-semibold text-white"
-                        style={{ backgroundColor: CATEGORY_COLORS[ev.categoria] || "#64748b" }}
-                      >
-                        {CATEGORY_LABELS[ev.categoria] || ev.categoria}
-                      </span>
+                          return (
+                            <>
+                              <span>Solicitante: <strong className="text-slate-700">{solicitante}</strong></span>
+                              <span>Fecha: {formatDate(ev.fecha_inicio)}</span>
+                              <span>Lugar: {cleanLoc}</span>
+                            </>
+                          );
+                        })()}
+                        <span
+                          className="px-2 py-0.5 rounded text-[10px] font-semibold text-white"
+                          style={{ backgroundColor: catInfo.color }}
+                        >
+                          {catInfo.label}
+                        </span>
+                      </div>
                     </div>
+                    <Button asChild size="sm" className="bg-[#004B87] hover:bg-[#003366] text-white shadow-sm font-semibold">
+                      <Link to={`/voae/events/${ev.id}/validar`}>
+                        <Eye className="size-3.5 mr-1" /> Validar propuesta
+                      </Link>
+                    </Button>
                   </div>
-                  <Button asChild size="sm" className="bg-[#004B87] hover:bg-[#003366] text-white shadow-sm font-semibold">
-                    <Link to={`/voae/events/${ev.id}/validar`}>
-                      <Eye className="size-3.5 mr-1" /> Validar propuesta
-                    </Link>
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Paginación Pendientes (Siempre visible) */}
@@ -371,7 +380,7 @@ export function VOAEDashboard() {
         )}
       </section>
 
-      {/* ── 3. Histórico de Aprobados y Rechazados por VOAE Dirección (Imagen 216) ── */}
+      {/* ── 3. Histórico de Aprobados y Rechazados por VOAE Dirección (Imagen 216 & 219) ── */}
       <section className="bg-white rounded-xl border p-6 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b pb-3 flex-wrap gap-3">
           <div className="flex items-center gap-2">
@@ -433,19 +442,33 @@ export function VOAEDashboard() {
             ) : (
               <div className="space-y-4">
                 <div className="space-y-3">
-                  {paginatedApproved.map((ev) => (
-                    <div key={ev.id} className="rounded-lg border p-4 flex items-center gap-4 bg-slate-50 hover:bg-slate-100 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-slate-800 text-sm truncate">{ev.titulo}</h3>
-                          <EstatusBadge estado={ev.estado} />
+                  {paginatedApproved.map((ev) => {
+                    const catInfo = getEventCategoryInfo(ev);
+                    return (
+                      <div key={ev.id} className="rounded-lg border p-4 flex items-center gap-4 bg-slate-50 hover:bg-slate-100 transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-slate-800 text-sm truncate">{ev.titulo}</h3>
+                            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                              Aprobado por VOAE
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1 flex-wrap font-medium">
+                            <span>
+                              Tutor: <strong>{ev.tutor_nombre || ev.creador_nombre || "Tutor"}</strong>
+                            </span>
+                            <span>Inicio: {formatDate(ev.fecha_inicio)}</span>
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-semibold text-white"
+                              style={{ backgroundColor: catInfo.color }}
+                            >
+                              {catInfo.label}
+                            </span>
+                          </div>
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-1 font-medium">
-                          Tutor: <strong>{ev.tutor_nombre || ev.creador_nombre || "Tutor"}</strong> {ev.aprobado_por ? `· Autorizado por ID ${ev.aprobado_por}` : ""} · Inicio: {formatDate(ev.fecha_inicio)}
-                        </p>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Paginación Aprobados (Siempre visible) */}
@@ -494,26 +517,38 @@ export function VOAEDashboard() {
             ) : (
               <div className="space-y-4">
                 <div className="space-y-3">
-                  {paginatedRejected.map((ev) => (
-                    <div key={ev.id} className="rounded-lg border p-4 flex items-center gap-4 bg-red-50/50 hover:bg-red-50 transition-colors border-red-200">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-slate-800 text-sm truncate">{ev.titulo}</h3>
-                          <span className="text-[10px] bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded-full">
-                            Rechazado por VOAE
-                          </span>
+                  {paginatedRejected.map((ev) => {
+                    const catInfo = getEventCategoryInfo(ev);
+                    return (
+                      <div key={ev.id} className="rounded-lg border p-4 flex items-center gap-4 bg-red-50/50 hover:bg-red-50 transition-colors border-red-200">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-slate-800 text-sm truncate">{ev.titulo}</h3>
+                            <span className="text-[10px] bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded-full">
+                              Rechazado por VOAE
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1 flex-wrap font-medium">
+                            <span>
+                              Tutor: <strong>{ev.tutor_nombre || ev.creador_nombre || "Tutor"}</strong>
+                            </span>
+                            <span>Fecha: {formatDate(ev.fecha_inicio)}</span>
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-semibold text-white"
+                              style={{ backgroundColor: catInfo.color }}
+                            >
+                              {catInfo.label}
+                            </span>
+                          </div>
+                          {ev.motivo_rechazo && (
+                            <p className="text-xs text-red-700 font-medium mt-1.5 bg-white/70 p-2 rounded-md border border-red-200">
+                              Motivo de rechazo: {String(ev.motivo_rechazo).replace(/^\[(DEPTO|VOAE)\]\s*/, "")}
+                            </p>
+                          )}
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-1 font-medium">
-                          Tutor: <strong>{ev.tutor_nombre || ev.creador_nombre || "Tutor"}</strong> · Fecha: {formatDate(ev.fecha_inicio)}
-                        </p>
-                        {ev.motivo_rechazo && (
-                          <p className="text-xs text-red-700 font-medium mt-1.5 bg-white/70 p-2 rounded-md border border-red-200">
-                            Motivo de rechazo: {String(ev.motivo_rechazo).replace(/^\[(DEPTO|VOAE)\]\s*/, "")}
-                          </p>
-                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Paginación Rechazados (Siempre visible) */}
