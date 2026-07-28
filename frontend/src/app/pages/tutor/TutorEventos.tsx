@@ -340,8 +340,8 @@ function EventCard({
   return (
     <>
       <div className="rounded-xl border bg-card shadow-xs overflow-hidden flex flex-col w-full min-w-0">
-        {/* Portada del Evento */}
-        <div className="relative h-40 group w-full overflow-hidden">
+        {/* Portada del Evento (Cuadrada/Boxy en móvil como recuadro celeste de Imagen 228) */}
+        <div className="relative aspect-[4/3] sm:aspect-video h-48 sm:h-44 group w-full overflow-hidden">
           {localPortadaUrl ? (
             <img
               src={localPortadaUrl}
@@ -404,7 +404,7 @@ function EventCard({
           )}
 
           <span
-            className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs"
+            className="absolute top-2.5 right-2.5 text-[10px] font-bold px-2.5 py-1 rounded-full shadow-xs"
             style={{ backgroundColor: statusStyle.bg, color: statusStyle.text }}
           >
             {statusStyle.label}
@@ -420,12 +420,12 @@ function EventCard({
           </div>
 
           {/* Date, time, location */}
-          <div className="space-y-0.5 text-xs text-muted-foreground font-medium min-w-0">
-            <div className="flex items-center gap-1 truncate">
+          <div className="space-y-1 text-xs text-muted-foreground font-medium min-w-0">
+            <div className="flex items-center gap-1.5 truncate">
               <CalendarDays className="size-3.5 shrink-0 text-slate-500" />
               <span className="truncate">{eventDateDisplay}</span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <Clock className="size-3.5 shrink-0 text-slate-500" />
               <span>
                 {event.fecha_inicio.slice(11, 16)} — {event.fecha_fin.slice(11, 16)}
@@ -433,7 +433,7 @@ function EventCard({
             </div>
             {/* Ubicación Física */}
             {event.tipo_actividad !== "Virtual" && (event.lugar || event.ubicacion) && (
-              <div className="flex items-center gap-1 text-[#004B87] font-semibold truncate">
+              <div className="flex items-center gap-1.5 text-[#004B87] font-semibold truncate">
                 <MapPin className="size-3.5 shrink-0" />
                 <span className="truncate">{(event.lugar || event.ubicacion).split("|")[0]}</span>
               </div>
@@ -443,7 +443,7 @@ function EventCard({
           {/* Type badge */}
           <div>
             <span
-              className="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full inline-block truncate max-w-full"
+              className="text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-full inline-block truncate max-w-full"
               style={{
                 backgroundColor: isConHoras ? "#dbeafe" : "#f1f5f9",
                 color: isConHoras ? "#1e40af" : "#64748b",
@@ -517,7 +517,7 @@ function EventCard({
                   asChild
                   size="sm"
                   variant="outline"
-                  className="gap-1 text-xs h-8 px-2.5 flex-1 justify-center"
+                  className="gap-1 text-xs h-8 px-2.5 flex-1 justify-center font-semibold"
                 >
                   <Link to={`/tutor/event/${event.id_evento || event.id}`}>
                     <Eye className="size-3.5" /> Ver
@@ -526,14 +526,14 @@ function EventCard({
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-1 text-xs h-8 px-2.5 flex-1 justify-center"
+                  className="gap-1 text-xs h-8 px-2.5 flex-1 justify-center font-semibold"
                   onClick={() => onEdit(event)}
                 >
                   <Pencil className="size-3.5" /> Editar
                 </Button>
                 <Button
                   size="sm"
-                  className="gap-1 text-xs h-8 px-2.5 text-white shadow-xs flex-1 justify-center"
+                  className="gap-1 text-xs h-8 px-2.5 text-white shadow-xs flex-1 justify-center font-semibold"
                   style={{ backgroundColor: "#004B87" }}
                   onClick={() => setPublishConfirm(true)}
                 >
@@ -555,7 +555,7 @@ function EventCard({
               <>
                 <Button
                   size="sm"
-                  className="gap-1 text-xs h-8 px-2.5 text-white shadow-xs flex-1 justify-center"
+                  className="gap-1 text-xs h-8 px-2.5 text-white shadow-xs flex-1 justify-center font-semibold"
                   style={{ backgroundColor: "#004B87" }}
                   onClick={() => navigate(`/tutor/event/${event.id_evento || event.id}`)}
                 >
@@ -564,7 +564,7 @@ function EventCard({
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-1 text-xs h-8 px-2.5 flex-1 justify-center"
+                  className="gap-1 text-xs h-8 px-2.5 flex-1 justify-center font-semibold"
                   style={{ borderColor: "#004B87", color: "#004B87" }}
                   onClick={() => setShareQrOpen(true)}
                 >
@@ -578,7 +578,7 @@ function EventCard({
                   asChild
                   size="sm"
                   variant="outline"
-                  className="gap-1 text-xs h-8 px-2.5 flex-1 justify-center"
+                  className="gap-1 text-xs h-8 px-2.5 flex-1 justify-center font-semibold"
                 >
                   <Link to={`/tutor/event/${event.id_evento || event.id}`}>
                     <Eye className="size-3.5" /> Detalle
@@ -587,7 +587,7 @@ function EventCard({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="gap-1 text-xs h-8 px-2.5 text-amber-600 hover:text-amber-700 flex-1 justify-center"
+                  className="gap-1 text-xs h-8 px-2.5 text-amber-600 hover:text-amber-700 flex-1 justify-center font-semibold"
                   onClick={() => setCancelVoaeConfirm(true)}
                 >
                   <XCircle className="size-3.5" /> Cancelar
@@ -599,7 +599,7 @@ function EventCard({
                 asChild
                 size="sm"
                 variant="outline"
-                className="gap-1 text-xs h-8 px-2.5 flex-1 justify-center"
+                className="gap-1 text-xs h-8 px-2.5 flex-1 justify-center font-semibold"
               >
                 <Link to={`/tutor/event/${event.id_evento || event.id}`}>
                   <Eye className="size-3.5" /> Detalle
@@ -611,7 +611,7 @@ function EventCard({
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-1 text-xs h-8 px-2.5"
+                  className="gap-1 text-xs h-8 px-2.5 font-semibold"
                   style={{ borderColor: "#ef4444", color: "#ef4444" }}
                   onClick={() => setRejectModal(true)}
                 >
@@ -619,7 +619,7 @@ function EventCard({
                 </Button>
                 <Button
                   size="sm"
-                  className="gap-1 text-xs h-8 px-2.5 text-white shadow-xs"
+                  className="gap-1 text-xs h-8 px-2.5 text-white shadow-xs font-semibold"
                   style={{ backgroundColor: "#1e3a5f" }}
                   onClick={() => onEdit(event)}
                 >
@@ -915,13 +915,13 @@ export function TutorEventos() {
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-4 sm:space-y-6 min-w-0 overflow-x-hidden">
-      {/* Header card */}
-      <div className="rounded-xl bg-white shadow-xs p-4 sm:p-5 w-full min-w-0">
+      {/* Header card (Cuadro rojo de Imagen 228) */}
+      <div className="rounded-xl bg-white shadow-xs p-4 sm:p-5 w-full min-w-0 border border-slate-200/80">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-3 sm:gap-4">
             <CalendarIllustration />
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold" style={{ color: "#004B87" }}>
+              <h1 className="text-xl sm:text-2xl font-bold text-[#004B87]">
                 Gestión de eventos
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
@@ -931,7 +931,7 @@ export function TutorEventos() {
           </div>
           <Button
             asChild
-            className="gap-1.5 text-white shadow-xs w-full sm:w-auto shrink-0 font-semibold"
+            className="gap-1.5 text-white shadow-xs w-full sm:w-auto flex justify-center text-center font-bold py-2.5 px-4"
             style={{ backgroundColor: "#004B87" }}
           >
             <Link to="/tutor/create-event">
@@ -941,8 +941,8 @@ export function TutorEventos() {
         </div>
       </div>
 
-      {/* Tabs bar como botones pastilla responsivos */}
-      <div className="w-full max-w-full overflow-x-auto bg-white rounded-xl border border-slate-200/80 p-1 flex items-center gap-1 shrink-0 scrollbar-none shadow-2xs">
+      {/* Tabs bar en 2 filas de 3 botones para teléfonos (Cuadro verde de Imagen 228) */}
+      <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1.5 p-1.5 bg-white rounded-xl border border-slate-200/80 shadow-2xs w-full min-w-0">
         {TABS.map((t) => {
           const Icon = t.icon;
           const isActive = tab === t.key;
@@ -952,20 +952,22 @@ export function TutorEventos() {
               key={t.key}
               onClick={() => setTab(t.key)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium transition rounded-lg shrink-0 whitespace-nowrap cursor-pointer",
+                "flex flex-col sm:flex-row items-center justify-center text-center px-2 py-2 rounded-lg text-[11px] sm:text-sm font-semibold transition cursor-pointer min-w-0 leading-tight",
                 isActive
-                  ? "bg-[#004B87] text-white font-bold shadow-xs"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  ? "bg-[#004B87] text-white shadow-xs font-bold"
+                  : "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200/60"
               )}
             >
-              <Icon className="size-3.5 sm:size-4" />
-              <span>{t.label}</span>
+              <div className="flex items-center gap-1 truncate justify-center">
+                <Icon className="size-3.5 sm:size-4 shrink-0" />
+                <span className="truncate">{t.label}</span>
+              </div>
               {count > 0 && (
                 <span
                   className={cn(
-                    "text-[10px] sm:text-[11px] font-bold px-1.5 py-0.2 rounded-full",
+                    "text-[10px] font-bold px-1.5 py-0.2 rounded-full mt-0.5 sm:mt-0 sm:ml-1 shrink-0",
                     isActive
-                      ? "bg-white/20 text-white"
+                      ? "bg-white/25 text-white"
                       : "bg-slate-200 text-slate-700"
                   )}
                 >
@@ -977,7 +979,7 @@ export function TutorEventos() {
         })}
       </div>
 
-      {/* Content Grid (1 columna en móvil para coincidir 100% con el borde derecho/línea verde) */}
+      {/* Content Grid (1 columna con tarjetas más cuadradas en móvil como cuadro celeste de Imagen 228) */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 w-full min-w-0">
           {[1, 2, 3].map((i) => (
@@ -985,7 +987,7 @@ export function TutorEventos() {
               key={i}
               className="rounded-xl border bg-card overflow-hidden animate-pulse min-w-0"
             >
-              <div className="h-40 bg-gray-200" />
+              <div className="h-48 sm:h-44 bg-gray-200" />
               <div className="p-4 space-y-3">
                 <div className="h-4 bg-gray-200 rounded w-3/4" />
                 <div className="h-3 bg-gray-200 rounded w-1/2" />
