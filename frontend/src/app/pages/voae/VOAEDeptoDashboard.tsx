@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
-import { Clock, CheckCircle2, XCircle, Eye, Building2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, Eye, Building2, ChevronLeft, ChevronRight, ListFilter } from "lucide-react";
 import { api } from "../../../services/api";
 import { Button } from "../../components/ui/button";
 
@@ -34,17 +34,20 @@ export function VOAEDeptoDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("aprobados");
 
-  // Paginación
-  const ITEMS_PER_PAGE = 5;
+  // Paginación Inteligente
+  const [itemsPerPagePending, setItemsPerPagePending] = useState(3);
   const [pagePending, setPagePending] = useState(1);
+
+  const [itemsPerPageApproved, setItemsPerPageApproved] = useState(3);
   const [pageApproved, setPageApproved] = useState(1);
+
+  const [itemsPerPageRejected, setItemsPerPageRejected] = useState(3);
   const [pageRejected, setPageRejected] = useState(1);
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
         setLoading(true);
-        // Carga eventos del backend
         const data = await api.get<any[]>("/eventos?limit=200");
         setAllEvents(data || []);
       } catch (err) {
@@ -73,7 +76,7 @@ export function VOAEDeptoDashboard() {
     [allEvents]
   );
 
-  // 2. Aprobados por Coordinación (enviados a VOAE, programados, en curso, finalizados)
+  // 2. Aprobados por Coordinación
   const approvedDeptoEvents = useMemo(
     () =>
       allEvents
@@ -109,25 +112,25 @@ export function VOAEDeptoDashboard() {
     [allEvents]
   );
 
-  // Paginación de pendientes
-  const totalPagesPending = Math.ceil(pendingDeptoEvents.length / ITEMS_PER_PAGE) || 1;
+  // Paginación Pendientes
+  const totalPagesPending = Math.ceil(pendingDeptoEvents.length / itemsPerPagePending) || 1;
   const paginatedPending = pendingDeptoEvents.slice(
-    (pagePending - 1) * ITEMS_PER_PAGE,
-    pagePending * ITEMS_PER_PAGE
+    (pagePending - 1) * itemsPerPagePending,
+    pagePending * itemsPerPagePending
   );
 
-  // Paginación de aprobados
-  const totalPagesApproved = Math.ceil(approvedDeptoEvents.length / ITEMS_PER_PAGE) || 1;
+  // Paginación Aprobados
+  const totalPagesApproved = Math.ceil(approvedDeptoEvents.length / itemsPerPageApproved) || 1;
   const paginatedApproved = approvedDeptoEvents.slice(
-    (pageApproved - 1) * ITEMS_PER_PAGE,
-    pageApproved * ITEMS_PER_PAGE
+    (pageApproved - 1) * itemsPerPageApproved,
+    pageApproved * itemsPerPageApproved
   );
 
-  // Paginación de rechazados
-  const totalPagesRejected = Math.ceil(rejectedDeptoEvents.length / ITEMS_PER_PAGE) || 1;
+  // Paginación Rechazados
+  const totalPagesRejected = Math.ceil(rejectedDeptoEvents.length / itemsPerPageRejected) || 1;
   const paginatedRejected = rejectedDeptoEvents.slice(
-    (pageRejected - 1) * ITEMS_PER_PAGE,
-    pageRejected * ITEMS_PER_PAGE
+    (pageRejected - 1) * itemsPerPageRejected,
+    pageRejected * itemsPerPageRejected
   );
 
   if (loading) {
@@ -150,10 +153,34 @@ export function VOAEDeptoDashboard() {
       </div>
 
       {/* ── 1. Pendientes Coordinación ── */}
-      <section className="bg-white rounded-xl border p-6 shadow-sm">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-[#003366]">
-          <Clock className="size-5 text-amber-500 animate-pulse" /> Solicitudes Pendientes de Aprobación Coordinación
-        </h2>
+      <section className="bg-white rounded-xl border p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2 text-[#003366]">
+            <Clock className="size-5 text-amber-500 animate-pulse" /> Solicitudes Pendientes de Aprobación Coordinación ({pendingDeptoEvents.length})
+          </h2>
+          {pendingDeptoEvents.length > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+              <ListFilter className="size-3.5" /> Mostrar:
+              {[3, 5, 10].map((size) => (
+                <button
+                  key={size}
+                  onClick={() => {
+                    setItemsPerPagePending(size);
+                    setPagePending(1);
+                  }}
+                  className={`px-2 py-0.5 rounded text-[11px] font-bold border transition ${
+                    itemsPerPagePending === size
+                      ? "bg-[#004B87] text-white border-[#004B87]"
+                      : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {pendingDeptoEvents.length === 0 ? (
           <div className="py-8 text-center bg-slate-50 rounded-lg border border-dashed">
             <CheckCircle2 className="size-10 mx-auto text-green-500 mb-2" />
@@ -211,7 +238,7 @@ export function VOAEDeptoDashboard() {
                       </span>
                     </div>
                   </div>
-                  <Button asChild size="sm" className="bg-[#004B87] hover:bg-[#003366] text-white font-semibold">
+                  <Button asChild size="sm" className="bg-[#004B87] hover:bg-[#003366] text-white font-semibold shadow-sm">
                     <Link to={`/voae-depto/events/${ev.id}/validar`}>
                       <Eye className="size-3.5 mr-1" /> Revisar propuesta
                     </Link>
@@ -221,38 +248,36 @@ export function VOAEDeptoDashboard() {
             </div>
 
             {/* Paginación de Pendientes */}
-            {totalPagesPending > 1 && (
-              <div className="flex items-center justify-between pt-2 border-t text-xs text-slate-500">
-                <span>
-                  Mostrando {(pagePending - 1) * ITEMS_PER_PAGE + 1} -{" "}
-                  {Math.min(pagePending * ITEMS_PER_PAGE, pendingDeptoEvents.length)} de{" "}
-                  {pendingDeptoEvents.length} registros
+            <div className="flex items-center justify-between pt-3 border-t text-xs text-slate-500 flex-wrap gap-2">
+              <span className="font-medium">
+                Mostrando {(pagePending - 1) * itemsPerPagePending + 1} -{" "}
+                {Math.min(pagePending * itemsPerPagePending, pendingDeptoEvents.length)} de{" "}
+                {pendingDeptoEvents.length} solicitudes pendientes
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagePending === 1}
+                  onClick={() => setPagePending((p) => Math.max(1, p - 1))}
+                  className="h-8 px-2.5"
+                >
+                  <ChevronLeft className="size-4 mr-1" /> Anterior
+                </Button>
+                <span className="font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded">
+                  Página {pagePending} de {totalPagesPending}
                 </span>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={pagePending === 1}
-                    onClick={() => setPagePending((p) => p - 1)}
-                    className="h-8 px-2"
-                  >
-                    <ChevronLeft className="size-4 mr-1" /> Anterior
-                  </Button>
-                  <span className="font-semibold text-slate-700">
-                    {pagePending} / {totalPagesPending}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={pagePending === totalPagesPending}
-                    onClick={() => setPagePending((p) => p + 1)}
-                    className="h-8 px-2"
-                  >
-                    Siguiente <ChevronRight className="size-4 ml-1" />
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagePending >= totalPagesPending}
+                  onClick={() => setPagePending((p) => Math.min(totalPagesPending, p + 1))}
+                  className="h-8 px-2.5"
+                >
+                  Siguiente <ChevronRight className="size-4 ml-1" />
+                </Button>
               </div>
-            )}
+            </div>
           </div>
         )}
       </section>
@@ -260,7 +285,7 @@ export function VOAEDeptoDashboard() {
       {/* ── 2. Histórico de Aprobados y Rechazados por Coordinación ── */}
       <section className="bg-white rounded-xl border p-6 shadow-sm space-y-4">
         {/* Selector de pestañas: Aprobados / Rechazados */}
-        <div className="flex items-center justify-between border-b pb-3 flex-wrap gap-2">
+        <div className="flex items-center justify-between border-b pb-3 flex-wrap gap-3">
           <div className="flex items-center gap-2">
             <Button
               variant={activeTab === "aprobados" ? "default" : "outline"}
@@ -279,6 +304,35 @@ export function VOAEDeptoDashboard() {
               <XCircle className="size-4 mr-1.5" /> Rechazados por Coordinación ({rejectedDeptoEvents.length})
             </Button>
           </div>
+
+          {/* Selector de items por página */}
+          {((activeTab === "aprobados" && approvedDeptoEvents.length > 0) ||
+            (activeTab === "rechazados" && rejectedDeptoEvents.length > 0)) && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+              <ListFilter className="size-3.5" /> Mostrar:
+              {[3, 5, 10].map((size) => (
+                <button
+                  key={size}
+                  onClick={() => {
+                    if (activeTab === "aprobados") {
+                      setItemsPerPageApproved(size);
+                      setPageApproved(1);
+                    } else {
+                      setItemsPerPageRejected(size);
+                      setPageRejected(1);
+                    }
+                  }}
+                  className={`px-2 py-0.5 rounded text-[11px] font-bold border transition ${
+                    (activeTab === "aprobados" ? itemsPerPageApproved : itemsPerPageRejected) === size
+                      ? "bg-[#004B87] text-white border-[#004B87]"
+                      : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Tab content APROBADOS */}
@@ -330,39 +384,37 @@ export function VOAEDeptoDashboard() {
                   ))}
                 </div>
 
-                {/* Paginación de Aprobados */}
-                {totalPagesApproved > 1 && (
-                  <div className="flex items-center justify-between pt-2 border-t text-xs text-slate-500">
-                    <span>
-                      Mostrando {(pageApproved - 1) * ITEMS_PER_PAGE + 1} -{" "}
-                      {Math.min(pageApproved * ITEMS_PER_PAGE, approvedDeptoEvents.length)} de{" "}
-                      {approvedDeptoEvents.length} registros
+                {/* Paginación de Aprobados (Siempre visible) */}
+                <div className="flex items-center justify-between pt-3 border-t text-xs text-slate-500 flex-wrap gap-2">
+                  <span className="font-medium">
+                    Mostrando {(pageApproved - 1) * itemsPerPageApproved + 1} -{" "}
+                    {Math.min(pageApproved * itemsPerPageApproved, approvedDeptoEvents.length)} de{" "}
+                    {approvedDeptoEvents.length} eventos aprobados
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={pageApproved === 1}
+                      onClick={() => setPageApproved((p) => Math.max(1, p - 1))}
+                      className="h-8 px-2.5"
+                    >
+                      <ChevronLeft className="size-4 mr-1" /> Anterior
+                    </Button>
+                    <span className="font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded">
+                      Página {pageApproved} de {totalPagesApproved}
                     </span>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={pageApproved === 1}
-                        onClick={() => setPageApproved((p) => p - 1)}
-                        className="h-8 px-2"
-                      >
-                        <ChevronLeft className="size-4 mr-1" /> Anterior
-                      </Button>
-                      <span className="font-semibold text-slate-700">
-                        {pageApproved} / {totalPagesApproved}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={pageApproved === totalPagesApproved}
-                        onClick={() => setPageApproved((p) => p + 1)}
-                        className="h-8 px-2"
-                      >
-                        Siguiente <ChevronRight className="size-4 ml-1" />
-                      </Button>
-                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={pageApproved >= totalPagesApproved}
+                      onClick={() => setPageApproved((p) => Math.min(totalPagesApproved, p + 1))}
+                      className="h-8 px-2.5"
+                    >
+                      Siguiente <ChevronRight className="size-4 ml-1" />
+                    </Button>
                   </div>
-                )}
+                </div>
               </div>
             )}
           </div>
@@ -422,39 +474,37 @@ export function VOAEDeptoDashboard() {
                   ))}
                 </div>
 
-                {/* Paginación de Rechazados */}
-                {totalPagesRejected > 1 && (
-                  <div className="flex items-center justify-between pt-2 border-t text-xs text-slate-500">
-                    <span>
-                      Mostrando {(pageRejected - 1) * ITEMS_PER_PAGE + 1} -{" "}
-                      {Math.min(pageRejected * ITEMS_PER_PAGE, rejectedDeptoEvents.length)} de{" "}
-                      {rejectedDeptoEvents.length} registros
+                {/* Paginación de Rechazados (Siempre visible) */}
+                <div className="flex items-center justify-between pt-3 border-t text-xs text-slate-500 flex-wrap gap-2">
+                  <span className="font-medium">
+                    Mostrando {(pageRejected - 1) * itemsPerPageRejected + 1} -{" "}
+                    {Math.min(pageRejected * itemsPerPageRejected, rejectedDeptoEvents.length)} de{" "}
+                    {rejectedDeptoEvents.length} eventos rechazados
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={pageRejected === 1}
+                      onClick={() => setPageRejected((p) => Math.max(1, p - 1))}
+                      className="h-8 px-2.5"
+                    >
+                      <ChevronLeft className="size-4 mr-1" /> Anterior
+                    </Button>
+                    <span className="font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded">
+                      Página {pageRejected} de {totalPagesRejected}
                     </span>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={pageRejected === 1}
-                        onClick={() => setPageRejected((p) => p - 1)}
-                        className="h-8 px-2"
-                      >
-                        <ChevronLeft className="size-4 mr-1" /> Anterior
-                      </Button>
-                      <span className="font-semibold text-slate-700">
-                        {pageRejected} / {totalPagesRejected}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={pageRejected === totalPagesRejected}
-                        onClick={() => setPageRejected((p) => p + 1)}
-                        className="h-8 px-2"
-                      >
-                        Siguiente <ChevronRight className="size-4 ml-1" />
-                      </Button>
-                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={pageRejected >= totalPagesRejected}
+                      onClick={() => setPageRejected((p) => Math.min(totalPagesRejected, p + 1))}
+                      className="h-8 px-2.5"
+                    >
+                      Siguiente <ChevronRight className="size-4 ml-1" />
+                    </Button>
                   </div>
-                )}
+                </div>
               </div>
             )}
           </div>
