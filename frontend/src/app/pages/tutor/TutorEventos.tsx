@@ -226,7 +226,7 @@ function EventCard({
     <>
       <div className="rounded-xl border bg-card shadow-soft overflow-hidden flex flex-col">
         {/* Portada / Placeholder */}
-        <div className="relative h-40 group">
+        <div className="relative h-28 sm:h-40 group">
           {localPortadaUrl ? (
             <img src={localPortadaUrl} alt="" className="w-full h-full object-cover" />
           ) : (
@@ -234,7 +234,7 @@ function EventCard({
               className="w-full h-full grid place-items-center"
               style={{ backgroundColor: catColor + "20" }}
             >
-              <span className="text-3xl font-bold text-white opacity-60">
+              <span className="text-xl sm:text-3xl font-bold text-white opacity-60">
                 {(CATEGORY_LABEL as any)[event.categoria]?.slice(0, 2).toUpperCase() || "EV"}
               </span>
             </div>
@@ -250,28 +250,20 @@ function EventCard({
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
-                  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-                    toast.error("Formato no válido", { description: "Usa JPG, PNG o WEBP" });
-                    return;
-                  }
-                  if (file.size > 5 * 1024 * 1024) {
-                    toast.error("Archivo muy grande", { description: "Máximo 5MB" });
-                    return;
-                  }
                   const reader = new FileReader();
-                  reader.onloadend = async () => {
-                    const base64Img = reader.result as string;
+                  reader.onload = async () => {
+                    const dataUrl = reader.result as string;
+                    setLocalPortadaUrl(dataUrl);
                     try {
-                      const idToUpdate = event.id_evento || event.id;
-                      await api.put(`/eventos/${idToUpdate}`, {
+                      await api.put(`/eventos/${event.id_evento || event.id}`, {
                         ...event,
-                        portada_url: base64Img,
+                        portada_url: dataUrl,
+                        imagen_url: dataUrl,
                       });
-                      setLocalPortadaUrl(base64Img);
-                      toast.success("Imagen de portada actualizada y guardada con éxito.");
+                      toast.success("Portada del evento actualizada");
                       onRefresh();
                     } catch (err: any) {
-                      toast.error("Error al guardar la portada", { description: err.message });
+                      toast.error("Error al actualizar la portada", { description: err.message });
                     }
                   };
                   reader.readAsDataURL(file);
@@ -280,12 +272,9 @@ function EventCard({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/40 transition-colors cursor-pointer"
-                aria-label="Cambiar imagen de portada"
+                className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition text-xs font-semibold"
               >
-                <div className="size-9 rounded-full bg-white/90 grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md">
-                  <Camera className="size-4" style={{ color: "var(--puma-dark, #1e3a5f)" }} />
-                </div>
+                <Camera className="size-4" /> Cambiar portada
               </button>
             </>
           )}
@@ -457,10 +446,10 @@ function EventCard({
               </div>
             )}
           {/* Actions */}
-          <div className="flex items-center gap-2 mt-auto pt-1 flex-wrap">
+          <div className="flex items-center gap-1.5 sm:gap-2 mt-auto pt-1 flex-wrap">
             {event.estado === "BORRADOR" && (
               <>
-                <Button asChild size="sm" variant="outline" className="gap-1 text-xs h-8">
+                <Button asChild size="sm" variant="outline" className="gap-1 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3">
                   <Link to={`/tutor/event/${event.id_evento || event.id}`}>
                     <Eye className="size-3.5" /> Ver detalle
                   </Link>
@@ -468,14 +457,14 @@ function EventCard({
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-1 text-xs h-8"
+                  className="gap-1 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
                   onClick={() => onEdit(event)}
                 >
                   <Pencil className="size-3.5" /> Editar
                 </Button>
                  <Button
                   size="sm"
-                  className="gap-1 text-xs h-8 text-white shadow-sm"
+                  className="gap-1 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 text-white shadow-sm"
                   style={{ backgroundColor: "#004B87" }}
                   onClick={() => setPublishConfirm(true)}
                 >
@@ -492,7 +481,7 @@ function EventCard({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="gap-1 text-xs h-8 text-red-500 hover:text-red-700"
+                  className="gap-1 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 text-red-500 hover:text-red-700"
                   onClick={() => setDeleteConfirm(true)}
                 >
                   <Trash2 className="size-3.5" /> Descartar
@@ -503,7 +492,7 @@ function EventCard({
               <>
                 <Button
                   size="sm"
-                  className="gap-1 text-xs h-8 text-white shadow-sm"
+                  className="gap-1 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 text-white shadow-sm"
                   style={{ backgroundColor: "#004B87" }}
                   onClick={() => navigate(`/tutor/event/${event.id_evento || event.id}`)}
                 >
@@ -512,7 +501,7 @@ function EventCard({
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-1 text-xs h-8"
+                  className="gap-1 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
                   style={{ borderColor: "#004B87", color: "#004B87" }}
                   onClick={() => setShareQrOpen(true)}
                 >
@@ -522,7 +511,7 @@ function EventCard({
             )}
              {event.estado === "PENDIENTE_APROBACION" && (
                <>
-                 <Button asChild size="sm" variant="outline" className="gap-1 text-xs h-8">
+                 <Button asChild size="sm" variant="outline" className="gap-1 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3">
                    <Link to={`/tutor/event/${event.id_evento || event.id}`}>
                      <Eye className="size-3.5" /> Ver detalle
                    </Link>
@@ -530,7 +519,7 @@ function EventCard({
                  <Button
                    size="sm"
                    variant="ghost"
-                   className="gap-1 text-xs h-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50 cursor-pointer"
+                   className="gap-1 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 text-amber-600 hover:text-amber-700 hover:bg-amber-50 cursor-pointer"
                    onClick={() => setCancelVoaeConfirm(true)}
                  >
                    <XCircle className="size-3.5" /> Cancelar solicitud
@@ -538,7 +527,7 @@ function EventCard({
                </>
              )}
             {event.estado === "FINALIZADO" && (
-              <Button asChild size="sm" variant="outline" className="gap-1 text-xs h-8">
+              <Button asChild size="sm" variant="outline" className="gap-1 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3">
                 <Link to={`/tutor/event/${event.id_evento || event.id}`}>
                   <Eye className="size-3.5" /> Ver detalle
                 </Link>
@@ -546,7 +535,7 @@ function EventCard({
             )}
             {event.estado === "RECHAZADO" && (
               <>
-                <Button asChild size="sm" variant="outline" className="gap-1 text-xs h-8">
+                <Button asChild size="sm" variant="outline" className="gap-1 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3">
                   <Link to={`/tutor/event/${event.id_evento || event.id}`}>
                     <Eye className="size-3.5" /> Ver detalle
                   </Link>
@@ -554,7 +543,7 @@ function EventCard({
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-1 text-xs h-8"
+                  className="gap-1 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
                   style={{ borderColor: "#ef4444", color: "#ef4444" }}
                   onClick={() => setRejectModal(true)}
                 >
@@ -562,7 +551,7 @@ function EventCard({
                 </Button>
                 <Button
                   size="sm"
-                  className="gap-1 text-xs h-8 text-white shadow-sm"
+                  className="gap-1 text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 text-white shadow-sm"
                   style={{ backgroundColor: "#1e3a5f" }}
                   onClick={() => onEdit(event)}
                 >
@@ -901,11 +890,11 @@ export function TutorEventos() {
 
       {/* Content */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="rounded-xl border bg-card overflow-hidden animate-pulse">
-              <div className="h-40 bg-gray-200" />
-              <div className="p-4 space-y-3">
+              <div className="h-32 sm:h-40 bg-gray-200" />
+              <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                 <div className="h-4 bg-gray-200 rounded w-3/4" />
                 <div className="h-3 bg-gray-200 rounded w-1/2" />
                 <div className="h-3 bg-gray-200 rounded w-1/3" />
@@ -975,7 +964,7 @@ export function TutorEventos() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {filteredEvents.map((event) => (
             <EventCard key={event.id || event.id_evento} event={event} onDelete={() => {}} onEdit={handleEdit} onRefresh={fetchEvents} />
           ))}
