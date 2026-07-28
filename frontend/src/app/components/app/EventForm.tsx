@@ -708,12 +708,10 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       return;
     }
 
-    if (currentStep === 3) {
-      if (!imgPortada) {
-        const { labelText, theme } = getDetectedCategoryInfo();
-        const autoCover = generateAiCoverCanvas(data.titulo, labelText, theme);
-        setImgPortada(autoCover);
-      }
+    if (!data.usa_imagen_personalizada || !imgPortada) {
+      const { labelText, theme } = getDetectedCategoryInfo();
+      const autoCover = generateAiCoverCanvas(data.titulo, labelText, theme);
+      setImgPortada(autoCover);
     }
 
     setCurrentStep((s) => Math.min(s + 1, 4));
@@ -777,7 +775,8 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       : undefined;
 
     const { labelText, theme } = getDetectedCategoryInfo();
-    const finalPortada = imgPortada || generateAiCoverCanvas(data.titulo, labelText, theme);
+    const autoCover = generateAiCoverCanvas(data.titulo, labelText, theme);
+    const finalPortada = (data.usa_imagen_personalizada && imgPortada) ? imgPortada : autoCover;
 
     const payload = {
       titulo: data.titulo,
