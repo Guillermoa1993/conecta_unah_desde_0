@@ -59,7 +59,7 @@ export function RootLayout() {
           <AppSidebar />
           <div className="flex flex-1 flex-col">
             <AppNavbar />
-            <main className="flex-1 overflow-y-auto bg-[#F4F6F8] p-6 pb-20 md:pb-6">
+            <main className="flex-1 overflow-y-auto bg-[#F4F6F8] p-3 sm:p-6 pb-20 md:pb-6">
               <Outlet />
             </main>
           </div>

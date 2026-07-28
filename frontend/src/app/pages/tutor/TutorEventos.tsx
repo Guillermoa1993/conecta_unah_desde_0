@@ -9,7 +9,6 @@ import {
   Send,
   Eye,
   AlertCircle,
-  FileText,
   Zap,
   CheckCircle2,
   XCircle,
@@ -32,18 +31,32 @@ import {
 } from "../../components/ui/dialog";
 import { cn } from "../../../lib/utils";
 
-function ShareQrModal({ isOpen, onClose, event }: { isOpen: boolean; onClose: () => void; event: any }) {
+function ShareQrModal({
+  isOpen,
+  onClose,
+  event,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  event: any;
+}) {
   if (!isOpen) return null;
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md text-center space-y-4">
         <DialogHeader>
-          <DialogTitle className="text-[#004B87] text-lg font-bold">Compartir Evento y Código QR</DialogTitle>
-          <DialogDescription>Escanea este código para acceder e inscribirte en el evento.</DialogDescription>
+          <DialogTitle className="text-[#004B87] text-lg font-bold">
+            Compartir Evento y Código QR
+          </DialogTitle>
+          <DialogDescription>
+            Escanea este código para acceder e inscribirte en el evento.
+          </DialogDescription>
         </DialogHeader>
         <div className="py-4 flex flex-col items-center justify-center space-y-3 bg-slate-50 rounded-xl border">
           <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(window.location.origin + "/tutor/event/" + (event?.id || ""))}`}
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
+              window.location.origin + "/tutor/event/" + (event?.id || "")
+            )}`}
             alt="QR Code"
             className="size-44 rounded-lg shadow-xs bg-white p-2 border"
           />
@@ -327,8 +340,8 @@ function EventCard({
   return (
     <>
       <div className="rounded-xl border bg-card shadow-xs overflow-hidden flex flex-col w-full min-w-0">
-        {/* Portada compacta / cuadrada en móvil (como recuadros verdes de Imagen 226) */}
-        <div className="relative h-28 sm:h-40 group">
+        {/* Portada del Evento */}
+        <div className="relative h-40 group w-full overflow-hidden">
           {localPortadaUrl ? (
             <img
               src={localPortadaUrl}
@@ -340,7 +353,7 @@ function EventCard({
               className="w-full h-full grid place-items-center"
               style={{ backgroundColor: catColor + "20" }}
             >
-              <span className="text-xl sm:text-3xl font-bold text-white opacity-60">
+              <span className="text-3xl font-bold text-white opacity-60">
                 {(CATEGORY_LABEL as any)[event.categoria]
                   ?.slice(0, 2)
                   .toUpperCase() || "EV"}
@@ -383,9 +396,9 @@ function EventCard({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 transition text-xs font-semibold"
+                className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition text-xs font-semibold"
               >
-                <Camera className="size-3.5" /> Cambiar
+                <Camera className="size-4" /> Cambiar portada
               </button>
             </>
           )}
@@ -399,21 +412,21 @@ function EventCard({
         </div>
 
         {/* Content */}
-        <div className="p-2.5 sm:p-4 flex-1 flex flex-col gap-1.5 sm:gap-2 min-w-0">
+        <div className="p-3.5 sm:p-4 flex-1 flex flex-col gap-2 min-w-0">
           <div className="min-w-0">
-            <h3 className="font-bold text-xs sm:text-sm leading-snug truncate text-slate-800">
+            <h3 className="font-bold text-sm leading-snug truncate text-slate-800">
               {event.titulo}
             </h3>
           </div>
 
           {/* Date, time, location */}
-          <div className="space-y-0.5 text-[10px] sm:text-xs text-muted-foreground font-medium min-w-0">
+          <div className="space-y-0.5 text-xs text-muted-foreground font-medium min-w-0">
             <div className="flex items-center gap-1 truncate">
-              <CalendarDays className="size-3 shrink-0 text-slate-500" />
+              <CalendarDays className="size-3.5 shrink-0 text-slate-500" />
               <span className="truncate">{eventDateDisplay}</span>
             </div>
             <div className="flex items-center gap-1">
-              <Clock className="size-3 shrink-0 text-slate-500" />
+              <Clock className="size-3.5 shrink-0 text-slate-500" />
               <span>
                 {event.fecha_inicio.slice(11, 16)} — {event.fecha_fin.slice(11, 16)}
               </span>
@@ -421,7 +434,7 @@ function EventCard({
             {/* Ubicación Física */}
             {event.tipo_actividad !== "Virtual" && (event.lugar || event.ubicacion) && (
               <div className="flex items-center gap-1 text-[#004B87] font-semibold truncate">
-                <MapPin className="size-3 shrink-0" />
+                <MapPin className="size-3.5 shrink-0" />
                 <span className="truncate">{(event.lugar || event.ubicacion).split("|")[0]}</span>
               </div>
             )}
@@ -430,7 +443,7 @@ function EventCard({
           {/* Type badge */}
           <div>
             <span
-              className="text-[9px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full inline-block truncate max-w-full"
+              className="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full inline-block truncate max-w-full"
               style={{
                 backgroundColor: isConHoras ? "#dbeafe" : "#f1f5f9",
                 color: isConHoras ? "#1e40af" : "#64748b",
@@ -460,7 +473,7 @@ function EventCard({
           {/* Capacity bar */}
           {cupo > 0 && (
             <div>
-              <div className="h-1 sm:h-1.5 rounded-full bg-slate-200 overflow-hidden">
+              <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all"
                   style={{
@@ -469,7 +482,7 @@ function EventCard({
                   }}
                 />
               </div>
-              <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">
+              <p className="text-[11px] text-muted-foreground mt-1 font-medium">
                 {inscritos} / {cupo} cupos
               </p>
             </div>
@@ -479,16 +492,16 @@ function EventCard({
           {event.estado === "RECHAZADO" &&
             (event.motivo_rechazo || eventRejectionReasons[event.id]) && (
               <div
-                className="rounded-md p-1.5 text-[10px] leading-snug mt-1"
+                className="rounded-md p-2 text-xs leading-snug mt-1"
                 style={{
                   backgroundColor: "#fef3c7",
                   borderLeft: "3px solid #f59e0b",
                   color: "#92400e",
                 }}
               >
-                {(event.motivo_rechazo || eventRejectionReasons[event.id] || "").length > 50 ? (
+                {(event.motivo_rechazo || eventRejectionReasons[event.id] || "").length > 60 ? (
                   <>
-                    {(event.motivo_rechazo || eventRejectionReasons[event.id] || "").slice(0, 50)}...
+                    {(event.motivo_rechazo || eventRejectionReasons[event.id] || "").slice(0, 60)}...
                   </>
                 ) : (
                   event.motivo_rechazo || eventRejectionReasons[event.id]
@@ -497,40 +510,40 @@ function EventCard({
             )}
 
           {/* Actions */}
-          <div className="flex items-center gap-1 mt-auto pt-1 flex-wrap">
+          <div className="flex items-center gap-1.5 mt-auto pt-2 flex-wrap w-full">
             {event.estado === "BORRADOR" && (
               <>
                 <Button
                   asChild
                   size="sm"
                   variant="outline"
-                  className="gap-1 text-[10px] sm:text-xs h-7 sm:h-8 px-1.5 sm:px-2.5 flex-1 justify-center"
+                  className="gap-1 text-xs h-8 px-2.5 flex-1 justify-center"
                 >
                   <Link to={`/tutor/event/${event.id_evento || event.id}`}>
-                    <Eye className="size-3" /> Ver
+                    <Eye className="size-3.5" /> Ver
                   </Link>
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-1 text-[10px] sm:text-xs h-7 sm:h-8 px-1.5 sm:px-2.5 flex-1 justify-center"
+                  className="gap-1 text-xs h-8 px-2.5 flex-1 justify-center"
                   onClick={() => onEdit(event)}
                 >
-                  <Pencil className="size-3" /> Editar
+                  <Pencil className="size-3.5" /> Editar
                 </Button>
                 <Button
                   size="sm"
-                  className="gap-1 text-[10px] sm:text-xs h-7 sm:h-8 px-1.5 sm:px-2.5 text-white shadow-xs flex-1 justify-center"
+                  className="gap-1 text-xs h-8 px-2.5 text-white shadow-xs flex-1 justify-center"
                   style={{ backgroundColor: "#004B87" }}
                   onClick={() => setPublishConfirm(true)}
                 >
                   {isRecreacion ? (
                     <>
-                      <Megaphone className="size-3" /> Publicar
+                      <Megaphone className="size-3.5" /> Publicar
                     </>
                   ) : (
                     <>
-                      <Send className="size-3" /> Enviar
+                      <Send className="size-3.5" /> Enviar
                     </>
                   )}
                 </Button>
@@ -542,20 +555,20 @@ function EventCard({
               <>
                 <Button
                   size="sm"
-                  className="gap-1 text-[10px] sm:text-xs h-7 sm:h-8 px-1.5 sm:px-2.5 text-white shadow-xs flex-1 justify-center"
+                  className="gap-1 text-xs h-8 px-2.5 text-white shadow-xs flex-1 justify-center"
                   style={{ backgroundColor: "#004B87" }}
                   onClick={() => navigate(`/tutor/event/${event.id_evento || event.id}`)}
                 >
-                  <Eye className="size-3" /> Gestionar
+                  <Eye className="size-3.5" /> Gestionar
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-1 text-[10px] sm:text-xs h-7 sm:h-8 px-1.5 sm:px-2.5 flex-1 justify-center"
+                  className="gap-1 text-xs h-8 px-2.5 flex-1 justify-center"
                   style={{ borderColor: "#004B87", color: "#004B87" }}
                   onClick={() => setShareQrOpen(true)}
                 >
-                  <Share2 className="size-3" /> QR
+                  <Share2 className="size-3.5" /> QR
                 </Button>
               </>
             )}
@@ -565,19 +578,19 @@ function EventCard({
                   asChild
                   size="sm"
                   variant="outline"
-                  className="gap-1 text-[10px] sm:text-xs h-7 sm:h-8 px-1.5 sm:px-2.5 flex-1 justify-center"
+                  className="gap-1 text-xs h-8 px-2.5 flex-1 justify-center"
                 >
                   <Link to={`/tutor/event/${event.id_evento || event.id}`}>
-                    <Eye className="size-3" /> Detalle
+                    <Eye className="size-3.5" /> Detalle
                   </Link>
                 </Button>
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="gap-1 text-[10px] sm:text-xs h-7 sm:h-8 px-1.5 sm:px-2.5 text-amber-600 hover:text-amber-700 flex-1 justify-center"
+                  className="gap-1 text-xs h-8 px-2.5 text-amber-600 hover:text-amber-700 flex-1 justify-center"
                   onClick={() => setCancelVoaeConfirm(true)}
                 >
-                  <XCircle className="size-3" /> Cancelar
+                  <XCircle className="size-3.5" /> Cancelar
                 </Button>
               </>
             )}
@@ -586,10 +599,10 @@ function EventCard({
                 asChild
                 size="sm"
                 variant="outline"
-                className="gap-1 text-[10px] sm:text-xs h-7 sm:h-8 px-1.5 sm:px-2.5 flex-1 justify-center"
+                className="gap-1 text-xs h-8 px-2.5 flex-1 justify-center"
               >
                 <Link to={`/tutor/event/${event.id_evento || event.id}`}>
-                  <Eye className="size-3" /> Detalle
+                  <Eye className="size-3.5" /> Detalle
                 </Link>
               </Button>
             )}
@@ -598,19 +611,19 @@ function EventCard({
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-1 text-[10px] sm:text-xs h-7 sm:h-8 px-1.5 sm:px-2.5"
+                  className="gap-1 text-xs h-8 px-2.5"
                   style={{ borderColor: "#ef4444", color: "#ef4444" }}
                   onClick={() => setRejectModal(true)}
                 >
-                  <AlertCircle className="size-3" /> Motivo
+                  <AlertCircle className="size-3.5" /> Motivo
                 </Button>
                 <Button
                   size="sm"
-                  className="gap-1 text-[10px] sm:text-xs h-7 sm:h-8 px-1.5 sm:px-2.5 text-white shadow-xs"
+                  className="gap-1 text-xs h-8 px-2.5 text-white shadow-xs"
                   style={{ backgroundColor: "#1e3a5f" }}
                   onClick={() => onEdit(event)}
                 >
-                  <Pencil className="size-3" /> Reenviar
+                  <Pencil className="size-3.5" /> Reenviar
                 </Button>
               </>
             )}
@@ -928,7 +941,7 @@ export function TutorEventos() {
         </div>
       </div>
 
-      {/* Tabs bar como botones pastilla responsivos (Círculo rojo de Imagen 226) */}
+      {/* Tabs bar como botones pastilla responsivos */}
       <div className="w-full max-w-full overflow-x-auto bg-white rounded-xl border border-slate-200/80 p-1 flex items-center gap-1 shrink-0 scrollbar-none shadow-2xs">
         {TABS.map((t) => {
           const Icon = t.icon;
@@ -964,16 +977,16 @@ export function TutorEventos() {
         })}
       </div>
 
-      {/* Content Grid (2 columnas compactas en móvil como cuadraditos verdes de Imagen 226) */}
+      {/* Content Grid (1 columna en móvil para coincidir 100% con el borde derecho/línea verde) */}
       {loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 w-full min-w-0">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 w-full min-w-0">
+          {[1, 2, 3].map((i) => (
             <div
               key={i}
               className="rounded-xl border bg-card overflow-hidden animate-pulse min-w-0"
             >
-              <div className="h-28 sm:h-40 bg-gray-200" />
-              <div className="p-2.5 sm:p-4 space-y-2">
+              <div className="h-40 bg-gray-200" />
+              <div className="p-4 space-y-3">
                 <div className="h-4 bg-gray-200 rounded w-3/4" />
                 <div className="h-3 bg-gray-200 rounded w-1/2" />
                 <div className="h-3 bg-gray-200 rounded w-1/3" />
@@ -1030,7 +1043,7 @@ export function TutorEventos() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 w-full min-w-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 w-full min-w-0">
           {filteredEvents.map((event) => (
             <EventCard
               key={event.id || event.id_evento}
