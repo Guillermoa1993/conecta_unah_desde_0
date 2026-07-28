@@ -291,25 +291,16 @@ function EventCard({
 
   const handlePublish = async () => {
     try {
-      const isRec =
-        event.tipo_evento === "RECREACION" ||
-        event.tipo_evento === "SIN_HORAS" ||
-        parseFloat(event.duracion_horas || "0") === 0;
-      const newEstado = isRec ? "PROGRAMADO" : "PENDIENTE_APROBACION_DEPTO";
       const payload = {
         ...event,
-        estado: newEstado,
+        estado: "PENDIENTE_APROBACION_DEPTO",
       };
       await api.put(`/eventos/${event.id_evento || event.id}`, payload);
-      toast.success(
-        isRec
-          ? "¡Evento publicado automáticamente!"
-          : "¡Evento enviado a Coordinación de Departamento para revisión!"
-      );
+      toast.success("¡Evento enviado a Coordinación de Departamento para revisión!");
       setPublishConfirm(false);
       onRefresh();
     } catch (err: any) {
-      toast.error("Error al publicar el evento", { description: err.message });
+      toast.error("Error al enviar evento a Coordinación", { description: err.message });
     }
   };
 
@@ -537,15 +528,7 @@ function EventCard({
                   style={{ backgroundColor: "#004B87" }}
                   onClick={() => setPublishConfirm(true)}
                 >
-                  {isRecreacion ? (
-                    <>
-                      <Megaphone className="size-3.5" /> Publicar
-                    </>
-                  ) : (
-                    <>
-                      <Send className="size-3.5" /> Enviar
-                    </>
-                  )}
+                  <Send className="size-3.5" /> Enviar
                 </Button>
               </>
             )}
@@ -688,21 +671,19 @@ function EventCard({
         </DialogContent>
       </Dialog>
 
-      {/* Publish Confirm Modal */}
+      {/* Send to Coordinación Confirm Modal */}
       <Dialog open={publishConfirm} onOpenChange={setPublishConfirm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-[#004B87]">
-              {isRecreacion ? "Publicar evento recreativo" : "Enviar propuesta para revisión"}
+            <DialogTitle className="text-[#004B87] font-bold">
+              Confirmar envío a Coordinación
             </DialogTitle>
-            <DialogDescription>
-              {isRecreacion
-                ? "Este evento recreativo no requiere acreditación de horas VOAE y se publicará inmediatamente."
-                : "Se enviará la propuesta a la Coordinación de Departamento para su revisión inicial."}
+            <DialogDescription className="text-sm text-slate-500 font-medium mt-2">
+              ¿Está seguro de que desea enviar este evento a la Coordinación de Departamento para revisión? Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setPublishConfirm(false)}>
+          <DialogFooter className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" className="font-semibold" onClick={() => setPublishConfirm(false)}>
               Cancelar
             </Button>
             <Button
@@ -710,7 +691,7 @@ function EventCard({
               style={{ backgroundColor: "#004B87" }}
               onClick={handlePublish}
             >
-              {isRecreacion ? "Confirmar publicación" : "Confirmar envío"}
+              Confirmar envío
             </Button>
           </DialogFooter>
         </DialogContent>

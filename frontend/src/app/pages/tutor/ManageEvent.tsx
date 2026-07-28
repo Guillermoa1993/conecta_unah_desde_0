@@ -743,38 +743,22 @@ export function ManageEvent() {
                 variant="outline"
                 size="sm"
                 onClick={() => setIsEditing(true)}
-                className="gap-1.5 border-blue-200 text-[#004B87] hover:bg-blue-50"
+                className="gap-1.5 border-blue-200 text-[#004B87] hover:bg-blue-50 font-semibold"
               >
                 <Pen className="size-4" /> Editar
               </Button>
-              {(() => {
-                const isRecreacion = event.tipo_evento === "RECREACION" || event.tipo_evento === "SIN_HORAS" || parseFloat(event.duracion_horas) === 0;
-                if (isRecreacion) {
-                  return (
-                    <Button
-                      size="sm"
-                      onClick={() => setPublishConfirmOpen(true)}
-                      className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shadow-sm font-semibold"
-                    >
-                      <CheckCircle2 className="size-4" /> Publicar
-                    </Button>
-                  );
-                }
-                return (
-                  <Button
-                    size="sm"
-                    onClick={() => setSendVoaeConfirmOpen(true)}
-                    className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shadow-sm font-semibold"
-                  >
-                    <Send className="size-4" /> Enviar a Coordinación
-                  </Button>
-                );
-              })()}
+              <Button
+                size="sm"
+                onClick={() => setSendVoaeConfirmOpen(true)}
+                className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shadow-sm font-semibold"
+              >
+                <Send className="size-4" /> Enviar a Coordinación
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleDeleteEvent}
-                className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50"
+                className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50 font-semibold"
               >
                 <Trash2 className="size-4" /> Descartar
               </Button>
@@ -826,7 +810,7 @@ export function ManageEvent() {
       {event.estado === "BORRADOR" && (
         <div className="rounded-xl border bg-slate-50 border-slate-200/80 p-4 text-sm flex items-start gap-3 text-slate-600">
           <Info className="size-5 shrink-0 text-slate-400 mt-0.5" />
-          <span>Este evento está en borrador. Puedes editarlo antes de publicarlo.</span>
+          <span>Este evento está en borrador. Puedes editarlo antes de enviarlo a Coordinación para revisión.</span>
         </div>
       )}
 
@@ -1530,13 +1514,13 @@ export function ManageEvent() {
         </DialogContent>
       </Dialog>
 
-      {/* Send to VOAE confirmation modal */}
+      {/* Send to Coordinación confirmation modal */}
       <Dialog open={sendVoaeConfirmOpen} onOpenChange={setSendVoaeConfirmOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-slate-800 font-bold">Confirmar envío a VOAE</DialogTitle>
+            <DialogTitle className="text-slate-800 font-bold">Confirmar envío a Coordinación</DialogTitle>
             <DialogDescription className="text-sm text-slate-500 font-medium mt-2">
-              ¿Está seguro de que desea enviar este evento a VOAE para revisión? Esta acción no se puede deshacer.
+              ¿Está seguro de que desea enviar este evento a la Coordinación de Departamento para revisión? Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 justify-end mt-4">
