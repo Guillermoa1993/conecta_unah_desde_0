@@ -13,7 +13,26 @@ const CATEGORY_LABEL: Record<string, string> = {
   CULTURAL: "Cultural",
   DEPORTIVO: "Deportivo",
   SOCIAL: "Social",
+  RECREACION: "Recreativo",
 };
+
+function getCategoryLabelHeader(ev: any): string {
+  const isRecreativo =
+    ev.tipo_evento === "RECREACION" ||
+    ev.tipo_evento === "SIN_HORAS" ||
+    ev.categoria === "RECREACION" ||
+    Number(ev.duracion_horas || 0) === 0;
+
+  if (isRecreativo) return "Recreativo";
+
+  if (ev.distribucion_horas && Array.isArray(ev.distribucion_horas) && ev.distribucion_horas.length > 0) {
+    return ev.distribucion_horas
+      .map((dh: any) => CATEGORY_LABEL[dh.categoria] || dh.categoria)
+      .join(" / ");
+  }
+
+  return CATEGORY_LABEL[ev.categoria] || ev.categoria || "Académico";
+}
 
 const CATEGORY_COLORS: Record<string, string> = {
   ACADEMICO: "#3b82f6",
@@ -112,7 +131,7 @@ export function ValidacionDeptoEvento() {
         <div>
           <h1 className="text-xl font-bold text-slate-800 leading-tight">{event.titulo}</h1>
           <p className="text-xs text-slate-500 font-medium">
-            {CATEGORY_LABEL[event.categoria] || event.categoria} · {new Date(event.fecha_inicio).toLocaleDateString("es-HN", { day: "numeric", month: "long", year: "numeric" })} · {(event.lugar || event.ubicacion || "").split("|")[0]}
+            {getCategoryLabelHeader(event)} · {new Date(event.fecha_inicio).toLocaleDateString("es-HN", { day: "numeric", month: "long", year: "numeric" })} · {(event.lugar || event.ubicacion || "").split("|")[0]}
           </p>
           <div className="flex items-center gap-1 mt-1 font-medium text-slate-600 text-xs">
             <span>Solicitante: <strong className="text-slate-800 font-bold">{event.creador_nombre || event.tutor_nombre || event.solicitante || event.organizador || "Solicitante"}</strong></span>
@@ -128,7 +147,7 @@ export function ValidacionDeptoEvento() {
             <img src={event.portada_url || event.imagen_url} alt="Banner del evento" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-[#003366] to-[#004B87] flex flex-col items-center justify-center text-white p-6 text-center">
-              <span className="text-xs font-bold uppercase tracking-widest text-[#FFD100] mb-2">{CATEGORY_LABEL[event.categoria] || event.categoria}</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-[#FFD100] mb-2">{getCategoryLabelHeader(event)}</span>
               <h3 className="text-2xl font-black uppercase tracking-tight">{event.titulo}</h3>
               <p className="text-[11px] text-slate-300 mt-4 font-semibold">UNIVERSIDAD NACIONAL AUTÓNOMA DE HONDURAS • CONECTA PUMAS</p>
             </div>
