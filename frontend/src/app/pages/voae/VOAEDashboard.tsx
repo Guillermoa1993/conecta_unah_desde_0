@@ -289,7 +289,7 @@ export function VOAEDashboard() {
     [events]
   );
 
-  // 2. Finalizados para Auditoría (Excluye eventos recreativos / sin horas, ya que no requieren auditoría ni certificados)
+  // 2. Finalizados para Auditoría (Eventos pendientes de revisión de auditoría por VOAE Dirección)
   const closedEvents = useMemo(
     () =>
       events
@@ -305,8 +305,14 @@ export function VOAEDashboard() {
             e.categoria === "RECREACION" ||
             Number(e.duracion_horas || 0) === 0;
 
-          // Eventos recreativos sin horas no requieren auditoría ni certificados en VOAE Dirección
-          return !isRecreativo;
+          if (isRecreativo) return false;
+
+          // Si la auditoría ya fue finalizada por VOAE Dirección, ya NO se muestra aquí
+          const isAuditCompleted =
+            localStorage.getItem(`voae_audit_completed_${e.id}`) === "true" ||
+            e.auditoria_completada === true;
+
+          return !isAuditCompleted;
         })
         .sort(
           (a, b) =>
@@ -339,17 +345,29 @@ export function VOAEDashboard() {
     [events]
   );
 
-  // 5. Auditorías Finalizadas
+  // 5. Auditorías Finalizadas (Únicamente los eventos cuyos certificados ya fueron emitidos y auditoría finalizada)
   const auditedEvents = useMemo(
     () =>
       events.filter((e) => {
-        const isFinal = String(e.estado).trim().toUpperCase() === "FINALIZADO";
+        const isFinal =
+          e.estado === "FINALIZADO" ||
+          String(e.estado).trim().toUpperCase() === "FINALIZADO";
+        if (!isFinal) return false;
+
         const isRecreativo =
           e.tipo_evento === "RECREACION" ||
           e.tipo_evento === "SIN_HORAS" ||
           e.categoria === "RECREACION" ||
           Number(e.duracion_horas || 0) === 0;
-        return isFinal && !isRecreativo;
+
+        if (isRecreativo) return false;
+
+        // Solo se muestran los eventos que TIENEN la auditoría finalizada
+        const isAuditCompleted =
+          localStorage.getItem(`voae_audit_completed_${e.id}`) === "true" ||
+          e.auditoria_completada === true;
+
+        return isAuditCompleted;
       }),
     [events]
   );
