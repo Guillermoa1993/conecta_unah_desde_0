@@ -1127,11 +1127,14 @@ export const STATUS_TONE: Record<EventStatus, string> = {
 
 export const CENTROS_REGIONALES = [
   "Ciudad Universitaria",
-  "CURLA",
+  "UNAH-CURLA",
   "CURLP",
   "CURC",
-  "CURVA",
   "UNAH-VS",
+  "UNAH-TEC Danli",
+  "CURNO",
+  "CUROC",
+  "UNAH-TEC-AGUÁN",
 ];
 
 export const TIPO_EVENTO_LABEL: Record<string, string> = {

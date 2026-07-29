@@ -118,6 +118,67 @@ export const SEDES_DATA: Record<
       { name: "Parque del Sol UNAH-TEC-Danli", lat: "13.993525936702095", lng: "-86.57068887367457" },
     ],
   },
+  CURNO: {
+    name: "CURNO",
+    lat: "14.67268387845951",
+    lng: "-86.20899693812486",
+    buildings: [
+      {
+        name: "Edificio Administrativo y Módulos de Aulas",
+        lat: "14.67273391872352",
+        lng: "-86.20903657322555",
+      },
+      {
+        name: "Laboratorios de Enfermería y Agropecuarios",
+        lat: "14.6726819288386",
+        lng: "-86.20903455788145",
+      },
+    ],
+  },
+  CUROC: {
+    name: "CUROC",
+    lat: "14.793548724656794",
+    lng: "-88.77184394250352",
+    buildings: [
+      {
+        name: "Edificio Central",
+        lat: "14.79359089570494",
+        lng: "-88.77174500685089",
+      },
+      {
+        name: "Laboratorios",
+        lat: "14.793148479671245",
+        lng: "-88.77161485471171",
+      },
+      {
+        name: "Biblioteca",
+        lat: "14.793100996345268",
+        lng: "-88.77185938738452",
+      },
+      {
+        name: "Centro Experimental de Investigación e Innovación UNAH-CUROC",
+        lat: "14.793153439808075",
+        lng: "-88.7727865535881",
+      },
+    ],
+  },
+  "UNAH-TEC-AGUÁN": {
+    name: "UNAH-TEC-AGUÁN",
+    lat: "15.493792653572447",
+    lng: "-86.58043702316616",
+    buildings: [
+      {
+        name: "Edificio Administrativo",
+        lat: "15.494097893316205",
+        lng: "-86.58070945353802",
+      },
+      {
+        name: "Laboratorios de Innovación Agroindustrial",
+        lat: "15.494212115063707",
+        lng: "-86.58107580938173",
+      },
+    ],
+  },
 };
 
 const TILE_LAYERS = {
