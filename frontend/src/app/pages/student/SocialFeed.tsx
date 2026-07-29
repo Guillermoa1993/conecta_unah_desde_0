@@ -1740,9 +1740,8 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
           --yellow:#FFD100;--yellow-hover:#FFE766;--yellow-soft:rgba(255,209,0,0.15);
           --white:#003366;--gray-mid:#717182;--text-primary:#003366;--text-secondary:#717182;
           --green-ok:#22c55e;--radius:14px;--radius-sm:8px;--shadow:0 4px 20px rgba(0,0,0,0.08);}
-        *{box-sizing:border-box;margin:0;padding:0;}
-        body{background:var(--navy);font-family:'Segoe UI',system-ui,sans-serif;color:var(--text-primary);}
-        .app{display:flex;min-height:100vh;}
+        .app *{box-sizing:border-box;}
+        .app{display:flex;width:100%;}
 
         /* TOPBAR */
         .topbar{background:#004B87;border-bottom:1px solid #003366;padding:0 20px;height:60px;

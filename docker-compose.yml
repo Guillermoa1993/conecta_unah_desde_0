@@ -26,6 +26,7 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET:-unah_conecta_pumas_2026_jwt_secret_key_cambiar_en_produccion}
       - FRONTEND_URL=http://localhost:5173
+      - NODE_OPTIONS=--dns-result-order=ipv4first
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
