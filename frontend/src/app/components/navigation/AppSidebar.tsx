@@ -297,57 +297,55 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               )}
 
-              {/* 3. Mi Gestión de eventos — desplegable para Empleado / Tutor */}
-              {role === "tutor" && (
-                <SidebarMenuItem className="mb-2">
-                  <button
-                    onClick={() => !isCollapsed && setMiGestionEventosOpen((v) => !v)}
-                    className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-white rounded-md hover:bg-[#003366] transition-colors focus:outline-none"
-                    title={isCollapsed ? "Mi Gestión de eventos" : undefined}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Calendar className="h-5 w-5 text-[#FFD100]" />
-                      {!isCollapsed && <span className="font-bold text-white">Mi Gestión de eventos</span>}
-                    </div>
-                    {!isCollapsed && (
-                      miGestionEventosOpen ? (
-                        <ChevronUp className="h-4 w-4 text-[#FFD100]" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 text-[#FFD100]" />
-                      )
-                    )}
-                  </button>
-
-                  {miGestionEventosOpen && !isCollapsed && (
-                    <div className="pl-6 mt-1 space-y-1 border-l border-white/20 ml-5">
-                      {[
-                        { icon: Calendar, label: "Gestión de eventos", path: "/tutor/eventos" },
-                        { icon: History, label: "Historial", path: "/tutor/history" },
-                      ].map((item) => {
-                        const isActive = location.pathname === item.path;
-                        return (
-                          <SidebarMenuButton
-                            key={item.path}
-                            asChild
-                            isActive={isActive}
-                            tooltip={item.label}
-                            className={
-                              isActive
-                                ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8 font-bold"
-                                : "text-white/90 hover:bg-[#003366] hover:text-white h-8"
-                            }
-                          >
-                            <Link to={item.path} className="flex items-center gap-2">
-                              <item.icon className="h-4 w-4" />
-                              <span>{item.label}</span>
-                            </Link>
-                          </SidebarMenuButton>
-                        );
-                      })}
-                    </div>
+              {/* 3. Mi Gestión de eventos — desplegable universal para TODOS los usuarios (Estudiante, Empleado, Depto, Dirección, Admin) */}
+              <SidebarMenuItem className="mb-2">
+                <button
+                  onClick={() => !isCollapsed && setMiGestionEventosOpen((v) => !v)}
+                  className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-white rounded-md hover:bg-[#003366] transition-colors focus:outline-none"
+                  title={isCollapsed ? "Mi Gestión de eventos" : undefined}
+                >
+                  <div className="flex items-center gap-3">
+                    <Calendar className="h-5 w-5 text-[#FFD100]" />
+                    {!isCollapsed && <span className="font-bold text-white">Mi Gestión de eventos</span>}
+                  </div>
+                  {!isCollapsed && (
+                    miGestionEventosOpen ? (
+                      <ChevronUp className="h-4 w-4 text-[#FFD100]" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-[#FFD100]" />
+                    )
                   )}
-                </SidebarMenuItem>
-              )}
+                </button>
+
+                {miGestionEventosOpen && !isCollapsed && (
+                  <div className="pl-6 mt-1 space-y-1 border-l border-white/20 ml-5">
+                    {[
+                      { icon: Calendar, label: "Gestión de eventos", path: "/tutor/eventos" },
+                      { icon: History, label: "Historial", path: "/tutor/history" },
+                    ].map((item) => {
+                      const isActive = location.pathname === item.path;
+                      return (
+                        <SidebarMenuButton
+                          key={item.path}
+                          asChild
+                          isActive={isActive}
+                          tooltip={item.label}
+                          className={
+                            isActive
+                              ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8 font-bold"
+                              : "text-white/90 hover:bg-[#003366] hover:text-white h-8"
+                          }
+                        >
+                          <Link to={item.path} className="flex items-center gap-2">
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      );
+                    })}
+                  </div>
+                )}
+              </SidebarMenuItem>
 
 
               {/* Ítems del rol */}
