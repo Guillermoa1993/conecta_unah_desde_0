@@ -38,6 +38,17 @@ export class PostgresEventoRepository implements EventoRepository {
       }
     }
 
+    let pLat = row.latitud ? String(row.latitud) : undefined;
+    let pLng = row.longitud ? String(row.longitud) : undefined;
+    if (!pLat && row.lugar && row.lugar.includes("|")) {
+      const parts = row.lugar.split("|");
+      if (parts[2] && parts[2].includes(",")) {
+        const [cLat, cLng] = parts[2].split(",");
+        pLat = cLat;
+        pLng = cLng;
+      }
+    }
+
     return {
       id: String(row.id),
       titulo: row.titulo,
@@ -75,6 +86,8 @@ export class PostgresEventoRepository implements EventoRepository {
       creador_nombre: row.tutor_nombre || undefined,
       tutor_foto: row.tutor_foto || undefined,
       creador_foto: row.tutor_foto || undefined,
+      latitud: pLat as any,
+      longitud: pLng as any,
     };
   }
 

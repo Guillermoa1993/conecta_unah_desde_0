@@ -814,6 +814,9 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       duracion_horas: calcDuration(),
       cupo_maximo: parseInt(data.cupo_maximo, 10) || 0,
       lugar: data.ubicacion || data.enlace_virtual || "",
+      ubicacion: data.ubicacion || data.enlace_virtual || "",
+      latitud: data.latitud ? parseFloat(data.latitud) : undefined,
+      longitud: data.longitud ? parseFloat(data.longitud) : undefined,
       tipo_actividad: data.tipo_actividad,
       centro_regional: data.centro_regional,
       usa_imagen_personalizada: data.usa_imagen_personalizada,
@@ -1333,11 +1336,15 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                           const val = e.target.value;
                           setCustomBuildingText(val);
                           const fullLocStr = aulaName ? `${val} - ${aulaName}` : val;
-                          const link = `https://www.google.com/maps/search/?api=1&query=${resolvedLat},${resolvedLng}`;
-                          setData((prev) => ({
-                            ...prev,
-                            ubicacion: val ? `${fullLocStr}|${link}|${resolvedLat},${resolvedLng}` : ""
-                          }));
+                          setData((prev) => {
+                            const curLat = prev.latitud || currentSedeData.lat;
+                            const curLng = prev.longitud || currentSedeData.lng;
+                            const link = `https://www.google.com/maps/search/?api=1&query=${curLat},${curLng}`;
+                            return {
+                              ...prev,
+                              ubicacion: val ? `${fullLocStr}|${link}|${curLat},${curLng}` : ""
+                            };
+                          });
                           if (val.trim()) {
                             setErrors((prev) => ({ ...prev, ubicacion: undefined }));
                           }

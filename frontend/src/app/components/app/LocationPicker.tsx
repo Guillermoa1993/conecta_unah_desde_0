@@ -233,22 +233,27 @@ export function resolveExactBuildingCoords(
   const sedeKey = centroRegional && SEDES_DATA[centroRegional] ? centroRegional : "Ciudad Universitaria";
   const sedeObj = SEDES_DATA[sedeKey];
 
-  const matchedBuilding = sedeObj.buildings.find((b) => fullLoc.startsWith(b.name) || b.name === fullLoc);
+  const matchedBuilding = sedeObj.buildings.find((b) =>
+    fullLoc === b.name ||
+    fullLoc.startsWith(b.name + " - ") ||
+    fullLoc.startsWith(b.name + " | ") ||
+    (fullLoc.startsWith(b.name) && b.name.length > 8)
+  );
 
   let finalLat = "14.084952";
   let finalLng = "-87.164929";
   let buildingName = fullLoc || sedeObj.name;
 
-  if (matchedBuilding) {
-    finalLat = matchedBuilding.lat;
-    finalLng = matchedBuilding.lng;
-    buildingName = matchedBuilding.name;
-  } else if (!isNaN(pLat) && !isNaN(pLng) && pLat !== 0 && pLng !== 0) {
+  if (!isNaN(pLat) && !isNaN(pLng) && pLat !== 0 && pLng !== 0) {
     finalLat = String(pLat);
     finalLng = String(pLng);
   } else if (!isNaN(pipeLat) && !isNaN(pipeLng)) {
     finalLat = String(pipeLat);
     finalLng = String(pipeLng);
+  } else if (matchedBuilding) {
+    finalLat = matchedBuilding.lat;
+    finalLng = matchedBuilding.lng;
+    buildingName = matchedBuilding.name;
   } else {
     finalLat = sedeObj.lat;
     finalLng = sedeObj.lng;
