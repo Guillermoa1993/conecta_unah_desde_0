@@ -208,6 +208,7 @@ interface LocationPickerProps {
   onLocationChange?: (lat: string, lng: string) => void;
   titleBanner?: string;
   height?: string;
+  isDraggable?: boolean;
 }
 
 export function resolveExactBuildingCoords(
@@ -262,6 +263,7 @@ export function LocationPicker({
   onLocationChange,
   titleBanner,
   height = "260px",
+  isDraggable = false,
 }: LocationPickerProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const fullMapRef = useRef<HTMLDivElement>(null);
@@ -318,10 +320,10 @@ export function LocationPicker({
 
     const marker = L.marker([initialLat, initialLng] as L.LatLngExpression, {
       icon: redPinIcon,
-      draggable: !!onLocationChange,
+      draggable: isDraggable && !!onLocationChange,
     }).addTo(map);
 
-    if (onLocationChange) {
+    if (isDraggable && onLocationChange) {
       marker.on("dragend", (e: any) => {
         const pos = e.target.getLatLng();
         onLocationChange(pos.lat.toString(), pos.lng.toString());
@@ -351,6 +353,16 @@ export function LocationPicker({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leaflet]);
+
+  // Habilitar / deshabilitar arrastre reactivamente segun isDraggable
+  useEffect(() => {
+    if (!markerInstance.current) return;
+    if (isDraggable && onLocationChange) {
+      markerInstance.current.dragging?.enable();
+    } else {
+      markerInstance.current.dragging?.disable();
+    }
+  }, [isDraggable, onLocationChange]);
 
   // Actualizar reactivamente la posición y centrado del mapa cuando cambian lat/lng
   useEffect(() => {
@@ -403,10 +415,10 @@ export function LocationPicker({
 
       const fullMarker = L.marker([curLat, curLng] as L.LatLngExpression, {
         icon: redPinIcon,
-        draggable: !!onLocationChange,
+        draggable: isDraggable && !!onLocationChange,
       }).addTo(fullMap);
 
-      if (onLocationChange) {
+      if (isDraggable && onLocationChange) {
         fullMarker.on("dragend", (e: any) => {
           const pos = e.target.getLatLng();
           onLocationChange(pos.lat.toString(), pos.lng.toString());

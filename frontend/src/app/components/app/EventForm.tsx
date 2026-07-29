@@ -565,7 +565,15 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       e.hora_fin = "El horario de fin debe ser posterior al horario de inicio.";
     }
     if (d.tipo_actividad !== "Virtual") {
-      if (!d.ubicacion.trim()) e.ubicacion = "La ubicación física es obligatoria";
+      if (isCustomBuilding) {
+        if (!customBuildingText.trim()) {
+          e.ubicacion = "Escribe el nombre del edificio o ubicación personalizada";
+        }
+      } else {
+        if (!d.ubicacion.trim()) {
+          e.ubicacion = "La ubicación física es obligatoria";
+        }
+      }
     }
     if (d.tipo_actividad !== "Presencial") {
       if (!d.enlace_virtual.trim()) {
@@ -1276,6 +1284,9 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                           longitud: bLng,
                           ubicacion: currentText ? `${fullLocStr}|${link}|${bLat},${bLng}` : ""
                         }));
+                        if (currentText.trim()) {
+                          setErrors((prev) => ({ ...prev, ubicacion: undefined }));
+                        }
                       } else {
                         setIsCustomBuilding(false);
                         const bObj = currentSedeData.buildings.find((b) => b.name === val);
@@ -1290,6 +1301,9 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                           longitud: bLng,
                           ubicacion: val ? `${fullLocStr}|${link}|${bLat},${bLng}` : ""
                         }));
+                        if (val) {
+                          setErrors((prev) => ({ ...prev, ubicacion: undefined }));
+                        }
                       }
                     }}
                     onBlur={() => blur("ubicacion")}
@@ -1324,6 +1338,9 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                             ...prev,
                             ubicacion: val ? `${fullLocStr}|${link}|${resolvedLat},${resolvedLng}` : ""
                           }));
+                          if (val.trim()) {
+                            setErrors((prev) => ({ ...prev, ubicacion: undefined }));
+                          }
                         }}
                         placeholder="Escribe el nombre de tu edificio o ubicación..."
                         className="h-11 bg-white border-blue-300 focus:border-[#004B87]"
@@ -1365,6 +1382,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                 <LocationPicker
                   lat={resolvedLat}
                   lng={resolvedLng}
+                  isDraggable={isCustomBuilding}
                   titleBanner={
                     isCustomBuilding
                       ? (customBuildingText ? `Edificio: ${customBuildingText}` : `Ubicación Personalizada (${data.centro_regional})`)
