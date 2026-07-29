@@ -400,7 +400,10 @@ export function AuditoriaEventoFinalizado() {
     toast.success(`Auditoría finalizada con éxito. Se han emitido ${asistentes.length} certificados oficiales.`);
   };
 
-  const categoriaNombre = CATEGORY_LABEL[event.categoria] || event.categoria || "Académico";
+  const categoriaNombre =
+    event.distribucion_horas && Array.isArray(event.distribucion_horas) && event.distribucion_horas.length > 0
+      ? event.distribucion_horas.map((dh: any) => CATEGORY_LABEL[dh.categoria] || dh.categoria).join(" / ")
+      : CATEGORY_LABEL[event.categoria] || event.categoria || "Académico";
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-fade-in pb-12">
@@ -1192,8 +1195,15 @@ export function AuditoriaEventoFinalizado() {
             tutor_nombre: event.tutor_nombre || "Prof. Responsable",
           }}
           user={{
-            name: "Lic. Roberto Fiallos",
-            cargo: "Vicerrector",
+            name: (() => {
+              try {
+                const u = JSON.parse(sessionStorage.getItem("unah_usuario") || localStorage.getItem("unah_usuario") || "{}");
+                return u.nombre || u.nombre_completo || u.nombreCompleto || u.name || "Lic. Roberto Fiallos";
+              } catch {
+                return "Lic. Roberto Fiallos";
+              }
+            })(),
+            cargo: "Vicerrector / Auditor VOAE",
             departamento: "Orientación y Asuntos Estudiantiles",
             codigo_firma: "ART.202606-18-S-CU",
             firma_url: signatureUrl || undefined,
@@ -1211,6 +1221,14 @@ export function AuditoriaEventoFinalizado() {
             const stAccount = certStudent.numero_cuenta || certStudent.cuenta || "20211000000";
             const stCareer = certStudent.carrera || certStudent.estudiante_carrera || "Ingeniería en Sistemas";
             const now = new Date();
+            const auditorName = (() => {
+              try {
+                const u = JSON.parse(sessionStorage.getItem("unah_usuario") || localStorage.getItem("unah_usuario") || "{}");
+                return u.nombre || u.nombre_completo || u.nombreCompleto || u.name || "Lic. Roberto Fiallos";
+              } catch {
+                return "Lic. Roberto Fiallos";
+              }
+            })();
 
             downloadConstanciaPdf({
               estudiante_nombre: stName,
@@ -1221,8 +1239,8 @@ export function AuditoriaEventoFinalizado() {
               evento_mes_anio: event.fecha_inicio ? new Date(event.fecha_inicio).toLocaleDateString("es-HN") : "2026",
               horas: event.duracion_horas || 1.0,
               categoria: event.categoria,
-              voae_nombre: "Lic. Roberto Fiallos",
-              voae_cargo: "Vicerrector",
+              voae_nombre: auditorName,
+              voae_cargo: "Vicerrector / Auditor VOAE",
               voae_departamento: "Orientación y Asuntos Estudiantiles",
               voae_codigo: "ART.202606-18-S-CU",
               voae_firma_url: signatureUrl || undefined,

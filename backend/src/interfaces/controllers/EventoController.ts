@@ -44,9 +44,10 @@ export class EventoController {
     } catch (err) { next(err); }
   };
 
-  getPendientes = async (_req: Request, res: Response, next: NextFunction) => {
+  getPendientes = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.json(await this.eventoRepo.findPendientesAprobacion());
+      const fase = (req.query.fase as string) || req.usuario?.rol;
+      res.json(await this.eventoRepo.findPendientesAprobacion(fase));
     } catch (err) { next(err); }
   };
 
@@ -65,14 +66,16 @@ export class EventoController {
 
   aprobar = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.json(await this.aprobarUC.aprobar(String(req.params.id), String(req.usuario!.id)));
+      res.json(await this.aprobarUC.aprobar(String(req.params.id), String(req.usuario!.id), req.usuario!.rol));
     } catch (err) { next(err); }
   };
 
   rechazar = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.json(await this.aprobarUC.rechazar(String(req.params.id), String(req.usuario!.id), req.body.motivo));
-    } catch (err) { next(err); }
+      res.json(await this.aprobarUC.rechazar(String(req.params.id), String(req.usuario!.id), req.body.motivo, req.usuario?.rol));
+    } catch (e) {
+      next(e);
+    }
   };
 
   delete = async (req: Request, res: Response, next: NextFunction) => {
@@ -83,6 +86,24 @@ export class EventoController {
         return;
       }
       res.json({ success: true });
+    } catch (err) { next(err); }
+  };
+
+  getEvaluaciones = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const eventoId = String(req.params.id);
+      const evaluaciones = await (this.eventoRepo as any).getEvaluaciones(eventoId);
+      res.json(evaluaciones);
+    } catch (err) { next(err); }
+  };
+
+  crearEvaluacion = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const eventoId = String(req.params.id);
+      const estudianteId = String(req.usuario!.id);
+      const { estrellas, comentario } = req.body;
+      const resVal = await (this.eventoRepo as any).crearEvaluacion(eventoId, estudianteId, estrellas, comentario);
+      res.status(201).json(resVal);
     } catch (err) { next(err); }
   };
 }

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { AppSidebar } from "../navigation/AppSidebar";
 import { AppNavbar } from "../navigation/AppNavbar";
 import { BottomNav } from "./BottomNav";
+import { HelpFloatingButton } from "../app/HelpFloatingButton";
 import { SidebarProvider } from "../ui/sidebar";
 import { Toaster } from "../ui/sonner";
 import { PermissionsWelcomeModal } from "../permissions/PermissionsWelcomeModal";
@@ -59,12 +60,13 @@ export function RootLayout() {
           <AppSidebar />
           <div className="flex flex-1 flex-col">
             <AppNavbar />
-            <main className="flex-1 overflow-y-auto bg-[#F4F6F8] p-6 pb-20 md:pb-6">
+            <main className="flex-1 overflow-y-auto bg-[#F4F6F8] p-3 sm:p-6 pb-20 md:pb-6">
               <Outlet />
             </main>
           </div>
         </div>
         <BottomNav />
+        <HelpFloatingButton />
         <Toaster />
         <PermissionsWelcomeModal
           open={showPermModal}

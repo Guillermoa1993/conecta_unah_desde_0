@@ -70,9 +70,10 @@ export function AppNavbar() {
       }
     }
     const rawRole = (sessionStorage.getItem("unah_role") || sessionStorage.getItem("unah_user_type") || "").toLowerCase();
-    if (rawRole === "tutor" || rawRole === "empleado" || location.pathname.startsWith("/tutor")) return "Empleado / Tutor";
-    if (rawRole.startsWith("voae") || location.pathname.startsWith("/voae")) return "Personal VOAE";
-    if (rawRole === "admin" || location.pathname.startsWith("/admin")) return "Administrador";
+    if (location.pathname.startsWith("/voae-depto") || rawRole.includes("depto") || rawRole.includes("coordinac")) return "VOAE Departamento (Coordinación)";
+    if (location.pathname.startsWith("/voae") || rawRole.startsWith("voae")) return "Personal VOAE Dirección";
+    if (location.pathname.startsWith("/tutor") || rawRole === "tutor" || rawRole === "empleado") return "Empleado / Tutor";
+    if (location.pathname.startsWith("/admin") || rawRole === "admin") return "Administrador";
     if (rawRole === "dev") return "Desarrollador";
     return "Estudiante";
   };
@@ -131,12 +132,12 @@ export function AppNavbar() {
   const isFeedScreen = location.pathname.startsWith("/student/feed");
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-white px-6 gap-4">
-      <div className="flex items-center gap-4 shrink-0">
+    <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-white px-3 sm:px-6 gap-2 sm:gap-4 w-full">
+      <div className="flex items-center gap-2 sm:gap-4 shrink-0 min-w-0">
         <SidebarTrigger />
-        <div>
-          <h1 className="text-lg font-semibold text-[#004B87]">Conecta Pumas</h1>
-          <p className="text-xs text-muted-foreground">{getModuleName()}</p>
+        <div className="min-w-0 truncate">
+          <h1 className="text-base sm:text-lg font-bold text-[#004B87] truncate">Conecta Pumas</h1>
+          <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{getRoleName()}</p>
         </div>
       </div>
 
@@ -147,7 +148,7 @@ export function AppNavbar() {
       )}
 
       {!isRegistrationPage && (
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-3 shrink-0">
           {/* Permissions button */}
           <div className="relative">
             <Button

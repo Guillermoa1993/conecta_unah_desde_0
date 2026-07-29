@@ -38,6 +38,17 @@ export class PostgresEventoRepository implements EventoRepository {
       }
     }
 
+    let pLat = row.latitud ? String(row.latitud) : undefined;
+    let pLng = row.longitud ? String(row.longitud) : undefined;
+    if (!pLat && row.lugar && row.lugar.includes("|")) {
+      const parts = row.lugar.split("|");
+      if (parts[2] && parts[2].includes(",")) {
+        const [cLat, cLng] = parts[2].split(",");
+        pLat = cLat;
+        pLng = cLng;
+      }
+    }
+
     return {
       id: String(row.id),
       titulo: row.titulo,
@@ -75,6 +86,8 @@ export class PostgresEventoRepository implements EventoRepository {
       creador_nombre: row.tutor_nombre || undefined,
       tutor_foto: row.tutor_foto || undefined,
       creador_foto: row.tutor_foto || undefined,
+      latitud: pLat as any,
+      longitud: pLng as any,
     };
   }
 
@@ -143,7 +156,16 @@ export class PostgresEventoRepository implements EventoRepository {
     return rows.map(r => this.mapRowToEvento(r));
   }
 
-  async findPendientesAprobacion(): Promise<Evento[]> {
+  async findPendientesAprobacion(tipoFase?: string): Promise<Evento[]> {
+    let whereCondition = `e.estado IN ('PENDIENTE_APROBACION_DEPTO', 'PENDIENTE_APROBACION_VOAE', 'PENDIENTE_APROBACION')`;
+    
+    const faseUpper = (tipoFase || '').toUpperCase();
+    if (faseUpper.includes('DEPTO') || faseUpper.includes('DEPARTAMENTO') || faseUpper.includes('COORDINACION')) {
+      whereCondition = `e.estado IN ('PENDIENTE_APROBACION_DEPTO', 'PENDIENTE_APROBACION')`;
+    } else if (faseUpper.includes('VOAE') || faseUpper.includes('DIRECCION')) {
+      whereCondition = `e.estado = 'PENDIENTE_APROBACION_VOAE'`;
+    }
+
     const { rows } = await this.pool.query(
       `SELECT e.*, u.nombre AS tutor_nombre, p.foto_url AS tutor_foto,
               TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
@@ -153,8 +175,7 @@ export class PostgresEventoRepository implements EventoRepository {
        FROM tabla_grupo_3_eventos e
        LEFT JOIN tabla_grupo_1_usuario u ON e.tutor_id::text = u.id_usuario::text
        LEFT JOIN tabla_grupo_1_perfil  p ON u.id_usuario = p.id_usuario
-       WHERE e.estado IN ('PENDIENTE_APROBACION', 'PENDIENTE_DEPARTAMENTO', 'PENDIENTE_DIRECCION')
-       ORDER BY e.created_at ASC`,
+       WHERE ${whereCondition} ORDER BY e.created_at ASC`,
     );
     return rows.map(r => this.mapRowToEvento(r));
   }
@@ -232,6 +253,8 @@ export class PostgresEventoRepository implements EventoRepository {
     if (data.ubicacion !== undefined || (data as any).lugar !== undefined) {
       dbData.lugar = data.ubicacion !== undefined ? data.ubicacion : (data as any).lugar;
     }
+    if ((data as any).latitud !== undefined) dbData.latitud = (data as any).latitud;
+    if ((data as any).longitud !== undefined) dbData.longitud = (data as any).longitud;
     if (data.enlace_virtual !== undefined) dbData.enlace_virtual = data.enlace_virtual;
     if (data.cupo_maximo !== undefined) dbData.cupo_maximo = data.cupo_maximo;
     if (data.duracion_horas !== undefined) {
@@ -279,5 +302,53 @@ export class PostgresEventoRepository implements EventoRepository {
       [evento_id],
     );
     return parseInt(rows[0]?.total ?? '0', 10);
+  }
+
+  private async ensureEvaluacionesTable() {
+    try {
+      await this.pool.query(`
+        CREATE TABLE IF NOT EXISTS tabla_grupo_3_evaluaciones (
+          id SERIAL PRIMARY KEY,
+          evento_id INT NOT NULL REFERENCES tabla_grupo_3_eventos(id) ON DELETE CASCADE,
+          estudiante_id INT NOT NULL REFERENCES tabla_grupo_1_usuario(id_usuario) ON DELETE CASCADE,
+          estrellas INT NOT NULL CHECK (estrellas >= 1 AND estrellas <= 5),
+          comentario TEXT,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          CONSTRAINT uq_evaluacion_evento_estudiante UNIQUE (evento_id, estudiante_id)
+        );
+      `);
+    } catch (e) {
+      // Ignore if table exists
+    }
+  }
+
+  async getEvaluaciones(eventoId: string): Promise<any[]> {
+    await this.ensureEvaluacionesTable();
+    const { rows } = await this.pool.query(
+      `SELECT ev.id, ev.estrellas, ev.comentario,
+              TO_CHAR(ev.created_at, 'DD/MM/YYYY') AS fecha,
+              u.nombre AS estudiante_nombre,
+              COALESCE(p.numero_cuenta, SPLIT_PART(u.correo, '@', 1)) AS estudiante_cuenta
+       FROM tabla_grupo_3_evaluaciones ev
+       JOIN tabla_grupo_1_usuario u ON u.id_usuario = ev.estudiante_id
+       LEFT JOIN tabla_grupo_1_perfil p ON p.id_usuario = u.id_usuario
+       WHERE ev.evento_id = $1
+       ORDER BY ev.created_at DESC`,
+      [eventoId]
+    );
+    return rows;
+  }
+
+  async crearEvaluacion(eventoId: string, estudianteId: string, estrellas: number, comentario: string): Promise<any> {
+    await this.ensureEvaluacionesTable();
+    const { rows } = await this.pool.query(
+      `INSERT INTO tabla_grupo_3_evaluaciones (evento_id, estudiante_id, estrellas, comentario)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (evento_id, estudiante_id) 
+       DO UPDATE SET estrellas = EXCLUDED.estrellas, comentario = EXCLUDED.comentario, created_at = NOW()
+       RETURNING *`,
+      [eventoId, estudianteId, estrellas, comentario]
+    );
+    return rows[0];
   }
 }
