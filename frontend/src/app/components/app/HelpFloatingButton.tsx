@@ -19,11 +19,37 @@ export function HelpFloatingButton({ context }: HelpFloatingButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"pasos" | "estados" | "faq">("pasos");
 
-  // Determinar contexto según la prop o la ruta activa
-  const activeContext: HelpContext = context || (
-    location.pathname.startsWith("/voae-depto") ? "coordinacion" :
-    location.pathname.startsWith("/voae") ? "voae" : "eventos"
-  );
+  // Determinar contexto exclusivamente para los apartados autorizados
+  const path = location.pathname;
+  let activeContext: HelpContext | null = context || null;
+
+  if (!activeContext) {
+    if (
+      path.startsWith("/tutor/eventos") ||
+      path.startsWith("/tutor/history") ||
+      path.startsWith("/tutor/create-event") ||
+      path.startsWith("/tutor/event/")
+    ) {
+      activeContext = "eventos";
+    } else if (
+      path === "/voae" ||
+      path.startsWith("/voae/records") ||
+      path.startsWith("/voae/events/")
+    ) {
+      activeContext = "voae";
+    } else if (
+      path === "/voae-depto" ||
+      path.startsWith("/voae-depto/records") ||
+      path.startsWith("/voae-depto/events/")
+    ) {
+      activeContext = "coordinacion";
+    }
+  }
+
+  // Ocultar completamente el botón si el usuario no está dentro de estos apartados
+  if (!activeContext) {
+    return null;
+  }
 
   const getGuideData = () => {
     switch (activeContext) {
