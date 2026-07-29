@@ -248,7 +248,9 @@ export function Login() {
     const active = sessionStorage.getItem("unah_session_active");
     const role   = sessionStorage.getItem("unah_role") as Role | null;
     if (active === "true" && role && role in ROLE_PATHS) {
-      navigate(ROLE_PATHS[role], { replace: true });
+      const guardada = sessionStorage.getItem("unah_redirect_after_login");
+      sessionStorage.removeItem("unah_redirect_after_login");
+      navigate(guardada ?? ROLE_PATHS[role], { replace: true });
     }
   }, [navigate]);
 
@@ -328,10 +330,12 @@ export function Login() {
         voae: 'voae', voae_direccion: 'voae', voae_departamento: 'voae', dev: 'dev',
       };
       const role = ROL_MAP[data.usuario.rol.toLowerCase()] ?? 'student';
-      const path = ROLE_PATHS[role] ?? "/student/feed";
+      const guardada = sessionStorage.getItem("unah_redirect_after_login");
+      const path = guardada ?? ROLE_PATHS[role] ?? "/student/feed";
 
       sessionStorage.setItem("unah_session_active", "true");
       sessionStorage.setItem("unah_role", role);
+      sessionStorage.removeItem("unah_redirect_after_login");
 
       toast.success("¡Inicio de sesión exitoso!");
       window.location.replace(path);

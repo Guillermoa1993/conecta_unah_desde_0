@@ -1,5 +1,6 @@
 import { Forma003Repository } from '../../domain/repositories/Forma003Repository';
 import { RegistroForma003 } from '../../domain/entities/RegistroForma003';
+import pool from '../../infrastructure/database/db';
 
 interface CrearRegistroDto {
   id_usuario: number;
@@ -19,6 +20,14 @@ export class CrearRegistroForma003 {
     }
 
     const periodoLimpio = datos.periodo.trim();
+
+    const periodoActual = await this.obtenerPeriodoActual();
+    if (periodoActual && periodoLimpio.toLowerCase() !== periodoActual.toLowerCase()) {
+      throw new Error(
+        `El período académico activo es "${periodoActual}". No puedes cargar un registro para "${periodoLimpio}".`
+      );
+    }
+
     const yaExiste = await this.repo.existePeriodo(datos.id_usuario, periodoLimpio);
     if (yaExiste) {
       throw new Error(`Ya tienes un registro para el período "${periodoLimpio}".`);
@@ -33,6 +42,14 @@ export class CrearRegistroForma003 {
       carnet_base64: datos.carnet_base64,
       forma003_base64: datos.forma003_base64,
     });
+  }
+
+  private async obtenerPeriodoActual(): Promise<string | null> {
+    const { rows } = await pool.query(
+      "SELECT valor FROM tabla_grupo_1_parametros WHERE nombre = 'PERIODO_ACADEMICO_ACTUAL'"
+    );
+    const valor = rows[0]?.valor?.trim();
+    return valor ? valor : null;
   }
 
   private validarArchivo(archivo: string, nombre: string) {

@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { useLocation, Link, useNavigate } from "react-router";
 import {
   Home, Calendar, QrCode, History, Plus, BarChart3, Users, Settings,
   Shield, FileText, MessageSquare, ChevronDown, ChevronUp,
-  GraduationCap, MapPin, Bell, LogOut, Rss, KeyRound, User,
+  GraduationCap, MapPin, Bell, LogOut, Rss, Lightbulb, KeyRound, User,
   Wifi, ShieldCheck, ClipboardList, SendHorizonal, Database, SlidersHorizontal, Mail,
 } from "lucide-react";
 import {
@@ -15,7 +15,7 @@ import {
 /* ─── MENÚS POR ROL ─── */
 type MenuItem = { icon: React.ElementType; label: string; path: string };
 const STUDENT_ACTIVITY_ITEMS = [
-  { icon: Rss,      label: "Feed",        path: "/student/feed"   },
+  { icon: Lightbulb, label: "Feed",        path: "/student/feed"   },
   { icon: User,     label: "Perfil",      path: "/student/ficha"  },
   { icon: Calendar, label: "Mis Eventos", path: "/student/events" },
 ];

@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { authService } from '../../../services/auth.service';
+import { eventosService, comentarioService, reaccionPostService, publicacionService, grupo2EventosService } from '../../../services';
+import { pumitasService, type Pumita } from '../../../services/pumitas.service';
+import { useNotificaciones } from '../../../hooks/useNotificaciones';
 
-interface Comment { id: number; author: string; authorInitials: string; text: string; time: string; replyTo?: string; parentId?: number; replyToText?: string; authorPic?: string; }
+interface Comment {
+  id: number; author: string; authorInitials: string; text: string; time: string; replyTo?: string; parentId?: number; replyToText?: string; authorPic?: string;
+  reactions?: { love?: number; like?: number; dislike?: number; haha?: number; wow?: number; sad?: number; angry?: number };
+  userReaction?: "love"|"like"|"dislike"|"haha"|"wow"|"sad"|"angry"|null;
+}
 interface Post {
   id: number; author: string; initials: string; type: "Evento" | "Publicacion";
   scope: string; visibility: string; time: string; title: string; desc: string;
@@ -14,6 +22,11 @@ interface Post {
   savedAt?: string;
   profilePic?: string;
   createdAt?: number;
+  /* Flujo de aprobación: pendiente (Coordinación) -> en_revision_voae -> aprobado_voae -> publicado.
+     "rechazado" puede pasar en el paso de Coordinación o de VOAE. Solo el autor ve sus
+     propias publicaciones que no estén en "publicado". */
+  estado?: "pendiente" | "en_revision_voae" | "aprobado_voae" | "publicado" | "rechazado";
+  motivoRechazo?: string | null;
 }
 
 /* ─── SEGURIDAD Y VALIDACIONES (XSS & SQLi) ─── */
@@ -24,8 +37,7 @@ function sanitizeHTML(text: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#x27;")
-    .replace(/\//g, "&#x2F;");
+    .replace(/'/g, "&#x27;");
 }
 
 function hasSQLi(text: string): boolean {
@@ -128,7 +140,31 @@ const getPostImages = (post: Post): string[] => {
   return ["https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=600&q=80"];
 };
 
-interface Notification { id: number; icon: string; text: string; time: string; unread: boolean; }
+interface Notification { id: string; icon: string; text: string; time: string; unread: boolean; }
+
+const ICONO_POR_TIPO_NOTIFICACION: Record<string, string> = {
+  EVENTO_APROBADO: "📅",
+  EVENTO_RECHAZADO: "📅",
+  NUEVA_INSCRIPCION: "👤",
+  EVENTO_CANCELADO: "📅",
+  CONSTANCIA_EMITIDA: "📄",
+  RECORDATORIO: "🔔",
+  SISTEMA: "⚙️",
+  REACCION_PUMITA: "❤️",
+  SOLICITUD_PUMITA: "👤",
+  EVENTO_DISPONIBLE: "📅",
+};
+
+function tiempoRelativoNotificacion(fechaIso: string): string {
+  const diffMs = Date.now() - new Date(fechaIso).getTime();
+  const minutos = Math.floor(diffMs / 60000);
+  if (minutos < 1) return "Justo ahora";
+  if (minutos < 60) return `Hace ${minutos} min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `Hace ${horas} ${horas === 1 ? "hora" : "horas"}`;
+  const dias = Math.floor(horas / 24);
+  return `Hace ${dias} ${dias === 1 ? "día" : "días"}`;
+}
 type ActiveReaction = "love"|"like"|"dislike"|"angry"|"sad"|"haha"|"wow";
 
 const EMOJIS: { key: ActiveReaction; icon: string; label: string }[] = [
@@ -144,194 +180,17 @@ const EMOJIS: { key: ActiveReaction; icon: string; label: string }[] = [
 const scopeIcons: Record<string,string>  = { Academico:"📖", Cultural:"🎭", Social:"🤝", Deportivo:"⚽" };
 const scopeColors: Record<string,string> = { Academico:"scope-academico", Cultural:"scope-cultural", Social:"scope-social", Deportivo:"scope-deportivo" };
 
-const initialPosts: Post[] = [
-  { id:1, author:"Camel García", initials:"CG", type:"Publicacion", scope:"Academico", visibility:"Público", time:"Hace 5 min",
-    title:"Nuevo Tutorial de Base de Datos", desc:"Recursos y ejemplos prácticos para comprender SQL y modelado relacional.",
-    tags:["#BaseDeDatos","#Tutorial","#SQL"], love:0, like:0, dislike:0, haha:0, wow:0, sad:0, angry:0,
-    comments:[{ id:1, author:"Miguel Torres", authorInitials:"MT", text:"Excelente recurso, me ayudó mucho.", time:"Hace 3 min" }],
-    userReaction:null, saved:false, hidden:false, createdAt: Date.now() - 5 * 60 * 1000,
-    profilePic: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
-    images: ["https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80"] },
-  { id:2, author:"Valeria Rojas", initials:"VR", type:"Evento", scope:"Academico", visibility:"Público", time:"Hace 8 min",
-    title:"Grupo de Estudio C++", desc:"Reunión para resolver ejercicios del curso de Programación II.",
-    tags:["#C++","#Programación","#Estudio"], fecha:"2026-07-10", lugar:"Sala 3 – Ing.", cupos:20, inscrito:false, voaeHoras:2,
-    topInscritos:[{ initials:"MT", name:"Miguel Torres" },{ initials:"LP", name:"Laura Paz" }],
-    love:1, like:3, dislike:0, haha:0, wow:0, sad:0, angry:0,
-    comments:[
-      { id:2, author:"Laura Paz", authorInitials:"LP", text:"¡Cuenten conmigo!", time:"Hace 1 hora" },
-      { id:14, author:"Miguel Torres", authorInitials:"MT", text:"Yo también me apunto.", time:"Hace 30 min" }
-    ],
-    userReaction:null, saved:false, hidden:false, createdAt: Date.now() - 8 * 60 * 1000,
-    profilePic: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80",
-    images: ["https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=600&q=80"] },
-  { id:3, author:"Puma Head", initials:"PH", type:"Publicacion", scope:"Deportivo", visibility:"Público", time:"Hace 4 horas",
-    title:"Resultados del Torneo Interclases", desc:"Resultados del torneo de fútbol. ¡Felicidades al equipo de Sistemas!",
-    tags:["#Fútbol","#Deporte","#Torneo"], love:0, like:0, dislike:0, haha:0, wow:0, sad:0, angry:0,
-    comments:[{ id:3, author:"Valeria Rojas", authorInitials:"VR", text:"Muy emocionante el partido final.", time:"Hace 2 horas" }],
-    userReaction:null, saved:false, hidden:false, createdAt: Date.now() - 240 * 60 * 1000,
-    profilePic: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80",
-    images: ["https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=600&q=80"] },
-  { id:4, author:"Carlos Mendoza", initials:"CM", type:"Evento", scope:"Cultural", visibility:"Público", time:"Hace 15 min",
-    title:"Noche de Talentos UNAH 2026", desc:"Evento artístico estudiantil: música, danza, teatro y arte.",
-    tags:["#Arte","#Cultura","#UNAH"], fecha:"2026-08-15", lugar:"Auditorio Central", cupos:150, inscrito:false, voaeHoras:3,
-    topInscritos:[{ initials:"CG", name:"Camel García" },{ initials:"PH", name:"Puma Head" }],
-    love:20, like:25, dislike:0, haha:3, wow:6, sad:0, angry:0,
-    comments:[
-      { id:15, author:"Camel García", authorInitials:"CG", text:"¡No me lo puedo perder!", time:"Hace 10 horas" },
-      { id:16, author:"Puma Head", authorInitials:"PH", text:"El año pasado estuvo increíble.", time:"Hace 8 horas" },
-      { id:17, author:"Valeria Rojas", authorInitials:"VR", text:"¿A qué hora empieza?", time:"Hace 5 horas" }
-    ], userReaction:null, saved:false, hidden:false, createdAt: Date.now() - 15 * 60 * 1000,
-    profilePic: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80",
-    images: ["https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=600&q=80"] },
-  { id:101, author:"Comunidad Académica UNAH", initials:"CA", type:"Publicacion", scope:"Academico", visibility:"Público", time:"18/06/2026",
-    title:"Guía rápida para preparar una tutoría efectiva", desc:"Consejos breves para organizar materiales, objetivos y tiempos antes de una tutoría.\n\nEsta publicación resume pasos prácticos para planificar sesiones de estudio, definir objetivos claros y registrar avances entre compañeros.",
-    tags:["#Tutoría","#Estudio","#Academico"], love:0, like:0, dislike:0, haha:0, wow:0, sad:0, angry:0,
-    comments:[], userReaction:null, saved:true, savedAt: "18/06/2026 12:00 PM", hidden:false, createdAt: new Date('2026-06-18T12:00:00').getTime(),
-    profilePic: "/puma-icon.png",
-    images: ["https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=600&q=80"] },
-  { id:102, author:"VOAE", initials:"VO", type:"Publicacion", scope:"Social", visibility:"Público", time:"16/06/2026",
-    title:"Convocatoria de voluntariado estudiantil", desc:"Información sobre apoyo estudiantil en actividades culturales y académicas.\n\nLa convocatoria invita a estudiantes a participar en actividades de apoyo institucional, con seguimiento de participación desde la plataforma.",
-    tags:["#Voluntariado","#Apoyo","#UNAH"], love:0, like:0, dislike:0, haha:0, wow:0, sad:0, angry:0,
-    comments:[], userReaction:null, saved:true, savedAt: "16/06/2026 12:00 PM", hidden:false, createdAt: new Date('2026-06-16T12:00:00').getTime(),
-    profilePic: "/puma-icon.png",
-    images: ["https://images.unsplash.com/photo-1528605248644-14dd04022da1?auto=format&fit=crop&w=600&q=80"] },
-  { id:103, author:"Conecta Puma", initials:"CP", type:"Publicacion", scope:"Social", visibility:"Público", time:"12/06/2026",
-    title:"Recursos para mejorar tu perfil universitario", desc:"Recomendaciones para mantener actualizada la información académica y tus conexiones.\n\nIncluye sugerencias sobre biografía, contactos relevantes, documentos académicos y participación en eventos dentro de la red universitaria.",
-    tags:["#Perfil","#Conexiones","#Puma"], love:0, like:0, dislike:0, haha:0, wow:0, sad:0, angry:0,
-    comments:[], userReaction:null, saved:true, savedAt: "12/06/2026 12:00 PM", hidden:false, createdAt: new Date('2026-06-12T12:00:00').getTime(),
-    profilePic: "/puma-icon.png",
-images: ["https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=600&q=80"] },
-  { id:5, author:"VOAE", initials:"VO", type:"Evento", scope:"Social", visibility:"Público", time:"Hace 22 min",
-    title:"Feria de Emprendimiento Universitario", desc:"Muestra de proyectos y emprendimientos de estudiantes de la UNAH.",
-    tags:["#Emprendimiento","#UNAH","#Negocios"], fecha:"2026-07-20", lugar:"Plaza de las Cuatro Culturas", cupos:50, inscrito:false,
-    topInscritos:[], love:2, like:4, dislike:0, haha:0, wow:1, sad:0, angry:0, comments:[], userReaction:null, saved:false, hidden:false,
-    createdAt: Date.now() - 22 * 60 * 1000,
-    profilePic: "/puma-icon.png",
-    images: ["https://images.unsplash.com/photo-1528605248644-14dd04022da1?auto=format&fit=crop&q=80"] },
-  { id:6, author:"Laura Paz", initials:"LP", type:"Publicacion", scope:"Academico", visibility:"Público", time:"Hace 2 días",
-    title:"Taller de Oratoria y Liderazgo", desc:"Consejos clave para hablar en público, modular la voz y persuadir a tu audiencia.",
-    tags:["#Oratoria","#Liderazgo","#Estudiantes"], love:0, like:0, dislike:0, haha:0, wow:0, sad:0, angry:0, comments:[], userReaction:null, saved:false, hidden:false,
-    createdAt: Date.now() - 2.5 * 24 * 60 * 60 * 1000,
-    profilePic: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80",
-    images: ["https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&q=80"] },
-  { id:7, author:"Puma Head", initials:"PH", type:"Evento", scope:"Deportivo", visibility:"Público", time:"Hace 30 min",
-    title:"Torneo de Ajedrez Universitario", desc:"Inscríbete y demuestra tus habilidades en el torneo de ajedrez rápido de este ciclo.",
-    tags:["#Ajedrez","#UNAH","#Deporte"], fecha:"2026-07-15", lugar:"Edificio D1", cupos:32, inscrito:false,
-    topInscritos:[], love:0, like:8, dislike:0, haha:1, wow:0, sad:0, angry:0, comments:[], userReaction:null, saved:false, hidden:false,
-    createdAt: Date.now() - 30 * 60 * 1000,
-    profilePic: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80",
-    images: ["https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&q=80"] },
-  { id:8, author:"Carlos Mendoza", initials:"CM", type:"Evento", scope:"Cultural", visibility:"Público", time:"Hace 38 min",
-    title:"Cine Foro: Realismo Mágico", desc:"Proyección y posterior debate sobre películas destacadas del género.",
-    tags:["#Cine","#Cultura","#UNAH"], fecha:"2026-07-25", lugar:"Sala de Cine del CAC", cupos:60, inscrito:false,
-    topInscritos:[], love:5, like:10, dislike:0, haha:2, wow:0, sad:0, angry:0, comments:[{ id:18, author:"Camel García", authorInitials:"CG", text:"Buena selección de películas este ciclo.", time:"Hace 3 horas" }], userReaction:null, saved:false, hidden:false,
-    createdAt: Date.now() - 38 * 60 * 1000,
-    profilePic: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80",
-    images: ["https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80"] },
-  { id:9, author:"Camel García", initials:"CG", type:"Publicacion", scope:"Academico", visibility:"Público", time:"Hace 5 días",
-    title:"Seminario de Ciberseguridad", desc:"Introducción a las prácticas básicas de seguridad digital y protección de datos.",
-    tags:["#Seguridad","#Tecnología","#Académico"], love:0, like:0, dislike:0, haha:0, wow:0, sad:0, angry:0, comments:[], userReaction:null, saved:false, hidden:false,
-    createdAt: Date.now() - 5 * 24 * 60 * 60 * 1000,
-    profilePic: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
-    images: ["https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=600&q=80"] },
-  { id:10, author:"VOAE", initials:"VO", type:"Evento", scope:"Social", visibility:"Público", time:"Hace 45 min",
-    title:"Campamento de Voluntariado Estudiantil", desc:"Un fin de semana dedicado a la reforestación y apoyo a comunidades aledañas.",
-    tags:["#Voluntariado","#Apoyo","#Comunidad"], fecha:"2026-07-30", lugar:"Reserva La Tigra", cupos:40, inscrito:false,
-    topInscritos:[], love:1, like:1, dislike:0, haha:0, wow:0, sad:0, angry:0, comments:[], userReaction:null, saved:false, hidden:false,
-    createdAt: Date.now() - 45 * 60 * 1000,
-    profilePic: "/puma-icon.png",
-    images: ["https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=600&q=80"] },
-  { id:11, author:"Comunidad Académica UNAH", initials:"CA", type:"Publicacion", scope:"Academico", visibility:"Público", time:"Hace 1 semana",
-    title:"Charla de Becas Internacionales", desc:"Conoce los programas de intercambio estudiantil y becas de posgrado en el extranjero.",
-    tags:["#Becas","#Internacional","#UNAH"], love:0, like:0, dislike:0, haha:0, wow:0, sad:0, angry:0, comments:[], userReaction:null, saved:false, hidden:false,
-    createdAt: Date.now() - 7 * 24 * 60 * 60 * 1000,
-    profilePic: "/puma-icon.png",
-images: ["https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=600&q=80"] },
-  { id:12, author:"Conecta Puma", initials:"CP", type:"Evento", scope:"Cultural", visibility:"Público", time:"Hace 52 min",
-    title:"Concierto de la Orquesta UNAH", desc:"Presentación especial de la Orquesta de Cámara tocando música folclórica hondureña.",
-    tags:["#Concierto","#Música","#Cultura"], fecha:"2026-08-05", lugar:"Plaza de Registro", cupos:200, inscrito:false,
-    topInscritos:[], love:8, like:12, dislike:0, haha:0, wow:3, sad:0, angry:0, comments:[
-      { id:19, author:"Laura Paz", authorInitials:"LP", text:"¡Qué emoción, no me lo pierdo!", time:"Hace 1 día" },
-      { id:20, author:"Valeria Rojas", authorInitials:"VR", text:"¿Es gratis la entrada?", time:"Hace 20 horas" }
-    ], userReaction:null, saved:false, hidden:false,
-    createdAt: Date.now() - 52 * 60 * 1000,
-    profilePic: "/puma-icon.png",
-    images: ["https://images.unsplash.com/photo-1465847899084-d164df4dedc6?auto=format&fit=crop&w=600&q=80"] },
-  { id:13, author:"Laura Paz", initials:"LP", type:"Evento", scope:"Cultural", visibility:"Público", time:"Hace 58 min",
-    title:"Feria del Libro UNAH 2026", desc:"Exposición de libros de autores nacionales y mesas redondas de literatura.",
-    tags:["#Libros","#Feria","#Lectura"], fecha:"2026-08-20", lugar:"Polideportivo UNAH", cupos:300, inscrito:false,
-    topInscritos:[], love:0, like:2, dislike:0, haha:0, wow:0, sad:0, angry:0, comments:[], userReaction:null, saved:false, hidden:false,
-    createdAt: Date.now() - 58 * 60 * 1000,
-    profilePic: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80",
-    images: ["https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&w=600&q=80"] }
-];
+const initialPosts: Post[] = [];
 
-interface PumitaRequest { id: number; name: string; initials: string; }
-
-const initialPumitaRequests: PumitaRequest[] = [
-  { id:1, name:"Diego Fonseca",  initials:"DF" },
-  { id:2, name:"Sofía Bonilla",  initials:"SB" },
-];
-
-/* Simula una llamada de red al backend (latencia variable) para aceptar/rechazar
-   una solicitud de "Pumita". No bloquea el hilo principal: se resuelve vía Promise. */
-function fakePumitaServerRequest(action: "accept"|"reject", id: number): Promise<{ ok: true; action: string; id: number }> {
-  return new Promise((resolve) => {
-    setTimeout(() => resolve({ ok: true, action, id }), 600 + Math.random() * 500);
-  });
-}
+interface PumitaRequest { id_conexion: number; id_usuario: number; nombre: string; }
 
 /* Pools de contenido simulado para "Cargar más" — evita que se repita siempre el mismo evento/publicación */
-const moreEventsPool: Omit<Post,"id"|"createdAt">[] = [
-  { author:"Ángela Reyes", initials:"AR", type:"Evento", scope:"Deportivo", visibility:"Público", time:"Hace 6 min",
-    title:"Torneo Relámpago de Voleibol", desc:"Inscríbete para el torneo relámpago de voleibol entre facultades.",
-    tags:["#Voleibol","#Deporte","#Torneo"], fecha:"2026-07-20", lugar:"Cancha Polideportiva", cupos:30, inscrito:false, voaeHoras:2,
-    topInscritos:[{ initials:"MT", name:"Miguel Torres" }],
-    love:0,like:0,dislike:0,haha:0,wow:0,sad:0,angry:0, comments:[], userReaction:null, saved:false, hidden:false },
-  { author:"Carlos Mendoza", initials:"CM", type:"Evento", scope:"Academico", visibility:"Público", time:"Hace 8 min",
-    title:"Conversatorio: Inteligencia Artificial en la UNAH", desc:"Charla abierta sobre aplicaciones de IA en proyectos estudiantiles.",
-    tags:["#IA","#Tecnología","#Conversatorio"], fecha:"2026-07-22", lugar:"Auditorio Facultad de Ingeniería", cupos:80, inscrito:false, voaeHoras:2,
-    topInscritos:[{ initials:"VR", name:"Valeria Rojas" }],
-    love:0,like:0,dislike:0,haha:0,wow:0,sad:0,angry:0, comments:[], userReaction:null, saved:false, hidden:false },
-  { author:"Valeria Rojas", initials:"VR", type:"Evento", scope:"Cultural", visibility:"Público", time:"Hace 10 min",
-    title:"Cine Foro: Documentales Latinoamericanos", desc:"Proyección y debate sobre documentales de la región.",
-    tags:["#Cine","#Cultura","#Debate"], fecha:"2026-07-25", lugar:"Sala Audiovisual Central", cupos:50, inscrito:false, voaeHoras:1,
-    topInscritos:[{ initials:"CM", name:"Carlos Mendoza" }],
-    love:0,like:0,dislike:0,haha:0,wow:0,sad:0,angry:0, comments:[], userReaction:null, saved:false, hidden:false },
-  { author:"Puma Head", initials:"PH", type:"Evento", scope:"Social", visibility:"Público", time:"Hace 12 min",
-    title:"Feria de Voluntariado VOAE", desc:"Conoce las brigadas y proyectos de voluntariado disponibles este semestre.",
-    tags:["#Voluntariado","#VOAE","#Comunidad"], fecha:"2026-07-28", lugar:"Plaza Central UNAH", cupos:200, inscrito:false, voaeHoras:4,
-    topInscritos:[{ initials:"AR", name:"Ángela Reyes" }],
-    love:0,like:0,dislike:0,haha:0,wow:0,sad:0,angry:0, comments:[], userReaction:null, saved:false, hidden:false },
-];
+const moreEventsPool: Omit<Post,"id"|"createdAt">[] = [];
+const morePublicationsPool: Omit<Post,"id"|"createdAt">[] = [];
 
-const morePublicationsPool: Omit<Post,"id"|"createdAt">[] = [
-  { author:"Miguel Torres", initials:"MT", type:"Publicacion", scope:"Deportivo", visibility:"Público", time:"Hace 3 días",
-    title:"Torneo Interclases – Resumen", desc:"Resumen del torneo deportivo con los mejores momentos.",
-    tags:["#Fútbol","#Deporte"], love:0,like:0,dislike:0,haha:0,wow:0,sad:0,angry:0, comments:[], userReaction:null, saved:false, hidden:false },
-  { author:"Comunidad Académica UNAH", initials:"CA", type:"Publicacion", scope:"Academico", visibility:"Público", time:"Hace 4 días",
-    title:"Nuevos horarios de biblioteca", desc:"La biblioteca central amplía su horario de atención durante el semestre.",
-    tags:["#Biblioteca","#Horarios"], love:0,like:0,dislike:0,haha:0,wow:0,sad:0,angry:0, comments:[], userReaction:null, saved:false, hidden:false },
-  { author:"Conecta Puma", initials:"CP", type:"Publicacion", scope:"Social", visibility:"Público", time:"Hace 5 días",
-    title:"Tips para hacer networking dentro de la universidad", desc:"Consejos prácticos para construir tu red de contactos estudiantil.",
-    tags:["#Networking","#Puma"], love:0,like:0,dislike:0,haha:0,wow:0,sad:0,angry:0, comments:[], userReaction:null, saved:false, hidden:false },
-  { author:"VOAE", initials:"VO", type:"Publicacion", scope:"Social", visibility:"Público", time:"Hace 6 días",
-    title:"Resultados de la campaña de reciclaje", desc:"Gracias a la comunidad estudiantil se recolectaron más de 500 kg de material.",
-    tags:["#Reciclaje","#Sostenibilidad"], love:0,like:0,dislike:0,haha:0,wow:0,sad:0,angry:0, comments:[], userReaction:null, saved:false, hidden:false },
-];
-
-const pumitas = [
-  { name:"Miguel Torres",  initials:"MT", status:"Activo"  },
-  { name:"Valeria Rojas",  initials:"VR", status:"Activo"  },
-  { name:"Ángela Reyes",   initials:"AR", status:"Ausente" },
-  { name:"Carlos Mendoza", initials:"CM", status:"Activo"  },
-];
-
-const initialNotifications: Notification[] = [
-  { id:1, icon:"💬", text:"<strong>Miguel Torres</strong> comentó tu publicación", time:"Hace 5 min",  unread:true },
-  { id:2, icon:"❤️", text:"A <strong>Valeria</strong> le encanta tu tutorial",      time:"Hace 20 min", unread:true },
-  { id:3, icon:"🎓", text:"Nuevo ámbito <strong>Académico</strong> habilitado",     time:"Hace 1 hora", unread:true },
-];
+function getIniciales(nombre: string): string {
+  return nombre.trim().split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase();
+}
 
 const pumitasStories = [
   { name:"Tu estado", initials:"CA", online:true,  hasStory:false, isMe:true,  storyText:""                                  },
@@ -355,6 +214,11 @@ function getReactionIcon(r: ActiveReaction | null): string {
 function getReactionLabel(r: ActiveReaction | null): string {
   if (!r) return "Reaccionar";
   return EMOJIS.find(e => e.key === r)?.label || "Reaccionar";
+}
+
+function getCommentTotalReactions(c: Comment) {
+  const r = c.reactions || {};
+  return (r.love||0)+(r.like||0)+(r.dislike||0)+(r.haha||0)+(r.wow||0)+(r.sad||0)+(r.angry||0);
 }
 
 /* ─── CONFETTI (no bloqueante) ───
@@ -510,6 +374,57 @@ function FloatingReactionBtn({ post, onReact }: {
   );
 }
 
+function CommentReactionBtn({ comment, onReact }: {
+  comment: Comment;
+  onReact: (t: ActiveReaction) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const total = getCommentTotalReactions(comment);
+  const userReaction = comment.userReaction || null;
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+      {open && (
+        <div className="emoji-picker-float" style={{ padding: "6px 8px", gap: "2px", bottom: "26px" }}>
+          {EMOJIS.map(e => (
+            <button
+              key={e.key}
+              className={`emoji-pick-btn${userReaction === e.key ? " picked" : ""}`}
+              onClick={() => { onReact(e.key); setOpen(false); }}
+              title={e.label}
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", padding: "3px 4px" }}
+            >
+              <span className="emoji-icon" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "22px", height: "22px" }}>
+                <img src={e.icon} style={{ width: "100%", height: "100%", objectFit: "contain", mixBlendMode: "multiply" }} alt={e.label} />
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      <button
+        className="comment-reply-btn"
+        onClick={() => setOpen(v => !v)}
+        style={{ display: "inline-flex", alignItems: "center", gap: "4px", color: userReaction ? "#003366" : undefined, fontWeight: userReaction ? 800 : 700 }}
+      >
+        {userReaction ? (
+          <>
+            <img src={getReactionIcon(userReaction)} style={{ width: "13px", height: "13px", objectFit: "contain", mixBlendMode: "multiply" }} alt="reacción" />
+            {getReactionLabel(userReaction)}
+          </>
+        ) : "Me gusta"}
+        {total > 0 && <span className="reaction-count" style={{ marginLeft: "2px", fontSize: "9px", padding: "0 5px" }}>{total}</span>}
+      </button>
+    </div>
+  );
+}
+
 /* ─── DETAIL MODAL — idéntico a imagen de referencia ─── */
 function DetailModal({ post, onClose }: { post: Post; onClose: () => void }) {
   const total = getTotalReactions(post);
@@ -547,6 +462,35 @@ function DetailModal({ post, onClose }: { post: Post; onClose: () => void }) {
       <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
     </svg>
   );
+  const IconCalendar = () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#003366" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+      <line x1="16" y1="2" x2="16" y2="6"/>
+      <line x1="8" y1="2" x2="8" y2="6"/>
+      <line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+  );
+  const IconMapPin = () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#003366" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+      <circle cx="12" cy="10" r="3"/>
+    </svg>
+  );
+  const IconUsers = () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#003366" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+  );
+  const IconStopwatch = () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#003366" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <polyline points="12 6 12 12 16 10"/>
+      <line x1="12" y1="2" x2="12" y2="4"/>
+    </svg>
+  );
 
   const metaItems = [
     { icon: <IconPerson />,  label: "RESPONSABLE", value: post.author.split(" ")[0] },
@@ -556,6 +500,16 @@ function DetailModal({ post, onClose }: { post: Post; onClose: () => void }) {
     { icon: <IconThumb />,   label: "REACCIONES",   value: String(total)              },
     { icon: <IconClock />,   label: "PUBLICADO",    value: post.time                  },
   ];
+
+  if (post.type === "Evento") {
+    const hours = (post.voaeHoras && post.voaeHoras > 0) ? post.voaeHoras : ((post.id % 4) + 1);
+    metaItems.push(
+      { icon: <IconCalendar />, label: "FECHA", value: post.fecha || "No especificada" },
+      { icon: <IconMapPin />,  label: "LUGAR", value: post.lugar || "No especificado" },
+      { icon: <IconUsers />,   label: "CUPOS DISPONIBLES", value: post.cupos !== undefined ? `${post.cupos} disponibles` : "No especificados" },
+      { icon: <IconStopwatch />, label: "HORAS A OBTENER", value: `${hours} horas` }
+    );
+  }
 
   return (
     <div className="detail-modal-overlay" onClick={onClose}>
@@ -587,7 +541,7 @@ function DetailModal({ post, onClose }: { post: Post; onClose: () => void }) {
           </div>
           <div>
             <div className="dmc-post-title" style={{ fontSize: "18px", fontWeight: "900", color: "#003366" }}>{post.title}</div>
-            <div className="dmc-post-meta">
+            <div className="dmc-post-meta" style={{ whiteSpace: "nowrap" }}>
               Publicado por <strong style={{color:"#003366"}}>{post.author}</strong> · {post.time}
             </div>
           </div>
@@ -690,12 +644,14 @@ function EventDrawer({ post, onClose, onInscribir, isLoggedIn }:
 }
 
 /* ─── POST CARD ─── */
-function PostCard({ post, onReact, onToggleComments, onAddComment, onHide, onUnhide, onSave, onShare,
-  onOpenDrawer, onInscribir, onOpenDetail, openCommentIds, isLoggedIn, showOnlySaved, showHiddenOnly }:
+function PostCard({ post, onReact, onToggleComments, onAddComment, onReactComment, onHide, onUnhide, onSave, onShare,
+  onOpenDrawer, onInscribir, onOpenDetail, onEdit, openCommentIds, isLoggedIn, showOnlySaved, showHiddenOnly }:
   { post:Post; onReact:(id:number,t:ActiveReaction)=>void; onToggleComments:(id:number)=>void;
     onAddComment:(id:number,text:string,replyTo?:string,parentId?:number,replyToText?:string)=>void;
+    onReactComment:(postId:number,commentId:number,t:ActiveReaction)=>void;
     onHide:(id:number)=>void; onUnhide:(id:number)=>void; onSave:(id:number)=>void; onShare:(id:number)=>void;
     onOpenDrawer:(p:Post)=>void; onInscribir:(id:number)=>void; onOpenDetail:(p:Post)=>void;
+    onEdit:(p:Post)=>void;
     openCommentIds:Set<number>; isLoggedIn:boolean; showOnlySaved?:boolean; showHiddenOnly?:boolean }) {
 
   const [commentInput, setCommentInput] = useState("");
@@ -704,6 +660,8 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onHide, onUnh
   const isEvento = post.type === "Evento";
   const commentsOpen = openCommentIds.has(post.id);
   const [menuOpen, setMenuOpen] = useState(false);
+  const currentName = authService.getUsuarioGuardado()?.nombre ?? sessionStorage.getItem('unah_display_name') ?? '';
+  const esMiPublicacion = post.author === currentName || post.author === 'Valeria Estrada';
 
   // Cerrar menú al hacer click fuera
   const menuRef = useRef<HTMLDivElement>(null);
@@ -752,6 +710,11 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onHide, onUnh
             >⋮</button>
             {menuOpen && (
               <div className="post-menu open">
+                {esMiPublicacion && (
+                  <div className="post-menu-item" onClick={() => { onEdit(post); setMenuOpen(false); }}>
+                    ✏️ Editar
+                  </div>
+                )}
                 <div className="post-menu-item" onClick={() => { onHide(post.id); setMenuOpen(false); }}>
                   🙈 Ocultar evento
                 </div>
@@ -767,6 +730,26 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onHide, onUnh
         <span className={`post-type-badge ${isEvento?"badge-evento":"badge-publicacion"}`}>
           {isEvento?"📅 Evento":"📢 Publicación"}
         </span>
+        {post.estado === "pendiente" && (
+          <span className="post-type-badge" style={{background:"rgba(255,209,0,0.18)",color:"#8a6d00",marginLeft:6}}>
+            ⏳ Pendiente de revisión (Coordinación)
+          </span>
+        )}
+        {post.estado === "en_revision_voae" && (
+          <span className="post-type-badge" style={{background:"rgba(0,75,135,0.15)",color:"#004B87",marginLeft:6}}>
+            📨 En revisión de VOAE
+          </span>
+        )}
+        {post.estado === "aprobado_voae" && (
+          <span className="post-type-badge" style={{background:"rgba(34,197,94,0.15)",color:"#15803d",marginLeft:6}}>
+            ✅ Aprobada por VOAE — esperando publicación
+          </span>
+        )}
+        {post.estado === "rechazado" && (
+          <span className="post-type-badge" style={{background:"rgba(239,68,68,0.12)",color:"#b91c1c",marginLeft:6}} title={post.motivoRechazo || undefined}>
+            ✖️ Solicitud no aprobada
+          </span>
+        )}
         <div className="post-title" style={{ cursor: "pointer", color: "var(--white)" }} onClick={() => onOpenDetail(post)}>
           {post.title}
         </div>
@@ -786,16 +769,7 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onHide, onUnh
           </div>
         )}
 
-        {isEvento && (
-          <div style={{ margin:"14px 0", padding:"16px", background:"rgba(0,51,102,0.03)", borderRadius:"var(--radius-sm)", border:"1px solid var(--navy-border)", display:"flex", flexDirection:"column", gap:"10px" }}>
-            {post.fecha && <div style={{ fontSize:13, color:"var(--text-primary)" }}>📅 <strong>Fecha:</strong> {post.fecha}</div>}
-            {post.lugar && <div style={{ fontSize:13, color:"var(--text-primary)" }}>📍 <strong>Lugar:</strong> {post.lugar}</div>}
-            {post.cupos !== undefined && <div style={{ fontSize:13, color:"var(--gray-mid)" }}>👥 <strong>Cupos:</strong> {post.cupos} disponibles</div>}
-            {!!post.voaeHoras && (
-              <span className="voae-badge" title={`${post.voaeHoras} horas VOAE`}>Artículo 140</span>
-            )}
-          </div>
-        )}
+
 
         <div className="post-tags">{post.tags.map(t=><span key={t} className="tag">{t}</span>)}</div>
 
@@ -825,7 +799,7 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onHide, onUnh
             
 
             <button className={`btn-evento-icon${post.saved?" saved":""}`} onClick={()=>onSave(post.id)} title={post.saved?"Guardado":"Guardar"}>
-              🔖
+              🔖{post.saved && <span style={{color:"#B8860B", fontWeight:700, fontSize:12, marginLeft:4}}>Guardado</span>}
             </button>
 
             <button className="btn-evento-action" onClick={() => onShare(post.id)} title="Copiar enlace">
@@ -836,7 +810,7 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onHide, onUnh
             <button
               className="btn-evento-whatsapp"
               onClick={() => {
-                const text = `¡Mira esta publicación en el muro de UNAH!: "${post.title}" - https://mipumaapp.unah.edu.hn/post/${post.id}`;
+                const text = `¡Mira esta publicación en el muro de UNAH!: "${post.title}" - ${window.location.origin}/post/${post.id}`;
                 window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
               }}
               title="Compartir por WhatsApp"
@@ -896,7 +870,10 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onHide, onUnh
                         <div className="comment-text">{parent.text}</div>
                         <div className="comment-time">{parent.time}</div>
                       </div>
-                      <button className="comment-reply-btn" onClick={() => setReplyingTo({ author: parent.author, parentId: parent.id, text: parent.text })}>Responder</button>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <CommentReactionBtn comment={parent} onReact={(t) => onReactComment(post.id, parent.id, t)} />
+                        <button className="comment-reply-btn" onClick={() => setReplyingTo({ author: parent.author, parentId: parent.id, text: parent.text })}>Responder</button>
+                      </div>
                     </div>
                   </div>
 
@@ -936,7 +913,10 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onHide, onUnh
                           <div className="comment-text">{reply.text}</div>
                           <div className="comment-time">{reply.time}</div>
                         </div>
-                        <button className="comment-reply-btn" onClick={() => setReplyingTo({ author: reply.author, parentId: parent.id, text: reply.text })}>Responder</button>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <CommentReactionBtn comment={reply} onReact={(t) => onReactComment(post.id, reply.id, t)} />
+                          <button className="comment-reply-btn" onClick={() => setReplyingTo({ author: reply.author, parentId: parent.id, text: reply.text })}>Responder</button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1160,7 +1140,11 @@ function NewPostModal({ onClose, onCreate }: {
     <div style={{display:"flex",position:"fixed",inset:0,background:"rgba(0,51,102,0.4)",zIndex:200,alignItems:"center",justifyContent:"center"}} onClick={onClose}>
       <div style={{background:"var(--navy-mid)",borderRadius:"var(--radius)",padding:28,width:500,maxWidth:"95vw",
         boxShadow:"0 16px 48px rgba(0,0,0,0.15)",border:"1px solid var(--navy-border)",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
-        <h2 style={{fontSize:18,fontWeight:800,color:"var(--white)",marginBottom:18}}>+ Nueva Publicación</h2>
+        <h2 style={{fontSize:18,fontWeight:800,color:"var(--white)",marginBottom:6}}>+ Nueva Publicación</h2>
+        <div style={{fontSize:12,color:"var(--text-secondary)",marginBottom:16,lineHeight:1.5}}>
+          📨 Tu publicación no se muestra de inmediato: se envía como <b>solicitud a Coordinación</b>, quien la remite a <b>VOAE</b> para su autorización.
+          Una vez aprobada, Coordinación la publica y te llega una notificación.
+        </div>
         
         <label style={lbl}>TÍTULO</label>
         <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: 12 }}>
@@ -1318,7 +1302,7 @@ function NewPostModal({ onClose, onCreate }: {
         <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
           <button onClick={onClose} style={{background:"none",border:"1.5px solid var(--navy-border)",borderRadius:"var(--radius-sm)",
             padding:"9px 18px",fontSize:13,fontWeight:600,color:"var(--text-secondary)",cursor:"pointer"}}>Cancelar</button>
-          <button className="btn-primary" onClick={create}>Publicar</button>
+          <button className="btn-primary" onClick={create}>Enviar solicitud</button>
         </div>
       </div>
     </div>
@@ -1329,9 +1313,7 @@ function NewPostModal({ onClose, onCreate }: {
 
 
 /* ─── MAIN FEED ─── */
-
 export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolean }) {
-
   const [posts, setPosts] = useState<Post[]>(() => {
     const saved = localStorage.getItem("unah_posts");
     let loadedPosts: Post[] = saved ? JSON.parse(saved) : [...initialPosts];
@@ -1396,29 +1378,49 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
     // Migración de una sola vez: refresca reacciones/comentarios/voaeHoras de demo
     // en publicaciones/eventos "de fábrica" sin borrar interacciones reales del usuario
     // en posts ya modificados por él (solo aplica una vez por versión de datos semilla).
-    const SEED_VERSION = "4";
+    const SEED_VERSION = "6";
     if (localStorage.getItem("unah_seed_version") !== SEED_VERSION) {
-      loadedPosts = loadedPosts.map(p => {
-        const initial = initialPosts.find(ip => ip.id === p.id);
-        if (!initial) return p;
-        return {
-          ...p,
-          love: initial.love, like: initial.like, dislike: initial.dislike,
-          haha: initial.haha, wow: initial.wow, sad: initial.sad, angry: initial.angry,
-          comments: initial.comments, voaeHoras: initial.voaeHoras,
-          time: initial.time, createdAt: initial.createdAt,
-        };
-      });
+      localStorage.removeItem("unah_posts");
+      loadedPosts = [];
       localStorage.setItem("unah_seed_version", SEED_VERSION);
+    }
+
+    // Sync with unah_events (AvailableEvents)
+    const savedEvents = localStorage.getItem("unah_events");
+    if (savedEvents) {
+      try {
+        const eventsList = JSON.parse(savedEvents);
+        loadedPosts = loadedPosts.map(p => {
+          if (p.type === "Evento") {
+            const match = eventsList.find((ev: any) => ev.TITULO_EVENTO.trim().toLowerCase() === p.title.trim().toLowerCase());
+            if (match) {
+              return {
+                ...p,
+                inscrito: match.INSCRITO,
+                cupos: match.CUPOS_DISPONIBLES
+              };
+            }
+          }
+          return p;
+        });
+      } catch(e) {}
     }
 
     return dedupePosts(loadedPosts);
   });
 
-  const [notifications, setNotifications] = useState<Notification[]>(() => {
-    const saved = localStorage.getItem("unah_notifications");
-    return saved ? JSON.parse(saved) : initialNotifications;
-  });
+  const { notificaciones: notificacionesReales, marcarLeida: marcarNotificacionLeidaAPI, marcarTodasLeidas } = useNotificaciones();
+
+  const notifications: Notification[] = notificacionesReales.map((n) => ({
+    id: n.id,
+    icon: ICONO_POR_TIPO_NOTIFICACION[n.tipo] ?? "🔔",
+    text: n.mensaje,
+    time: tiempoRelativoNotificacion(n.created_at),
+    unread: !n.leida,
+  }));
+
+  const [mostrarHistorialNotificaciones, setMostrarHistorialNotificaciones] = useState(false);
+  const [busquedaNotificaciones, setBusquedaNotificaciones] = useState("");
 
   const [activeFilter,setActiveFilter]=useState("Todas");
   const [sortValue,setSortValue]=useState("reciente");
@@ -1430,27 +1432,242 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
   const [searchQuery,setSearchQuery]=useState("");
   const [drawerPost,setDrawerPost]=useState<Post|null>(null);
   const [detailPost,setDetailPost]=useState<Post|null>(null);   // modal detalle
+  const [editPost, setEditPost] = useState<Post | null>(null);
+  const [editDesc, setEditDesc] = useState("");
+  const [editTags, setEditTags] = useState("");
   const [isLoggedIn]=useState(true);
   const [showHiddenOnly,setShowHiddenOnly]=useState(false);
   const toastTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
 
-  // ── Pumitas Conectados: solicitudes pendientes (aceptar/rechazar) ──
-  const [connectedPumitas, setConnectedPumitas] = useState(pumitas);
-  const [pumitaRequests, setPumitaRequests] = useState<PumitaRequest[]>(initialPumitaRequests);
+  // ── Pumitas Conectados: datos reales desde el backend ──
+  const [connectedPumitas, setConnectedPumitas] = useState<Pumita[]>([]);
+  const [pumitaRequests, setPumitaRequests] = useState<PumitaRequest[]>([]);
   // ids de solicitudes con una respuesta al servidor en curso (para deshabilitar solo esos botones)
   const [pumitaRequestLoading, setPumitaRequestLoading] = useState<Set<number>>(new Set());
   // controla la animación de celebración (confeti) — overlay no bloqueante
   const [confettiKey, setConfettiKey] = useState<number | null>(null);
   const confettiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const cargarPumitasReales = async () => {
+    try {
+      const [conexiones, pendientes] = await Promise.all([
+        pumitasService.listarConexiones(),
+        pumitasService.listarPendientes(),
+      ]);
+      setConnectedPumitas(conexiones);
+      setPumitaRequests(
+        pendientes.map((p) => ({ id_conexion: p.id_conexion!, id_usuario: p.id_usuario, nombre: p.nombre }))
+      );
+    } catch (error) {
+      console.error('No se pudieron cargar los Pumitas conectados', error);
+    }
+  };
+
+  useEffect(() => {
+    cargarPumitasReales();
+  }, []);
+
+  // Cargar eventos, publicaciones, comentarios y reacciones reales de la base de datos
+  useEffect(() => {
+    const fetchBackendData = async () => {
+      try {
+        const [dbEvents, dbComments, dbReactions, dbPubs, myEvents] = await Promise.all([
+          eventosService.getAll().catch(() => []),
+          comentarioService.getComentarios().catch(() => []),
+          reaccionPostService.getReacciones().catch(() => ({ counts: [], userReactions: [] })),
+          publicacionService.getPublicaciones().catch(() => []),
+          grupo2EventosService.obtenerMisEventos().catch(() => [])
+        ]);
+
+        const mapCategoryToScope = (cat: string): string => {
+          const lower = cat.toLowerCase();
+          if (lower === 'academico') return 'Academico';
+          if (lower === 'cultural') return 'Cultural';
+          if (lower === 'deportivo') return 'Deportivo';
+          if (lower === 'social') return 'Social';
+          return 'Academico';
+        };
+
+        setPosts(prevPosts => {
+          const syncedPosts: Post[] = [];
+
+          // 1. Mapear publicaciones reales
+          if (Array.isArray(dbPubs)) {
+            dbPubs.forEach(pub => {
+              const pubId = Number(pub.id);
+              const prev = prevPosts.find(p => p.id === pubId && p.type === "Publicacion");
+              
+              syncedPosts.push({
+                ...pub,
+                saved: prev ? prev.saved : false,
+                hidden: prev ? prev.hidden : false,
+                userReaction: prev ? prev.userReaction : pub.userReaction,
+              });
+            });
+          }
+
+          // 2. Mapear eventos reales (solo aprobados o activos)
+          if (Array.isArray(dbEvents)) {
+            const approvedEvents = dbEvents.filter(evt => {
+              const est = evt.estado as string;
+              return est === 'PROGRAMADO' || 
+                     est === 'EN_CURSO' || 
+                     est === 'EN_CURSO_SALIDA' || 
+                     est === 'FINALIZADO';
+            });
+            approvedEvents.forEach(evt => {
+              const dbId = 10000 + Number(evt.id);
+              const prev = prevPosts.find(p => p.id === dbId && p.type === "Evento");
+              const mappedScope = mapCategoryToScope(evt.categoria);
+              const isUserInscrito = Array.isArray(myEvents) && myEvents.some(me => Number(me.EVENTO_ID) === Number(evt.id) && me.INSCRITO === true);
+              const inscrito = isUserInscrito;
+
+              const mappedPost: Post = {
+                id: dbId,
+                author: "Organizador UNAH",
+                initials: "OU",
+                type: "Evento",
+                scope: mappedScope,
+                visibility: "Público",
+                time: evt.created_at ? new Date(evt.created_at).toLocaleDateString() : "Reciente",
+                title: evt.titulo,
+                desc: evt.descripcion,
+                tags: ["#UNAH", `#${mappedScope}`],
+                love: 0,
+                like: 0,
+                dislike: 0,
+                haha: 0,
+                wow: 0,
+                sad: 0,
+                angry: 0,
+                comments: [],
+                userReaction: null,
+                saved: false,
+                hidden: false,
+                fecha: evt.fecha_inicio ? evt.fecha_inicio.split('T')[0] : "2026-07-20",
+                lugar: evt.ubicacion || evt.centro_regional || "Ciudad Universitaria",
+                cupos: evt.cupo_maximo,
+                inscrito: false,
+                voaeHoras: evt.duracion_horas,
+                topInscritos: [],
+                images: evt.portada_url ? [evt.portada_url] : [],
+                createdAt: evt.created_at ? new Date(evt.created_at).getTime() : Date.now(),
+                profilePic: "/puma-icon.png"
+              };
+
+              syncedPosts.push({
+                ...mappedPost,
+                saved: prev ? prev.saved : false,
+                hidden: prev ? prev.hidden : false,
+                inscrito: inscrito,
+                cupos: inscrito ? Math.max(0, mappedPost.cupos! - 1) : mappedPost.cupos,
+                userReaction: prev ? prev.userReaction : null
+              });
+            });
+          }
+
+          // 3. Integrar comentarios de la base de datos
+          let finalPosts = syncedPosts.map(post => {
+            const postComments = dbComments.filter(c => {
+              if (post.type === "Evento") {
+                const dbEventId = Number(post.id) - 10000;
+                return Number(c.id_evento) === dbEventId;
+              } else {
+                return Number(c.id_publicacion) === Number(post.id);
+              }
+            }).map(c => ({
+              id: c.id,
+              author: c.author,
+              authorInitials: c.authorInitials,
+              text: c.text,
+              time: c.time,
+              replyTo: c.replyTo,
+              parentId: c.parentId,
+              replyToText: c.replyToText,
+              authorPic: c.authorPic
+            }));
+
+            const prev = prevPosts.find(p => p.id === post.id && p.type === post.type);
+            const mergedComments = prev ? [...prev.comments] : [];
+            postComments.forEach(pc => {
+              const exists = mergedComments.some(mc => mc.id === pc.id || (mc.text === pc.text && mc.author === pc.author));
+              if (!exists) {
+                mergedComments.push(pc);
+              }
+            });
+
+            return { ...post, comments: mergedComments };
+          });
+
+          // 4. Integrar reacciones de la base de datos
+          if (dbReactions && Array.isArray(dbReactions.counts)) {
+            finalPosts = finalPosts.map(post => {
+              const isDbEvent = post.type === "Evento" && Number(post.id) > 10000;
+              const isDbPub = post.type === "Publicacion";
+              const dbEventId = isDbEvent ? Number(post.id) - 10000 : null;
+              const dbPubId = isDbPub ? Number(post.id) : null;
+
+              const postReactions = dbReactions.counts.filter(r => {
+                if (isDbEvent) return Number(r.id_evento) === dbEventId;
+                if (isDbPub) return Number(r.id_publicacion) === dbPubId;
+                return false;
+              });
+
+              const userReactObj = dbReactions.userReactions.find(r => {
+                if (isDbEvent) return Number(r.id_evento) === dbEventId;
+                if (isDbPub) return Number(r.id_publicacion) === dbPubId;
+                return false;
+              });
+
+              if (postReactions.length > 0 || userReactObj) {
+                const reactionCounts = {
+                  love: 0,
+                  like: 0,
+                  dislike: 0,
+                  haha: 0,
+                  angry: 0,
+                  wow: 0,
+                  sad: 0
+                };
+
+                postReactions.forEach(pr => {
+                  const key = pr.tipo as keyof typeof reactionCounts;
+                  if (reactionCounts[key] !== undefined) {
+                    reactionCounts[key] = pr.count;
+                  }
+                });
+
+                const prev = prevPosts.find(p => p.id === post.id && p.type === post.type);
+                const userReaction = prev && prev.userReaction !== undefined ? prev.userReaction : (userReactObj?.tipo || null) as any;
+
+                return {
+                  ...post,
+                  ...reactionCounts,
+                  userReaction
+                };
+              }
+
+              return post;
+            });
+          }
+
+          // Ordenar por fecha de creación (de más reciente a más antiguo)
+          finalPosts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+          return dedupePosts(finalPosts);
+        });
+      } catch (error) {
+        console.error("Error al cargar datos del backend:", error);
+      }
+    };
+
+    fetchBackendData();
+  }, []);
+
   // Sync to localStorage
   useEffect(() => {
     localStorage.setItem("unah_posts", JSON.stringify(posts));
   }, [posts]);
-
-  useEffect(() => {
-    localStorage.setItem("unah_notifications", JSON.stringify(notifications));
-  }, [notifications]);
 
   const [hiddenPostIds, setHiddenPostIds] = useState<Set<number>>(() => {
     try {
@@ -1491,31 +1708,29 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
     confettiTimer.current = setTimeout(() => setConfettiKey(null), 1600);
   };
 
-  // Acepta/rechaza una solicitud de "Pumita". La llamada al servidor es asíncrona
-  // (fakePumitaServerRequest simula fetch real); mientras está en vuelo solo se
-  // deshabilita esa tarjeta puntual (pumitaRequestLoading), nunca toda la pantalla,
-  // y no hay recarga ni navegación bloqueada en ningún momento.
+  // Acepta/rechaza una solicitud de "Pumita" real contra el backend. Mientras está
+  // en vuelo solo se deshabilita esa tarjeta puntual (pumitaRequestLoading), nunca
+  // toda la pantalla, y no hay recarga ni navegación bloqueada en ningún momento.
   const handlePumitaRequest = async (req: PumitaRequest, action: "accept"|"reject") => {
-    if (pumitaRequestLoading.has(req.id)) return; // evita doble envío
-    setPumitaRequestLoading(prev => new Set(prev).add(req.id));
+    if (pumitaRequestLoading.has(req.id_conexion)) return; // evita doble envío
+    setPumitaRequestLoading(prev => new Set(prev).add(req.id_conexion));
     try {
-      const res = await fakePumitaServerRequest(action, req.id);
-      if (res.ok) {
-        setPumitaRequests(prev => prev.filter(r => r.id !== req.id));
-        if (action === "accept") {
-          setConnectedPumitas(prev => [...prev, { name: req.name, initials: req.initials, status: "Activo" }]);
-          showToast(`🎉 Ahora eres Pumita de ${req.name}`);
-          fireConfetti();
-        } else {
-          showToast(`Solicitud de ${req.name} rechazada`);
-        }
+      if (action === "accept") {
+        await pumitasService.aceptar(req.id_conexion);
+        showToast(`🎉 Ahora eres Pumita de ${req.nombre}`);
+        fireConfetti();
+      } else {
+        await pumitasService.eliminar(req.id_conexion);
+        showToast(`Solicitud de ${req.nombre} rechazada`);
       }
+      setPumitaRequests(prev => prev.filter(r => r.id_conexion !== req.id_conexion));
+      await cargarPumitasReales();
     } catch {
       showToast("No se pudo procesar la solicitud. Intenta de nuevo.");
     } finally {
       setPumitaRequestLoading(prev => {
         const next = new Set(prev);
-        next.delete(req.id);
+        next.delete(req.id_conexion);
         return next;
       });
     }
@@ -1533,6 +1748,11 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
     let f = showHiddenOnly
       ? posts.filter(p=>p.hidden || hiddenPostIds.has(Number(p.id)))
       : posts.filter(p=>!p.hidden && !hiddenPostIds.has(Number(p.id)));
+
+    // Una publicación que no esté "publicado" (pendiente/en revisión/rechazada) solo la
+    // debe ver su propio autor en su feed; el resto de estudiantes no la ve todavía.
+    const nombreActual = authService.getUsuarioGuardado()?.nombre ?? '';
+    f = f.filter(p => p.type !== "Publicacion" || !p.estado || p.estado === "publicado" || p.author === nombreActual);
     if (showOnlySaved) {
       f = f.filter(p => p.saved);
     } else if (!showHiddenOnly) {
@@ -1541,7 +1761,7 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
     }
     if(searchQuery.trim()){
       const q=searchQuery.toLowerCase();
-      f=f.filter(p=>p.title.toLowerCase().includes(q)||p.desc.toLowerCase().includes(q)||p.author.toLowerCase().includes(q)||p.tags.some(t=>t.toLowerCase().includes(q)));
+      f=f.filter(p=>(p.title||'').toLowerCase().includes(q)||(p.desc||'').toLowerCase().includes(q)||(p.author||'').toLowerCase().includes(q)||(p.tags||[]).some(t=>(t||'').toLowerCase().includes(q)));
     }
     if(sortValue==="popular")   f=[...f].sort((a,b)=>getTotalReactions(b)-getTotalReactions(a));
     else if(sortValue==="comentado") f=[...f].sort((a,b)=>b.comments.length-a.comments.length);
@@ -1555,23 +1775,72 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
     return f;
   };
 
-  const handleReact=(id:number,type:ActiveReaction)=>{
-    setPosts(prev=>prev.map(p=>{
-      if(p.id!==id) return p;
-      const u={...p}; const was=p.userReaction===type;
-      if(was){(u as any)[type]--;u.userReaction=null;}
-      else{
-        if(p.userReaction)(u as any)[p.userReaction]--;
-        (u as any)[type]++;u.userReaction=type;
+  const handleReact = async (id: number, type: ActiveReaction) => {
+    const post = posts.find(p => p.id === id);
+    if (!post) return;
+
+    const was = post.userReaction === type;
+    const nextReaction = was ? null : type;
+
+    // Actualización local rápida
+    setPosts(prev => prev.map(p => {
+      if (p.id !== id) return p;
+      const u = { ...p };
+      if (was) {
+        (u as any)[type]--;
+        u.userReaction = null;
+      } else {
+        if (p.userReaction) (u as any)[p.userReaction]--;
+        (u as any)[type]++;
+        u.userReaction = type;
       }
       return u;
     }));
-    const e=EMOJIS.find(e=>e.key===type); showToast(`Reaccionaste: ${e?.label}`);
+
+    const e = EMOJIS.find(emoji => emoji.key === type);
+    if (!was && e) {
+      showToast(`Reaccionaste: ${e.label}`);
+    }
+
+    try {
+      const payload: any = {
+        tipo: nextReaction
+      };
+
+      if (post.type === "Evento") {
+        payload.id_evento = id - 10000;
+      } else {
+        payload.id_publicacion = id;
+      }
+
+      await reaccionPostService.guardarReaccion(payload);
+    } catch (err) {
+      console.error("Error al guardar reacción:", err);
+      // Revertir localmente si falla
+      setPosts(prev => prev.map(p => {
+        if (p.id !== id) return p;
+        const u = { ...p };
+        if (was) {
+          (u as any)[type]++;
+          u.userReaction = type;
+        } else {
+          (u as any)[type]--;
+          if (post.userReaction) {
+            (u as any)[post.userReaction]++;
+            u.userReaction = post.userReaction;
+          } else {
+            u.userReaction = null;
+          }
+        }
+        return u;
+      }));
+      showToast("Error al guardar reacción en servidor");
+    }
   };
 
   const handleToggleComments=(id:number)=>setOpenCommentIds(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
 
-  const handleAddComment=(id:number,text:string,replyTo?:string,parentId?:number,replyToText?:string)=>{
+  const handleAddComment = async (id: number, text: string, replyTo?: string, parentId?: number, replyToText?: string) => {
     // Validaciones de Seguridad para comentarios
     if (hasSQLi(text)) {
       alert("🚨 ¡Alerta de Seguridad! Se detectó un patrón de inyección SQL (SQLi) no permitido. El comentario ha sido bloqueado.");
@@ -1583,8 +1852,96 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
     }
     const cleanText = sanitizeHTML(text);
 
-    setPosts(prev=>prev.map(p=>p.id!==id?p:{...p,comments:[...p.comments,{id:Date.now(),author:"Yo",authorInitials:"YO",text:cleanText,time:"Ahora mismo",replyTo,parentId,replyToText,authorPic:"https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"}]}));
-    showToast(replyTo?`↩ Respondiste a ${replyTo}`:"💬 Comentario agregado");
+    const post = posts.find(p => p.id === id);
+    if (!post) return;
+
+    try {
+      const payload: any = {
+        contenido: cleanText,
+        parent_id: parentId,
+        reply_to: replyTo,
+        reply_to_text: replyToText
+      };
+
+      if (post.type === "Evento") {
+        payload.id_evento = id - 10000;
+      } else {
+        payload.id_publicacion = id;
+      }
+
+      // Guardar en la base de datos
+      const savedComment = await comentarioService.crearComentario(payload);
+
+      setPosts(prev => prev.map(p => {
+        if (p.id !== id) return p;
+        const newComments = [...p.comments, {
+          id: savedComment.id,
+          author: savedComment.author,
+          authorInitials: savedComment.authorInitials,
+          text: savedComment.text,
+          time: savedComment.time,
+          replyTo: savedComment.replyTo,
+          parentId: savedComment.parentId,
+          replyToText: savedComment.replyToText,
+          authorPic: savedComment.authorPic || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+        }];
+        return { ...p, comments: newComments };
+      }));
+
+      showToast(replyTo ? `↩ Respondiste a ${replyTo}` : "💬 Comentario agregado");
+    } catch (err: any) {
+      console.error("Error al guardar comentario:", err);
+      // Fallback local por robustez en caso de error
+      setPosts(prev => prev.map(p => p.id !== id ? p : {
+        ...p,
+        comments: [...p.comments, {
+          id: Date.now(),
+          author: "Yo",
+          authorInitials: "YO",
+          text: cleanText,
+          time: "Ahora mismo",
+          replyTo,
+          parentId,
+          replyToText,
+          authorPic: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+        }]
+      }));
+      showToast("💬 Comentario agregado localmente");
+    }
+  };
+
+  const handleReactComment = (postId: number, commentId: number, type: ActiveReaction) => {
+    let nextReaction: ActiveReaction | null = null;
+    setPosts(prev => prev.map(p => {
+      if (p.id !== postId) return p;
+      const newComments = p.comments.map(c => {
+        if (c.id !== commentId) return c;
+        const was = c.userReaction === type;
+        nextReaction = was ? null : type;
+        const reactions = { ...(c.reactions || {}) };
+        if (was) {
+          reactions[type] = Math.max((reactions[type] || 0) - 1, 0);
+        } else {
+          if (c.userReaction) reactions[c.userReaction] = Math.max((reactions[c.userReaction] || 0) - 1, 0);
+          reactions[type] = (reactions[type] || 0) + 1;
+        }
+        return { ...c, reactions, userReaction: nextReaction };
+      });
+      return { ...p, comments: newComments };
+    }));
+
+    // Intenta persistir en el servidor si el servicio de comentarios ya soporta reacciones.
+    // Se hace de forma silenciosa: si el endpoint aún no existe, la reacción queda guardada localmente.
+    (async () => {
+      try {
+        const svc = comentarioService as any;
+        if (typeof svc.reaccionarComentario === "function") {
+          await svc.reaccionarComentario({ id_comentario: commentId, tipo: nextReaction });
+        }
+      } catch (err) {
+        console.error("Error al guardar reacción de comentario:", err);
+      }
+    })();
   };
 
   const handleHide=(id:number)=>{
@@ -1596,6 +1953,29 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
       return next;
     });
     showToast("🚫 Publicación ocultada");
+  };
+
+  const handleEditPost = (p: Post) => {
+    setEditDesc(p.desc);
+    setEditTags((p.tags || []).join(', '));
+    setEditPost(p);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editPost) return;
+    const updated = {
+      ...editPost,
+      desc: editDesc,
+      tags: editTags.split(',').map(t => t.trim()).filter(Boolean),
+    };
+    setPosts(prev => prev.map(p => p.id === editPost.id ? updated : p));
+    const saved = localStorage.getItem("unah_posts");
+    if (saved) {
+      const list = JSON.parse(saved).map((p: any) => p.id === editPost.id ? updated : p);
+      localStorage.setItem("unah_posts", JSON.stringify(list));
+    }
+    setEditPost(null);
+    showToast("✅ Publicación actualizada");
   };
 
   const handleUnhide=(id:number)=>{
@@ -1635,20 +2015,106 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
   };
 
   const handleShare=(id:number)=>{
-    const url=`https://mipumaapp.unah.edu.hn/post/${id}`;
+    const url=`${window.location.origin}/post/${id}`;
     navigator.clipboard.writeText(url)
       .then(() => showToast("🔗 Enlace copiado al portapapeles"))
       .catch(() => showToast("❌ Error al copiar enlace"));
   };
 
-  const handleInscribir=(id:number)=>{
-    setPosts(prev=>prev.map(p=>{
-      if(p.id!==id) return p;
-      const was=p.inscrito;
-      const ins=was?(p.topInscritos||[]).filter(u=>u.name!=="Yo"):[{initials:"YO",name:"Yo"},...(p.topInscritos||[])];
-      return {...p,inscrito:!was,topInscritos:ins};
+  const handleInscribir = async (id: number) => {
+    const post = posts.find(x => x.id === id);
+    if (!post) return;
+
+    const was = post.inscrito;
+    const nextInscritoState = !was;
+    const isDbEvent = id > 10000;
+    const dbEventId = isDbEvent ? id - 10000 : null;
+
+    // Actualización local rápida
+    setPosts(prev => prev.map(p => {
+      if (p.id !== id) return p;
+      const ins = was 
+        ? (p.topInscritos || []).filter(u => u.name !== "Yo") 
+        : [{ initials: "YO", name: "Yo" }, ...(p.topInscritos || [])];
+      const nextCupos = p.cupos !== undefined 
+        ? (was ? p.cupos + 1 : Math.max(0, p.cupos - 1)) 
+        : undefined;
+      return { ...p, inscrito: nextInscritoState, topInscritos: ins, cupos: nextCupos };
     }));
-    const p=posts.find(x=>x.id===id); showToast(p?.inscrito?"❌ Desinscrito":"✅ ¡Inscrito al evento!");
+
+    showToast(nextInscritoState ? "✅ ¡Inscrito al evento!" : "❌ Desinscrito");
+
+    try {
+      if (dbEventId) {
+        if (was) {
+          await grupo2EventosService.cancelar(dbEventId);
+        } else {
+          await grupo2EventosService.inscribir(dbEventId);
+        }
+      }
+
+      // Sincronización secundaria opcional con unah_events en localStorage
+      const savedEvents = localStorage.getItem("unah_events");
+      if (savedEvents && post.title) {
+        try {
+          const eventsList = JSON.parse(savedEvents);
+          const exists = eventsList.some((ev: any) => ev.TITULO_EVENTO.trim().toLowerCase() === post.title.trim().toLowerCase());
+          
+          let updatedEvents;
+          if (exists) {
+            updatedEvents = eventsList.map((ev: any) => {
+              if (ev.TITULO_EVENTO.trim().toLowerCase() === post.title.trim().toLowerCase()) {
+                return {
+                  ...ev,
+                  INSCRITO: nextInscritoState,
+                  CUPOS_DISPONIBLES: nextInscritoState 
+                    ? Math.max(0, ev.CUPOS_DISPONIBLES - 1) 
+                    : ev.CUPOS_DISPONIBLES + 1,
+                  ESTADO_ACTIVIDAD: nextInscritoState ? 'Programado' : ''
+                };
+              }
+              return ev;
+            });
+          } else {
+            eventsList.push({
+              EVENTO_ID: dbEventId || (id + 1000),
+              TITULO_EVENTO: post.title,
+              DESCRIPCION: post.desc,
+              ESTADO_ACTIVIDAD: nextInscritoState ? 'Programado' : '',
+              INSCRITO: nextInscritoState,
+              CUPOS_DISPONIBLES: nextInscritoState 
+                ? Math.max(0, (post.cupos !== undefined ? post.cupos - 1 : 49)) 
+                : (post.cupos !== undefined ? post.cupos + 1 : 50),
+              FECHA: post.fecha || '2026-07-20',
+              INSTRUCTOR: post.author || 'Instructor Invitado',
+              HORARIO: '10:00 AM - 12:00 PM',
+              UBICACION: post.lugar || 'Ciudad Universitaria',
+              CLASIFICACION: post.scope || 'General',
+              HORAS_VOAE: post.voaeHoras || 2,
+              AVATAR_URL: (post.images && post.images[0]) || '/puma-icon.png'
+            });
+            updatedEvents = eventsList;
+          }
+          localStorage.setItem("unah_events", JSON.stringify(updatedEvents));
+        } catch (e) {
+          console.error("Error al sincronizar localStorage:", e);
+        }
+      }
+    } catch (err: any) {
+      console.error("Error al actualizar inscripción en la base de datos:", err);
+      // Revertir localmente si falla
+      setPosts(prev => prev.map(p => {
+        if (p.id !== id) return p;
+        const ins = was 
+          ? [{ initials: "YO", name: "Yo" }, ...(p.topInscritos || [])] 
+          : (p.topInscritos || []).filter(u => u.name !== "Yo");
+        const nextCupos = p.cupos !== undefined 
+          ? (was ? Math.max(0, p.cupos - 1) : p.cupos + 1) 
+          : undefined;
+        return { ...p, inscrito: was, topInscritos: ins, cupos: nextCupos };
+      }));
+      showToast("❌ Error al actualizar inscripción en el servidor");
+    }
   };
 
   const handleLoadMore=()=>{
@@ -1679,7 +2145,7 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
     showToast(wantEvento ? "📅 Más eventos cargados" : "📦 Más publicaciones cargadas");
   };
 
-  const handleCreate=(d:{title:string;desc:string;type:"Evento"|"Publicacion";scope:string;tags:string[];fecha?:string;lugar?:string;cupos?:number;images?:string[]})=>{
+  const handleCreate = async (d:{title:string;desc:string;type:"Evento"|"Publicacion";scope:string;tags:string[];fecha?:string;lugar?:string;cupos?:number;images?:string[]}) => {
     // Validaciones de Seguridad
     if (hasSQLi(d.title) || hasSQLi(d.desc) || d.tags.some(hasSQLi)) {
       alert("🚨 ¡Alerta de Seguridad! Se detectó un patrón de inyección SQL (SQLi) no permitido. La publicación ha sido bloqueada por motivos de seguridad.");
@@ -1694,40 +2160,62 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
     const cleanDesc = sanitizeHTML(d.desc);
     const cleanTags = d.tags.map(sanitizeHTML);
 
-    setPosts(prev=>{
-      const newId = Math.max(...prev.map(p => p.id), 0) + 1;
-      return [{
-        id:newId,
-        author:"Yo",
-        initials:"YO",
-        type:d.type,
-        scope:d.scope,
-        visibility:"Público",
-        time:"Ahora mismo",
-        title:cleanTitle,
-        desc:cleanDesc||"Sin descripción.",
-        tags:cleanTags,
-        love:0,
-        like:0,
-        dislike:0,
-        haha:0,
-        wow:0,
-        sad:0,
-        angry:0,
-        comments:[],
-        userReaction:null,
-        saved:false,
-        hidden:false,
-        fecha:d.fecha,
-        lugar:d.lugar,
-        cupos:d.cupos,
-        inscrito:false,
-        topInscritos:[],
-        images:d.images || [],
-        createdAt: Date.now()
-      }, ...prev];
-    });
-    showToast("✅ Publicación creada");
+   if (d.type === "Publicacion") {
+      try {
+        const payload = {
+          title: cleanTitle,
+          desc: cleanDesc,
+          scope: d.scope,
+          tags: cleanTags,
+          images: d.images || []
+        };
+        // El estudiante ya no publica directo: la solicitud queda "pendiente" hasta que
+        // Coordinación la remita a VOAE, VOAE la autorice y Coordinación la publique.
+        const savedPub = await publicacionService.crearPublicacion(payload);
+
+        setPosts(prev => [{ ...savedPub, estado: savedPub.estado || "pendiente" }, ...prev]);
+        showToast("📨 Tu solicitud fue enviada a Coordinación para su revisión");
+      } catch (err: any) {
+        console.error("Error al enviar la solicitud de publicación:", err);
+        alert("Error al enviar la solicitud al servidor: " + err.message);
+      }
+    } else {
+      setPosts(prev => {
+        const newId = Math.max(...prev.map(p => p.id), 0) + 1;
+        return [{
+          id: newId,
+          author: "Valeria Estrada",
+          initials: "VE",
+          type: d.type,
+          scope: d.scope,
+          visibility: "Público",
+          time: "Ahora mismo",
+          title: cleanTitle,
+          desc: cleanDesc || "Sin descripción.",
+          tags: cleanTags,
+          love: 0,
+          like: 0,
+          dislike: 0,
+          haha: 0,
+          wow: 0,
+          sad: 0,
+          angry: 0,
+          comments: [],
+          userReaction: null,
+          saved: false,
+          hidden: false,
+          fecha: d.fecha,
+          lugar: d.lugar,
+          cupos: d.cupos,
+          voaeHoras: Math.floor(Math.random() * 4) + 1,
+          inscrito: false,
+          topInscritos: [],
+          images: d.images || [],
+          createdAt: Date.now()
+        }, ...prev];
+      });
+      showToast("✅ Publicación creada");
+    }
   };
 
   const unread=notifications.filter(n=>n.unread).length;
@@ -1740,8 +2228,9 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
           --yellow:#FFD100;--yellow-hover:#FFE766;--yellow-soft:rgba(255,209,0,0.15);
           --white:#003366;--gray-mid:#717182;--text-primary:#003366;--text-secondary:#717182;
           --green-ok:#22c55e;--radius:14px;--radius-sm:8px;--shadow:0 4px 20px rgba(0,0,0,0.08);}
+       
         .app *{box-sizing:border-box;}
-        .app{display:flex;width:100%;}
+        .app{display:flex;min-height:100vh;width:100%;}
 
         /* TOPBAR */
         .topbar{background:#004B87;border-bottom:1px solid #003366;padding:0 20px;height:60px;
@@ -1755,12 +2244,12 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
         .search-input::placeholder{color:rgba(255,255,255,0.5);}
         .search-input:focus{border-color:var(--yellow);}
         .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;color:rgba(255,255,255,0.6);}
-        .icon-btn{position:relative;width:38px;height:38px;border-radius:10px;
+        .icon-btn{position:relative;width:44px;height:44px;border-radius:12px;
           border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);
           cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;}
         .icon-btn:hover{background:rgba(255,255,255,0.2);}
-        .badge{position:absolute;top:4px;right:4px;width:16px;height:16px;background:var(--yellow);
-          color:#003366;border-radius:50%;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;}
+        .badge{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;padding:0 4px;background:var(--yellow);
+          color:#003366;border-radius:50%;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;}
         .avatar-btn{width:36px;height:36px;border-radius:50%;border:2.5px solid var(--yellow);
           background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;
           color:#fff;font-weight:700;font-size:13px;cursor:pointer;}
@@ -1768,27 +2257,27 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
           padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;}
         .btn-primary:hover{background:var(--yellow-hover);}
 
-        /* NOTIFICATIONS */
-        .notifications-dropdown{position:absolute;top:54px;right:0;background:#F4F7FB;
-          border:1px solid #E2E8F0;border-radius:18px;width:320px;
-          box-shadow:0 12px 36px rgba(0,0,0,0.18);z-index:120;overflow:hidden;}
-        .noti-header{padding:16px 18px 8px;background:#F4F7FB;
-          display:flex;justify-content:space-between;align-items:center;}
-        .noti-header h3{font-size:17px;font-weight:800;color:#0B2A4A;}
-        .noti-clear-btn{background:none;border:none;color:#6B87A6;font-size:11px;cursor:pointer;font-weight:600;}
-        .noti-list{max-height:320px;overflow-y:auto;padding:4px 12px 12px;display:flex;flex-direction:column;gap:10px;}
-        .noti-item{padding:12px;border-radius:14px;display:flex;gap:12px;cursor:pointer;
-          background:#E8EFF9;box-shadow:0 1px 3px rgba(11,42,74,0.06);transition:transform 0.12s, box-shadow 0.12s;}
-        .noti-item:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(11,42,74,0.10);}
-        .noti-item.unread{background:#E1EAFB;}
-        .noti-icon-box{flex-shrink:0;width:42px;height:42px;border-radius:12px;background:#fff;
-          display:flex;align-items:center;justify-content:center;font-size:18px;
-          box-shadow:0 1px 4px rgba(11,42,74,0.10);}
-        .noti-text{font-size:13.5px;font-weight:700;color:#0B2A4A;line-height:1.35;}
-        .noti-time{font-size:11.5px;color:#7C93AD;margin-top:3px;font-weight:500;}
-        .noti-viewall{display:block;text-align:center;padding:12px;font-size:12.5px;font-weight:700;
-          color:#1E5EFF;cursor:pointer;background:#F4F7FB;}
-        .noti-viewall:hover{text-decoration:underline;}
+        /* NOTIFICATIONS — mismo estilo que el panel de notificaciones de Mi Perfil */
+        .notifications-dropdown{position:absolute;top:52px;right:0;background:#fff;
+          border:1px solid #E2E8F0;border-radius:12px;width:288px;
+          box-shadow:0 12px 36px rgba(0,0,0,0.18);z-index:120;overflow:hidden;padding:12px;}
+        .noti-header{padding:0 0 8px;display:flex;justify-content:space-between;align-items:center;}
+        .noti-header h3{font-size:14px;font-weight:800;color:#003366;}
+        .noti-clear-btn{background:none;border:none;color:#004B87;font-size:11px;cursor:pointer;font-weight:700;}
+        .noti-clear-btn:hover{color:#003366;}
+        .noti-list{max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;}
+        .noti-item{padding:12px;border-radius:8px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;
+          background:#F4F6F8;transition:background 0.15s;}
+        .noti-item:hover{background:rgba(255,209,0,0.10);}
+        .noti-item.unread{background:#F4F6F8;border:1px dashed #FFD100;}
+        .noti-icon-box{flex-shrink:0;width:32px;height:32px;border-radius:8px;background:#fff;
+          display:flex;align-items:center;justify-content:center;font-size:14px;
+          border:1px solid #E2E8F0;}
+        .noti-text{font-size:12px;font-weight:700;color:#003366;line-height:1.35;}
+        .noti-time{font-size:11px;color:#5b6472;margin-top:2px;font-weight:500;}
+        .noti-viewall{display:block;text-align:center;margin-top:8px;padding-top:8px;font-size:12px;font-weight:700;
+          color:#004B87;cursor:pointer;border-top:1px solid #F1F5F9;}
+        .noti-viewall:hover{color:#003366;text-decoration:underline;}
 /* MAIN LAYOUT */
 .main-container{flex:1;padding:24px;display:grid;grid-template-columns:1fr 300px;gap:24px;max-width:1250px;margin-inline:auto;width:100%;}
 .feed-column{display:flex;flex-direction:column;gap:20px;}
@@ -2349,20 +2838,23 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
                   <div className="notifications-dropdown">
                     <div className="noti-header">
                       <h3>Notificaciones</h3>
-                      <button className="noti-clear-btn" onClick={()=>{setNotifications(prev=>prev.map(n=>({...n,unread:false}))); showToast("Notificaciones leídas"); setNotiOpen(false);}}>Marcar leídas</button>
+                      <button className="noti-clear-btn" onClick={()=>{marcarTodasLeidas(); showToast("Notificaciones leídas"); setNotiOpen(false);}}>Marcar leídas</button>
                     </div>
                     <div className="noti-list">
-                      {notifications.map(n=>(
-                        <div key={n.id} className={`noti-item${n.unread?" unread":""}`} onClick={()=>setNotifications(prev=>prev.map(x=>x.id===n.id?{...x,unread:false}:x))}>
+                      {notifications.length === 0 && (
+                        <p style={{fontSize:12, color:"var(--text-secondary)", fontWeight:600, padding:"4px 2px"}}>No tienes notificaciones.</p>
+                      )}
+                      {notifications.slice(0,5).map(n=>(
+                        <div key={n.id} className={`noti-item${n.unread?" unread":""}`} onClick={()=>{ if(n.unread) marcarNotificacionLeidaAPI(n.id); }}>
                           <div className="noti-icon-box">{n.icon}</div>
                           <div>
-                            <div className="noti-text" dangerouslySetInnerHTML={{__html:n.text}} />
+                            <div className="noti-text">{n.text}</div>
                             <div className="noti-time">{n.time}</div>
                           </div>
                         </div>
                       ))}
                     </div>
-                    <div className="noti-viewall" onClick={()=>{setNotiOpen(false); showToast("📋 Todas las notificaciones");}}>
+                    <div className="noti-viewall" onClick={()=>{setNotiOpen(false); setMostrarHistorialNotificaciones(true);}}>
                       Ver todas las notificaciones
                     </div>
                   </div>
@@ -2408,9 +2900,10 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
                   <PostCard key={p.id} post={p}
                     onReact={handleReact} onToggleComments={handleToggleComments}
                     onAddComment={handleAddComment}
+                    onReactComment={handleReactComment}
                     onHide={handleHide} onUnhide={handleUnhide} onSave={handleSave} onShare={handleShare}
                     onOpenDrawer={setDrawerPost} onInscribir={handleInscribir}
-                    onOpenDetail={setDetailPost}
+                    onOpenDetail={setDetailPost} onEdit={handleEditPost}
                     openCommentIds={openCommentIds} isLoggedIn={isLoggedIn}
                     showOnlySaved={showOnlySaved} showHiddenOnly={showHiddenOnly} />
                 ))
@@ -2436,14 +2929,14 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
                     <>
                       <div className="pumitas-panel-section">📨 Solicitudes</div>
                       {pumitaRequests.map(req => {
-                        const loading = pumitaRequestLoading.has(req.id);
+                        const loading = pumitaRequestLoading.has(req.id_conexion);
                         return (
-                          <div key={req.id} className="pumitas-panel-item pumitas-request-item">
+                          <div key={req.id_conexion} className="pumitas-panel-item pumitas-request-item">
                             <div className="pp-ava-wrap">
-                              <div className="pp-ava">{req.initials}</div>
+                              <div className="pp-ava">{getIniciales(req.nombre)}</div>
                             </div>
                             <div style={{flex:1}}>
-                              <div className="pp-name">{req.name}</div>
+                              <div className="pp-name">{req.nombre}</div>
                               <div className="pp-status">Quiere conectar contigo</div>
                             </div>
                             <div className="pumita-request-actions">
@@ -2464,13 +2957,16 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
                     </>
                   )}
                   <div className="pumitas-panel-section">🟢 Activos</div>
-                  {connectedPumitas.filter(u=>u.status==="Activo").map((u,i)=>(
-                    <div key={i} className="pumitas-panel-item">
+                  {connectedPumitas.length === 0 && (
+                    <p style={{fontSize:11, color:"var(--text-secondary)", fontWeight:600}}>Aún no tienes Pumitas conectados.</p>
+                  )}
+                  {connectedPumitas.map((u)=>(
+                    <div key={u.id_conexion ?? u.id_usuario} className="pumitas-panel-item">
                       <div className="pp-ava-wrap">
-                        <div className="pp-ava">{u.initials}</div>
+                        <div className="pp-ava">{getIniciales(u.nombre)}</div>
                         <span className="pp-dot activo"/>
                       </div>
-                      <div><div className="pp-name">{u.name}</div><div className="pp-status activo">● En línea</div></div>
+                      <div><div className="pp-name">{u.nombre}</div><div className="pp-status activo">● Conectado</div></div>
                     </div>
                   ))}
                 </div>
@@ -2486,6 +2982,89 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
           post={posts.find(p=>p.id===detailPost.id)||detailPost}
           onClose={()=>setDetailPost(null)}
         />
+      )}
+
+      {editPost && (
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50" onClick={() => setEditPost(null)}>
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b flex justify-between items-center shrink-0">
+              <h3 className="text-xs font-extrabold text-[#004B87] tracking-wider uppercase">✏️ Editar publicación</h3>
+              <button onClick={() => setEditPost(null)} className="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
+            </div>
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
+              <div>
+                <label className="text-xs font-bold text-slate-500 block mb-2">DESCRIPCIÓN</label>
+                <textarea
+                  value={editDesc}
+                  onChange={e => setEditDesc(e.target.value)}
+                  rows={5}
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-200"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 block mb-2">TAGS (separados por coma)</label>
+                <input
+                  type="text"
+                  value={editTags}
+                  onChange={e => setEditTags(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  placeholder="#tag1, #tag2"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t flex justify-end gap-3 shrink-0">
+              <button onClick={() => setEditPost(null)} className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700">Cancelar</button>
+              <button onClick={handleSaveEdit} className="px-6 py-2 bg-[#004B87] text-white rounded-xl text-sm font-bold hover:bg-[#003366]">Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mostrarHistorialNotificaciones && (
+        <div style={{position:"fixed", inset:0, background:"rgba(0,51,102,0.4)", zIndex:250, display:"flex", alignItems:"center", justifyContent:"center", padding:16}} onClick={()=>setMostrarHistorialNotificaciones(false)}>
+          <div style={{background:"#fff", width:"100%", maxWidth:560, maxHeight:"86vh", overflowY:"auto", borderRadius:16, border:"1px solid #E2E8F0", boxShadow:"0 24px 64px rgba(0,0,0,0.25)", padding:20}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16, gap:12}}>
+              <div>
+                <h3 style={{fontSize:19, fontWeight:800, color:"#003366"}}>Historial de notificaciones</h3>
+                <p style={{fontSize:13, color:"#5b6472", marginTop:2}}>Busca y revisa tus notificaciones.</p>
+              </div>
+              <button onClick={()=>setMostrarHistorialNotificaciones(false)} style={{width:36, height:36, borderRadius:8, background:"#F4F6F8", border:"1px solid #E2E8F0", color:"#003366", cursor:"pointer", fontSize:14}}>✕</button>
+            </div>
+
+            <input
+              value={busquedaNotificaciones}
+              onChange={e=>setBusquedaNotificaciones(e.target.value)}
+              placeholder="Buscar notificaciones..."
+              style={{width:"100%", borderRadius:12, border:"1px solid #E2E8F0", background:"#F4F6F8", padding:"12px 14px", fontSize:13, outline:"none", marginBottom:14}}
+            />
+
+            <div style={{display:"flex", flexDirection:"column", gap:8}}>
+              {notifications
+                .filter(n => n.text.toLowerCase().includes(busquedaNotificaciones.toLowerCase()))
+                .map(n => (
+                  <button
+                    key={`historial-${n.id}`}
+                    onClick={()=>{ if(n.unread) marcarNotificacionLeidaAPI(n.id); }}
+                    style={{
+                      display:"flex", alignItems:"flex-start", gap:12, textAlign:"left",
+                      borderRadius:12, padding:12, cursor:"pointer",
+                      background: n.unread ? "#F4F6F8" : "#fff",
+                      border: n.unread ? "1px dashed #FFD100" : "1px solid #E2E8F0",
+                    }}
+                  >
+                    <span style={{width:36, height:36, borderRadius:8, background:"#fff", border:"1px solid #E2E8F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0}}>{n.icon}</span>
+                    <div style={{minWidth:0}}>
+                      <p style={{fontSize:13, fontWeight:700, color:"#003366"}}>{n.text}</p>
+                      <p style={{fontSize:11, color:"#5b6472", marginTop:2}}>{n.time}</p>
+                    </div>
+                  </button>
+                ))}
+              {notifications.filter(n => n.text.toLowerCase().includes(busquedaNotificaciones.toLowerCase())).length === 0 && (
+                <p style={{fontSize:13, color:"#5b6472", fontWeight:600, padding:12, textAlign:"center"}}>No se encontraron notificaciones.</p>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {showModal && <NewPostModal onClose={()=>setShowModal(false)} onCreate={handleCreate} />}
