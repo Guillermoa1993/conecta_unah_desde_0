@@ -279,6 +279,11 @@ export function LocationPicker({
   const [activeLayerKey, setActiveLayerKey] = useState<keyof typeof TILE_LAYERS>("google_roadmap");
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  const isDraggableRef = useRef(isDraggable);
+  useEffect(() => {
+    isDraggableRef.current = isDraggable;
+  }, [isDraggable]);
+
   useEffect(() => {
     (async () => {
       const L = await import("leaflet");
@@ -323,13 +328,15 @@ export function LocationPicker({
       draggable: isDraggable && !!onLocationChange,
     }).addTo(map);
 
-    if (isDraggable && onLocationChange) {
+    if (onLocationChange) {
       marker.on("dragend", (e: any) => {
+        if (!isDraggableRef.current) return;
         const pos = e.target.getLatLng();
         onLocationChange(pos.lat.toString(), pos.lng.toString());
       });
 
       map.on("click", (e: any) => {
+        if (!isDraggableRef.current) return;
         const { lat: clickLat, lng: clickLng } = e.latlng;
         marker.setLatLng([clickLat, clickLng]);
         onLocationChange(clickLat.toString(), clickLng.toString());
@@ -418,13 +425,15 @@ export function LocationPicker({
         draggable: isDraggable && !!onLocationChange,
       }).addTo(fullMap);
 
-      if (isDraggable && onLocationChange) {
+      if (onLocationChange) {
         fullMarker.on("dragend", (e: any) => {
+          if (!isDraggableRef.current) return;
           const pos = e.target.getLatLng();
           onLocationChange(pos.lat.toString(), pos.lng.toString());
         });
 
         fullMap.on("click", (e: any) => {
+          if (!isDraggableRef.current) return;
           const { lat: clickLat, lng: clickLng } = e.latlng;
           fullMarker.setLatLng([clickLat, clickLng]);
           onLocationChange(clickLat.toString(), clickLng.toString());
