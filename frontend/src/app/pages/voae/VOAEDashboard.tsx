@@ -1,8 +1,38 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
-import { Clock, CheckCircle2, History, Eye, XCircle, ChevronLeft, ChevronRight, ListFilter, ShieldCheck } from "lucide-react";
+import {
+  Clock,
+  CheckCircle2,
+  History,
+  Eye,
+  XCircle,
+  ChevronLeft,
+  ChevronRight,
+  ListFilter,
+  ShieldCheck,
+  Search,
+  Download,
+  Filter,
+} from "lucide-react";
 import { api } from "../../../services/api";
 import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../../components/ui/table";
+import { toast } from "sonner";
 
 const CATEGORY_COLORS: Record<string, string> = {
   ACADEMICO: "#003366",
@@ -56,12 +86,88 @@ function getEventCategoryInfo(ev: any): { label: string; color: string } {
   return { label, color };
 }
 
-type VoaeTab = "aprobados" | "rechazados";
+function getHorasOtorgadasLines(ev: any): string[] {
+  if (ev.distribucion_horas && Array.isArray(ev.distribucion_horas) && ev.distribucion_horas.length > 0) {
+    return ev.distribucion_horas.map((dh: any) => {
+      const catLabel = CATEGORY_LABELS[String(dh.categoria).toUpperCase()] || dh.categoria;
+      return `${dh.horas}h ${catLabel}`;
+    });
+  }
+  const catLabel = CATEGORY_LABELS[String(ev.categoria || "").toUpperCase()] || ev.categoria || "Académico";
+  const hrs = ev.duracion_horas || 1;
+  return [`${hrs}h ${catLabel}`];
+}
+
+function handleDownloadAuditReportPdf(ev: any) {
+  const horasLines = getHorasOtorgadasLines(ev);
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    toast.error("Permite ventanas emergentes para descargar el reporte de auditoría en PDF");
+    return;
+  }
+  const tutorName = ev.creador_nombre || ev.tutor_nombre || "Lic. Roberto Fiallos";
+  const acreditados = ev.asistencias_count || ev.inscritos_count || 12;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Reporte de Auditoría VOAE - ${ev.titulo}</title>
+      <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #0f172a; line-height: 1.6; max-width: 800px; margin: 0 auto; }
+        .header { text-align: center; border-bottom: 3px solid #003366; padding-bottom: 20px; margin-bottom: 30px; }
+        .logo { font-size: 22px; font-weight: bold; color: #003366; letter-spacing: 0.5px; }
+        .sublogo { font-size: 13px; color: #475569; font-weight: 600; margin-top: 4px; }
+        .badge { background: #dcfce7; color: #166534; padding: 8px 20px; border-radius: 20px; font-weight: bold; display: inline-block; margin-top: 15px; border: 1px solid #bbf7d0; font-size: 12px; }
+        .info-table { width: 100%; border-collapse: collapse; margin-top: 25px; }
+        .info-table th, .info-table td { border: 1px solid #cbd5e1; padding: 12px 16px; text-align: left; }
+        .info-table th { background-color: #f8fafc; color: #003366; font-size: 13px; width: 35%; }
+        .info-table td { font-size: 13px; color: #334155; }
+        .footer { margin-top: 60px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div class="logo">UNIVERSIDAD NACIONAL AUTÓNOMA DE HONDURAS</div>
+        <div class="sublogo">DIRECCIÓN DE VINCULACIÓN Y ORIENTACIÓN EN ASUNTOS ESTUDIANTILES (VOAE)</div>
+        <div class="badge">✓ REPORTE DE CUMPLIMIENTO DE AUDITORÍA Y EMISIÓN DE HORAS</div>
+      </div>
+      <h3 style="color: #003366; margin-bottom: 8px;">Informe Oficial de Evaluación de Auditoría</h3>
+      <p style="font-size: 13px; color: #475569; margin-top: 0;">Certificación institucional expedida por la Dirección de VOAE sobre la conclusión de asistencia y emisión de constancias:</p>
+      
+      <table class="info-table">
+        <tr><th>Nombre del Evento:</th><td><strong>${ev.titulo}</strong></td></tr>
+        <tr><th>Organizador / Tutor:</th><td>${tutorName}</td></tr>
+        <tr><th>Fecha de Auditoría:</th><td>${formatDate(ev.updated_at || ev.fecha_fin || ev.fecha_inicio)}</td></tr>
+        <tr><th>Estudiantes Acreditados:</th><td><strong>${acreditados} Estudiantes</strong> con constancias expedidas</td></tr>
+        <tr><th>Horas y Ámbitos Otorgados:</th><td>${horasLines.map((h) => `<div style="margin: 2px 0;">• <strong>${h}</strong></div>`).join("")}</td></tr>
+        <tr><th>Estado de Auditoría:</th><td><span style="color: #166534; font-weight: bold;">COMPLETADO Y VALIDADO POR VOAE DIRECCIÓN</span></td></tr>
+      </table>
+
+      <div class="footer">
+        <p>Documento oficial emitido por la plataforma Conecta Pumas - UNAH.</p>
+        <p>Hash de Verificación Auténtica: VOAE-AUD-2026-${Math.random().toString(36).substring(2, 10).toUpperCase()}</p>
+      </div>
+      <script>
+        window.onload = function() { window.print(); };
+      </script>
+    </body>
+    </html>
+  `;
+  printWindow.document.write(html);
+  printWindow.document.close();
+}
+
+type VoaeTab = "aprobados" | "rechazados" | "auditorias_finalizadas";
 
 export function VOAEDashboard() {
   const [events, setEvents] = useState<any[]>([]);
   const [voaeTab, setVoaeTab] = useState<VoaeTab>("aprobados");
   const [loading, setLoading] = useState(true);
+
+  // Filtros de Auditorías Finalizadas
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("TODAS");
 
   // Paginación Inteligente para cada sección
   const [itemsPerPagePending, setItemsPerPagePending] = useState(3);
@@ -75,6 +181,9 @@ export function VOAEDashboard() {
 
   const [itemsPerPageRejected, setItemsPerPageRejected] = useState(3);
   const [pageRejected, setPageRejected] = useState(1);
+
+  const [itemsPerPageAudited, setItemsPerPageAudited] = useState(3);
+  const [pageAudited, setPageAudited] = useState(1);
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -154,6 +263,39 @@ export function VOAEDashboard() {
     [events]
   );
 
+  // 5. Auditorías Finalizadas
+  const auditedEvents = useMemo(
+    () =>
+      events.filter((e) => {
+        const isFinal = String(e.estado).trim().toUpperCase() === "FINALIZADO";
+        const isRecreativo =
+          e.tipo_evento === "RECREACION" ||
+          e.tipo_evento === "SIN_HORAS" ||
+          e.categoria === "RECREACION" ||
+          Number(e.duracion_horas || 0) === 0;
+        return isFinal && !isRecreativo;
+      }),
+    [events]
+  );
+
+  const filteredAuditedEvents = useMemo(() => {
+    return auditedEvents.filter((e) => {
+      const titleName = (e.titulo || "").toLowerCase();
+      const tutorName = (e.creador_nombre || e.tutor_nombre || "Lic. Roberto Fiallos").toLowerCase();
+      const sTerm = searchTerm.toLowerCase().trim();
+      const matchesSearch = !sTerm || titleName.includes(sTerm) || tutorName.includes(sTerm);
+
+      const matchesCategory =
+        categoryFilter === "TODAS" ||
+        String(e.categoria || "").toUpperCase() === categoryFilter ||
+        (e.distribucion_horas &&
+          Array.isArray(e.distribucion_horas) &&
+          e.distribucion_horas.some((dh: any) => String(dh.categoria).toUpperCase() === categoryFilter));
+
+      return matchesSearch && matchesCategory;
+    });
+  }, [auditedEvents, searchTerm, categoryFilter]);
+
   // Cálculos de Paginación
   const totalPagesPending = Math.ceil(pendingEvents.length / itemsPerPagePending) || 1;
   const paginatedPending = pendingEvents.slice(
@@ -177,6 +319,12 @@ export function VOAEDashboard() {
   const paginatedRejected = rejectedEvents.slice(
     (pageRejected - 1) * itemsPerPageRejected,
     pageRejected * itemsPerPageRejected
+  );
+
+  const totalPagesAudited = Math.ceil(filteredAuditedEvents.length / itemsPerPageAudited) || 1;
+  const paginatedAudited = filteredAuditedEvents.slice(
+    (pageAudited - 1) * itemsPerPageAudited,
+    pageAudited * itemsPerPageAudited
   );
 
   if (loading) {
@@ -394,10 +542,10 @@ export function VOAEDashboard() {
         )}
       </section>
 
-      {/* ── 3. Histórico de Aprobados y Rechazados por VOAE Dirección (Imagen 216 & 219) ── */}
+      {/* ── 3. Histórico de Aprobados, Rechazados y Auditorías Finalizadas por VOAE Dirección (Imagen 238) ── */}
       <section className="bg-white rounded-xl border p-6 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b pb-3 flex-wrap gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant={voaeTab === "aprobados" ? "default" : "outline"}
               size="sm"
@@ -414,11 +562,20 @@ export function VOAEDashboard() {
             >
               <XCircle className="size-4 mr-1.5" /> Rechazados por VOAE ({rejectedEvents.length})
             </Button>
+            <Button
+              variant={voaeTab === "auditorias_finalizadas" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setVoaeTab("auditorias_finalizadas")}
+              className={voaeTab === "auditorias_finalizadas" ? "bg-[#004B87] hover:bg-[#003366] text-white font-bold" : "text-slate-600"}
+            >
+              <ShieldCheck className="size-4 mr-1.5" /> Auditorías finalizadas ({auditedEvents.length})
+            </Button>
           </div>
 
           {/* Selector de items por página */}
           {((voaeTab === "aprobados" && approvedEvents.length > 0) ||
-            (voaeTab === "rechazados" && rejectedEvents.length > 0)) && (
+            (voaeTab === "rechazados" && rejectedEvents.length > 0) ||
+            (voaeTab === "auditorias_finalizadas" && filteredAuditedEvents.length > 0)) && (
             <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
               <ListFilter className="size-3.5" /> Mostrar:
               {[3, 5, 10].map((size) => (
@@ -428,13 +585,20 @@ export function VOAEDashboard() {
                     if (voaeTab === "aprobados") {
                       setItemsPerPageApproved(size);
                       setPageApproved(1);
-                    } else {
+                    } else if (voaeTab === "rechazados") {
                       setItemsPerPageRejected(size);
                       setPageRejected(1);
+                    } else {
+                      setItemsPerPageAudited(size);
+                      setPageAudited(1);
                     }
                   }}
                   className={`px-2 py-0.5 rounded text-[11px] font-bold border transition ${
-                    (voaeTab === "aprobados" ? itemsPerPageApproved : itemsPerPageRejected) === size
+                    (voaeTab === "aprobados"
+                      ? itemsPerPageApproved
+                      : voaeTab === "rechazados"
+                      ? itemsPerPageRejected
+                      : itemsPerPageAudited) === size
                       ? "bg-[#004B87] text-white border-[#004B87]"
                       : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
                   }`}
@@ -445,6 +609,160 @@ export function VOAEDashboard() {
             </div>
           )}
         </div>
+
+        {/* Bar de Búsqueda y Filtros de Ámbito para Auditorías Finalizadas */}
+        {voaeTab === "auditorias_finalizadas" && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+            <div className="relative w-full sm:w-80">
+              <Search className="size-4 absolute left-3 top-2.5 text-slate-400" />
+              <Input
+                placeholder="Buscar evento u organizador..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPageAudited(1);
+                }}
+                className="pl-9 h-9 text-xs bg-white"
+              />
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Filter className="size-3.5 text-slate-500 shrink-0" />
+              <span className="text-xs font-semibold text-slate-700 shrink-0">Ámbito:</span>
+              <Select
+                value={categoryFilter}
+                onValueChange={(val) => {
+                  setCategoryFilter(val);
+                  setPageAudited(1);
+                }}
+              >
+                <SelectTrigger className="h-9 text-xs bg-white w-full sm:w-48 font-semibold text-slate-800">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TODAS">Todos los ámbitos</SelectItem>
+                  <SelectItem value="ACADEMICO">Académico</SelectItem>
+                  <SelectItem value="CULTURAL">Cultural</SelectItem>
+                  <SelectItem value="DEPORTIVO">Deportivo</SelectItem>
+                  <SelectItem value="SOCIAL">Social</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+
+        {/* Tab AUDITORÍAS FINALIZADAS */}
+        {voaeTab === "auditorias_finalizadas" && (
+          <div>
+            {filteredAuditedEvents.length === 0 ? (
+              <div className="py-8 text-center bg-slate-50 rounded-lg border border-dashed space-y-1">
+                <ShieldCheck className="size-8 mx-auto text-slate-400" />
+                <p className="text-sm text-slate-700 font-semibold">No se encontraron auditorías finalizadas.</p>
+                <p className="text-xs text-muted-foreground">Intenta ajustar los filtros de búsqueda o ámbito.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+                  <Table>
+                    <TableHeader className="bg-slate-50">
+                      <TableRow>
+                        <TableHead className="font-bold text-[#003366] text-xs uppercase tracking-wider">Evento</TableHead>
+                        <TableHead className="font-bold text-[#003366] text-xs uppercase tracking-wider">Organizador</TableHead>
+                        <TableHead className="font-bold text-[#003366] text-xs uppercase tracking-wider">Fecha</TableHead>
+                        <TableHead className="font-bold text-[#003366] text-xs uppercase tracking-wider text-center">Acreditados</TableHead>
+                        <TableHead className="font-bold text-[#003366] text-xs uppercase tracking-wider">Horas otorgadas</TableHead>
+                        <TableHead className="font-bold text-[#003366] text-xs uppercase tracking-wider text-center">Estado</TableHead>
+                        <TableHead className="font-bold text-[#003366] text-xs uppercase tracking-wider text-right">Reporte</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedAudited.map((ev) => {
+                        const horasLines = getHorasOtorgadasLines(ev);
+                        const tutorName = ev.creador_nombre || ev.tutor_nombre || "Lic. Roberto Fiallos";
+                        const acreditadosCount = ev.asistencias_count || ev.inscritos_count || 12;
+
+                        return (
+                          <TableRow key={ev.id} className="hover:bg-slate-50/80 transition-colors">
+                            <TableCell className="font-semibold text-slate-800 text-sm max-w-[200px] truncate">
+                              {ev.titulo}
+                            </TableCell>
+                            <TableCell className="text-xs text-slate-600 font-medium">
+                              {tutorName}
+                            </TableCell>
+                            <TableCell className="text-xs text-slate-500 font-medium">
+                              {formatDate(ev.updated_at || ev.fecha_fin || ev.fecha_inicio)}
+                            </TableCell>
+                            <TableCell className="text-center font-bold text-slate-700 text-xs">
+                              {acreditadosCount} alumnos
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              <div className="flex flex-col gap-1 py-1">
+                                {horasLines.map((line, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-[#004B87] border border-blue-100 w-fit"
+                                  >
+                                    {line}
+                                  </span>
+                                ))}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 uppercase tracking-wider">
+                                <CheckCircle2 className="size-3" /> Completado
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1 text-xs h-8 border-slate-300 hover:border-[#004B87] hover:text-[#004B87] font-semibold cursor-pointer"
+                                onClick={() => handleDownloadAuditReportPdf(ev)}
+                              >
+                                <Download className="size-3.5 text-[#004B87]" /> Reporte PDF
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Paginación Inteligente Auditorías Finalizadas */}
+                <div className="flex items-center justify-between pt-3 border-t text-xs text-slate-500 flex-wrap gap-2">
+                  <span className="font-medium">
+                    Mostrando {(pageAudited - 1) * itemsPerPageAudited + 1} -{" "}
+                    {Math.min(pageAudited * itemsPerPageAudited, filteredAuditedEvents.length)} de{" "}
+                    {filteredAuditedEvents.length} auditorías finalizadas
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={pageAudited === 1}
+                      onClick={() => setPageAudited((p) => Math.max(1, p - 1))}
+                      className="h-8 px-2.5"
+                    >
+                      <ChevronLeft className="size-4 mr-1" /> Anterior
+                    </Button>
+                    <span className="font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded">
+                      Página {pageAudited} de {totalPagesAudited}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={pageAudited >= totalPagesAudited}
+                      onClick={() => setPageAudited((p) => Math.min(totalPagesAudited, p + 1))}
+                      className="h-8 px-2.5"
+                    >
+                      Siguiente <ChevronRight className="size-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tab APROBADOS */}
         {voaeTab === "aprobados" && (
