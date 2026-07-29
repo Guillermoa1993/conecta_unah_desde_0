@@ -41,11 +41,16 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const role     = NORM_ROLE[rawRole.toLowerCase()] ?? rawRole.toLowerCase();
 
   if (!isActive) {
+    const destino = location.pathname + location.search;
+    if (destino !== "/") {
+      sessionStorage.setItem("unah_redirect_after_login", destino);
+    }
     return <Navigate to="/" replace state={{ from: location }} />;
   }
 
   // rol dev: bypass total
   if (role === "dev") return <>{children}</>;
+  if (location.pathname.startsWith("/post")) return <>{children}</>;
 
   const allowed = ROLE_PREFIXES[role] ?? ROLE_PREFIXES.student;
   const canAccess = allowed.some(prefix => location.pathname.startsWith(prefix));

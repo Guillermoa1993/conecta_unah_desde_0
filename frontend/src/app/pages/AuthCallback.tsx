@@ -3,12 +3,15 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { authService } from '../../services/auth.service';
 
 const ROL_MAP: Record<string, string> = {
-  estudiante: 'student',
-  tutor:      'tutor',
-  admin:      'admin',
-  voae:       'voae',
-  dev:        'dev',
-  student:    'student',
+  estudiante:        'student',
+  tutor:             'tutor',
+  empleado:          'tutor',
+  admin:             'admin',
+  voae:              'voae',
+  voae_direccion:    'voae',
+  voae_departamento: 'voae',
+  dev:               'dev',
+  student:           'student',
 };
 
 const ROL_PATH: Record<string, string> = {
@@ -47,7 +50,9 @@ export function AuthCallback() {
         const rol = ROL_MAP[rolRaw] ?? 'student';
         sessionStorage.setItem('unah_role', rol);
         sessionStorage.setItem('unah_session_active', 'true');
-        navigate(ROL_PATH[rol] ?? '/student', { replace: true });
+        const guardada = sessionStorage.getItem('unah_redirect_after_login');
+        sessionStorage.removeItem('unah_redirect_after_login');
+        navigate(guardada ?? ROL_PATH[rol] ?? '/student', { replace: true });
       })
       .catch(() => {
         // Si falla el backend no borramos el token, solo mandamos al login

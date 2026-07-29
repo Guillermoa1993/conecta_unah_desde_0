@@ -12,4 +12,12 @@ export const reaccionesService = {
   listarReaccionesRecibidas(): Promise<ReaccionPumita[]> {
     return api.get<ReaccionPumita[]>('/perfil/reacciones/recibidas');
   },
+
+  obtenerInteraccionSocial(): Promise<{ activo: boolean }> {
+    return api.get<{ activo: boolean }>('/perfil/reacciones/interaccion-social');
+  },
+
+  actualizarInteraccionSocial(activo: boolean): Promise<{ activo: boolean }> {
+    return api.patch<{ activo: boolean }>('/perfil/reacciones/interaccion-social', { activo });
+  },
 };

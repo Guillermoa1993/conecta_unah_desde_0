@@ -111,15 +111,19 @@ docker compose --profile dev up --build
 
 ---
 
-## Variables de entorno
-
 ### `backend/.env`
 
 ```env
 DATABASE_URL=postgresql://unah_conecta2_user:PASSWORD@dpg-d931mbugvqtc739qj7h0-a.virginia-postgres.render.com/unah_conecta2
 PORT=5000
 JWT_SECRET=tu_secreto_aqui
-FRONTEND_URL=http://localhost:5185
+FRONTEND_URL=http://localhost:5173
+AZURE_CLIENT_ID=3539454f-3ef2-43e9-8b17-2424b171504d
+AZURE_CLIENT_SECRET=tu_azure_secret
+AZURE_TENANT_ID=0dfe615a-5e05-412a-bfb2-0bf859e3563e
+AZURE_REDIRECT_URI=http://localhost:5000/api/auth/microsoft/callback
+GMAIL_USER=tu_correo@gmail.com
+GMAIL_APP_PASSWORD=tu_app_password
 ```
 
 ### `frontend/.env`
@@ -140,9 +144,18 @@ Interfaces (HTTP)  →  Use Cases (Negocio)  →  Domain (Entidades)
 
 - **Domain**: entidades e interfaces sin dependencias externas
 - **Use Cases**: lógica de negocio pura
-- **Infrastructure**: implementaciones concretas (PostgreSQL, etc.)
+- **Infrastructure**: implementaciones concretas (PostgreSQL, MSAL Microsoft Auth, Nodemailer, etc.)
 - **Interfaces**: controllers, middlewares, rutas de Express
 
 ---
 
-Universidad Nacional Autónoma de Honduras — Grupo 1
+## Módulos Integrados
+
+- **Grupo 1**: Autenticación MSAL Microsoft, OTP Gmail, Fichas de Enrolamiento (Estudiante / Empleado) y Catálogos Dinámicos.
+- **Grupo 2**: Módulo Pumitas (conexiones, solicitudes, reacciones con audio), subida de Forma 003 y Cambio de Carrera.
+- **Grupo 3**: Gestión de Eventos para Tutores/Estudiantes, Firma Digital, Auditoría VOAE y generación de Constancias PDF con QR.
+- **Grupo 4**: Seguridad y Administración RBAC (Gestión de Usuarios, Roles, Permisos directos), Bitácora de Sistema y Respaldo/Restauración (Backups).
+
+---
+
+Universidad Nacional Autónoma de Honduras — Conecta Pumas 2026

@@ -18,7 +18,7 @@ export class PostgresEstadoRepository implements EstadoRepository {
 
   async obtenerActivos(): Promise<Estado[]> {
     const { rows } = await this.pool.query(
-      `SELECT e.*, u.nombre AS nombre_usuario
+      `SELECT e.*, e.id_usuario AS usuario_id_usuario, u.nombre AS nombre_usuario
        FROM tabla_grupo_2_estado_temporal e
        JOIN tabla_grupo_1_usuario u ON u.id_usuario = e.id_usuario
        WHERE e.activo = 1 AND e.fecha_final > NOW()

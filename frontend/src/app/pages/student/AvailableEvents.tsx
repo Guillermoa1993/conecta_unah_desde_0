@@ -213,7 +213,7 @@ export const AvailableEvents: React.FC = () => {
     }
 
     const nuevoPost = {
-      id: Date.now(),
+      id: 10000 + evento.EVENTO_ID,
       type: "Evento" as const,
       title: evento.TITULO_EVENTO,
       desc: descFinal,

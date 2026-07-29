@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "../ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { SidebarTrigger } from "../ui/sidebar";
 import { useNavigate, useLocation } from "react-router";
@@ -17,6 +17,8 @@ import { PermissionsPanel } from "../permissions/PermissionsPanel";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { StoriesBar } from "./StoriesBar";
 import { useNotificaciones } from "../../../hooks/useNotificaciones";
+import { useAuth } from "../../../hooks/useAuth";
+import { authService } from "../../../services/auth.service";
 
 function tiempoRelativo(fechaIso: string): string {
   const fecha = new Date(fechaIso).getTime();
@@ -37,17 +39,93 @@ export function AppNavbar() {
   const shieldRef = useRef<HTMLButtonElement>(null);
   const { permissions } = usePermissions();
   const { notificaciones, noLeidas, marcarLeida } = useNotificaciones();
+  const { usuario } = useAuth();
+  const usuarioGuardado = authService.getUsuarioGuardado();
+  const usuarioActivo = usuario || usuarioGuardado;
+
+  const nombreUsuario = usuarioActivo?.nombre || localStorage.getItem("unah_usuario_nombre") || "Usuario Puma";
+  const fotoUsuario = usuarioActivo?.foto_url || localStorage.getItem("unah_foto_perfil");
+
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(" ").filter(Boolean);
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
   const permDeniedOrPending = Object.values(permissions).some(
     (s) => s === "denied" || s === "prompt"
   );
 
   const getRoleName = () => {
+    if (usuarioActivo?.rol) {
+      switch (usuarioActivo.rol.toUpperCase()) {
+        case 'ESTUDIANTE': return 'Estudiante';
+        case 'TUTOR':
+        case 'EMPLEADO': return 'Empleado / Tutor';
+        case 'ADMIN': return 'Administrador';
+        case 'VOAE': return 'Personal VOAE';
+        default: return usuarioActivo.rol;
+      }
+    }
     const rawRole = (sessionStorage.getItem("unah_role") || sessionStorage.getItem("unah_user_type") || "").toLowerCase();
     if (location.pathname.startsWith("/voae-depto") || rawRole.includes("depto") || rawRole.includes("coordinac")) return "VOAE Departamento (Coordinación)";
     if (location.pathname.startsWith("/voae") || rawRole.startsWith("voae")) return "Personal VOAE Dirección";
     if (location.pathname.startsWith("/tutor") || rawRole === "tutor" || rawRole === "empleado") return "Empleado / Tutor";
     if (location.pathname.startsWith("/admin") || rawRole === "admin") return "Administrador";
+    if (rawRole === "dev") return "Desarrollador";
     return "Estudiante";
+  };
+
+  const getModuleName = () => {
+    const path = location.pathname;
+
+    // Módulos de Administración
+    if (path.includes("/admin/parametros")) return "Parámetros del Sistema";
+    if (path.includes("/admin/administracion")) return "Administración";
+    if (path.includes("/admin/usuarios")) return "Usuarios";
+    if (path.includes("/admin/roles")) return "Roles";
+    if (path.includes("/admin/permisos")) return "Permisos";
+    if (path.includes("/admin/eventos")) return "Gestión de Eventos";
+    if (path.includes("/admin/comentarios")) return "Comentarios";
+    if (path.includes("/admin/backup")) return "Respaldo y Restauración";
+    if (path.includes("/admin/reportes")) return "Reportes del Sistema";
+    if (path.includes("/admin/notificaciones")) return "Notificaciones";
+    if (path.includes("/admin/bitacora")) return "Bitácora de Auditoría";
+    if (path.includes("/admin/catalogos")) return "Catálogos del Sistema";
+
+    // Módulos de Tutor / Empleado
+    if (path.includes("/tutor/dashboard")) return "Panel de Gestión";
+    if (path.includes("/tutor/eventos")) return "Histórico de Eventos";
+    if (path.includes("/tutor/mis-eventos")) return "Mis Eventos";
+    if (path.includes("/tutor/crear-evento")) return "Crear Evento";
+    if (path.includes("/tutor/reportes")) return "Reportes de Tutor";
+    if (path.includes("/tutor/ficha")) return "Ficha de Empleado";
+
+    // Módulos de VOAE
+    if (path.includes("/voae/dashboard")) return "Panel VOAE";
+    if (path.includes("/voae/validacion")) return "Validación de Eventos";
+    if (path.includes("/voae/auditoria")) return "Auditoría de Eventos";
+    if (path.includes("/voae/registros")) return "Histórico de Registros";
+    if (path.includes("/voae/reportes")) return "Reportes Oficiales";
+    if (path.includes("/voae/centros")) return "Centros Regionales";
+    if (path.includes("/voae/moderadores")) return "Moderadores";
+
+    // Módulos de Estudiante
+    if (path.includes("/student/feed")) return "Muro Social";
+    if (path.includes("/student/events")) return "Eventos Disponibles";
+    if (path.includes("/student/academic")) return "Historial Académico";
+    if (path.includes("/student/profile")) return "Perfil Estudiantil";
+    if (path.includes("/student/ficha")) return "Ficha Estudiantil";
+    if (path.includes("/student/qr-scanner")) return "Escanear QR";
+
+    // Varios
+    if (path.includes("/acerca-de")) return "Acerca de UNAH Conecta";
+    if (path.includes("/aplicativos")) return "Aplicativos";
+    if (path.includes("/logs")) return "Bitácora de Logs";
+
+    return getRoleName();
   };
 
   const isRegistrationPage = location.pathname.includes("/registro") || location.pathname.includes("/estudiante") || location.pathname.includes("/empleado");
@@ -133,11 +211,14 @@ export function AppNavbar() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="gap-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-[#004B87] text-white">
-                    <User className="h-4 w-4" />
+                  {fotoUsuario && (
+                    <AvatarImage src={fotoUsuario} alt={nombreUsuario} className="object-cover" />
+                  )}
+                  <AvatarFallback className="bg-[#004B87] text-white text-xs font-semibold">
+                    {usuario?.nombre ? getInitials(usuario.nombre) : <User className="h-4 w-4" />}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium text-[#004B87]">Usuario Puma</span>
+                <span className="text-sm font-medium text-[#004B87]">{nombreUsuario}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
