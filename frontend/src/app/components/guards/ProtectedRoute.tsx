@@ -17,11 +17,11 @@ const NORM_ROLE: Record<string, string> = {
 };
 
 const ROLE_PREFIXES: Record<string, string[]> = {
-  student:    ["/student", "/employees"],
+  student:    ["/student", "/tutor", "/employees"],
   tutor:      ["/tutor",   "/employees"],
   admin:      ["/admin",   "/employees", "/student", "/tutor", "/voae", "/voae-depto"],
-  voae:       ["/voae",    "/employees"],
-  voae_depto: ["/voae-depto", "/voae", "/employees"],
+  voae:       ["/voae",    "/tutor", "/employees"],
+  voae_depto: ["/voae-depto", "/voae", "/tutor", "/employees"],
   dev:        ["/"],   // acceso total
 };
 

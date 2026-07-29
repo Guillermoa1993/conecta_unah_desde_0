@@ -877,7 +877,7 @@ export function TutorEventos() {
     try {
       setLoading(true);
       setError(false);
-      const data = await api.get<any[]>("/eventos?limit=200");
+      const data = await api.get<any[]>("/eventos/mis-eventos");
       setAllEvents(data || []);
     } catch (err) {
       console.error("Error fetching tutor events:", err);
