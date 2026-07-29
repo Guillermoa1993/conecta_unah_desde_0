@@ -24,9 +24,15 @@ export class PostgresInscripcionRepository implements InscripcionRepository {
 
   async findByEvento(evento_id: string | number): Promise<InscripcionDetalle[]> {
     const { rows } = await this.pool.query(
-      `SELECT i.*, u.nombre AS estudiante_nombre, SPLIT_PART(u.correo, '@', 1) AS estudiante_cuenta
+      `SELECT i.*, 
+              u.nombre AS estudiante_nombre, 
+              COALESCE(p.numero_cuenta, SPLIT_PART(u.correo, '@', 1)) AS estudiante_cuenta,
+              u.correo AS estudiante_correo,
+              COALESCE(c.nombre, 'Sin carrera') AS estudiante_carrera
        FROM tabla_grupo_3_inscripcion i
        JOIN tabla_grupo_1_usuario u ON u.id_usuario = i.estudiante_id
+       LEFT JOIN tabla_grupo_1_perfil p ON p.id_usuario = u.id_usuario
+       LEFT JOIN tabla_grupo_1_carreras c ON c.id_carrera = u.id_carrera
        WHERE i.evento_id = $1
        ORDER BY i.inscrito_at ASC`,
       [evento_id],

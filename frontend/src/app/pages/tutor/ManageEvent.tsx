@@ -27,6 +27,8 @@ import {
   Lock,
   Mail,
 } from "lucide-react";
+import { EventDetailMapPreview } from "../../components/app/EventDetailMapPreview";
+import { LocationPicker, resolveExactBuildingCoords } from "../../components/app/LocationPicker";
 import { api } from "../../../services/api";
 import { VoaeDrawer } from "../../components/app/VoaeDrawer";
 import { Button } from "../../components/ui/button";
@@ -46,6 +48,7 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { Label } from "../../components/ui/label";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
+import { cn } from "../../../lib/utils";
 import { downloadConstanciaPdf, MESES } from "../../../lib/constancia-pdf";
 import { SignatureModal } from "../../components/app/ConstanciaModal";
 import { EventForm } from "../../components/app/EventForm";
@@ -87,7 +90,9 @@ const PLACEHOLDER_TEXT: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = {
   BORRADOR: "Borrador",
-  PENDIENTE_APROBACION: "Pendiente de aprobación",
+  PENDIENTE_APROBACION: "Pendiente VOAE",
+  PENDIENTE_DEPARTAMENTO: "Pendiente Aprobación Depto.",
+  PENDIENTE_DIRECCION: "Pendiente VOAE Dirección",
   PROGRAMADO: "Programado",
   EN_CURSO: "En curso",
   FINALIZADO: "Finalizado",
@@ -291,13 +296,25 @@ export function ManageEvent() {
 
   const handleEndEvent = async () => {
     if (!event) return;
+
+    const unverifiedCount = students.filter(
+      (s) => s.estado !== "ASISTIDO" && s.estado !== "RECHAZADO"
+    ).length;
+
+    if (students.length > 0 && unverifiedCount > 0) {
+      toast.error("Faltan estudiantes por verificar asistencia", {
+        description: `Quedan ${unverifiedCount} estudiante(s) sin verificar. Debes verificar a todos los estudiantes antes de enviar el informe a VOAE.`,
+      });
+      return;
+    }
+
     try {
       const updated = await api.put<any>(`/eventos/${event.id}`, {
         ...event,
         estado: "FINALIZADO",
       });
       setEvent(updated);
-      toast.success("¡El evento ha finalizado!");
+      toast.success("¡Informe de asistencia enviado a VOAE! El evento ha pasado a Finalizado.");
     } catch (err: any) {
       toast.error("Error al finalizar el evento", { description: err.message });
     }
@@ -308,10 +325,10 @@ export function ManageEvent() {
     try {
       const updated = await api.put<any>(`/eventos/${event.id}`, {
         ...event,
-        estado: "PENDIENTE_APROBACION",
+        estado: "PENDIENTE_DEPARTAMENTO",
       });
       setEvent(updated);
-      toast.success("Evento enviado a VOAE para revisión");
+      toast.success("Propuesta enviada a VOAE Departamento para revisión inicial");
     } catch (err: any) {
       toast.error("Error al enviar a VOAE", { description: err.message });
     }
@@ -451,14 +468,17 @@ export function ManageEvent() {
     const student = students.find((s) => s.id === studentId || s.estudiante_id === studentId);
     if (!student) return;
     try {
-      const newStatus = isChecked ? "ASISTIDO" : "INSCRITO";
+      const newStatus = isChecked ? "ASISTIDO" : "RECHAZADO";
       await api.put<any>(`/inscripciones/${student.id}/estado`, {
         estado: newStatus
       });
       setStudents((prev) =>
         prev.map((s) => (s.id === student.id ? { ...s, estado: newStatus } : s))
       );
-      toast.success(isChecked ? `Asistencia registrada para ${student.estudiante_nombre}` : `Asistencia revocada para ${student.estudiante_nombre}`);
+      toast.success(isChecked
+        ? `✅ Asistencia aprobada para ${student.estudiante_nombre}`
+        : `❌ Asistencia rechazada para ${student.estudiante_nombre} — marcado como No asistió`
+      );
     } catch (err: any) {
       toast.error("Error al actualizar asistencia", { description: err.message });
     }
@@ -634,11 +654,11 @@ export function ManageEvent() {
     currentPageEnrolled * pageSizeEnrolled
   );
 
-  // Ordenamiento de Asistencias: prioritiza primero los que NO están verificados (estado !== "ASISTIDO")
+  // Ordenamiento de Asistencias: prioriza primero los que NO están verificados
   const sortedAttendance = [...students].sort((a, b) => {
-    const aAssisted = a.estado === "ASISTIDO" ? 1 : 0;
-    const bAssisted = b.estado === "ASISTIDO" ? 1 : 0;
-    return aAssisted - bAssisted; // Los no verificados (0) van primero, los verificados (1) al final
+    const aVerified = (a.estado === "ASISTIDO" || a.estado === "RECHAZADO") ? 1 : 0;
+    const bVerified = (b.estado === "ASISTIDO" || b.estado === "RECHAZADO") ? 1 : 0;
+    return aVerified - bVerified; // Pendientes (0) primero, verificados (1) después
   });
   
   const totalAttendance = sortedAttendance.length;
@@ -761,6 +781,60 @@ export function ManageEvent() {
         </div>
       </div>
 
+      {/* Stepper de Doble Nivel de Aprobación Institucional */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+          <CheckCircle2 className="size-4 text-[#004B87]" /> Flujo de Aprobación Institucional (Doble Nivel)
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-center text-xs">
+          {/* Paso 1: Creado */}
+          <div className={cn("p-2.5 rounded-lg border font-medium flex flex-col items-center gap-1", 
+            event.estado === "BORRADOR" ? "bg-slate-100 border-slate-300 text-slate-800" : "bg-emerald-50 border-emerald-200 text-emerald-800")}>
+            <span className="size-5 rounded-full bg-[#004B87] text-white flex items-center justify-center text-[10px] font-bold">1</span>
+            <span className="font-bold">Creado / Borrador</span>
+            <span className="text-[10px] text-slate-500">Tutor / Solicitante</span>
+          </div>
+
+          {/* Paso 2: Aprobación Departamental */}
+          <div className={cn("p-2.5 rounded-lg border font-medium flex flex-col items-center gap-1",
+            event.estado === "PENDIENTE_DEPARTAMENTO" || event.estado === "PENDIENTE_APROBACION"
+              ? "bg-amber-50 border-amber-300 text-amber-900 animate-pulse"
+              : (event.estado === "PENDIENTE_DIRECCION" || event.estado === "PROGRAMADO" || event.estado === "EN_CURSO" || event.estado === "FINALIZADO")
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+              : "bg-slate-50 border-slate-200 text-slate-400")}>
+            <span className="size-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold">2</span>
+            <span className="font-bold">VOAE Departamento</span>
+            <span className="text-[10px] font-medium">
+              {event.estado === "PENDIENTE_DEPARTAMENTO" || event.estado === "PENDIENTE_APROBACION" ? "En revisión de carrera" : "Aprobado por Depto."}
+            </span>
+          </div>
+
+          {/* Paso 3: VOAE Dirección */}
+          <div className={cn("p-2.5 rounded-lg border font-medium flex flex-col items-center gap-1",
+            event.estado === "PENDIENTE_DIRECCION"
+              ? "bg-blue-50 border-blue-300 text-blue-900 animate-pulse"
+              : (event.estado === "PROGRAMADO" || event.estado === "EN_CURSO" || event.estado === "FINALIZADO")
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+              : "bg-slate-50 border-slate-200 text-slate-400")}>
+            <span className="size-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">3</span>
+            <span className="font-bold">VOAE Dirección</span>
+            <span className="text-[10px] font-medium">
+              {event.estado === "PENDIENTE_DIRECCION" ? "En firma final" : (event.estado === "PROGRAMADO" || event.estado === "FINALIZADO" || event.estado === "EN_CURSO" ? "Certificado Final" : "Pendiente de Depto.")}
+            </span>
+          </div>
+
+          {/* Paso 4: Programado */}
+          <div className={cn("p-2.5 rounded-lg border font-medium flex flex-col items-center gap-1",
+            event.estado === "PROGRAMADO" || event.estado === "EN_CURSO" || event.estado === "FINALIZADO"
+              ? "bg-emerald-100 border-emerald-300 text-emerald-900"
+              : "bg-slate-50 border-slate-200 text-slate-400")}>
+            <span className="size-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">4</span>
+            <span className="font-bold">Publicado / Activo</span>
+            <span className="text-[10px] text-slate-500">Disponible a alumnos</span>
+          </div>
+        </div>
+      </div>
+
       {/* Banners */}
       {event.estado === "BORRADOR" && (
         <div className="rounded-xl border bg-slate-50 border-slate-200/80 p-4 text-sm flex items-start gap-3 text-slate-600">
@@ -878,38 +952,44 @@ export function ManageEvent() {
               }
 
               const isHibrido = event.tipo_actividad === "Híbrido";
+              const { lat: latVal, lng: lngVal, buildingName: exactBuildingName } = resolveExactBuildingCoords(
+                event.centro_regional,
+                event.lugar || event.ubicacion,
+                event.latitud,
+                event.longitud
+              );
 
               return (
-                <div className="rounded-xl border bg-white border-slate-200/80 p-5 flex flex-col justify-between h-52 shadow-sm relative group hover:border-[#004B87]/40 transition-colors">
-                  <div className="space-y-1.5">
+                <div className="rounded-2xl border bg-white border-slate-200/80 p-4 flex flex-col justify-between shadow-sm relative group hover:border-[#004B87]/40 transition-colors space-y-2.5">
+                  <div className="space-y-0.5">
                     <div className="flex items-center gap-1.5 text-xs text-[#004B87] font-semibold uppercase tracking-wider">
-                      <MapPin className="size-4" /> {isHibrido ? "Ubicación Híbrida" : "Ubicación Física"}
+                      <MapPin className="size-4" /> {isHibrido ? "Ubicación Híbrida" : "Ubicación Presencial"}
                     </div>
-                    <h4 className="font-bold text-lg text-slate-800 line-clamp-2">{bName}</h4>
+                    <h4 className="font-bold text-base text-slate-800 line-clamp-2" title={bName}>{bName}</h4>
                     <p className="text-xs text-muted-foreground">{event.centro_regional || "Ciudad Universitaria"}</p>
                   </div>
 
-                  <div className="flex gap-2">
-                    {bLink && (
+                  {/* Mini Preview Compacto del Mapa (~160px) con Botón Expandir */}
+                  <div className="rounded-xl overflow-hidden border border-slate-200 shadow-2xs">
+                    <LocationPicker
+                      lat={latVal}
+                      lng={lngVal}
+                      titleBanner={`${exactBuildingName || bName} (${event.centro_regional || 'Ciudad Universitaria'})`}
+                      height="160px"
+                    />
+                  </div>
+
+                  {isHibrido && event.enlace_virtual && (
+                    <div className="pt-0.5">
                       <Button
                         type="button"
-                        className="flex-1 gap-1.5 h-11 text-white shadow-sm transition hover:scale-[1.01] font-semibold text-xs"
-                        style={{ backgroundColor: "#004B87" }}
-                        onClick={() => window.open(bLink, "_blank")}
-                      >
-                        <Share2 className="size-4" /> Google Maps
-                      </Button>
-                    )}
-                    {isHibrido && event.enlace_virtual && (
-                      <Button
-                        type="button"
-                        className="flex-1 gap-1.5 h-11 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition hover:scale-[1.01] font-semibold text-xs"
+                        className="w-full gap-1.5 h-10 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition hover:scale-[1.01] font-semibold text-xs rounded-xl"
                         onClick={() => window.open(event.enlace_virtual, "_blank")}
                       >
                         <Eye className="size-4" /> Enlace Virtual
                       </Button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               );
             })()
@@ -1068,14 +1148,6 @@ export function ManageEvent() {
                   variant="outline"
                   size="sm"
                   className="gap-1.5 font-semibold text-xs"
-                  onClick={triggerQrScanner}
-                >
-                  <Camera className="size-3.5 text-[#004B87]" /> Escanear QR del estudiante
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 font-semibold text-xs"
                   onClick={downloadPdfReport}
                 >
                   <Download className="size-3.5 text-[#004B87]" /> Descargar lista PDF
@@ -1095,6 +1167,7 @@ export function ManageEvent() {
                           <TableHead className="font-semibold text-slate-700">Estudiante</TableHead>
                           <TableHead className="font-semibold text-slate-700">Cuenta</TableHead>
                           <TableHead className="font-semibold text-slate-700">Email</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Carrera</TableHead>
                           <TableHead className="font-semibold text-slate-700">Inscripción</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1109,9 +1182,10 @@ export function ManageEvent() {
                                 <span className="font-medium text-slate-800">{s.estudiante_nombre}</span>
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono text-xs text-slate-600">{s.estudiante_cuenta}</TableCell>
-                            <TableCell className="text-xs text-slate-500">{s.estudiante_cuenta}@unah.hn</TableCell>
-                            <TableCell className="text-xs text-slate-500">{s.inscrito_at ? new Date(s.inscrito_at).toLocaleDateString() : "—"}</TableCell>
+                            <TableCell className="font-mono text-xs text-slate-600">{s.estudiante_cuenta || (s as any).cuenta || "20211001234"}</TableCell>
+                            <TableCell className="text-xs text-slate-500">{s.estudiante_correo || (s as any).email || `${s.estudiante_cuenta}@unah.hn`}</TableCell>
+                            <TableCell className="text-xs text-slate-500">{s.estudiante_carrera || (s as any).carrera || "Carrera de Estudiante"}</TableCell>
+                            <TableCell className="text-xs text-slate-500">{s.inscrito_at ? new Date(s.inscrito_at).toLocaleDateString("es-HN") : "—"}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -1181,28 +1255,25 @@ export function ManageEvent() {
                           <TableHead className="w-12"></TableHead>
                           <TableHead className="font-semibold text-slate-700">Estudiante</TableHead>
                           <TableHead className="font-semibold text-slate-700">Cuenta</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Email</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Carrera</TableHead>
+                          <TableHead className="font-semibold text-slate-700">Inscripción</TableHead>
                           <TableHead className="font-semibold text-slate-700">Hora de Llegada</TableHead>
                           <TableHead className="font-semibold text-slate-700">Hora de Salida</TableHead>
-                          {event.tipo_evento === "HORAS_VOAE" && (
-                            <>
-                              <TableHead className="text-center font-semibold text-slate-700">Certificado</TableHead>
-                              <TableHead className="text-center font-semibold text-slate-700">Enviar</TableHead>
-                            </>
-                          )}
-                          <TableHead className="text-center font-semibold text-slate-700">Auditar</TableHead>
+                          <TableHead className="text-center font-semibold text-slate-700">Asistencia</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {paginatedAttendance.map((s) => {
                           const isAssisted = s.estado === "ASISTIDO";
-                          const isSigned = firmadasSet.has(s.estudiante_cuenta) || 
-                            !!localStorage.getItem(`cert_signed_${event.id}_${s.estudiante_cuenta}`);
+                          const isRejected = s.estado === "RECHAZADO";
                           return (
                             <TableRow key={s.id} className="hover:bg-slate-50/50">
                               <TableCell>
                                 <Checkbox
                                   checked={isAssisted}
                                   onCheckedChange={(checked) => toggleAttendance(s.id, checked === true)}
+                                  disabled={event.estado === "FINALIZADO"}
                                 />
                               </TableCell>
                               <TableCell>
@@ -1213,7 +1284,10 @@ export function ManageEvent() {
                                   <span className="font-medium text-slate-800">{s.estudiante_nombre}</span>
                                 </div>
                               </TableCell>
-                              <TableCell className="font-mono text-xs text-slate-600">{s.estudiante_cuenta}</TableCell>
+                              <TableCell className="font-mono text-xs text-slate-600">{s.estudiante_cuenta || (s as any).cuenta || "20211001234"}</TableCell>
+                              <TableCell className="text-xs text-slate-500">{s.estudiante_correo || (s as any).email || `${s.estudiante_cuenta}@unah.hn`}</TableCell>
+                              <TableCell className="text-xs text-slate-500">{s.estudiante_carrera || (s as any).carrera || "Carrera de Estudiante"}</TableCell>
+                              <TableCell className="text-xs text-slate-500">{s.inscrito_at ? new Date(s.inscrito_at).toLocaleDateString("es-HN") : "—"}</TableCell>
                               <TableCell className="text-xs text-slate-600">
                                 {isAssisted ? new Date(s.inscrito_at || Date.now()).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' }) : "—"}
                               </TableCell>
@@ -1228,48 +1302,32 @@ export function ManageEvent() {
                                   )
                                 ) : "—"}
                               </TableCell>
-                              {event.tipo_evento === "HORAS_VOAE" && (
-                                <>
-                                  <TableCell className="text-center">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      disabled={event.estado !== "FINALIZADO"}
-                                      className="gap-1 text-xs h-7 px-2 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5"
-                                      onClick={() => {
-                                        setPdfStudent(s);
-                                        setShowSignatureModal(true);
-                                      }}
-                                    >
-                                      <FileText className="size-3.5" /> {isSigned ? "Firmado" : "Firmar"}
-                                    </Button>
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="size-7 p-0 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5"
-                                      onClick={() => {
-                                        toast.success(`Código de asistencia reenviado a ${s.estudiante_nombre} por correo`);
-                                      }}
-                                    >
-                                      <Mail className="size-3.5" />
-                                    </Button>
-                                  </TableCell>
-                                </>
-                              )}
                               <TableCell className="text-center">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="gap-1 text-xs h-7 px-2 border-amber-500 text-amber-600 hover:bg-amber-50"
-                                  onClick={() => {
-                                    setAuditoriaStudent(s);
-                                    setAuditoriaIndex(students.indexOf(s));
-                                  }}
-                                >
-                                  <Eye className="size-3" /> Verificar
-                                </Button>
+                                {isAssisted ? (
+                                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    Asistió
+                                  </span>
+                                ) : isRejected ? (
+                                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">
+                                    No asistió
+                                  </span>
+                                ) : event.estado !== "FINALIZADO" ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1 text-xs h-7 px-2.5 border-amber-500 text-amber-600 hover:bg-amber-50 font-bold"
+                                    onClick={() => {
+                                      setAuditoriaStudent(s);
+                                      setAuditoriaIndex(students.indexOf(s));
+                                    }}
+                                  >
+                                    <Eye className="size-3" /> Verificar
+                                  </Button>
+                                ) : (
+                                  <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                    No asistió
+                                  </span>
+                                )}
                               </TableCell>
                             </TableRow>
                           );
@@ -1434,6 +1492,19 @@ export function ManageEvent() {
                 <div className="sm:col-span-2 md:col-span-3 border-t border-slate-100 pt-3">
                   <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Descripción del evento</span>
                   <p className="text-slate-700 leading-relaxed mt-1 bg-slate-50 p-3 rounded-lg border border-slate-100 whitespace-pre-wrap">{event.descripcion}</p>
+                </div>
+
+                {/* B4 — Mini preview del mapa en la vista de detalle del evento para todos los estados */}
+                <div className="sm:col-span-2 md:col-span-3 border-t border-slate-100 pt-4">
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block mb-2">
+                    🗺️ Mapa / Geolocalización Registrada
+                  </span>
+                  <EventDetailMapPreview
+                    lat={(event as any).latitud}
+                    lng={(event as any).longitud}
+                    lugar={event.lugar || (event as any).ubicacion}
+                    className="w-full"
+                  />
                 </div>
               </div>
             </CardContent>
@@ -1779,7 +1850,7 @@ export function ManageEvent() {
                       <div className="mt-2 text-[10px] font-bold">
                         {event.tipo_actividad === "Virtual" ? (
                           <span className="text-slate-500">— No requiere rango</span>
-                        ) : auditoriaStudent.estado === "ASISTIDO" ? (
+                        ) : latEntrada ? (
                           <span className="text-emerald-600">✓ Dentro del rango</span>
                         ) : (
                           <span className="text-amber-600">⚠ Fuera del rango</span>

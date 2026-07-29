@@ -22,6 +22,7 @@ import { PostgresUsuarioSeguridadRepository } from '../repositories/PostgresUsua
 import { PostgresRolSeguridadRepository } from '../repositories/PostgresRolSeguridadRepository';
 import { PostgresPermisoSeguridadRepository } from '../repositories/PostgresPermisoSeguridadRepository';
 import { BackupService } from '../backup/BackupService';
+import { PostgresDashboardRepository } from '../repositories/PostgresDashboardRepository';
 
 // Use cases
 import { GetHealthReport } from '../../use-cases/GetHealthReport';
@@ -94,6 +95,7 @@ import { Grupo2EventoController } from '../../interfaces/controllers/Grupo2Event
 // Módulo 4 · Seguridad — controllers
 import { BitacoraController } from '../../interfaces/controllers/BitacoraController';
 import { BackupController } from '../../interfaces/controllers/BackupController';
+import { DashboardController } from '../../interfaces/controllers/DashboardController';
 import { UsuarioSeguridadController } from '../../interfaces/controllers/UsuarioSeguridadController';
 import { RolSeguridadController } from '../../interfaces/controllers/RolSeguridadController';
 import { PermisoSeguridadController } from '../../interfaces/controllers/PermisoSeguridadController';
@@ -115,6 +117,7 @@ import { grupo2EventoRouter } from '../../interfaces/routes/grupo2EventoRoutes';
 // Módulo 4 · Seguridad — routes
 import { bitacoraRouter } from '../../interfaces/routes/bitacoraRoutes';
 import { backupRouter } from '../../interfaces/routes/backupRoutes';
+import { dashboardRouter } from '../../interfaces/routes/dashboardRoutes';
 import { usuarioSeguridadRouter } from '../../interfaces/routes/usuarioSeguridadRoutes';
 import { rolSeguridadRouter } from '../../interfaces/routes/rolSeguridadRoutes';
 import { permisoSeguridadRouter } from '../../interfaces/routes/permisoSeguridadRoutes';
@@ -129,7 +132,26 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors({ origin: (origin, cb) => cb(null, true) })); // CORS dinámico — se re-aplica tras loadConfig
+// CORS restringido: solo el frontend configurado en Parámetros (FRONTEND_URL)
+// más cualquier origen extra listado en CORS_ORIGENES_ADICIONALES (separados
+// por coma). Antes esto aceptaba cualquier origen sin restricción alguna.
+// localhost siempre se permite para poder seguir desarrollando en local.
+function origenPermitido(origin: string): boolean {
+  if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return true;
+  const permitidos = [
+    cfg('FRONTEND_URL', 'http://localhost:5173'),
+    ...cfg('CORS_ORIGENES_ADICIONALES', '').split(',').map(s => s.trim()).filter(Boolean),
+  ];
+  return permitidos.includes(origin);
+}
+
+app.use(cors({
+  origin: (origin, cb) => {
+    // Sin header Origin (curl, apps nativas, mismo servidor) → se permite.
+    if (!origin) return cb(null, true);
+    return cb(null, origenPermitido(origin));
+  },
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -151,7 +173,7 @@ const bitacoraRepo    = new PostgresBitacoraRepository(pool);
 const usuarioSegRepo  = new PostgresUsuarioSeguridadRepository(pool);
 const rolSegRepo      = new PostgresRolSeguridadRepository(pool);
 const permisoSegRepo  = new PostgresPermisoSeguridadRepository(pool);
-const backupService   = new BackupService();
+const backupService   = new BackupService(pool);
 
 // ── Use cases ───────────────────────────────────────────────────────────────
 const loginUC          = new LoginUsuario(usuarioRepo);
@@ -248,6 +270,8 @@ const grupo2EventoCtrl = new Grupo2EventoController(
 // Módulo 4 · Seguridad — controllers
 const bitacoraCtrl = new BitacoraController(bitacoraRepo);
 const backupCtrl   = new BackupController(backupService, bitacoraRepo);
+const dashboardRepo = new PostgresDashboardRepository(pool);
+const dashboardCtrl = new DashboardController(dashboardRepo);
 const usuarioSegCtrl = new UsuarioSeguridadController(
   crearUsuarioSegUC, obtenerUsuariosSegUC, obtenerUsuarioSegUC, actualizarUsuarioSegUC,
   inhabilitarUsuarioSegUC, habilitarUsuarioSegUC,
@@ -282,6 +306,7 @@ app.use('/api/seguridad/roles',    rolSeguridadRouter(rolSegCtrl));
 app.use('/api/seguridad/permisos', permisoSeguridadRouter(permisoSegCtrl));
 app.use('/api/seguridad/bitacora', bitacoraRouter(bitacoraCtrl));
 app.use('/api/seguridad/backups',  backupRouter(backupCtrl));
+app.use('/api/admin/dashboard',    dashboardRouter(dashboardCtrl));
 
 // ── Error handler (debe ir al final) ────────────────────────────────────────
 app.use(errorMiddleware);

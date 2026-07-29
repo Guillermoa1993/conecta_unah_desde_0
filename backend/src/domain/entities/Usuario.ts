@@ -1,4 +1,4 @@
-export type RolUsuario = 'ESTUDIANTE' | 'TUTOR' | 'ADMIN' | 'VOAE';
+export type RolUsuario = 'ESTUDIANTE' | 'EMPLEADO' | 'ADMIN' | 'VOAE_DIRECCION' | 'VOAE_DEPARTAMENTO';
 export type EstadoUsuario = 'ACTIVO' | 'INACTIVO' | 'SUSPENDIDO';
 
 export interface Usuario {

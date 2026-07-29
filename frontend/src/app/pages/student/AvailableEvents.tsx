@@ -156,21 +156,13 @@ export const AvailableEvents: React.FC = () => {
               alert(error.message || 'Error al registrar asistencia');
               setEscanerQR(null);
             }
-          }, async () => {
-            try {
-              const tipoAsistencia = escanerQR.tipo === 'activar entrada' ? 'entrada' : 'salida';
-              await grupo2EventosService.registrarAsistencia(escanerQR.eventoId, {
-                tipo: tipoAsistencia,
-                lat: 14.0818,
-                lng: -87.2068
-              });
-              await cargarEventos();
-              setEscanerQR(null);
-            } catch (error: any) {
-              alert(error.message || 'Error al registrar asistencia');
-              setEscanerQR(null);
-            }
+          }, (geoErr) => {
+            alert('📍 Debes activar la ubicación GPS en tu navegador/dispositivo para registrar tu asistencia al evento.');
+            setEscanerQR(null);
           });
+        } else {
+          alert('📍 Tu navegador no soporta la geolocalización requerida para registrar asistencia.');
+          setEscanerQR(null);
         }
       };
       scannerRef.current.render(alEscanearExitoso, (error) => {});

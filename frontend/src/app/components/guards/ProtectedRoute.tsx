@@ -1,5 +1,17 @@
 import { Navigate, useLocation } from "react-router";
 
+const NORM_ROLE: Record<string, string> = {
+  student: "student",
+  estudiante: "student",
+  tutor: "tutor",
+  empleado: "tutor",
+  docente: "tutor",
+  admin: "admin",
+  voae: "voae",
+  voae_direccion: "voae",
+  dev: "dev",
+};
+
 const ROLE_PREFIXES: Record<string, string[]> = {
   student: ["/student", "/employees"],
   tutor:   ["/tutor",   "/employees"],
@@ -19,7 +31,8 @@ const ROLE_HOME: Record<string, string> = {
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const isActive = sessionStorage.getItem("unah_session_active") === "true";
-  const role     = sessionStorage.getItem("unah_role") ?? "student";
+  const rawRole  = sessionStorage.getItem("unah_role") ?? "student";
+  const role     = NORM_ROLE[rawRole.toLowerCase()] ?? rawRole.toLowerCase();
 
   if (!isActive) {
     return <Navigate to="/" replace state={{ from: location }} />;

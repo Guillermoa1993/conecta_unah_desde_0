@@ -8,7 +8,7 @@ export class ActualizarEvento {
     const evento = await this.eventoRepo.findById(id);
     if (!evento) throw new Error('Evento no encontrado');
 
-    if (solicitante_rol === 'TUTOR' && evento.tutor_id !== solicitante_id) {
+    if (solicitante_rol === 'EMPLEADO' && evento.tutor_id !== solicitante_id) {
       throw new Error('No tienes permiso para editar este evento');
     }
 

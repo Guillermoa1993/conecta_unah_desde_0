@@ -34,10 +34,24 @@ export function autenticar(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+const ROLE_ALIASES: Record<string, string[]> = {
+  TUTOR: ['TUTOR', 'EMPLEADO', 'DOCENTE'],
+  EMPLEADO: ['EMPLEADO', 'TUTOR', 'DOCENTE'],
+  VOAE: ['VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO'],
+  VOAE_DIRECCION: ['VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO'],
+  VOAE_DEPARTAMENTO: ['VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO'],
+  ADMIN: ['ADMIN', 'ADMINISTRADOR'],
+  ESTUDIANTE: ['ESTUDIANTE', 'STUDENT'],
+};
+
 export function autorizar(...roles: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.usuario) { res.status(401).json({ error: 'No autenticado' }); return; }
-    if (!roles.includes(req.usuario.rol)) {
+
+    const userRol = (req.usuario.rol || '').toUpperCase();
+    const allowedRoles = roles.flatMap((r) => ROLE_ALIASES[r.toUpperCase()] ?? [r.toUpperCase()]);
+
+    if (!allowedRoles.includes(userRol)) {
       res.status(403).json({ error: 'No tienes permiso para esta acción' });
       return;
     }

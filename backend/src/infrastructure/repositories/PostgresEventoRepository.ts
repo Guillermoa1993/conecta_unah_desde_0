@@ -71,17 +71,24 @@ export class PostgresEventoRepository implements EventoRepository {
       audiencia: audiencia,
       registro_entrada: registro_entrada,
       registro_salida: registro_salida,
+      tutor_nombre: row.tutor_nombre || undefined,
+      creador_nombre: row.tutor_nombre || undefined,
+      tutor_foto: row.tutor_foto || undefined,
+      creador_foto: row.tutor_foto || undefined,
     };
   }
 
   async findById(id: string): Promise<Evento | null> {
     const { rows } = await this.pool.query(
-      `SELECT e.*, 
+      `SELECT e.*, u.nombre AS tutor_nombre, p.foto_url AS tutor_foto,
               TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
               TO_CHAR(e.fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado = 'ASISTIDO'), 0) AS asistencias_count 
-       FROM tabla_grupo_3_eventos e WHERE e.id = $1`, [id]
+       FROM tabla_grupo_3_eventos e
+       LEFT JOIN tabla_grupo_1_usuario u ON e.tutor_id::text = u.id_usuario::text
+       LEFT JOIN tabla_grupo_1_perfil  p ON u.id_usuario = p.id_usuario
+       WHERE e.id = $1`, [id]
     );
     return rows[0] ? this.mapRowToEvento(rows[0]) : null;
   }
@@ -100,12 +107,15 @@ export class PostgresEventoRepository implements EventoRepository {
     const offset = ((filtros.page ?? 1) - 1) * limit;
 
     const { rows } = await this.pool.query(
-      `SELECT e.*, 
+      `SELECT e.*, u.nombre AS tutor_nombre, p.foto_url AS tutor_foto,
               TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
               TO_CHAR(e.fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado = 'ASISTIDO'), 0) AS asistencias_count 
-       FROM tabla_grupo_3_eventos e ${where} ORDER BY e.fecha_inicio DESC LIMIT $${idx++} OFFSET $${idx++}`,
+       FROM tabla_grupo_3_eventos e
+       LEFT JOIN tabla_grupo_1_usuario u ON e.tutor_id::text = u.id_usuario::text
+       LEFT JOIN tabla_grupo_1_perfil  p ON u.id_usuario = p.id_usuario
+       ${where} ORDER BY e.fecha_inicio DESC LIMIT $${idx++} OFFSET $${idx++}`,
       [...values, limit, offset],
     );
 
@@ -119,12 +129,15 @@ export class PostgresEventoRepository implements EventoRepository {
 
   async findByTutor(tutor_id: string): Promise<Evento[]> {
     const { rows } = await this.pool.query(
-      `SELECT e.*, 
+      `SELECT e.*, u.nombre AS tutor_nombre, p.foto_url AS tutor_foto,
               TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
               TO_CHAR(e.fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado = 'ASISTIDO'), 0) AS asistencias_count 
-       FROM tabla_grupo_3_eventos e WHERE e.tutor_id = $1 ORDER BY e.created_at DESC`,
+       FROM tabla_grupo_3_eventos e
+       LEFT JOIN tabla_grupo_1_usuario u ON e.tutor_id::text = u.id_usuario::text
+       LEFT JOIN tabla_grupo_1_perfil  p ON u.id_usuario = p.id_usuario
+       WHERE e.tutor_id = $1 ORDER BY e.created_at DESC`,
       [tutor_id],
     );
     return rows.map(r => this.mapRowToEvento(r));
@@ -132,12 +145,16 @@ export class PostgresEventoRepository implements EventoRepository {
 
   async findPendientesAprobacion(): Promise<Evento[]> {
     const { rows } = await this.pool.query(
-      `SELECT e.*, 
+      `SELECT e.*, u.nombre AS tutor_nombre, p.foto_url AS tutor_foto,
               TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
               TO_CHAR(e.fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado = 'ASISTIDO'), 0) AS asistencias_count 
-       FROM tabla_grupo_3_eventos e WHERE e.estado = 'PENDIENTE_APROBACION' ORDER BY e.created_at ASC`,
+       FROM tabla_grupo_3_eventos e
+       LEFT JOIN tabla_grupo_1_usuario u ON e.tutor_id::text = u.id_usuario::text
+       LEFT JOIN tabla_grupo_1_perfil  p ON u.id_usuario = p.id_usuario
+       WHERE e.estado IN ('PENDIENTE_APROBACION', 'PENDIENTE_DEPARTAMENTO', 'PENDIENTE_DIRECCION')
+       ORDER BY e.created_at ASC`,
     );
     return rows.map(r => this.mapRowToEvento(r));
   }

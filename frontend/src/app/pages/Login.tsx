@@ -14,12 +14,14 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
 type Step = 1 | 2;
 type Role = "student" | "tutor" | "admin" | "voae" | "dev";
 
+// Home unificado: TODOS los roles aterrizan en el muro después del login.
+// La administración vive dentro de una pestaña colapsada en la sidebar.
 const ROLE_PATHS: Record<Role, string> = {
-  student: "/student/feed",
-  tutor:   "/tutor",
-  admin:   "/admin",
-  voae:    "/voae",
-  dev:     "/student/feed",
+  student: "/muro",
+  tutor:   "/muro",
+  admin:   "/muro",
+  voae:    "/muro",
+  dev:     "/muro",
 };
 
 const DOMAINS = [
@@ -322,7 +324,8 @@ export function Login() {
       authService.setUsuarioGuardado(data.usuario);
 
       const ROL_MAP: Record<string, Role> = {
-        estudiante: 'student', tutor: 'tutor', admin: 'admin', voae: 'voae', dev: 'dev',
+        estudiante: 'student', tutor: 'tutor', empleado: 'tutor', admin: 'admin',
+        voae: 'voae', voae_direccion: 'voae', voae_departamento: 'voae', dev: 'dev',
       };
       const role = ROL_MAP[data.usuario.rol.toLowerCase()] ?? 'student';
       const path = ROLE_PATHS[role] ?? "/student/feed";
