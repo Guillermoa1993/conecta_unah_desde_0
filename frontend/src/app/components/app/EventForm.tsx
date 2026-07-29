@@ -804,6 +804,18 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
     const autoCover = generateAiCoverCanvas(data.titulo, labelText, theme);
     const finalPortada = (data.usa_imagen_personalizada && imgPortada) ? imgPortada : autoCover;
 
+    const currentSedeData = SEDES_DATA[data.centro_regional] || SEDES_DATA["Ciudad Universitaria"];
+    let finalUbicacion = data.ubicacion || data.enlace_virtual || "";
+    if (data.tipo_actividad !== "Virtual" && isCustomBuilding) {
+      const cleanText = customBuildingText.trim();
+      const curLat = data.latitud || currentSedeData.lat;
+      const curLng = data.longitud || currentSedeData.lng;
+      const link = `https://www.google.com/maps/search/?api=1&query=${curLat},${curLng}`;
+      if (cleanText) {
+        finalUbicacion = `${cleanText}|${link}|${curLat},${curLng}`;
+      }
+    }
+
     const payload = {
       titulo: data.titulo,
       descripcion: data.descripcion,
@@ -813,8 +825,8 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       fecha_fin: data.fecha_fin + "T" + data.hora_fin + ":00",
       duracion_horas: calcDuration(),
       cupo_maximo: parseInt(data.cupo_maximo, 10) || 0,
-      lugar: data.ubicacion || data.enlace_virtual || "",
-      ubicacion: data.ubicacion || data.enlace_virtual || "",
+      lugar: finalUbicacion,
+      ubicacion: finalUbicacion,
       latitud: data.latitud ? parseFloat(data.latitud) : undefined,
       longitud: data.longitud ? parseFloat(data.longitud) : undefined,
       tipo_actividad: data.tipo_actividad,

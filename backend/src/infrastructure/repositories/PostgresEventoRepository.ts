@@ -253,6 +253,8 @@ export class PostgresEventoRepository implements EventoRepository {
     if (data.ubicacion !== undefined || (data as any).lugar !== undefined) {
       dbData.lugar = data.ubicacion !== undefined ? data.ubicacion : (data as any).lugar;
     }
+    if ((data as any).latitud !== undefined) dbData.latitud = (data as any).latitud;
+    if ((data as any).longitud !== undefined) dbData.longitud = (data as any).longitud;
     if (data.enlace_virtual !== undefined) dbData.enlace_virtual = data.enlace_virtual;
     if (data.cupo_maximo !== undefined) dbData.cupo_maximo = data.cupo_maximo;
     if (data.duracion_horas !== undefined) {
