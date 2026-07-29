@@ -26,7 +26,9 @@ import {
   LogOut,
   Lock,
   Mail,
+  Star,
 } from "lucide-react";
+import { cn } from "../../../lib/utils";
 import { EventDetailMapPreview } from "../../components/app/EventDetailMapPreview";
 import { LocationPicker, resolveExactBuildingCoords } from "../../components/app/LocationPicker";
 import { api } from "../../../services/api";
@@ -1010,11 +1012,13 @@ export function ManageEvent() {
 
       {/* Tabs list (Control de asistencia, Participantes, Detalle, Valoraciones) */}
       <Tabs defaultValue="control" className="space-y-4">
-        <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full max-w-2xl">
+        <TabsList className={cn("grid w-full max-w-2xl", event.estado === "FINALIZADO" ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3 sm:w-auto")}>
           <TabsTrigger value="control">Control Asistencia</TabsTrigger>
           <TabsTrigger value="participantes">Participantes ({students.length})</TabsTrigger>
           <TabsTrigger value="detalle">Detalle</TabsTrigger>
-          <TabsTrigger value="valoraciones">Valoraciones (3)</TabsTrigger>
+          {event.estado === "FINALIZADO" && (
+            <TabsTrigger value="valoraciones">Valoraciones ({backendEvaluaciones.length})</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="control" className="space-y-4">
@@ -1496,41 +1500,34 @@ export function ManageEvent() {
 
         <TabsContent value="valoraciones" className="space-y-4">
           {(() => {
-            const reviewsList = backendEvaluaciones.length > 0
-              ? backendEvaluaciones.map((rev: any) => ({
-                  id: rev.id,
-                  nombre: rev.estudiante_nombre || "Estudiante UNAH",
-                  cuenta: rev.estudiante_cuenta || "20211001234",
-                  estrellas: parseInt(rev.estrellas, 10) || 5,
-                  comentario: rev.comentario || "Sin comentario adicional.",
-                  fecha: rev.fecha || new Date().toLocaleDateString("es-HN"),
-                }))
-              : [
-                  {
-                    id: 1,
-                    nombre: "Ana María García",
-                    cuenta: "20211001234",
-                    estrellas: 5,
-                    comentario: "Excelente taller, las explicaciones fueron muy claras y los ejercicios prácticos sirvieron bastante para el aprendizaje.",
-                    fecha: "27/07/2026",
-                  },
-                  {
-                    id: 2,
-                    nombre: "Carlos Eduardo López",
-                    cuenta: "20201004567",
-                    estrellas: 5,
-                    comentario: "Muy buena organización del evento y excelente dominio del tema por parte del tutor. Recomiendo que hagan una segunda parte.",
-                    fecha: "27/07/2026",
-                  },
-                  {
-                    id: 3,
-                    nombre: "María José Rodríguez",
-                    cuenta: "20221008912",
-                    estrellas: 4,
-                    comentario: "El evento estuvo muy bien estructurado. El único detalle fue el espacio en el aula, pero la temática estuvo genial.",
-                    fecha: "28/07/2026",
-                  },
-                ];
+            const reviewsList = backendEvaluaciones.map((rev: any) => ({
+              id: rev.id,
+              nombre: rev.estudiante_nombre || "Estudiante UNAH",
+              cuenta: rev.estudiante_cuenta || "N/A",
+              estrellas: parseInt(rev.estrellas, 10) || 5,
+              comentario: rev.comentario || "Sin comentario adicional.",
+              fecha: rev.fecha || "N/A",
+            }));
+
+            if (reviewsList.length === 0) {
+              return (
+                <Card className="shadow-sm border-slate-200/80 bg-white">
+                  <CardHeader className="border-b border-slate-100 pb-3.5">
+                    <CardTitle className="text-base text-[#003366] font-bold flex items-center justify-between flex-wrap gap-2">
+                      <span>⭐ Valoraciones y Comentarios de Estudiantes</span>
+                      <span className="text-xs bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 rounded-full font-semibold">
+                        0 Valoraciones
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-12 text-center">
+                    <Star className="size-10 mx-auto text-slate-300 mb-2" />
+                    <p className="font-semibold text-sm text-slate-700">Aún no hay valoraciones registradas para este evento.</p>
+                    <p className="text-xs text-slate-500 mt-1">Los estudiantes que asistieron a este evento finalizado aún no han enviado sus comentarios.</p>
+                  </CardContent>
+                </Card>
+              );
+            }
 
             const avgCalculated = (reviewsList.reduce((acc, r) => acc + r.estrellas, 0) / reviewsList.length).toFixed(1);
 
