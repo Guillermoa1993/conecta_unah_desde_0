@@ -995,12 +995,13 @@ export function ManageEvent() {
         </div>
       </div>
 
-      {/* Tabs list (Control de asistencia, Participantes, Detalle) */}
+      {/* Tabs list (Control de asistencia, Participantes, Detalle, Valoraciones) */}
       <Tabs defaultValue="control" className="space-y-4">
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
-          <TabsTrigger value="control">Control de Asistencia</TabsTrigger>
+        <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full max-w-2xl">
+          <TabsTrigger value="control">Control Asistencia</TabsTrigger>
           <TabsTrigger value="participantes">Participantes ({students.length})</TabsTrigger>
-          <TabsTrigger value="detalle">Detalle del Evento</TabsTrigger>
+          <TabsTrigger value="detalle">Detalle</TabsTrigger>
+          <TabsTrigger value="valoraciones">Valoraciones (3)</TabsTrigger>
         </TabsList>
 
         <TabsContent value="control" className="space-y-4">
@@ -1476,6 +1477,73 @@ export function ManageEvent() {
                   />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="valoraciones" className="space-y-4">
+          <Card className="shadow-sm border-slate-200/80 bg-white">
+            <CardHeader className="border-b border-slate-100 pb-3.5">
+              <CardTitle className="text-base text-[#003366] font-bold flex items-center justify-between flex-wrap gap-2">
+                <span>⭐ Valoraciones y Comentarios de Estudiantes</span>
+                <span className="text-xs bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1 rounded-full font-bold">
+                  Promedio: 4.8 / 5 ★
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-4">
+              {[
+                {
+                  id: 1,
+                  nombre: "Ana María García",
+                  cuenta: "20211001234",
+                  estrellas: 5,
+                  comentario: "Excelente taller, las explicaciones fueron muy claras y los ejercicios prácticos sirvieron bastante para el aprendizaje.",
+                  fecha: "27/07/2026",
+                },
+                {
+                  id: 2,
+                  nombre: "Carlos Eduardo López",
+                  cuenta: "20201004567",
+                  estrellas: 5,
+                  comentario: "Muy buena organización del evento y excelente dominio del tema por parte del tutor. Recomiendo que hagan una segunda parte.",
+                  fecha: "27/07/2026",
+                },
+                {
+                  id: 3,
+                  nombre: "María José Rodríguez",
+                  cuenta: "20221008912",
+                  estrellas: 4,
+                  comentario: "El evento estuvo muy bien estructurado. El único detalle fue el espacio en el aula, pero la temática estuvo genial.",
+                  fecha: "28/07/2026",
+                },
+              ].map((rev) => (
+                <div key={rev.id} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="size-8 rounded-full bg-[#004B87]/15 text-[#004B87] font-bold text-xs flex items-center justify-center font-mono">
+                        {rev.nombre.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                      </div>
+                      <div>
+                        <span className="font-semibold text-sm text-slate-800">{rev.nombre}</span>
+                        <span className="text-xs text-slate-500 font-mono ml-2">({rev.cuenta})</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex text-amber-400 text-sm">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <span key={i} className={i < rev.estrellas ? "text-amber-400" : "text-slate-300"}>★</span>
+                        ))}
+                      </div>
+                      <span className="text-xs font-bold text-slate-700">{rev.estrellas}.0</span>
+                      <span className="text-xs text-slate-400 ml-2">{rev.fecha}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-700 bg-white p-3 rounded-lg border border-slate-100 italic">
+                    "{rev.comentario}"
+                  </p>
+                </div>
+              ))}
             </CardContent>
           </Card>
         </TabsContent>
