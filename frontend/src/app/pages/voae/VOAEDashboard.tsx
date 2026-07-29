@@ -99,7 +99,7 @@ function getHorasOtorgadasLines(ev: any): string[] {
   return [`${hrs}h ${catLabel}`];
 }
 
-function handleDownloadAuditReportPdf(ev: any) {
+async function handleDownloadAuditReportPdf(ev: any) {
   const cleanEventName = (ev.titulo || "Evento").replace(/[^a-zA-Z0-9-_]/g, "_");
   const pdfTitle = `Reporte_Cumplimiento_${cleanEventName}`;
   const originalTitle = document.title;
@@ -108,31 +108,45 @@ function handleDownloadAuditReportPdf(ev: any) {
 
   const catInfo = getEventCategoryInfo(ev);
   const horasLines = getHorasOtorgadasLines(ev);
-  const tutorName = ev.creador_nombre || ev.tutor_nombre || "Tutor Test";
-  const acreditadosCount = ev.asistencias_count || ev.inscritos_count || 12;
+  const tutorName = ev.creador_nombre || ev.tutor_nombre || ev.organizador || "Tutor Responsable";
 
-  // Lista de alumnos acreditados para el reporte de cumplimiento
-  const sampleStudents = Array.from({ length: Math.max(1, Math.min(acreditadosCount, 15)) }).map((_, idx) => ({
-    nombre: `Estudiante Acreditado ${idx + 1}`,
-    cuenta: `202${(1 + (idx % 3))}100${1000 + idx}`,
-    correo: `estudiante${idx + 1}@unah.hn`,
-    carrera: idx % 2 === 0 ? "Ingeniería en Sistemas" : "Medicina y Cirugía",
-  }));
+  // Obtener lista real de estudiantes acreditados del backend
+  let realStudents: any[] = [];
+  try {
+    const resp = await api.get<any[]>(`/inscripciones?evento_id=${ev.id}`);
+    if (Array.isArray(resp)) {
+      realStudents = resp.filter(
+        (i: any) => i.estado === "ASISTIDO" || i.estado === "PRESENTE" || i.asistio
+      );
+    }
+  } catch (e) {
+    // Si la API falla, realStudents queda en []
+  }
 
-  const rowsHtml = sampleStudents
-    .map(
-      (st) => `
+  const acreditadosCount = realStudents.length > 0 ? realStudents.length : (ev.asistencias_count || 0);
+
+  const rowsHtml = realStudents.length > 0
+    ? realStudents
+        .map(
+          (st) => `
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">${st.nombre_estudiante || st.nombre || "Estudiante UNAH"}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace;">${st.numero_cuenta || st.cuenta || "N/A"}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace;">${st.correo || "N/A"}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${st.carrera || st.estudiante_carrera || "Carrera UNAH"}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #003366;">${horasLines.join(", ")}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: bold; color: #059669;">Cumplido ✓</td>
+          </tr>
+        `
+        )
+        .join("")
+    : `
       <tr>
-        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">${st.nombre}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace;">${st.cuenta}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace;">${st.correo}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${st.carrera}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #003366;">${horasLines.join(", ")}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: bold; color: #059669;">Cumplido ✓</td>
+        <td colspan="6" style="padding: 16px; text-align: center; color: #64748b; font-style: italic;">
+          No hay alumnos acreditados registrados para este evento en el backend.
+        </td>
       </tr>
-    `
-    )
-    .join("");
+    `;
 
   const printHtml = `
     <!DOCTYPE html>
@@ -732,14 +746,16 @@ export function VOAEDashboard() {
                         <TableHead className="font-bold text-[#003366] text-xs uppercase tracking-wider">Fecha</TableHead>
                         <TableHead className="font-bold text-[#003366] text-xs uppercase tracking-wider text-center">Acreditados</TableHead>
                         <TableHead className="font-bold text-[#003366] text-xs uppercase tracking-wider">Horas otorgadas</TableHead>
-                        <TableHead className="font-bold text-[#003366] text-xs uppercase tracking-wider text-right">Reporte</TableHead>
+                        <TableHead className="font-bold text-[#003366] text-xs uppercase tracking-wider text-center">Reporte</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {paginatedAudited.map((ev) => {
                         const horasLines = getHorasOtorgadasLines(ev);
-                        const tutorName = ev.creador_nombre || ev.tutor_nombre || "Tutor Test";
-                        const acreditadosCount = ev.asistencias_count || ev.inscritos_count || 12;
+                        const tutorName = ev.creador_nombre || ev.tutor_nombre || "Tutor Responsable";
+                        const acreditadosCount = ev.asistencias_count !== undefined && ev.asistencias_count !== null
+                          ? Number(ev.asistencias_count)
+                          : Number(ev.inscritos_count || 0);
 
                         return (
                           <TableRow key={ev.id} className="hover:bg-slate-50/80 transition-colors">
@@ -767,11 +783,11 @@ export function VOAEDashboard() {
                                 ))}
                               </div>
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-center">
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="gap-1.5 text-xs h-8 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5 font-semibold cursor-pointer"
+                                className="gap-1.5 text-xs h-8 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5 font-semibold cursor-pointer mx-auto"
                                 onClick={() => handleDownloadAuditReportPdf(ev)}
                               >
                                 <FileCheck className="size-3.5 text-blue-600" /> Generar reporte de cumplimiento
