@@ -1915,7 +1915,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
         </div>
       </div>
 
-      <div className="shrink-0 border-t bg-background px-4 py-3 md:px-6 md:py-4 lg:px-8">
+      <div className="shrink-0 border-t bg-background px-4 py-3 md:px-6 md:py-4 lg:px-8 pr-16 md:pr-24">
         <div className="mx-auto flex items-center justify-between" style={{ maxWidth: "1000px" }}>
           <div>
             {currentStep > 1 && (

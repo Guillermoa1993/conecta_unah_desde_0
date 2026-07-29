@@ -175,12 +175,20 @@ export function HelpFloatingButton({ context }: HelpFloatingButtonProps) {
   };
 
   const guide = getGuideData();
+  const isFormPage = path.includes("/create-event") || path.includes("/event/");
 
   return (
     <>
-      {/* Botón Flotante Fijo con posición adaptada para Mobile (por encima de BottomNav) y Desktop */}
-      <div className="fixed bottom-20 right-4 sm:bottom-20 sm:right-6 md:bottom-6 md:right-6 z-[9999] flex items-center gap-2 group pointer-events-auto">
-        <span className="hidden sm:inline-block px-3 py-1.5 text-xs font-semibold text-white bg-slate-900/90 rounded-xl shadow-xl border border-slate-700/80 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 pointer-events-none">
+      {/* Botón Flotante Fijo con posición adaptada según si es formulario con footer o pantalla normal */}
+      <div
+        className={cn(
+          "fixed z-[9999] group pointer-events-auto",
+          isFormPage
+            ? "bottom-24 right-4 sm:bottom-24 sm:right-6 md:bottom-20 md:right-6"
+            : "bottom-20 right-4 sm:bottom-20 sm:right-6 md:bottom-6 md:right-6"
+        )}
+      >
+        <span className="hidden sm:block absolute -top-10 right-0 whitespace-nowrap px-3 py-1.5 text-xs font-semibold text-white bg-slate-900/90 rounded-xl shadow-xl border border-slate-700/80 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 pointer-events-none">
           ¿Ayuda con este panel?
         </span>
 
