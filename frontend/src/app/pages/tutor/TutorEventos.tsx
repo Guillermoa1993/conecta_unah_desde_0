@@ -16,6 +16,9 @@ import {
   Camera,
   Plus,
   Megaphone,
+  QrCode,
+  Copy,
+  Download,
 } from "lucide-react";
 import { api } from "../../../services/api";
 import { toast } from "sonner";
@@ -41,29 +44,75 @@ function ShareQrModal({
   event: any;
 }) {
   if (!isOpen) return null;
+  const eventId = event?.id || "";
+  const shareUrl = `${window.location.origin}/student/events?highlight=${eventId}`;
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
+    shareUrl
+  )}`;
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shareUrl);
+    toast.success("¡Enlace del evento copiado al portapapeles!");
+  };
+
+  const handleDownloadQr = () => {
+    const link = document.createElement("a");
+    link.href = qrImageUrl;
+    link.download = `QR_${(event?.titulo || "Evento").replace(/\s+/g, "_")}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Descargando código QR...");
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md text-center space-y-4">
+      <DialogContent className="sm:max-w-md text-center space-y-4 rounded-2xl p-6">
         <DialogHeader>
-          <DialogTitle className="text-[#004B87] text-lg font-bold">
-            Compartir Evento y Código QR
+          <DialogTitle className="text-[#004B87] text-lg font-bold flex items-center justify-center gap-2">
+            <QrCode className="size-5 text-[#004B87]" /> Código QR del Evento
           </DialogTitle>
-          <DialogDescription>
-            Escanea este código para acceder e inscribirte en el evento.
+          <DialogDescription className="text-xs text-slate-600">
+            Escanea este código QR con la cámara del celular para acceder e inscribirte directamente en el evento.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4 flex flex-col items-center justify-center space-y-3 bg-slate-50 rounded-xl border">
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
-              window.location.origin + "/tutor/event/" + (event?.id || "")
-            )}`}
-            alt="QR Code"
-            className="size-44 rounded-lg shadow-xs bg-white p-2 border"
-          />
-          <p className="text-xs font-bold text-slate-700">{event?.titulo}</p>
+
+        <div className="py-4 flex flex-col items-center justify-center space-y-3 bg-slate-50 rounded-xl border border-slate-200">
+          <div className="p-3 bg-white rounded-xl shadow-xs border border-slate-200">
+            <img
+              src={qrImageUrl}
+              alt="Código QR del Evento"
+              className="size-48 object-contain"
+            />
+          </div>
+          <div className="space-y-1 text-center px-4">
+            <p className="text-sm font-bold text-slate-800">{event?.titulo}</p>
+            {event?.lugar && (
+              <p className="text-xs text-slate-500 font-semibold flex items-center justify-center gap-1">
+                <MapPin className="size-3 text-[#004B87]" /> {event.lugar}
+              </p>
+            )}
+          </div>
         </div>
-        <DialogFooter className="flex gap-2">
-          <Button variant="outline" onClick={onClose} className="w-full font-semibold">
+
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <Button
+            variant="outline"
+            className="text-xs font-semibold gap-1.5 border-[#004B87] text-[#004B87] hover:bg-[#004B87]/5"
+            onClick={handleCopyLink}
+          >
+            <Copy className="size-3.5" /> Copiar Enlace
+          </Button>
+          <Button
+            className="text-xs font-semibold gap-1.5 bg-[#004B87] hover:bg-[#003366] text-white"
+            onClick={handleDownloadQr}
+          >
+            <Download className="size-3.5" /> Descargar QR
+          </Button>
+        </div>
+
+        <DialogFooter className="pt-1">
+          <Button variant="ghost" onClick={onClose} className="w-full text-xs font-semibold text-slate-500">
             Cerrar
           </Button>
         </DialogFooter>
