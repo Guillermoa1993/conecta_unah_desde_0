@@ -1618,8 +1618,18 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                 {imgPortada ? (
                   <div className="flex flex-col items-center gap-2">
                     <img src={imgPortada} alt="Portada Generada/Subida" className="max-h-28 rounded-lg object-contain border border-slate-200 shadow-2xs" />
-                    <div className="flex items-center gap-3 mt-1">
+                    <div className="flex items-center gap-2.5 mt-1 flex-wrap justify-center">
                       <span className="text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">✓ Portada Lista</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          portadaInputRef.current?.click();
+                        }}
+                        className="text-xs font-bold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md border border-indigo-200 transition-colors flex items-center gap-1.5"
+                      >
+                        <Upload className="size-3.5" /> Elegir una de tu dispositivo
+                      </button>
                       <button
                         type="button"
                         onClick={(e) => {
@@ -1633,13 +1643,13 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-2">
-                    <Upload className="size-8 text-muted-foreground/50" />
-                    <div className="text-sm font-medium">
-                      Arrastra o haz clic para subir portada propia
+                  <div className="flex flex-col items-center gap-2 py-1">
+                    <Upload className="size-8 text-indigo-600/80" />
+                    <div className="text-sm font-bold text-slate-800">
+                      Elegir una de tu dispositivo
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      JPG, PNG o WEBP · Máximo 5MB
+                      Haz clic aquí o arrastra tu imagen (JPG, PNG o WEBP · Máximo 5MB)
                     </div>
                   </div>
                 )}
@@ -1797,18 +1807,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
               return (
                 <div>
                   <span className="text-muted-foreground">Ubicación:</span>{" "}
-                  {bLink ? (
-                    <a
-                      href={bLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#004B87] hover:underline font-semibold"
-                    >
-                      {bName} (Ver en Google Maps)
-                    </a>
-                  ) : (
-                    bName
-                  )}
+                  <span className="font-semibold text-slate-800">{bName}</span>
                 </div>
               );
             })()}
