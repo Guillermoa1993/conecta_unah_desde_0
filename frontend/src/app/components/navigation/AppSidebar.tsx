@@ -27,8 +27,6 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
     { icon: Bell,          label: "Notificaciones",  path: "/employees/notifications" },
   ],
   tutor: [
-    { icon: Calendar,      label: "Gestión de eventos", path: "/tutor/eventos"      },
-    { icon: History,       label: "Historial",         path: "/tutor/history"      },
     { icon: Rss,           label: "Muro Social",       path: "/tutor/feed"         },
     { icon: Bell,          label: "Notificaciones",    path: "/employees/notifications" },
   ],
@@ -47,20 +45,16 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
   
   ],
   voae: [
-    { icon: Home,           label: "Panel de gestión VOAE", path: "/voae"             },
     { icon: Rss,            label: "Muro Social",           path: "/voae/feed"        },
     { icon: FileText,       label: "Reportes Oficiales",    path: "/voae/reports"     },
-    { icon: ClipboardList,  label: "Histórico de eventos VOAE", path: "/voae/records" },
     { icon: MapPin,         label: "Centros Regionales",    path: "/voae/centros"     },
     { icon: ShieldCheck,    label: "Moderadores",           path: "/voae/moderadores" },
     { icon: Bell,           label: "Notificaciones",        path: "/employees/notifications" },
     { icon: History,        label: "Bitácora",              path: "/employees/logs"   },
   ],
   voae_depto: [
-    { icon: Home,           label: "Panel de Gestión Coordinación", path: "/voae-depto"       },
     { icon: Rss,            label: "Muro Social",                  path: "/voae/feed"         },
     { icon: FileText,       label: "Reportes Oficiales",           path: "/voae/reports"      },
-    { icon: ClipboardList,  label: "Histórico de eventos Coordinación", path: "/voae-depto/records" },
     { icon: MapPin,         label: "Centros Regionales",           path: "/voae/centros"      },
     { icon: Bell,           label: "Notificaciones",               path: "/employees/notifications" },
     { icon: History,        label: "Bitácora",                     path: "/employees/logs"    },
@@ -123,6 +117,9 @@ export function AppSidebar() {
 
   const [maintenanceOpen, setMaintenanceOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [gestionVoaeOpen, setGestionVoaeOpen] = useState(true);
+  const [gestionCoordinacionOpen, setGestionCoordinacionOpen] = useState(true);
+  const [miGestionEventosOpen, setMiGestionEventosOpen] = useState(true);
   const [soporte, setSoporte] = useState({ correo: "", whatsapp: "" });
 
   useEffect(() => {
@@ -196,35 +193,149 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
 
-              {/* Mis Actividades — primero, solo para student */}
-              {role === "student" && (
+              {/* 1. Gestión VOAE — desplegable para VOAE Dirección */}
+              {role === "voae" && (
                 <SidebarMenuItem className="mb-2">
                   <button
-                    onClick={() => !isCollapsed && setActivityOpen(v => !v)}
+                    onClick={() => !isCollapsed && setGestionVoaeOpen((v) => !v)}
                     className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-white rounded-md hover:bg-[#003366] transition-colors focus:outline-none"
-                    title={isCollapsed ? "Mis Actividades" : undefined}
+                    title={isCollapsed ? "Gestión VOAE" : undefined}
                   >
                     <div className="flex items-center gap-3">
-                      <Rss className="h-5 w-5" />
-                      {!isCollapsed && <span>Mis Actividades</span>}
+                      <Home className="h-5 w-5 text-[#FFD100]" />
+                      {!isCollapsed && <span className="font-bold text-white">Gestión VOAE</span>}
                     </div>
                     {!isCollapsed && (
-                      activityOpen
-                        ? <ChevronUp   className="h-4 w-4 text-[#FFD100]" />
-                        : <ChevronDown className="h-4 w-4 text-[#FFD100]" />
+                      gestionVoaeOpen ? (
+                        <ChevronUp className="h-4 w-4 text-[#FFD100]" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-[#FFD100]" />
+                      )
                     )}
                   </button>
 
-                  {activityOpen && !isCollapsed && (
+                  {gestionVoaeOpen && !isCollapsed && (
                     <div className="pl-6 mt-1 space-y-1 border-l border-white/20 ml-5">
-                      {STUDENT_ACTIVITY_ITEMS.map((item) => {
+                      {[
+                        { icon: Home, label: "Panel de gestión VOAE", path: "/voae" },
+                        { icon: ClipboardList, label: "Histórico de eventos VOAE", path: "/voae/records" },
+                      ].map((item) => {
                         const isActive = location.pathname === item.path;
                         return (
                           <SidebarMenuButton
-                            key={item.path} asChild isActive={isActive} tooltip={item.label}
-                            className={isActive
-                              ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8"
-                              : "text-white/80 hover:bg-[#003366] hover:text-white h-8"}
+                            key={item.path}
+                            asChild
+                            isActive={isActive}
+                            tooltip={item.label}
+                            className={
+                              isActive
+                                ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8 font-bold"
+                                : "text-white/90 hover:bg-[#003366] hover:text-white h-8"
+                            }
+                          >
+                            <Link to={item.path} className="flex items-center gap-2">
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.label}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        );
+                      })}
+                    </div>
+                  )}
+                </SidebarMenuItem>
+              )}
+
+              {/* 2. Gestión Coordinación — desplegable para VOAE Departamento */}
+              {role === "voae_depto" && (
+                <SidebarMenuItem className="mb-2">
+                  <button
+                    onClick={() => !isCollapsed && setGestionCoordinacionOpen((v) => !v)}
+                    className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-white rounded-md hover:bg-[#003366] transition-colors focus:outline-none"
+                    title={isCollapsed ? "Gestión Coordinación" : undefined}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Home className="h-5 w-5 text-[#FFD100]" />
+                      {!isCollapsed && <span className="font-bold text-white">Gestión Coordinación</span>}
+                    </div>
+                    {!isCollapsed && (
+                      gestionCoordinacionOpen ? (
+                        <ChevronUp className="h-4 w-4 text-[#FFD100]" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-[#FFD100]" />
+                      )
+                    )}
+                  </button>
+
+                  {gestionCoordinacionOpen && !isCollapsed && (
+                    <div className="pl-6 mt-1 space-y-1 border-l border-white/20 ml-5">
+                      {[
+                        { icon: Home, label: "Panel de Gestión Coordinación", path: "/voae-depto" },
+                        { icon: ClipboardList, label: "Histórico de eventos Coordinación", path: "/voae-depto/records" },
+                      ].map((item) => {
+                        const isActive = location.pathname === item.path;
+                        return (
+                          <SidebarMenuButton
+                            key={item.path}
+                            asChild
+                            isActive={isActive}
+                            tooltip={item.label}
+                            className={
+                              isActive
+                                ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8 font-bold"
+                                : "text-white/90 hover:bg-[#003366] hover:text-white h-8"
+                            }
+                          >
+                            <Link to={item.path} className="flex items-center gap-2">
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.label}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        );
+                      })}
+                    </div>
+                  )}
+                </SidebarMenuItem>
+              )}
+
+              {/* 3. Mi Gestión de eventos — desplegable para Empleado / Tutor */}
+              {role === "tutor" && (
+                <SidebarMenuItem className="mb-2">
+                  <button
+                    onClick={() => !isCollapsed && setMiGestionEventosOpen((v) => !v)}
+                    className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-white rounded-md hover:bg-[#003366] transition-colors focus:outline-none"
+                    title={isCollapsed ? "Mi Gestión de eventos" : undefined}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Calendar className="h-5 w-5 text-[#FFD100]" />
+                      {!isCollapsed && <span className="font-bold text-white">Mi Gestión de eventos</span>}
+                    </div>
+                    {!isCollapsed && (
+                      miGestionEventosOpen ? (
+                        <ChevronUp className="h-4 w-4 text-[#FFD100]" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-[#FFD100]" />
+                      )
+                    )}
+                  </button>
+
+                  {miGestionEventosOpen && !isCollapsed && (
+                    <div className="pl-6 mt-1 space-y-1 border-l border-white/20 ml-5">
+                      {[
+                        { icon: Calendar, label: "Gestión de eventos", path: "/tutor/eventos" },
+                        { icon: History, label: "Historial", path: "/tutor/history" },
+                      ].map((item) => {
+                        const isActive = location.pathname === item.path;
+                        return (
+                          <SidebarMenuButton
+                            key={item.path}
+                            asChild
+                            isActive={isActive}
+                            tooltip={item.label}
+                            className={
+                              isActive
+                                ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8 font-bold"
+                                : "text-white/90 hover:bg-[#003366] hover:text-white h-8"
+                            }
                           >
                             <Link to={item.path} className="flex items-center gap-2">
                               <item.icon className="h-4 w-4" />
