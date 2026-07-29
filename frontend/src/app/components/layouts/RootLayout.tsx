@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { AppSidebar } from "../navigation/AppSidebar";
 import { AppNavbar } from "../navigation/AppNavbar";
 import { BottomNav } from "./BottomNav";
+import { HelpFloatingButton } from "../app/HelpFloatingButton";
 import { SidebarProvider } from "../ui/sidebar";
 import { Toaster } from "../ui/sonner";
 import { PermissionsWelcomeModal } from "../permissions/PermissionsWelcomeModal";
@@ -65,6 +66,7 @@ export function RootLayout() {
           </div>
         </div>
         <BottomNav />
+        <HelpFloatingButton />
         <Toaster />
         <PermissionsWelcomeModal
           open={showPermModal}

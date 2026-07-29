@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router";
-import { HelpFloatingButton } from "../../components/app/HelpFloatingButton";
 import {
   CalendarDays,
   Clock,
@@ -1088,7 +1087,6 @@ export function TutorEventos() {
           ))}
         </div>
       )}
-      <HelpFloatingButton context="eventos" />
     </div>
   );
 }

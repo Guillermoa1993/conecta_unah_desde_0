@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
-import { HelpFloatingButton } from "../../components/app/HelpFloatingButton";
 import { Clock, CheckCircle2, XCircle, Eye, Building2, ChevronLeft, ChevronRight, ListFilter } from "lucide-react";
 import { api } from "../../../services/api";
 import { Button } from "../../components/ui/button";
@@ -543,7 +542,6 @@ export function VOAEDeptoDashboard() {
           </div>
         )}
       </section>
-      <HelpFloatingButton context="coordinacion" />
     </div>
   );
 }

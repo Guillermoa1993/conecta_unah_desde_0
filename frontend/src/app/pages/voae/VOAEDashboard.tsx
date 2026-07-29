@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
-import { HelpFloatingButton } from "../../components/app/HelpFloatingButton";
 import {
   Clock,
   CheckCircle2,
@@ -1010,7 +1009,6 @@ export function VOAEDashboard() {
           </div>
         )}
       </section>
-      <HelpFloatingButton context="voae" />
     </div>
   );
 }
