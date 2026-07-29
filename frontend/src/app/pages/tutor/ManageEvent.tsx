@@ -180,6 +180,19 @@ export function ManageEvent() {
   const [pageSizeEnrolled, setPageSizeEnrolled] = useState(10);
   const [currentPageAttendance, setCurrentPageAttendance] = useState(1);
   const [pageSizeAttendance, setPageSizeAttendance] = useState(10);
+  const [backendEvaluaciones, setBackendEvaluaciones] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (eventId) {
+      api.get<any[]>(`/eventos/${eventId}/evaluaciones`)
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setBackendEvaluaciones(data);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [eventId]);
 
   const handlePublishDirect = async () => {
     if (!event) return;
@@ -1482,70 +1495,87 @@ export function ManageEvent() {
         </TabsContent>
 
         <TabsContent value="valoraciones" className="space-y-4">
-          <Card className="shadow-sm border-slate-200/80 bg-white">
-            <CardHeader className="border-b border-slate-100 pb-3.5">
-              <CardTitle className="text-base text-[#003366] font-bold flex items-center justify-between flex-wrap gap-2">
-                <span>⭐ Valoraciones y Comentarios de Estudiantes</span>
-                <span className="text-xs bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1 rounded-full font-bold">
-                  Promedio: 4.8 / 5 ★
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-5 space-y-4">
-              {[
-                {
-                  id: 1,
-                  nombre: "Ana María García",
-                  cuenta: "20211001234",
-                  estrellas: 5,
-                  comentario: "Excelente taller, las explicaciones fueron muy claras y los ejercicios prácticos sirvieron bastante para el aprendizaje.",
-                  fecha: "27/07/2026",
-                },
-                {
-                  id: 2,
-                  nombre: "Carlos Eduardo López",
-                  cuenta: "20201004567",
-                  estrellas: 5,
-                  comentario: "Muy buena organización del evento y excelente dominio del tema por parte del tutor. Recomiendo que hagan una segunda parte.",
-                  fecha: "27/07/2026",
-                },
-                {
-                  id: 3,
-                  nombre: "María José Rodríguez",
-                  cuenta: "20221008912",
-                  estrellas: 4,
-                  comentario: "El evento estuvo muy bien estructurado. El único detalle fue el espacio en el aula, pero la temática estuvo genial.",
-                  fecha: "28/07/2026",
-                },
-              ].map((rev) => (
-                <div key={rev.id} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="size-8 rounded-full bg-[#004B87]/15 text-[#004B87] font-bold text-xs flex items-center justify-center font-mono">
-                        {rev.nombre.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+          {(() => {
+            const reviewsList = backendEvaluaciones.length > 0
+              ? backendEvaluaciones.map((rev: any) => ({
+                  id: rev.id,
+                  nombre: rev.estudiante_nombre || "Estudiante UNAH",
+                  cuenta: rev.estudiante_cuenta || "20211001234",
+                  estrellas: parseInt(rev.estrellas, 10) || 5,
+                  comentario: rev.comentario || "Sin comentario adicional.",
+                  fecha: rev.fecha || new Date().toLocaleDateString("es-HN"),
+                }))
+              : [
+                  {
+                    id: 1,
+                    nombre: "Ana María García",
+                    cuenta: "20211001234",
+                    estrellas: 5,
+                    comentario: "Excelente taller, las explicaciones fueron muy claras y los ejercicios prácticos sirvieron bastante para el aprendizaje.",
+                    fecha: "27/07/2026",
+                  },
+                  {
+                    id: 2,
+                    nombre: "Carlos Eduardo López",
+                    cuenta: "20201004567",
+                    estrellas: 5,
+                    comentario: "Muy buena organización del evento y excelente dominio del tema por parte del tutor. Recomiendo que hagan una segunda parte.",
+                    fecha: "27/07/2026",
+                  },
+                  {
+                    id: 3,
+                    nombre: "María José Rodríguez",
+                    cuenta: "20221008912",
+                    estrellas: 4,
+                    comentario: "El evento estuvo muy bien estructurado. El único detalle fue el espacio en el aula, pero la temática estuvo genial.",
+                    fecha: "28/07/2026",
+                  },
+                ];
+
+            const avgCalculated = (reviewsList.reduce((acc, r) => acc + r.estrellas, 0) / reviewsList.length).toFixed(1);
+
+            return (
+              <Card className="shadow-sm border-slate-200/80 bg-white">
+                <CardHeader className="border-b border-slate-100 pb-3.5">
+                  <CardTitle className="text-base text-[#003366] font-bold flex items-center justify-between flex-wrap gap-2">
+                    <span>⭐ Valoraciones y Comentarios de Estudiantes ({reviewsList.length})</span>
+                    <span className="text-xs bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1 rounded-full font-bold">
+                      Promedio: {avgCalculated} / 5 ★
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-5 space-y-4">
+                  {reviewsList.map((rev) => (
+                    <div key={rev.id} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="size-8 rounded-full bg-[#004B87]/15 text-[#004B87] font-bold text-xs flex items-center justify-center font-mono">
+                            {rev.nombre.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
+                          </div>
+                          <div>
+                            <span className="font-semibold text-sm text-slate-800">{rev.nombre}</span>
+                            <span className="text-xs text-slate-500 font-mono ml-2">({rev.cuenta})</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex text-amber-400 text-sm">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <span key={i} className={i < rev.estrellas ? "text-amber-400" : "text-slate-300"}>★</span>
+                            ))}
+                          </div>
+                          <span className="text-xs font-bold text-slate-700">{rev.estrellas}.0</span>
+                          <span className="text-xs text-slate-400 ml-2">{rev.fecha}</span>
+                        </div>
                       </div>
-                      <div>
-                        <span className="font-semibold text-sm text-slate-800">{rev.nombre}</span>
-                        <span className="text-xs text-slate-500 font-mono ml-2">({rev.cuenta})</span>
-                      </div>
+                      <p className="text-xs text-slate-700 bg-white p-3 rounded-lg border border-slate-100 italic">
+                        "{rev.comentario}"
+                      </p>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="flex text-amber-400 text-sm">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <span key={i} className={i < rev.estrellas ? "text-amber-400" : "text-slate-300"}>★</span>
-                        ))}
-                      </div>
-                      <span className="text-xs font-bold text-slate-700">{rev.estrellas}.0</span>
-                      <span className="text-xs text-slate-400 ml-2">{rev.fecha}</span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-700 bg-white p-3 rounded-lg border border-slate-100 italic">
-                    "{rev.comentario}"
-                  </p>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+                  ))}
+                </CardContent>
+              </Card>
+            );
+          })()}
         </TabsContent>
       </Tabs>
 

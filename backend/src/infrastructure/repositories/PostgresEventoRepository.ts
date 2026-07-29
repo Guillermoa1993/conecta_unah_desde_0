@@ -288,4 +288,52 @@ export class PostgresEventoRepository implements EventoRepository {
     );
     return parseInt(rows[0]?.total ?? '0', 10);
   }
+
+  private async ensureEvaluacionesTable() {
+    try {
+      await this.pool.query(`
+        CREATE TABLE IF NOT EXISTS tabla_grupo_3_evaluaciones (
+          id SERIAL PRIMARY KEY,
+          evento_id INT NOT NULL REFERENCES tabla_grupo_3_eventos(id) ON DELETE CASCADE,
+          estudiante_id INT NOT NULL REFERENCES tabla_grupo_1_usuario(id_usuario) ON DELETE CASCADE,
+          estrellas INT NOT NULL CHECK (estrellas >= 1 AND estrellas <= 5),
+          comentario TEXT,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          CONSTRAINT uq_evaluacion_evento_estudiante UNIQUE (evento_id, estudiante_id)
+        );
+      `);
+    } catch (e) {
+      // Ignore if table exists
+    }
+  }
+
+  async getEvaluaciones(eventoId: string): Promise<any[]> {
+    await this.ensureEvaluacionesTable();
+    const { rows } = await this.pool.query(
+      `SELECT ev.id, ev.estrellas, ev.comentario,
+              TO_CHAR(ev.created_at, 'DD/MM/YYYY') AS fecha,
+              u.nombre AS estudiante_nombre,
+              COALESCE(p.numero_cuenta, SPLIT_PART(u.correo, '@', 1)) AS estudiante_cuenta
+       FROM tabla_grupo_3_evaluaciones ev
+       JOIN tabla_grupo_1_usuario u ON u.id_usuario = ev.estudiante_id
+       LEFT JOIN tabla_grupo_1_perfil p ON p.id_usuario = u.id_usuario
+       WHERE ev.evento_id = $1
+       ORDER BY ev.created_at DESC`,
+      [eventoId]
+    );
+    return rows;
+  }
+
+  async crearEvaluacion(eventoId: string, estudianteId: string, estrellas: number, comentario: string): Promise<any> {
+    await this.ensureEvaluacionesTable();
+    const { rows } = await this.pool.query(
+      `INSERT INTO tabla_grupo_3_evaluaciones (evento_id, estudiante_id, estrellas, comentario)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (evento_id, estudiante_id) 
+       DO UPDATE SET estrellas = EXCLUDED.estrellas, comentario = EXCLUDED.comentario, created_at = NOW()
+       RETURNING *`,
+      [eventoId, estudianteId, estrellas, comentario]
+    );
+    return rows[0];
+  }
 }

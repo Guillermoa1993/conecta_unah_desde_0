@@ -17,6 +17,10 @@ export function eventoRouter(ctrl: EventoController): Router {
   r.put('/:id', autenticar, autorizar('TUTOR', 'ADMIN'), ctrl.update);
   r.delete('/:id', autenticar, autorizar('TUTOR', 'ADMIN'), ctrl.delete);
 
+  // Evaluaciones y Comentarios de Estudiantes
+  r.get('/:id/evaluaciones', autenticar, ctrl.getEvaluaciones);
+  r.post('/:id/evaluaciones', autenticar, ctrl.crearEvaluacion);
+
   // VOAE / Depto / Admin: aprobar o rechazar
   r.patch('/:id/aprobar', autenticar, autorizar('VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'ADMIN'), ctrl.aprobar);
   r.patch('/:id/rechazar', autenticar, autorizar('VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'ADMIN'), ctrl.rechazar);

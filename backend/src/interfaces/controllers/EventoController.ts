@@ -88,4 +88,22 @@ export class EventoController {
       res.json({ success: true });
     } catch (err) { next(err); }
   };
+
+  getEvaluaciones = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const eventoId = String(req.params.id);
+      const evaluaciones = await (this.eventoRepo as any).getEvaluaciones(eventoId);
+      res.json(evaluaciones);
+    } catch (err) { next(err); }
+  };
+
+  crearEvaluacion = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const eventoId = String(req.params.id);
+      const estudianteId = String(req.usuario!.id);
+      const { estrellas, comentario } = req.body;
+      const resVal = await (this.eventoRepo as any).crearEvaluacion(eventoId, estudianteId, estrellas, comentario);
+      res.status(201).json(resVal);
+    } catch (err) { next(err); }
+  };
 }
