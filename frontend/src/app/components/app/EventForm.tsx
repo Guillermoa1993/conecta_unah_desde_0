@@ -1216,9 +1216,14 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
 
           const currentSedeData = SEDES_DATA[data.centro_regional] || SEDES_DATA["Ciudad Universitaria"];
 
-          // Parseo seguro del edificio y aula sin romper nombres con guiones (ej. Biblioteca – UNAH)
-          const matchedBuilding = currentSedeData.buildings.find((b) => fullUbicacion.startsWith(b.name));
-          const buildingName = matchedBuilding ? matchedBuilding.name : (fullUbicacion.includes(" - ") ? fullUbicacion.split(" - ")[0] : fullUbicacion);
+          const matchedBuilding = isCustomBuilding
+            ? undefined
+            : currentSedeData.buildings.find((b) => fullUbicacion === b.name || fullUbicacion.startsWith(b.name + " - "));
+
+          const buildingName = isCustomBuilding
+            ? customBuildingText
+            : (matchedBuilding ? matchedBuilding.name : (fullUbicacion.includes(" - ") ? fullUbicacion.split(" - ")[0] : fullUbicacion));
+
           const aulaName = matchedBuilding
             ? fullUbicacion.slice(matchedBuilding.name.length).replace(/^ - /, "")
             : (fullUbicacion.includes(" - ") ? fullUbicacion.split(" - ").slice(1).join(" - ") : "");
@@ -1275,8 +1280,8 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                       const val = e.target.value;
                       if (val === "OTRO") {
                         setIsCustomBuilding(true);
-                        const bLat = currentSedeData.lat;
-                        const bLng = currentSedeData.lng;
+                        const bLat = data.latitud || currentSedeData.lat;
+                        const bLng = data.longitud || currentSedeData.lng;
                         const currentText = customBuildingText || "";
                         const fullLocStr = aulaName ? `${currentText} - ${aulaName}` : currentText;
                         const link = `https://www.google.com/maps/search/?api=1&query=${bLat},${bLng}`;
@@ -1292,6 +1297,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                         }
                       } else {
                         setIsCustomBuilding(false);
+                        setCustomBuildingText("");
                         const bObj = currentSedeData.buildings.find((b) => b.name === val);
                         const bLat = bObj ? bObj.lat : currentSedeData.lat;
                         const bLng = bObj ? bObj.lng : currentSedeData.lng;
