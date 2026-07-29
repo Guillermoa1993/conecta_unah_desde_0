@@ -916,7 +916,7 @@ export function TutorEventos() {
             style={{ backgroundColor: "#004B87" }}
           >
             <Link to="/tutor/create-event">
-              <Plus className="size-4" /> Crear evento
+              <Plus className="size-4" /> Crear propuesta de evento
             </Link>
           </Button>
         </div>
@@ -1020,7 +1020,7 @@ export function TutorEventos() {
               style={{ backgroundColor: "#004B87" }}
             >
               <Link to="/tutor/create-event">
-                <Plus className="size-4" /> Crear evento
+                <Plus className="size-4" /> Crear propuesta de evento
               </Link>
             </Button>
           )}
