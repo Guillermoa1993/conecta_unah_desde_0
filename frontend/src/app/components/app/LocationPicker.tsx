@@ -318,8 +318,21 @@ export function LocationPicker({
 
     const marker = L.marker([initialLat, initialLng] as L.LatLngExpression, {
       icon: redPinIcon,
-      draggable: false,
+      draggable: !!onLocationChange,
     }).addTo(map);
+
+    if (onLocationChange) {
+      marker.on("dragend", (e: any) => {
+        const pos = e.target.getLatLng();
+        onLocationChange(pos.lat.toString(), pos.lng.toString());
+      });
+
+      map.on("click", (e: any) => {
+        const { lat: clickLat, lng: clickLng } = e.latlng;
+        marker.setLatLng([clickLat, clickLng]);
+        onLocationChange(clickLat.toString(), clickLng.toString());
+      });
+    }
 
     mapInstance.current = map;
     markerInstance.current = marker;
@@ -390,8 +403,21 @@ export function LocationPicker({
 
       const fullMarker = L.marker([curLat, curLng] as L.LatLngExpression, {
         icon: redPinIcon,
-        draggable: false,
+        draggable: !!onLocationChange,
       }).addTo(fullMap);
+
+      if (onLocationChange) {
+        fullMarker.on("dragend", (e: any) => {
+          const pos = e.target.getLatLng();
+          onLocationChange(pos.lat.toString(), pos.lng.toString());
+        });
+
+        fullMap.on("click", (e: any) => {
+          const { lat: clickLat, lng: clickLng } = e.latlng;
+          fullMarker.setLatLng([clickLat, clickLng]);
+          onLocationChange(clickLat.toString(), clickLng.toString());
+        });
+      }
 
       fullMapInstance.current = fullMap;
       fullMarkerInstance.current = fullMarker;
@@ -496,8 +522,11 @@ export function LocationPicker({
         <DialogContent className="max-w-4xl w-[92vw] h-[80vh] max-h-[650px] flex flex-col p-4 z-[99999] overflow-hidden bg-white rounded-2xl">
           <DialogHeader className="pb-2 border-b shrink-0">
             <DialogTitle className="text-base text-[#003366] font-bold flex items-center justify-between">
-              <span>📍 Vista de Inspección en Pantalla Completa</span>
+              <span>📍 Vista de Inspección en Pantalla Completa {titleBanner ? `— ${titleBanner}` : ""}</span>
             </DialogTitle>
+            <p className="text-xs text-slate-500 font-normal mt-0.5">
+              Haz clic en cualquier punto del mapa o arrastra el marcador rojo para colocar la ubicación de tu edificio.
+            </p>
           </DialogHeader>
 
           <div className="flex-1 w-full min-h-0 relative rounded-xl border border-slate-200 overflow-hidden mt-2 shrink">
@@ -510,8 +539,10 @@ export function LocationPicker({
             </span>
             <button
               type="button"
-              onClick={() => setIsFullscreen(false)}
-              className="bg-[#004B87] hover:bg-[#003366] text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors"
+              onClick={() => {
+                setIsFullscreen(false);
+              }}
+              className="bg-[#004B87] hover:bg-[#003366] text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-2xs"
             >
               ✓ Confirmar Ubicación
             </button>

@@ -494,6 +494,24 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
 
   const [data, setData] = useState<FormData>(() => buildFormDefaults(user, initialEvent));
 
+  const [isCustomBuilding, setIsCustomBuilding] = useState<boolean>(() => {
+    if (!initialEvent) return false;
+    const u = (initialEvent as any).ubicacion || initialEvent.lugar || "";
+    const bName = u.split("|")[0].split(" - ")[0];
+    const currentSedeData = SEDES_DATA[initialEvent.centro_regional || "Ciudad Universitaria"] || SEDES_DATA["Ciudad Universitaria"];
+    const matched = currentSedeData.buildings.some((b) => bName.startsWith(b.name));
+    return !matched && !!bName;
+  });
+
+  const [customBuildingText, setCustomBuildingText] = useState<string>(() => {
+    if (!initialEvent) return "";
+    const u = (initialEvent as any).ubicacion || initialEvent.lugar || "";
+    const bName = u.split("|")[0].split(" - ")[0];
+    const currentSedeData = SEDES_DATA[initialEvent.centro_regional || "Ciudad Universitaria"] || SEDES_DATA["Ciudad Universitaria"];
+    const matched = currentSedeData.buildings.some((b) => bName.startsWith(b.name));
+    return !matched ? bName : "";
+  });
+
   const isEdit = !!initialEvent;
 
   const hasUnsavedData =
@@ -1241,21 +1259,38 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                     Edificio / Ubicación física <span className="text-red-500">*</span>
                   </Label>
                   <select
-                    value={buildingName}
+                    value={isCustomBuilding ? "OTRO" : buildingName}
                     onChange={(e) => {
                       const val = e.target.value;
-                      const bObj = currentSedeData.buildings.find((b) => b.name === val);
-                      const bLat = bObj ? bObj.lat : currentSedeData.lat;
-                      const bLng = bObj ? bObj.lng : currentSedeData.lng;
-                      const fullLoc = aulaName ? `${val} - ${aulaName}` : val;
-                      const link = `https://www.google.com/maps/search/?api=1&query=${bLat},${bLng}`;
+                      if (val === "OTRO") {
+                        setIsCustomBuilding(true);
+                        const bLat = currentSedeData.lat;
+                        const bLng = currentSedeData.lng;
+                        const currentText = customBuildingText || "";
+                        const fullLocStr = aulaName ? `${currentText} - ${aulaName}` : currentText;
+                        const link = `https://www.google.com/maps/search/?api=1&query=${bLat},${bLng}`;
 
-                      setData((prev) => ({
-                        ...prev,
-                        latitud: bLat,
-                        longitud: bLng,
-                        ubicacion: val ? `${fullLoc}|${link}|${bLat},${bLng}` : ""
-                      }));
+                        setData((prev) => ({
+                          ...prev,
+                          latitud: bLat,
+                          longitud: bLng,
+                          ubicacion: currentText ? `${fullLocStr}|${link}|${bLat},${bLng}` : ""
+                        }));
+                      } else {
+                        setIsCustomBuilding(false);
+                        const bObj = currentSedeData.buildings.find((b) => b.name === val);
+                        const bLat = bObj ? bObj.lat : currentSedeData.lat;
+                        const bLng = bObj ? bObj.lng : currentSedeData.lng;
+                        const fullLocStr = aulaName ? `${val} - ${aulaName}` : val;
+                        const link = `https://www.google.com/maps/search/?api=1&query=${bLat},${bLng}`;
+
+                        setData((prev) => ({
+                          ...prev,
+                          latitud: bLat,
+                          longitud: bLng,
+                          ubicacion: val ? `${fullLocStr}|${link}|${bLat},${bLng}` : ""
+                        }));
+                      }
                     }}
                     onBlur={() => blur("ubicacion")}
                     className={cn(
@@ -1269,8 +1304,35 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                         {b.name}
                       </option>
                     ))}
+                    <option value="OTRO">📍 Otro / No encontré mi edificio (Especificar manualmente)</option>
                   </select>
                   {errors.ubicacion && <p className="text-xs mt-0.5 text-red-800">{errors.ubicacion}</p>}
+
+                  {isCustomBuilding && (
+                    <div className="mt-2 space-y-1 animate-in fade-in duration-200">
+                      <Label className="text-xs font-bold text-[#003366]">
+                        Nombre del Edificio / Ubicación personalizada <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        value={customBuildingText}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCustomBuildingText(val);
+                          const fullLocStr = aulaName ? `${val} - ${aulaName}` : val;
+                          const link = `https://www.google.com/maps/search/?api=1&query=${resolvedLat},${resolvedLng}`;
+                          setData((prev) => ({
+                            ...prev,
+                            ubicacion: val ? `${fullLocStr}|${link}|${resolvedLat},${resolvedLng}` : ""
+                          }));
+                        }}
+                        placeholder="Escribe el nombre de tu edificio o ubicación..."
+                        className="h-11 bg-white border-blue-300 focus:border-[#004B87]"
+                      />
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        ℹ️ Escribe el nombre del edificio y marca la ubicación en el mapa haciendo clic o arrastrando el marcador.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -1281,11 +1343,12 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                     value={aulaName}
                     onChange={(e) => {
                       const val = e.target.value;
-                      const fullLoc = val ? `${buildingName} - ${val}` : buildingName;
+                      const activeBName = isCustomBuilding ? customBuildingText : buildingName;
+                      const fullLocStr = val ? `${activeBName} - ${val}` : activeBName;
                       const link = `https://www.google.com/maps/search/?api=1&query=${resolvedLat},${resolvedLng}`;
                       setData((prev) => ({
                         ...prev,
-                        ubicacion: buildingName ? `${fullLoc}|${link}|${resolvedLat},${resolvedLng}` : ""
+                        ubicacion: activeBName ? `${fullLocStr}|${link}|${resolvedLat},${resolvedLng}` : ""
                       }));
                     }}
                     placeholder="Ej. Aula 101, Cubículo 4..."
@@ -1294,20 +1357,28 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                 </div>
               </div>
 
-              {/* Mini Preview del Mapa con Coordenadas Predefinidas Exactas */}
+              {/* Mini Preview del Mapa con Coordenadas Predefinidas Exactas o Personalizadas */}
               <div className="space-y-1 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs">
                 <Label className="text-xs font-bold text-[#003366] uppercase tracking-wider block">
-                  📍 Ubicación en Mapa (Coordenadas Predefinidas Exactas)
+                  📍 Ubicación en Mapa ({isCustomBuilding ? "Ubicación Personalizada Marcada en Mapa" : "Coordenadas Predefinidas Exactas"})
                 </Label>
                 <LocationPicker
                   lat={resolvedLat}
                   lng={resolvedLng}
-                  titleBanner={buildingName ? `${buildingName} (${data.centro_regional})` : data.centro_regional}
+                  titleBanner={
+                    isCustomBuilding
+                      ? (customBuildingText ? `Edificio: ${customBuildingText}` : `Ubicación Personalizada (${data.centro_regional})`)
+                      : (buildingName ? `${buildingName} (${data.centro_regional})` : data.centro_regional)
+                  }
                   onLocationChange={(nLat: string, nLng: string) => {
+                    const activeBName = isCustomBuilding ? customBuildingText : buildingName;
+                    const fullLocStr = aulaName ? `${activeBName} - ${aulaName}` : activeBName;
+                    const link = `https://www.google.com/maps/search/?api=1&query=${nLat},${nLng}`;
                     setData((prev) => ({
                       ...prev,
                       latitud: nLat,
                       longitud: nLng,
+                      ubicacion: activeBName ? `${fullLocStr}|${link}|${nLat},${nLng}` : prev.ubicacion
                     }));
                   }}
                 />
