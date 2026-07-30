@@ -897,7 +897,26 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
     reader.readAsDataURL(file);
   };
 
-  const creatorName = sessionStorage.getItem("unah_usuario") || sessionStorage.getItem("unah_nombre") || user.name || "Lic. Roberto Fiallos";
+  const getCreatorName = () => {
+    try {
+      const rawUser = localStorage.getItem("unah_usuario") || sessionStorage.getItem("unah_usuario");
+      if (rawUser) {
+        const parsed = JSON.parse(rawUser);
+        if (parsed?.nombre) return parsed.nombre;
+      }
+    } catch (e) {
+      // fallo al parsear json
+    }
+    return (
+      localStorage.getItem("unah_nombre") ||
+      sessionStorage.getItem("unah_nombre") ||
+      user?.name ||
+      (user as any)?.nombre ||
+      "Organizador Universitario"
+    );
+  };
+
+  const creatorName = getCreatorName();
 
   const renderStep1 = () => (
     <div className="h-full flex flex-col justify-center">
