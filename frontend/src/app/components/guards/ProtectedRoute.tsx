@@ -52,6 +52,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (role === "dev") return <>{children}</>;
   if (location.pathname.startsWith("/post")) return <>{children}</>;
 
+  // Bloqueo estricto: solo admin y dev pueden ingresar a rutas /admin/*
+  if (location.pathname.startsWith("/admin") && role !== "admin" && role !== "dev") {
+    return <Navigate to="/muro" replace />;
+  }
+
   const allowed = ROLE_PREFIXES[role] ?? ROLE_PREFIXES.student;
   const canAccess = allowed.some(prefix => location.pathname.startsWith(prefix));
 

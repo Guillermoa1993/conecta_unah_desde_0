@@ -140,6 +140,9 @@ const emptyForm: UsuarioForm = {
 /* ======================================================================= */
 
 export function UserManagement() {
+  const rolActivo = sessionStorage.getItem('unah_role');
+  const esAdminValido = rolActivo === 'admin' || rolActivo === 'dev';
+
   const [users, setUsers] = useState<UsuarioSeguridad[]>([]);
   const [roles, setRoles] = useState<RolSeguridad[]>([]);
   const [permisos, setPermisos] = useState<PermisoSeguridad[]>([]);
@@ -188,10 +191,22 @@ export function UserManagement() {
   }, [search]);
 
   useEffect(() => {
-    const timeout = setTimeout(cargarTodo, 300); // debounce de la búsqueda
-    return () => clearTimeout(timeout);
+    if (esAdminValido) {
+      const timeout = setTimeout(cargarTodo, 300); // debounce de la búsqueda
+      return () => clearTimeout(timeout);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
+  }, [search, esAdminValido]);
+
+  if (!esAdminValido) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] bg-slate-50 p-6 rounded-xl border border-slate-200">
+        <div className="bg-red-50 text-[#003366] border border-red-200 p-4 rounded-lg font-bold max-w-md text-center shadow-xs">
+          🛑 ACCESO RESTRINGIDO: El módulo de Gestión de Usuarios es de uso exclusivo para el rol de Administrador.
+        </div>
+      </div>
+    );
+  }
 
   function handleOpenCreate() {
     setEditingId(null);

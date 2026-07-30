@@ -5,12 +5,14 @@ import {
   Shield, FileText, MessageSquare, ChevronDown, ChevronUp,
   GraduationCap, MapPin, Bell, LogOut, Rss, Lightbulb, KeyRound, User,
   Wifi, ShieldCheck, ClipboardList, SendHorizonal, Database, SlidersHorizontal, Mail,
+  Info, Palette,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   SidebarHeader, useSidebar,
 } from "../ui/sidebar";
+import { useModulosPermitidos } from "../../../hooks/useModulosPermitidos";
 
 /* ─── MENÚS POR ROL ─── */
 type MenuItem = { icon: React.ElementType; label: string; path: string };
@@ -52,6 +54,8 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
     { icon: Rss,            label: "Muro Social",                  path: "/voae/feed"         },
     { icon: Bell,           label: "Notificaciones",               path: "/employees/notifications" },
   ],
+  // "dev" es un rol de vista previa, NO administrador — nunca debe incluir
+  // ítems exclusivos de admin (Panel admin, Usuarios, Roles, Permisos, etc.).
   dev: [
     { icon: Home,          label: "Dashboard Estudiante",path: "/student"        },
     { icon: Rss,           label: "Muro Social",        path: "/student/feed"   },
@@ -81,6 +85,27 @@ const MENU_BY_ROLE: Record<string, MenuItem[]> = {
   ],
 };
 
+/* ─── ADMIN: mismo listado de antes, pero cada ítem etiquetado con el
+   "modulo" de Seguridad que lo controla. Cuando el rol admin ya tiene
+   permisos configurados en /admin/roles + /admin/permissions, este catálogo
+   se filtra por esos permisos en vez de mostrarse completo siempre.
+   "Panel admin" queda con modulo:null porque es la página de entrada, no
+   un permiso que tenga sentido revocar. ─── */
+type CatalogItem = MenuItem & { modulo: string | null };
+
+const ADMIN_MODULE_CATALOG: CatalogItem[] = [
+  { icon: Shield,            label: "Panel admin",        path: "/admin/administracion", modulo: null          },
+  { icon: Users,             label: "Usuarios",           path: "/admin/users",          modulo: "usuarios"    },
+  { icon: KeyRound,          label: "Roles",              path: "/admin/roles",          modulo: "seguridad"   },
+  { icon: Settings,          label: "Permisos",           path: "/admin/permissions",    modulo: "seguridad"   },
+  { icon: Calendar,          label: "Gestión de eventos", path: "/admin/events",         modulo: "eventos"     },
+  { icon: MessageSquare,     label: "Comentarios",        path: "/admin/comments",       modulo: "comentarios" },
+  { icon: Database,          label: "Respaldo",           path: "/admin/backup",         modulo: "respaldos"   },
+  { icon: SlidersHorizontal, label: "Parámetros",         path: "/admin/parametros",     modulo: "parametros"  },
+  { icon: BarChart3,         label: "Reportes",           path: "/tutor/reports",        modulo: "reportes"    },
+  { icon: History,           label: "Bitácora",           path: "/employees/logs",       modulo: "bitacora"    },
+];
+
 const ROLE_LABELS: Record<string, string> = {
   student:    "Estudiante",
   tutor:      "Empleado / Tutor",
@@ -90,13 +115,19 @@ const ROLE_LABELS: Record<string, string> = {
   dev:        "⚡ Dev / Preview",
 };
 
-const MAINTENANCE_ITEMS = [
-  { icon: GraduationCap, label: "Carreras",              subPath: "/maintenance/careers"            },
-  { icon: MapPin,        label: "Centros regionales",    subPath: "/maintenance/regional-centers"   },
-  { icon: Users,         label: "Tipos de usuario",      subPath: "/maintenance/user-types"         },
-  { icon: FileText,      label: "Estados de usuario",    subPath: "/maintenance/user-states"        },
-  { icon: Bell,          label: "Tipos de notificación", subPath: "/maintenance/notification-types" },
-];
+/* Solo ADMIN y DEV deben ver la sección llamada "Administración" (y, con
+   ella, el catálogo filtrado por los permisos reales del módulo de
+   Seguridad). Los demás roles conservan sus propias herramientas —
+   Crear evento, Panel VOAE, etc. — pero bajo un rótulo distinto, para que
+   quede claro que NO es el panel de administrador. */
+const ROLES_ADMIN_LIKE = ["admin", "dev"];
+
+const ADMIN_SECTION_LABELS: Record<string, string> = {
+  admin: "Administración",
+  dev:   "Administración",
+  tutor: "Mis herramientas",
+  voae:  "Panel VOAE",
+};
 
 /* ─── ROLES CON MANTENIMIENTO ─── */
 const ROLES_WITH_MAINTENANCE = ["admin", "dev"];
