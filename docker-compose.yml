@@ -1,7 +1,10 @@
 version: '3.9'
+
 # ─── UNAH CONECTA PUMAS ────────────────────────────────────────────────────────
-# Base de datos: Render.com (PostgreSQL externo, sin contenedor local de DB)
-# ─────────────────────────────────────────────────────────────────────────────
+# Base de datos: PostgreSQL externo mediante variables de entorno
+# Nunca almacenar credenciales en este archivo.
+# ───────────────────────────────────────────────────────────────────────────────
+
 services:
 
   # ── Backend (API Express) ──────────────────────────────────────────────────
@@ -10,95 +13,130 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: production
+
     container_name: unah_backend
+
     ports:
       - "5000:5000"
+
     env_file:
       - ./backend/.env
+
     environment:
-      - PORT=5000
-      - DATABASE_URL=${DATABASE_URL:-postgresql://usuario:password@localhost:5432/db_ejemplo}
-      - JWT_SECRET=${JWT_SECRET:-cambiar_en_produccion}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
+      - PORT=${PORT}
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
       - NODE_OPTIONS=--dns-result-order=ipv4first
-      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID:-tu_client_id}
-      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET:-tu_client_secret}
-      - AZURE_TENANT_ID=${AZURE_TENANT_ID:-tu_tenant_id}
-      - AZURE_REDIRECT_URI=${AZURE_REDIRECT_URI:-http://localhost:5000/api/auth/microsoft/callback}
-      - GMAIL_USER=${GMAIL_USER:-tu_correo@gmail.com}
-      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:-tu_app_password}
+
+      # Microsoft Azure
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
+      - AZURE_REDIRECT_URI=${AZURE_REDIRECT_URI}
+
+      # Correo
+      - GMAIL_USER=${GMAIL_USER}
+      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
+
     restart: unless-stopped
+
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # ── Backend en modo desarrollo (hot-reload) ────────────────────────────────
+  # ── Backend Desarrollo ─────────────────────────────────────────────────────
   backend-dev:
     build:
       context: ./backend
       dockerfile: Dockerfile
       target: development
+
     container_name: unah_backend_dev
+
     ports:
       - "5000:5000"
+
     env_file:
       - ./backend/.env
+
     environment:
-      - PORT=${PORT:-5000}
+      - PORT=${PORT}
       - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET}
       - FRONTEND_URL=${FRONTEND_URL}
-      - NODE_OPTIONS=${NODE_OPTIONS:---dns-result-order=ipv4first}
+      - NODE_OPTIONS=--dns-result-order=ipv4first
+
       - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
       - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
       - AZURE_TENANT_ID=${AZURE_TENANT_ID}
       - AZURE_REDIRECT_URI=${AZURE_REDIRECT_URI}
+
       - GMAIL_USER=${GMAIL_USER}
       - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
+
     volumes:
       - ./backend:/app
       - /app/node_modules
-    profiles: ["dev"]
+
+    profiles:
+      - dev
+
     restart: unless-stopped
 
-  # ── Frontend (React + Nginx) ───────────────────────────────────────────────
+  # ── Frontend Producción ────────────────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       target: production
+
     container_name: unah_frontend
+
     ports:
       - "5173:80"
+
     depends_on:
       - backend
+
     restart: unless-stopped
 
-  # ── Frontend en modo desarrollo (Vite hot-reload) ─────────────────────────
+  # ── Frontend Desarrollo ────────────────────────────────────────────────────
   frontend-dev:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       target: development
+
     container_name: unah_frontend_dev
+
     ports:
       - "5173:5185"
+
     environment:
       - VITE_API_URL=http://backend-dev:5000/api
+
     volumes:
       - ./frontend:/app
       - /app/node_modules
+
     depends_on:
       - backend-dev
-    profiles: ["dev"]
+
+    profiles:
+      - dev
+
     restart: unless-stopped
 
-  # ── Adminer (visualizador de BD) ───────────────────────────────────────────
+  # ── Adminer ────────────────────────────────────────────────────────────────
   adminer:
     image: adminer:latest
+
     container_name: unah_adminer
+
     ports:
       - "8080:8080"
+
     restart: unless-stopped

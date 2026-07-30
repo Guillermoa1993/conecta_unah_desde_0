@@ -1,40 +1,116 @@
-import { Shield, Calendar, Users, Settings, MessageSquare, ArrowRight, Clock, Activity, FileSpreadsheet, Lock } from "lucide-react";
+import { Shield, Calendar, Users, Settings, MessageSquare, ArrowRight, Clock, Activity, FileSpreadsheet, Lock, KeyRound, Database, SlidersHorizontal, History, BarChart3 } from "lucide-react";
 import { Link } from "react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 
-const adminActions = [
+/* Módulos agrupados por categoría — refleja exactamente lo que el rol
+   admin tiene disponible en el sidebar (ADMIN_ITEMS_BY_ROLE.admin) más
+   Mantenimiento, para servir como panel de revisión de todo lo implementado. */
+const moduleCategories: {
+  category: string;
+  items: {
+    title: string;
+    description: string;
+    path: string;
+    icon: React.ElementType;
+    color: string;
+    shadow: string;
+  }[];
+}[] = [
   {
-    title: "Gestión de Eventos",
-    description: "Crear, editar, suspender y monitorear la asistencia de eventos académicos.",
-    path: "/admin/events",
-    icon: Calendar,
-    color: "from-blue-500 to-indigo-600",
-    shadow: "shadow-blue-500/10",
+    category: "Gestión académica",
+    items: [
+      {
+        title: "Gestión de Eventos",
+        description: "Crear, editar, suspender y monitorear la asistencia de eventos académicos.",
+        path: "/admin/events",
+        icon: Calendar,
+        color: "from-blue-500 to-indigo-600",
+        shadow: "shadow-blue-500/10",
+      },
+      {
+        title: "Reportes",
+        description: "Estadísticas de horas, asistencia y cumplimiento del Artículo 140.",
+        path: "/tutor/reports",
+        icon: BarChart3,
+        color: "from-sky-500 to-blue-600",
+        shadow: "shadow-sky-500/10",
+      },
+      {
+        title: "Revisión de Comentarios",
+        description: "Moderar encuestas y comentarios sobre eventos realizados.",
+        path: "/admin/comments",
+        icon: MessageSquare,
+        color: "from-rose-500 to-pink-600",
+        shadow: "shadow-rose-500/10",
+      },
+    ],
   },
   {
-    title: "Gestión de Usuarios",
-    description: "Administrar cuentas de estudiantes, tutores y personal administrativo.",
-    path: "/admin/users",
-    icon: Users,
-    color: "from-emerald-500 to-teal-600",
-    shadow: "shadow-emerald-500/10",
+    category: "Seguridad",
+    items: [
+      {
+        title: "Gestión de Usuarios",
+        description: "Administrar cuentas de estudiantes, tutores y personal administrativo.",
+        path: "/admin/users",
+        icon: Users,
+        color: "from-emerald-500 to-teal-600",
+        shadow: "shadow-emerald-500/10",
+      },
+      {
+        title: "Roles",
+        description: "Crear y editar roles del sistema.",
+        path: "/admin/roles",
+        icon: KeyRound,
+        color: "from-violet-500 to-purple-600",
+        shadow: "shadow-violet-500/10",
+      },
+      {
+        title: "Permisos",
+        description: "Asignar permisos por rol (RBAC/ACL).",
+        path: "/admin/permissions",
+        icon: Lock,
+        color: "from-indigo-500 to-violet-600",
+        shadow: "shadow-indigo-500/10",
+      },
+      {
+        title: "Bitácora",
+        description: "Auditoría de acciones realizadas en el sistema.",
+        path: "/employees/logs",
+        icon: History,
+        color: "from-slate-500 to-slate-700",
+        shadow: "shadow-slate-500/10",
+      },
+    ],
   },
   {
-    title: "Configuración del Sistema",
-    description: "Configurar parámetros del correo, bases de datos y seguridad.",
-    path: "/admin/settings",
-    icon: Settings,
-    color: "from-amber-500 to-orange-600",
-    shadow: "shadow-amber-500/10",
-  },
-  {
-    title: "Revisión de Comentarios",
-    description: "Moderar encuestas y comentarios sobre eventos realizados.",
-    path: "/admin/comments",
-    icon: MessageSquare,
-    color: "from-rose-500 to-pink-600",
-    shadow: "shadow-rose-500/10",
+    category: "Sistema",
+    items: [
+      {
+        title: "Configuración del Sistema",
+        description: "Configurar parámetros del correo, bases de datos y seguridad.",
+        path: "/admin/settings",
+        icon: Settings,
+        color: "from-amber-500 to-orange-600",
+        shadow: "shadow-amber-500/10",
+      },
+      {
+        title: "Parámetros",
+        description: "Parámetros generales y datos de soporte de la plataforma.",
+        path: "/admin/parametros",
+        icon: SlidersHorizontal,
+        color: "from-orange-500 to-red-500",
+        shadow: "shadow-orange-500/10",
+      },
+      {
+        title: "Respaldo",
+        description: "Respaldos manuales/automáticos y restauración de la base de datos.",
+        path: "/admin/backup",
+        icon: Database,
+        color: "from-cyan-500 to-teal-600",
+        shadow: "shadow-cyan-500/10",
+      },
+    ],
   },
 ];
 
@@ -74,43 +150,52 @@ export function Administracion() {
         </div>
       </div>
 
-      {/* Grid of Action Modules */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {adminActions.map((action, i) => {
-          const Icon = action.icon;
-          return (
-            <Card 
-              key={i} 
-              className={`border border-slate-150 hover:border-slate-300 transition-all duration-300 shadow-sm hover:shadow-md ${action.shadow} group overflow-hidden relative`}
-            >
-              {/* Background gradient blur decoration */}
-              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br opacity-5 rounded-full blur-xl -translate-y-6 translate-x-6 transition-transform duration-500 group-hover:scale-150" />
-              
-              <CardHeader className="flex flex-row items-start gap-4 p-6 pb-2">
-                <div className={`h-12 w-12 rounded-xl bg-gradient-to-br ${action.color} text-white flex items-center justify-center shadow-lg`}>
-                  <Icon className="h-6 w-6" />
-                </div>
-                <div className="space-y-1 flex-1">
-                  <CardTitle className="text-lg font-bold text-[#003366] group-hover:text-[#004B87] transition-colors">
-                    {action.title}
-                  </CardTitle>
-                  <CardDescription className="text-xs text-slate-500 leading-relaxed">
-                    {action.description}
-                  </CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent className="px-6 pb-6 pt-2 flex justify-end">
-                <Link 
-                  to={action.path}
-                  className="inline-flex items-center gap-2 text-xs font-extrabold text-[#004B87] group-hover:text-[#003366] transition-colors"
-                >
-                  Acceder al Módulo
-                  <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-                </Link>
-              </CardContent>
-            </Card>
-          );
-        })}
+      {/* Grid de módulos, agrupado por categoría — vista completa de todo lo disponible para admin */}
+      <div className="space-y-8">
+        {moduleCategories.map((group) => (
+          <div key={group.category} className="space-y-3">
+            <h2 className="text-xs font-extrabold uppercase tracking-widest text-slate-400 ml-1">
+              {group.category}
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {group.items.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <Card
+                    key={action.path}
+                    className={`border border-slate-150 hover:border-slate-300 transition-all duration-300 shadow-sm hover:shadow-md ${action.shadow} group overflow-hidden relative`}
+                  >
+                    {/* Background gradient blur decoration */}
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br opacity-5 rounded-full blur-xl -translate-y-6 translate-x-6 transition-transform duration-500 group-hover:scale-150" />
+
+                    <CardHeader className="flex flex-row items-start gap-4 p-6 pb-2">
+                      <div className={`h-12 w-12 rounded-xl bg-gradient-to-br ${action.color} text-white flex items-center justify-center shadow-lg flex-shrink-0`}>
+                        <Icon className="h-6 w-6" />
+                      </div>
+                      <div className="space-y-1 flex-1">
+                        <CardTitle className="text-lg font-bold text-[#003366] group-hover:text-[#004B87] transition-colors">
+                          {action.title}
+                        </CardTitle>
+                        <CardDescription className="text-xs text-slate-500 leading-relaxed">
+                          {action.description}
+                        </CardDescription>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="px-6 pb-6 pt-2 flex justify-end">
+                      <Link
+                        to={action.path}
+                        className="inline-flex items-center gap-2 text-xs font-extrabold text-[#004B87] group-hover:text-[#003366] transition-colors"
+                      >
+                        Acceder al Módulo
+                        <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                      </Link>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Audit Logs and Statistics */}
@@ -168,6 +253,7 @@ export function Administracion() {
               { label: "Centros Regionales", path: "/admin/maintenance/regional-centers", desc: "Sedes a nivel nacional" },
               { label: "Tipos de Usuario", path: "/admin/maintenance/user-types", desc: "Permisos y accesos de roles" },
               { label: "Estados de Usuario", path: "/admin/maintenance/user-states", desc: "Activo, inactivo, bloqueado" },
+              { label: "Tipos de Notificación", path: "/admin/maintenance/notification-types", desc: "Categorías de alertas del sistema" },
             ].map((cat, idx) => (
               <Link 
                 key={idx}

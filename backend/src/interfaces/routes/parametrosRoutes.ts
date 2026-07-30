@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { autenticar } from '../middlewares/authMiddleware';
+import { autenticar, requireSystemAdmin } from '../middlewares/authMiddleware';
 import pool from '../../infrastructure/database/db';
 import { reloadConfig } from '../../infrastructure/config/configService';
 import { resetMsalClient } from '../../infrastructure/auth/msalConfig';
@@ -69,19 +69,57 @@ r.get('/status', async (_req: Request, res: Response) => {
   } catch { res.json({ mantenimiento: false }); }
 });
 
-r.get('/', autenticar, async (_req: Request, res: Response) => {
+// Endpoint para obtener la preferencia de color del usuario logueado (disponible para todos)
+r.get('/preferencia-color', autenticar, async (req: Request, res: Response) => {
+  try {
+    const userId = req.usuario?.id;
+    if (!userId) {
+      res.json({ tema: null });
+      return;
+    }
+    const paramName = `PREFERENCIA_TEMA_USER_${userId}`;
+    const result = await pool.query('SELECT valor FROM tabla_grupo_1_parametros WHERE nombre = $1', [paramName]);
+    res.json({ tema: result.rows[0]?.valor ?? null });
+  } catch {
+    res.json({ tema: null });
+  }
+});
+
+// Endpoint para guardar la preferencia de color del usuario logueado (disponible para todos)
+r.put('/preferencia-color', autenticar, async (req: Request, res: Response) => {
+  try {
+    const userId = req.usuario?.id;
+    const { tema } = req.body;
+    if (!userId || typeof tema !== 'string') {
+      res.status(400).json({ error: 'Parámetros inválidos' });
+      return;
+    }
+    const paramName = `PREFERENCIA_TEMA_USER_${userId}`;
+    await pool.query(
+      `INSERT INTO tabla_grupo_1_parametros (nombre, valor)
+       VALUES ($1, $2)
+       ON CONFLICT (nombre) DO UPDATE SET valor = EXCLUDED.valor`,
+      [paramName, tema]
+    );
+    res.json({ ok: true, tema });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al guardar preferencia de color' });
+  }
+});
+
+// Exclusivos de administradores del sistema (ADMIN y DEV)
+r.get('/', autenticar, requireSystemAdmin, async (_req: Request, res: Response) => {
   try {
     const result = await pool.query('SELECT * FROM tabla_grupo_1_parametros ORDER BY id_parametro');
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: 'Error al obtener parámetros' }); }
 });
 
-r.put('/:nombre', autenticar, async (req: Request, res: Response) => {
+r.put('/:nombre', autenticar, requireSystemAdmin, async (req: Request, res: Response) => {
   try {
     const { nombre } = req.params;
     const { valor } = req.body;
     await pool.query('UPDATE tabla_grupo_1_parametros SET valor = $1 WHERE nombre = $2', [valor, nombre]);
-    // Recarga config en memoria y resetea cliente MSAL si cambió algo de Azure
     await reloadConfig();
     if (['AZURE_CLIENT_ID','AZURE_CLIENT_SECRET','AZURE_TENANT_ID'].includes(nombre as string)) {
       resetMsalClient();
@@ -90,7 +128,7 @@ r.put('/:nombre', autenticar, async (req: Request, res: Response) => {
   } catch (err) { res.status(500).json({ error: 'Error al actualizar parámetro' }); }
 });
 
-r.post('/', autenticar, async (req: Request, res: Response) => {
+r.post('/', autenticar, requireSystemAdmin, async (req: Request, res: Response) => {
   try {
     const { nombre, valor } = req.body;
     const result = await pool.query(

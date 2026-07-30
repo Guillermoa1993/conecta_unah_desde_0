@@ -9,6 +9,9 @@ import { toast } from 'sonner';
 // que es justamente lo que habilita el botón "+ Nuevo Rol".
 
 export function Roles() {
+  const rolActivo = sessionStorage.getItem('unah_role');
+  const esAdminValido = rolActivo === 'admin' || rolActivo === 'dev';
+
   const [roles, setRoles] = useState<RolSeguridad[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -34,7 +37,19 @@ export function Roles() {
     }
   }, []);
 
-  useEffect(() => { cargarRoles(); }, [cargarRoles]);
+  useEffect(() => {
+    if (esAdminValido) cargarRoles();
+  }, [cargarRoles, esAdminValido]);
+
+  if (!esAdminValido) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] bg-slate-50 p-6 rounded-xl border border-slate-200">
+        <div className="bg-red-50 text-[#003366] border border-red-200 p-4 rounded-lg font-bold max-w-md text-center shadow-xs">
+          🛑 ACCESO RESTRINGIDO: El módulo de Gestión de Roles es de uso exclusivo para el rol de Administrador.
+        </div>
+      </div>
+    );
+  }
 
   const filteredRoles = filterRole === 'Todos'
     ? roles

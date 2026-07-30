@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import {
   Search, ArrowRight, LayoutGrid,
@@ -11,6 +11,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
+import { toast } from "sonner";
 
 /* ======================================================================= */
 /*  Catálogo de aplicativos por rol                                        */
@@ -32,6 +33,7 @@ type ThemeOption = {
   gradient: string;
 };
 
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
 const INSTITUTIONAL_THEME = "from-[#004B87] to-[#002b5c]";
 const THEME_OPTIONS: ThemeOption[] = [
   { id: "institutional", label: "Institucional", gradient: INSTITUTIONAL_THEME },
@@ -120,7 +122,7 @@ const MAINTENANCE_ITEMS = [
   { label: "Backup", subPath: "/maintenance/backup", icon: Database },
   { label: "Reset", subPath: "/maintenance/reset", icon: RefreshCcw },
 ];
-const ROLES_WITH_MAINTENANCE = ["admin", "voae", "tutor", "dev"];
+const ROLES_WITH_MAINTENANCE = ["admin", "dev"];
 
 const ROLE_LABELS: Record<string, string> = {
   student: "Estudiante",
@@ -140,18 +142,47 @@ export function Aplicativos() {
   const apps = CATALOG[role] ?? CATALOG.student;
   const roleLabel = ROLE_LABELS[role] ?? "Estudiante";
 
-  const updateTheme = (gradient: string) => {
+  // Cargar preferencia del backend al iniciar la pantalla
+  useEffect(() => {
+    const token = sessionStorage.getItem("unah_jwt_token");
+    if (!token) return;
+    fetch(`${API_URL}/parametros/preferencia-color`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.tema) {
+          setSelectedTheme(d.tema);
+          window.localStorage.setItem("unah_aplicativos_theme", d.tema);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const updateTheme = async (gradient: string) => {
     setSelectedTheme(gradient);
     window.localStorage.setItem("unah_aplicativos_theme", gradient);
+    
+    const token = sessionStorage.getItem("unah_jwt_token");
+    if (token) {
+      try {
+        await fetch(`${API_URL}/parametros/preferencia-color`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ tema: gradient }),
+        });
+      } catch {}
+    }
+    toast.success("Preferencia de color actualizada y sincronizada");
   };
 
   const resetTheme = () => {
-    setSelectedTheme(INSTITUTIONAL_THEME);
-    window.localStorage.removeItem("unah_aplicativos_theme");
+    updateTheme(INSTITUTIONAL_THEME);
   };
 
-  // El prefijo de mantenimiento depende del rol activo, no de la URL actual
-  // (esta página vive en /employees/aplicativos, fuera de los prefijos de rol).
   const maintenancePrefix =
     role === "admin" ? "/admin" : role === "voae" ? "/voae" : role === "tutor" ? "/tutor" : role === "dev" ? "/admin" : "/student";
 
@@ -166,10 +197,10 @@ export function Aplicativos() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className={`h-9 w-9 bg-gradient-to-br ${selectedTheme} text-white rounded-lg flex items-center justify-center shadow-md`}>
+            <div className={`h-9 w-9 bg-gradient-to-br ${selectedTheme} text-white rounded-lg flex items-center justify-center shadow-md transition-all`}>
               <LayoutGrid className="h-5 w-5" />
             </div>
-            <h1 className="text-3xl font-bold text-[#004B87]">Aplicativos</h1>
+            <h1 className="text-3xl font-bold text-[#004B87]">Aplicativos y Mantenimiento</h1>
           </div>
           <p className="text-muted-foreground mt-1 ml-11 text-sm">
             Accede rápidamente a todos los módulos disponibles para tu rol —{" "}
@@ -189,9 +220,9 @@ export function Aplicativos() {
 
       <Card className="border border-slate-200 shadow-sm rounded-xl bg-slate-50/80">
         <CardHeader className="p-5">
-          <CardTitle className="text-base font-bold text-[#003366]">Preferencias de color</CardTitle>
+          <CardTitle className="text-base font-bold text-[#003366]">Apariencia y Preferencias de Color</CardTitle>
           <CardDescription>
-            Cambia la paleta de colores de los aplicativos y vuelve al color institucional cuando lo necesites.
+            Personaliza el tema visual de los aplicativos. Haz clic en "Restaurar color institucional" para volver a la paleta oficial UNAH.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-5">
@@ -201,10 +232,10 @@ export function Aplicativos() {
                 key={theme.id}
                 type="button"
                 onClick={() => updateTheme(theme.gradient)}
-                className={`flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all ${
+                className={`flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all cursor-pointer ${
                   selectedTheme === theme.gradient
-                    ? "ring-2 ring-[#003366]"
-                    : "opacity-80 hover:opacity-100"
+                    ? "ring-2 ring-[#003366] scale-105"
+                    : "opacity-85 hover:opacity-100"
                 } bg-gradient-to-r ${theme.gradient}`}
               >
                 {theme.label}
@@ -213,7 +244,7 @@ export function Aplicativos() {
             <button
               type="button"
               onClick={resetTheme}
-              className="rounded-xl border border-[#003366] bg-white px-4 py-2 text-sm font-semibold text-[#003366] shadow-sm hover:bg-[#eef4fb]"
+              className="rounded-xl border border-[#003366] bg-white px-4 py-2 text-sm font-semibold text-[#003366] shadow-sm hover:bg-[#eef4fb] transition-all cursor-pointer"
             >
               Restaurar color institucional
             </button>

@@ -3,15 +3,16 @@ import { useLocation, Link, useNavigate } from "react-router";
 import {
   Home, Calendar, QrCode, History, Plus, BarChart3, Users, Settings,
   Shield, FileText, MessageSquare, ChevronDown, ChevronUp,
-  GraduationCap, MapPin, Bell, LogOut, Rss, KeyRound, User,
+  MapPin, Bell, LogOut, Rss, KeyRound, User,
   Wifi, ShieldCheck, ClipboardList, SendHorizonal, Database, SlidersHorizontal, Mail,
-  Info,
+  Info, Palette,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   SidebarHeader, useSidebar,
 } from "../ui/sidebar";
+import { useModulosPermitidos } from "../../../hooks/useModulosPermitidos";
 
 /* ─── TIPOS ─── */
 type MenuItem = { icon: React.ElementType; label: string; path: string };
@@ -55,11 +56,9 @@ const ADMIN_ITEMS_BY_ROLE: Record<string, MenuItem[]> = {
     { icon: ShieldCheck,   label: "Moderadores",       path: "/voae/moderadores" },
     { icon: History,       label: "Bitácora",          path: "/employees/logs"   },
   ],
+  // "dev" es un rol de vista previa, NO administrador — nunca debe incluir
+  // ítems exclusivos de admin (Panel admin, Usuarios, Roles, Permisos, etc.).
   dev: [
-    { icon: Shield,        label: "Panel admin",        path: "/admin/administracion" },
-    { icon: Users,         label: "Usuarios",           path: "/admin/users"          },
-    { icon: KeyRound,      label: "Roles",              path: "/admin/roles"          },
-    { icon: Settings,      label: "Permisos",           path: "/admin/permissions"    },
     { icon: Home,          label: "Panel VOAE",         path: "/voae"                 },
     { icon: FileText,      label: "Reportes VOAE",      path: "/voae/reports"         },
     { icon: Plus,          label: "Crear evento",       path: "/tutor/create-event"   },
@@ -70,6 +69,27 @@ const ADMIN_ITEMS_BY_ROLE: Record<string, MenuItem[]> = {
   ],
 };
 
+/* ─── ADMIN: mismo listado de antes, pero cada ítem etiquetado con el
+   "modulo" de Seguridad que lo controla. Cuando el rol admin ya tiene
+   permisos configurados en /admin/roles + /admin/permissions, este catálogo
+   se filtra por esos permisos en vez de mostrarse completo siempre.
+   "Panel admin" queda con modulo:null porque es la página de entrada, no
+   un permiso que tenga sentido revocar. ─── */
+type CatalogItem = MenuItem & { modulo: string | null };
+
+const ADMIN_MODULE_CATALOG: CatalogItem[] = [
+  { icon: Shield,            label: "Panel admin",        path: "/admin/administracion", modulo: null          },
+  { icon: Users,             label: "Usuarios",           path: "/admin/users",          modulo: "usuarios"    },
+  { icon: KeyRound,          label: "Roles",              path: "/admin/roles",          modulo: "seguridad"   },
+  { icon: Settings,          label: "Permisos",           path: "/admin/permissions",    modulo: "seguridad"   },
+  { icon: Calendar,          label: "Gestión de eventos", path: "/admin/events",         modulo: "eventos"     },
+  { icon: MessageSquare,     label: "Comentarios",        path: "/admin/comments",       modulo: "comentarios" },
+  { icon: Database,          label: "Respaldo",           path: "/admin/backup",         modulo: "respaldos"   },
+  { icon: SlidersHorizontal, label: "Parámetros",         path: "/admin/parametros",     modulo: "parametros"  },
+  { icon: BarChart3,         label: "Reportes",           path: "/tutor/reports",        modulo: "reportes"    },
+  { icon: History,           label: "Bitácora",           path: "/employees/logs",       modulo: "bitacora"    },
+];
+
 const ROLE_LABELS: Record<string, string> = {
   student: "Estudiante",
   tutor:   "Empleado",
@@ -78,16 +98,20 @@ const ROLE_LABELS: Record<string, string> = {
   dev:     "⚡ Dev / Preview",
 };
 
-const MAINTENANCE_ITEMS = [
-  { icon: GraduationCap, label: "Carreras",              subPath: "/maintenance/careers"            },
-  { icon: MapPin,        label: "Centros regionales",    subPath: "/maintenance/regional-centers"   },
-  { icon: Users,         label: "Tipos de usuario",      subPath: "/maintenance/user-types"         },
-  { icon: FileText,      label: "Estados de usuario",    subPath: "/maintenance/user-states"        },
-  { icon: Bell,          label: "Tipos de notificación", subPath: "/maintenance/notification-types" },
-];
+/* Solo ADMIN y DEV deben ver la sección llamada "Administración" (y, con
+   ella, el catálogo filtrado por los permisos reales del módulo de
+   Seguridad). Los demás roles conservan sus propias herramientas —
+   Crear evento, Panel VOAE, etc. — pero bajo un rótulo distinto, para que
+   quede claro que NO es el panel de administrador. */
+const ROLES_ADMIN_LIKE = ["admin", "dev"];
 
-/* Mantenimiento aparece dentro de "Administración" para estos roles */
-const ROLES_WITH_MAINTENANCE = ["admin", "voae", "tutor", "dev"];
+const ADMIN_SECTION_LABELS: Record<string, string> = {
+  admin: "Administración",
+  dev:   "Administración",
+  tutor: "Mis herramientas",
+  voae:  "Panel VOAE",
+};
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
 
 export function AppSidebar() {
@@ -98,7 +122,6 @@ export function AppSidebar() {
 
   // "Administración" arranca CERRADA para que la app se sienta como red social.
   const [adminOpen, setAdminOpen] = useState(false);
-  const [maintenanceOpen, setMaintenanceOpen] = useState(false);
   const [soporte, setSoporte] = useState({ correo: "", whatsapp: "" });
 
   useEffect(() => {
@@ -110,16 +133,25 @@ export function AppSidebar() {
 
   const role = sessionStorage.getItem("unah_role") ?? "student";
   const roleLabel = ROLE_LABELS[role] ?? "Estudiante";
-  const adminItems = ADMIN_ITEMS_BY_ROLE[role] ?? [];
-  const hasAdminSection = adminItems.length > 0;
-  const showMaintenance = ROLES_WITH_MAINTENANCE.includes(role);
 
-  // Prefijo para las rutas de mantenimiento (usa el "espacio" del rol)
-  const maintenancePrefix =
-    role === "admin" ? "/admin" :
-    role === "voae"  ? "/voae"  :
-    role === "tutor" ? "/tutor" :
-    "/admin";
+  const { modulos: modulosPermitidos, configurado: permisosConfigurados } = useModulosPermitidos();
+
+  const isAdminLikeRole = ROLES_ADMIN_LIKE.includes(role);
+  const adminSectionLabel = ADMIN_SECTION_LABELS[role] ?? "Herramientas";
+
+  // Solo admin/dev leen del catálogo filtrado por permisos reales de
+  // Seguridad. Tutor/VOAE conservan su propio listado de siempre — nunca
+  // tuvieron acceso a Usuarios/Roles/Permisos/Respaldo, así que no hay nada
+  // que "ocultarles" ahí; lo único que cambia es que ya no comparten el
+  // rótulo "Administración" con el admin real.
+  const adminItems =
+    isAdminLikeRole && permisosConfigurados
+      ? ADMIN_MODULE_CATALOG.filter(
+          (item) => item.modulo === null || modulosPermitidos.has(item.modulo),
+        )
+      : (ADMIN_ITEMS_BY_ROLE[role] ?? []);
+
+  const hasAdminSection = adminItems.length > 0;
 
   const handleLogout = () => {
     sessionStorage.clear();
@@ -184,11 +216,11 @@ export function AppSidebar() {
                   <button
                     onClick={() => !isCollapsed && setAdminOpen(v => !v)}
                     className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-white rounded-md hover:bg-[#003366] transition-colors focus:outline-none"
-                    title={isCollapsed ? "Administración" : undefined}
+                    title={isCollapsed ? adminSectionLabel : undefined}
                   >
                     <div className="flex items-center gap-3">
                       <Shield className="h-5 w-5" />
-                      {!isCollapsed && <span>Administración</span>}
+                      {!isCollapsed && <span>{adminSectionLabel}</span>}
                     </div>
                     {!isCollapsed && (
                       adminOpen
@@ -216,43 +248,20 @@ export function AppSidebar() {
                         );
                       })}
 
-                      {/* Mantenimiento anidado dentro de Administración */}
-                      {showMaintenance && (
-                        <div className="mt-1">
-                          <button
-                            onClick={() => setMaintenanceOpen(v => !v)}
-                            className="flex items-center justify-between w-full px-2 py-1.5 text-sm font-medium text-white/90 rounded-md hover:bg-[#003366] transition-colors focus:outline-none"
-                          >
-                            <div className="flex items-center gap-2">
-                              <Settings className="h-4 w-4" />
-                              <span>Mantenimiento</span>
-                            </div>
-                            {maintenanceOpen
-                              ? <ChevronUp   className="h-3 w-3 text-[#FFD100]" />
-                              : <ChevronDown className="h-3 w-3 text-[#FFD100]" />}
-                          </button>
-                          {maintenanceOpen && (
-                            <div className="pl-4 mt-1 space-y-1">
-                              {MAINTENANCE_ITEMS.map((sub) => {
-                                const fullPath = `${maintenancePrefix}${sub.subPath}`;
-                                const active = location.pathname === fullPath;
-                                return (
-                                  <SidebarMenuButton
-                                    key={fullPath} asChild isActive={active} tooltip={sub.label}
-                                    className={active
-                                      ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8"
-                                      : "text-white/70 hover:bg-[#003366] hover:text-white h-8"}
-                                  >
-                                    <Link to={fullPath} className="flex items-center gap-2">
-                                      <sub.icon className="h-3.5 w-3.5" />
-                                      <span className="text-xs">{sub.label}</span>
-                                    </Link>
-                                  </SidebarMenuButton>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
+                      {/* "Colores de Aplicativos" reemplaza el antiguo submenú de
+                          Mantenimiento — visible solo para admin y dev. */}
+                      {isAdminLikeRole && (
+                        <SidebarMenuButton
+                          asChild isActive={isPathActive("/employees/aplicativos")} tooltip="Colores de Aplicativos"
+                          className={isPathActive("/employees/aplicativos")
+                            ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8 mt-1"
+                            : "text-white/80 hover:bg-[#003366] hover:text-white h-8 mt-1"}
+                        >
+                          <Link to="/employees/aplicativos" className="flex items-center gap-2">
+                            <Palette className="h-4 w-4" />
+                            <span className="text-xs">Colores de Aplicativos</span>
+                          </Link>
+                        </SidebarMenuButton>
                       )}
                     </div>
                   )}
@@ -261,6 +270,7 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         )}
+
 
         {/* ─── SOPORTE + LOGOUT + ACERCA DE ─── */}
         <SidebarGroup>
