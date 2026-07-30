@@ -3,6 +3,8 @@ import { authService } from '../../../services/auth.service';
 import { eventosService, comentarioService, reaccionPostService, publicacionService, grupo2EventosService } from '../../../services';
 import { pumitasService, type Pumita } from '../../../services/pumitas.service';
 import { useNotificaciones } from '../../../hooks/useNotificaciones';
+import { EventDetailMapPreview } from '../../components/app/EventDetailMapPreview';
+import { MapPin, Camera, Eye } from 'lucide-react';
 
 interface Comment {
   id: number; author: string; authorInitials: string; text: string; time: string; replyTo?: string; parentId?: number; replyToText?: string; authorPic?: string;
@@ -425,170 +427,244 @@ function CommentReactionBtn({ comment, onReact }: {
   );
 }
 
-/* ─── DETAIL MODAL — idéntico a imagen de referencia ─── */
-function DetailModal({ post, onClose }: { post: Post; onClose: () => void }) {
-  const total = getTotalReactions(post);
+/* ─── MODAL COMPARTIR ─── */
+function ShareModal({ post, onClose }: { post: Post; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const shareUrl = `${window.location.origin}/tutor/eventos`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}`;
 
-  /* SVG icons que coinciden exactamente con la imagen */
-  const IconPerson = () => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#003366" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-    </svg>
-  );
-  const IconFolder = () => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#003366" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-    </svg>
-  );
-  const IconMonitor = () => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#003366" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-    </svg>
-  );
-  const IconGlobe = () => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#003366" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
-      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-    </svg>
-  );
-  const IconThumb = () => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#003366" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
-      <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
-    </svg>
-  );
-  const IconClock = () => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#003366" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-    </svg>
-  );
-  const IconCalendar = () => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#003366" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-      <line x1="16" y1="2" x2="16" y2="6"/>
-      <line x1="8" y1="2" x2="8" y2="6"/>
-      <line x1="3" y1="10" x2="21" y2="10"/>
-    </svg>
-  );
-  const IconMapPin = () => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#003366" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-      <circle cx="12" cy="10" r="3"/>
-    </svg>
-  );
-  const IconUsers = () => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#003366" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-      <circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>
-  );
-  const IconStopwatch = () => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#003366" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <polyline points="12 6 12 12 16 10"/>
-      <line x1="12" y1="2" x2="12" y2="4"/>
-    </svg>
-  );
+  const handleCopy = () => {
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
-  const metaItems = [
-    { icon: <IconPerson />,  label: "RESPONSABLE", value: post.author.split(" ")[0] },
-    { icon: <IconFolder />,  label: "CATEGORÍA",   value: post.type                  },
-    { icon: <IconMonitor />, label: "ÁMBITO",       value: post.scope                 },
-    { icon: <IconGlobe />,   label: "VISIBILIDAD",  value: post.visibility            },
-    { icon: <IconThumb />,   label: "REACCIONES",   value: String(total)              },
-    { icon: <IconClock />,   label: "PUBLICADO",    value: post.time                  },
-  ];
-
-  if (post.type === "Evento") {
-    const hours = (post.voaeHoras && post.voaeHoras > 0) ? post.voaeHoras : ((post.id % 4) + 1);
-    metaItems.push(
-      { icon: <IconCalendar />, label: "FECHA", value: post.fecha || "No especificada" },
-      { icon: <IconMapPin />,  label: "LUGAR", value: post.lugar || "No especificado" },
-      { icon: <IconUsers />,   label: "CUPOS DISPONIBLES", value: post.cupos !== undefined ? `${post.cupos} disponibles` : "No especificados" },
-      { icon: <IconStopwatch />, label: "HORAS A OBTENER", value: `${hours} horas` }
-    );
-  }
+  const handleWhatsApp = () => {
+    const text = `¡Mira esta actividad en Conecta Pumas UNAH!: "${post.title}" - ${shareUrl}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  };
 
   return (
-    <div className="detail-modal-overlay" onClick={onClose}>
-      <div className="detail-modal-card" onClick={e => e.stopPropagation()}>
-
-        {/* ── Header ── */}
-        <div className="dmc-header">
-          <div style={{ display:"flex", alignItems:"center", gap:9 }}>
-            <IconMonitor />
-            <span className="dmc-title">DETALLE DE LA ACTIVIDAD</span>
-          </div>
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            {post.saved && post.savedAt && (
-              <span style={{ fontSize: 11, fontWeight: 800, background: "rgba(255, 209, 0, 0.18)", color: "#003366", padding: "5px 12px", borderRadius: 7 }}>
-                🔖 Guardado: {post.savedAt}
-              </span>
-            )}
-            <span className={`dmc-badge ${post.type==="Evento"?"dmc-badge-evento":"dmc-badge-pub"}`}>
-              {post.type}
-            </span>
-            <button className="dmc-close" onClick={onClose}>✕</button>
-          </div>
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-in fade-in duration-200" onClick={onClose}>
+      <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col p-6 text-center animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-base font-extrabold text-[#003366]">Compartir Evento</h3>
+          <button onClick={onClose} className="size-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold text-sm">✕</button>
         </div>
 
-        {/* ── Author row ── */}
-        <div className="dmc-author-row">
-          <div className="dmc-avatar">
-            <img src={getPostUserAvatar(post)} style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
-          </div>
-          <div>
-            <div className="dmc-post-title" style={{ fontSize: "18px", fontWeight: "900", color: "#003366" }}>{post.title}</div>
-            <div className="dmc-post-meta" style={{ whiteSpace: "nowrap" }}>
-              Publicado por <strong style={{color:"#003366"}}>{post.author}</strong> · {post.time}
+        <p className="text-xs text-slate-500 mb-4 font-medium">{post.title}</p>
+
+        {/* QR Code */}
+        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 inline-block mx-auto mb-4 shadow-2xs">
+          <img src={qrUrl} alt="Código QR" className="size-40 object-contain mx-auto" />
+        </div>
+
+        <div className="space-y-2.5">
+          <button onClick={handleCopy} className="w-full py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors flex items-center justify-center gap-2">
+            <span>{copied ? "✓ ¡Enlace copiado!" : "📋 Copiar Enlace"}</span>
+          </button>
+          <button onClick={handleWhatsApp} className="w-full py-2.5 bg-[#25D366] text-white rounded-xl text-xs font-bold hover:bg-[#20ba5a] transition-colors flex items-center justify-center gap-2">
+            <span>📱 Compartir por WhatsApp</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── MODAL INSCRIBIRSE ─── */
+function InscribirModal({ post, onClose, onInscribir }: { post: Post; onClose: () => void; onInscribir: (id: number) => void }) {
+  const shareUrl = `${window.location.origin}/tutor/eventos`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}`;
+
+  return (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-in fade-in duration-200" onClick={onClose}>
+      <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col p-6 text-center animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-base font-extrabold text-[#003366]">Inscripción al Evento</h3>
+          <button onClick={onClose} className="size-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold text-sm">✕</button>
+        </div>
+
+        <p className="text-xs text-slate-500 mb-4 font-medium">{post.title}</p>
+
+        {/* QR Code de Inscripción */}
+        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 inline-block mx-auto mb-4 shadow-2xs">
+          <img src={qrUrl} alt="Código QR Inscripción" className="size-40 object-contain mx-auto" />
+          <p className="text-[10px] text-slate-400 mt-2 font-semibold">Escanea con tu cámara para inscribirte</p>
+        </div>
+
+        <div className="space-y-2.5">
+          <button
+            onClick={() => { onInscribir(post.id); onClose(); }}
+            className={`w-full py-2.5 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 ${post.inscrito ? "bg-emerald-600 hover:bg-emerald-700" : "bg-[#003366] hover:bg-[#002244]"}`}
+          >
+            <span>{post.inscrito ? "✓ Ya estás inscrito" : "📋 Inscribirse Directamente"}</span>
+          </button>
+          <button onClick={onClose} className="w-full py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── DETAIL MODAL — diseño idéntico a imágenes 277 y 278 ─── */
+function DetailModal({ post, onClose, onInscribir }: { post: Post; onClose: () => void; onInscribir?: (id: number) => void }) {
+  const images = getPostImages(post);
+  const coverImage = images[0] || "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=600&q=80";
+  const additionalImages = images.slice(1);
+
+  const rawLugar = post.lugar || "Edificio D1 - 101";
+  const displayLugar = rawLugar.includes("|") ? rawLugar.split("|")[0] : rawLugar;
+
+  return (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-5 bg-slate-950/75 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200" onClick={onClose}>
+      <div className="w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] my-auto animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        
+        {/* Header Superior con Avatar del Solicitante/Organizador */}
+        <div className="p-4 sm:p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white flex items-center justify-between gap-4 shrink-0">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="size-12 rounded-full overflow-hidden border-2 border-[#003366] bg-slate-100 flex items-center justify-center shrink-0 shadow-xs">
+              <img src={getPostUserAvatar(post)} alt={post.author} className="size-full object-cover" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-xl font-black text-[#003366] leading-tight truncate">{post.title}</h2>
+              <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">
+                {post.scope || "Académico"} · {post.fecha || post.time} · {displayLugar}
+              </p>
+              <p className="text-xs text-slate-600 font-semibold mt-0.5">
+                Solicitante: <span className="text-[#003366] font-bold">{post.author}</span>
+              </p>
             </div>
           </div>
+          <button onClick={onClose} className="size-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-lg transition-colors shrink-0">✕</button>
         </div>
 
-        {/* ── Imágenes adjuntas ── */}
-        {getPostImages(post).length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "20px" }}>
-            {getPostImages(post).map((img, idx) => (
-              <img
-                key={idx}
-                src={img}
-                alt={`Imagen ${idx + 1}`}
-                style={{
-                  width: "100%",
-                  maxHeight: "350px",
-                  objectFit: "cover",
-                  borderRadius: "10px",
-                  border: "1px solid #E2E8F0"
-                }}
-              />
-            ))}
-          </div>
-        )}
+        {/* Cuerpo modal scrollable */}
+        <div className="p-4 sm:p-6 space-y-6 overflow-y-auto flex-1">
+          
+          {/* Fila Principal de 2 Columnas (Imagen 277) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Columna Izquierda: Imagen de Portada Principal */}
+            <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-xs bg-slate-50 flex items-center justify-center min-h-[220px]">
+              <img src={coverImage} alt={post.title} className="w-full h-full max-h-[300px] object-cover" />
+            </div>
 
-        {/* ── Descripción ── */}
-        <div className="dmc-section-label">DESCRIPCIÓN</div>
-        <div className="dmc-desc-box" style={{ whiteSpace: "pre-wrap" }}>{post.desc}</div>
-
-        {/* ── Tags ── */}
-        <div className="dmc-tags">
-          {post.tags.map(t => (
-            <span key={t} className="dmc-tag">{t}</span>
-          ))}
-        </div>
-
-        {/* ── Meta grid 2×3 ── */}
-        <div className="dmc-meta-grid">
-          {metaItems.map((m, i) => (
-            <div key={i} className="dmc-meta-item">
-              <div className="dmc-meta-icon-wrap">{m.icon}</div>
+            {/* Columna Derecha: Tarjeta de Ubicación con Mapa Leaflet */}
+            <div className="bg-slate-50/80 rounded-2xl border border-slate-200/90 p-4 flex flex-col justify-between">
               <div>
-                <div className="dmc-meta-label">{m.label}</div>
-                <div className="dmc-meta-val">{m.value}</div>
+                <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#004B87] mb-1">
+                  <MapPin className="size-4" />
+                  <span>Ubicación Presencial</span>
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">{displayLugar}</h3>
+                <p className="text-xs text-slate-500 mb-3">Ciudad Universitaria</p>
+              </div>
+
+              {/* Mapa Leaflet interactivo */}
+              <div className="rounded-xl overflow-hidden border border-slate-200 bg-white">
+                <EventDetailMapPreview lugar={rawLugar} />
               </div>
             </div>
-          ))}
+          </div>
+
+          {/* Galería de Imágenes Adicionales (Imagen 277/278) */}
+          {additionalImages.length > 0 && (
+            <div>
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-1.5">
+                <Camera className="size-4 text-[#004B87]" />
+                <span>Imágenes Adicionales del Evento</span>
+              </h4>
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {additionalImages.map((img, idx) => (
+                  <img key={idx} src={img} alt={`Adicional ${idx + 1}`} className="size-24 rounded-xl object-cover border border-slate-200 shrink-0 shadow-2xs" />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Ficha Técnica del Evento (Imagen 278) */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-2xs">
+            <h3 className="text-sm font-black text-[#003366] uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
+              Ficha Técnica del Evento
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-4 gap-x-6 text-xs mb-5">
+              <div>
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase block tracking-wider">TÍTULO DEL EVENTO</span>
+                <span className="font-bold text-slate-800 text-sm mt-0.5 block">{post.title}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase block tracking-wider">CATEGORÍAS / ÁMBITOS</span>
+                <span className="font-bold text-slate-800 mt-0.5 block">{post.scope || "Académico"} ({post.voaeHoras || 1} hrs)</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase block tracking-wider">TIPO DE EVENTO</span>
+                <span className="font-bold text-slate-800 mt-0.5 block">🎓 Horas VOAE</span>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase block tracking-wider">FECHA Y HORA</span>
+                <span className="font-bold text-slate-800 mt-0.5 block">{post.fecha || post.time}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase block tracking-wider">TIPO DE ACTIVIDAD</span>
+                <span className="font-bold text-slate-800 mt-0.5 block">Presencial</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase block tracking-wider">CENTRO REGIONAL</span>
+                <span className="font-bold text-slate-800 mt-0.5 block">Ciudad Universitaria</span>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase block tracking-wider">UBICACIÓN / LUGAR</span>
+                <span className="font-bold text-[#003366] mt-0.5 block flex items-center gap-1">
+                  <MapPin className="size-3.5" /> {displayLugar}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase block tracking-wider">ENLACE DE ACCESO</span>
+                <span className="font-semibold text-slate-500 mt-0.5 block">No aplica</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase block tracking-wider">CUPO MÁXIMO</span>
+                <span className="font-bold text-slate-800 mt-0.5 block">{post.cupos || 20} estudiantes</span>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase block tracking-wider">AUDIENCIA</span>
+                <span className="font-bold text-slate-800 mt-0.5 block">Todo público / Estudiantes UNAH</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase block tracking-wider">HORAS DE DURACIÓN</span>
+                <span className="font-bold text-slate-800 mt-0.5 block">{post.voaeHoras || 1} hrs (totales)</span>
+              </div>
+            </div>
+
+            {/* Cuadro de Descripción */}
+            <div>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase block tracking-wider mb-1.5">DESCRIPCIÓN DEL EVENTO</span>
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">
+                {post.desc || "Sin descripción adicional."}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Inferior de Acciones (Flecha Roja Imagen 278) */}
+        <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3 shrink-0">
+          <button onClick={onClose} className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-200 font-bold text-sm transition-colors">
+            Regresar
+          </button>
+          {onInscribir && (
+            <button
+              onClick={() => { onInscribir(post.id); onClose(); }}
+              className={`px-6 py-2.5 rounded-xl font-bold text-sm text-white shadow-md transition-all ${post.inscrito ? "bg-emerald-600 hover:bg-emerald-700" : "bg-[#003366] hover:bg-[#002244]"}`}
+            >
+              {post.inscrito ? "✓ Inscrito en el Evento" : "📋 Inscribirse al Evento"}
+            </button>
+          )}
         </div>
 
       </div>
@@ -645,13 +721,15 @@ function EventDrawer({ post, onClose, onInscribir, isLoggedIn }:
 
 /* ─── POST CARD ─── */
 function PostCard({ post, onReact, onToggleComments, onAddComment, onReactComment, onHide, onUnhide, onSave, onShare,
-  onOpenDrawer, onInscribir, onOpenDetail, onEdit, openCommentIds, isLoggedIn, showOnlySaved, showHiddenOnly }:
+  onOpenDrawer, onInscribir, onOpenDetail, onEdit, onOpenShareModal, onOpenInscribirModal, openCommentIds, isLoggedIn, showOnlySaved, showHiddenOnly }:
   { post:Post; onReact:(id:number,t:ActiveReaction)=>void; onToggleComments:(id:number)=>void;
     onAddComment:(id:number,text:string,replyTo?:string,parentId?:number,replyToText?:string)=>void;
     onReactComment:(postId:number,commentId:number,t:ActiveReaction)=>void;
     onHide:(id:number)=>void; onUnhide:(id:number)=>void; onSave:(id:number)=>void; onShare:(id:number)=>void;
     onOpenDrawer:(p:Post)=>void; onInscribir:(id:number)=>void; onOpenDetail:(p:Post)=>void;
     onEdit:(p:Post)=>void;
+    onOpenShareModal?: (p: Post) => void;
+    onOpenInscribirModal?: (p: Post) => void;
     openCommentIds:Set<number>; isLoggedIn:boolean; showOnlySaved?:boolean; showHiddenOnly?:boolean }) {
 
   const [commentInput, setCommentInput] = useState("");
@@ -687,15 +765,15 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
 
       <div className="post-header">
         <div className="post-avatar">
-          <img src={getPostUserAvatar(post)} className="post-avatar-img" />
+          <img src={getPostUserAvatar(post)} className="post-avatar-img" alt={post.author} />
         </div>
         <div className="post-author">
           <div className="post-author-name">{post.author}</div>
           <div className="post-meta">
             <span className={scopeColors[post.scope]||""}>{scopeIcons[post.scope]}</span>
-            <span style={{color:"var(--white)",marginLeft:4}}>{post.scope}</span>
+            <span style={{color:"var(--white)",marginLeft:4}}>{post.scope || "Académico"}</span>
             <span style={{color:"var(--navy-border)",margin:"0 4px"}}>·</span>
-            <span>🕐 {post.time}</span>
+            <span>📍 Ciudad Universitaria · 🕐 {post.time}</span>
           </div>
         </div>
         {/* ⋮ Menú vertical (solo Eventos) — oculta el post sin eliminarlo del DOM */}
@@ -753,7 +831,7 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
         <div className="post-title" style={{ cursor: "pointer", color: "var(--white)" }} onClick={() => onOpenDetail(post)}>
           {post.title}
         </div>
-        <div className="post-desc" style={{ whiteSpace: "pre-wrap" }}>{post.desc}</div>
+        {!isEvento && <div className="post-desc" style={{ whiteSpace: "pre-wrap" }}>{post.desc}</div>}
 
         {getPostImages(post).length > 0 && (
           <div className={`post-images-grid grid-${getPostImages(post).length}`}>
@@ -769,9 +847,11 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
           </div>
         )}
 
-
-
-        <div className="post-tags">{post.tags.map(t=><span key={t} className="tag">{t}</span>)}</div>
+        <div className="post-tags">
+          <span className="tag">#CiudadUniversitaria</span>
+          <span className="tag">#{post.scope || 'Académico'}</span>
+          {post.tags.map(t=><span key={t} className="tag">{t}</span>)}
+        </div>
 
         {/* ── BARRA DE ACCIONES ── */}
         {isEvento ? (
@@ -786,23 +866,40 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
 
             <div className="reaction-spacer" />
 
-            {/* Centro: botón + naranja circular */}
+            {/* Ver detalles (Línea verde) */}
             <button
-              className={`btn-evento-join${post.inscrito?" joined":""}`}
-              onClick={()=>onInscribir(post.id)}
-              title={post.inscrito?"Inscrito":"Inscribirse al evento"}
+              className="btn-evento-action"
+              onClick={() => onOpenDetail(post)}
+              title="Ver detalles del evento"
+              style={{ background: "#004B87", color: "#ffffff", fontWeight: 700 }}
             >
-              {post.inscrito ? "✓" : "+"}
+              <Eye className="size-3.5 inline mr-1" />
+              Ver detalles
             </button>
 
-            {/* Derecha: Ver Detalle, guardar (lápiz), Compartir, WhatsApp */}
-            
+            {/* Inscribirse (Círculo Rosa -> Botón Inscribirse) */}
+            <button
+              className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all shadow-2xs flex items-center gap-1 ${
+                post.inscrito
+                  ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                  : "bg-[#FFD100] text-[#003366] hover:bg-[#e6bd00]"
+              }`}
+              onClick={() => onOpenInscribirModal ? onOpenInscribirModal(post) : onInscribir(post.id)}
+              title={post.inscrito ? "Inscrito" : "Inscribirse al evento"}
+            >
+              {post.inscrito ? "✓ Inscrito" : "📋 Inscribirse"}
+            </button>
 
             <button className={`btn-evento-icon${post.saved?" saved":""}`} onClick={()=>onSave(post.id)} title={post.saved?"Guardado":"Guardar"}>
               🔖{post.saved && <span style={{color:"#B8860B", fontWeight:700, fontSize:12, marginLeft:4}}>Guardado</span>}
             </button>
 
-            <button className="btn-evento-action" onClick={() => onShare(post.id)} title="Copiar enlace">
+            {/* Compartir (Círculo Rojo) */}
+            <button
+              className="btn-evento-action"
+              onClick={() => onOpenShareModal ? onOpenShareModal(post) : onShare(post.id)}
+              title="Compartir evento"
+            >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:3}}><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
               Compartir
             </button>
@@ -810,7 +907,7 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
             <button
               className="btn-evento-whatsapp"
               onClick={() => {
-                const text = `¡Mira esta publicación en el muro de UNAH!: "${post.title}" - ${window.location.origin}/post/${post.id}`;
+                const text = `¡Mira esta publicación en el muro de UNAH!: "${post.title}" - ${window.location.origin}/tutor/eventos`;
                 window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
               }}
               title="Compartir por WhatsApp"
@@ -1432,6 +1529,8 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
   const [searchQuery,setSearchQuery]=useState("");
   const [drawerPost,setDrawerPost]=useState<Post|null>(null);
   const [detailPost,setDetailPost]=useState<Post|null>(null);   // modal detalle
+  const [shareModalPost, setShareModalPost] = useState<Post | null>(null);
+  const [inscribirModalPost, setInscribirModalPost] = useState<Post | null>(null);
   const [editPost, setEditPost] = useState<Post | null>(null);
   const [editDesc, setEditDesc] = useState("");
   const [editTags, setEditTags] = useState("");
@@ -2904,6 +3003,8 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
                     onHide={handleHide} onUnhide={handleUnhide} onSave={handleSave} onShare={handleShare}
                     onOpenDrawer={setDrawerPost} onInscribir={handleInscribir}
                     onOpenDetail={setDetailPost} onEdit={handleEditPost}
+                    onOpenShareModal={setShareModalPost}
+                    onOpenInscribirModal={setInscribirModalPost}
                     openCommentIds={openCommentIds} isLoggedIn={isLoggedIn}
                     showOnlySaved={showOnlySaved} showHiddenOnly={showHiddenOnly} />
                 ))
@@ -2981,6 +3082,22 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
         <DetailModal
           post={posts.find(p=>p.id===detailPost.id)||detailPost}
           onClose={()=>setDetailPost(null)}
+          onInscribir={handleInscribir}
+        />
+      )}
+
+      {shareModalPost && (
+        <ShareModal
+          post={posts.find(p=>p.id===shareModalPost.id)||shareModalPost}
+          onClose={()=>setShareModalPost(null)}
+        />
+      )}
+
+      {inscribirModalPost && (
+        <InscribirModal
+          post={posts.find(p=>p.id===inscribirModalPost.id)||inscribirModalPost}
+          onClose={()=>setInscribirModalPost(null)}
+          onInscribir={handleInscribir}
         />
       )}
 
