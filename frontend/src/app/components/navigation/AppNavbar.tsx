@@ -59,23 +59,32 @@ export function AppNavbar() {
   );
 
   const getRoleName = () => {
-    if (usuarioActivo?.rol) {
-      switch (usuarioActivo.rol.toUpperCase()) {
-        case 'ESTUDIANTE': return 'Estudiante';
-        case 'TUTOR':
-        case 'EMPLEADO': return 'Empleado / Tutor';
-        case 'ADMIN': return 'Administrador';
-        case 'VOAE': return 'Personal VOAE';
-        default: return usuarioActivo.rol;
-      }
+    const rawRole = (usuarioActivo?.rol || sessionStorage.getItem("unah_role") || "").toString().toUpperCase();
+    switch (rawRole) {
+      case 'ESTUDIANTE':
+      case 'STUDENT':
+        return 'Estudiante';
+      case 'TUTOR':
+      case 'EMPLEADO':
+      case 'DOCENTE':
+        return 'Empleado / Tutor';
+      case 'ADMIN':
+        return 'Administrador';
+      case 'VOAE':
+      case 'VOAE_DIRECCION':
+        return 'VOAE Dirección';
+      case 'VOAE_DEPTO':
+      case 'VOAE_DEPARTAMENTO':
+      case 'COORDINACION':
+      case 'DEPARTAMENTO':
+        return 'VOAE Departamento (Coordinación)';
+      default:
+        if (location.pathname.startsWith("/voae-depto")) return 'VOAE Departamento (Coordinación)';
+        if (location.pathname.startsWith("/voae")) return 'VOAE Dirección';
+        if (location.pathname.startsWith("/tutor")) return 'Empleado / Tutor';
+        if (location.pathname.startsWith("/admin")) return 'Administrador';
+        return 'Estudiante';
     }
-    const rawRole = (sessionStorage.getItem("unah_role") || sessionStorage.getItem("unah_user_type") || "").toLowerCase();
-    if (location.pathname.startsWith("/voae-depto") || rawRole.includes("depto") || rawRole.includes("coordinac")) return "VOAE Departamento (Coordinación)";
-    if (location.pathname.startsWith("/voae") || rawRole.startsWith("voae")) return "Personal VOAE Dirección";
-    if (location.pathname.startsWith("/tutor") || rawRole === "tutor" || rawRole === "empleado") return "Empleado / Tutor";
-    if (location.pathname.startsWith("/admin") || rawRole === "admin") return "Administrador";
-    if (rawRole === "dev") return "Desarrollador";
-    return "Estudiante";
   };
 
   const getModuleName = () => {
