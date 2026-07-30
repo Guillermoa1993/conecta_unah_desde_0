@@ -258,26 +258,7 @@ export function AppSidebar() {
                     )}
                   </SidebarMenuItem>
 
-                  {/* 3. Notificaciones */}
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={location.pathname === "/employees/notifications"}
-                      tooltip="Notificaciones"
-                      className={
-                        location.pathname === "/employees/notifications"
-                          ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366]"
-                          : "text-white hover:bg-[#003366] hover:text-white"
-                      }
-                    >
-                      <Link to="/employees/notifications">
-                        <Bell className="h-5 w-5" />
-                        {!isCollapsed && <span>Notificaciones</span>}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-
-                  {/* 4. Gestión VOAE — desplegable exclusivo para VOAE Dirección */}
+                  {/* 3. Gestión VOAE — desplegable exclusivo para VOAE Dirección */}
                   {role === "voae" && (
                     <SidebarMenuItem className="mb-2">
                       <button
@@ -329,7 +310,7 @@ export function AppSidebar() {
                     </SidebarMenuItem>
                   )}
 
-                  {/* 4. Gestión Coordinación — desplegable exclusivo para VOAE Departamento */}
+                  {/* 3. Gestión Coordinación — desplegable exclusivo para VOAE Departamento */}
                   {role === "voae_depto" && (
                     <SidebarMenuItem className="mb-2">
                       <button
@@ -380,6 +361,25 @@ export function AppSidebar() {
                       )}
                     </SidebarMenuItem>
                   )}
+
+                  {/* 4. Notificaciones — siempre al final */}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location.pathname === "/employees/notifications"}
+                      tooltip="Notificaciones"
+                      className={
+                        location.pathname === "/employees/notifications"
+                          ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366]"
+                          : "text-white hover:bg-[#003366] hover:text-white"
+                      }
+                    >
+                      <Link to="/employees/notifications">
+                        <Bell className="h-5 w-5" />
+                        {!isCollapsed && <span>Notificaciones</span>}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 </>
               ) : (
                 /* ── PARA EL RESTO DE ROLES (STUDENT, ADMIN, DEV) ── */
