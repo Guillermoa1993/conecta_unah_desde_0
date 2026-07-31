@@ -53,30 +53,7 @@ export function AppNavbar() {
   ).toString().toUpperCase();
 
   const getNombreUsuario = () => {
-    if (usuarioActivo?.nombre) {
-      const userRol = (usuarioActivo.rol || "").toString().toUpperCase();
-      if (
-        (activeRole.includes("DEPTO") || activeRole.includes("COORDINAC")) &&
-        (userRol.includes("DEPTO") || userRol.includes("COORDINAC"))
-      ) {
-        return usuarioActivo.nombre;
-      }
-      if (
-        activeRole.includes("VOAE") && !activeRole.includes("DEPTO") &&
-        userRol.includes("VOAE") && !userRol.includes("DEPTO")
-      ) {
-        return usuarioActivo.nombre;
-      }
-      if (
-        (activeRole.includes("TUTOR") || activeRole.includes("EMPLEADO")) &&
-        (userRol.includes("TUTOR") || userRol.includes("EMPLEADO") || userRol.includes("DOCENTE"))
-      ) {
-        return usuarioActivo.nombre;
-      }
-      if (activeRole.includes("STUDENT") && userRol.includes("ESTUDIANTE")) {
-        return usuarioActivo.nombre;
-      }
-    }
+    if (usuarioActivo?.nombre) return usuarioActivo.nombre;
 
     if (activeRole.includes("DEPTO") || activeRole.includes("COORDINAC")) {
       return "Coordinador de Departamento (Prueba)";
@@ -85,9 +62,9 @@ export function AppNavbar() {
       return "Dirección VOAE (Prueba)";
     }
     if (activeRole.includes("TUTOR") || activeRole.includes("EMPLEADO")) {
-      return usuarioActivo?.nombre || "Empleado / Tutor (Prueba)";
+      return "Empleado / Tutor (Prueba)";
     }
-    return usuarioActivo?.nombre || "Estudiante (Prueba)";
+    return "Estudiante (Prueba)";
   };
 
   const nombreUsuario = getNombreUsuario();
