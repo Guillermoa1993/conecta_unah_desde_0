@@ -276,15 +276,11 @@ export function VOAEDashboard() {
     fetchEvents();
   }, []);
 
-  // 1. Pendientes VOAE Dirección
+  // 1. Pendientes VOAE Dirección (Únicamente los aprobados por Coordinación esperando firma final)
   const pendingEvents = useMemo(
     () =>
       events
-        .filter(
-          (e) =>
-            e.estado === "PENDIENTE_APROBACION_VOAE" ||
-            e.estado === "PENDIENTE_APROBACION"
-        )
+        .filter((e) => e.estado === "PENDIENTE_APROBACION_VOAE")
         .sort((a, b) => new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime()),
     [events]
   );
