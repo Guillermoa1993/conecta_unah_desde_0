@@ -554,20 +554,28 @@ export function ManageEvent() {
           : `E:${ubicacionLabel(entValid)} S:${ubicacionLabel(salValid)}`;
 
         return `
-          <tr>
-            <td style="padding:8px 12px;border:1px solid #ddd">${s.estudiante_nombre}</td>
-            <td style="padding:8px 12px;border:1px solid #ddd;font-family:monospace;font-size:12px">${s.estudiante_cuenta}</td>
-            <td style="padding:8px 12px;border:1px solid #ddd">${s.estudiante_cuenta}@unah.hn</td>
-            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">
-              ${isAssisted ? '<span style="color:#22c55e;font-weight:600">Asistió</span>' : '<span style="color:#ef4444;font-weight:600">No asistió</span>'}
+          <tr style="${students.indexOf(s) % 2 === 1 ? 'background-color: #f8fafc;' : ''}">
+            <td style="padding:9px 12px;border:1px solid #cbd5e1;font-weight:600;color:#0f172a">${s.estudiante_nombre}</td>
+            <td style="padding:9px 12px;border:1px solid #cbd5e1;font-family:monospace;font-size:11px;color:#334155">${s.estudiante_cuenta}</td>
+            <td style="padding:9px 12px;border:1px solid #cbd5e1;font-family:monospace;font-size:11px;color:#334155">${s.estudiante_cuenta}@unah.hn</td>
+            <td style="padding:9px 12px;border:1px solid #cbd5e1;text-align:center">
+              ${isAssisted ? '<span style="color:#16a34a;font-weight:bold">Asistió ✓</span>' : '<span style="color:#dc2626;font-weight:bold">No asistió ✕</span>'}
             </td>
-            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${horaLlegada}</td>
-            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${horaSalida}</td>
-            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${ubicacionStr}</td>
+            <td style="padding:9px 12px;border:1px solid #cbd5e1;text-align:center;font-weight:500">${horaLlegada}</td>
+            <td style="padding:9px 12px;border:1px solid #cbd5e1;text-align:center;font-weight:500">${horaSalida}</td>
+            <td style="padding:9px 12px;border:1px solid #cbd5e1;text-align:center;font-weight:600">${ubicacionStr}</td>
           </tr>
         `;
       })
       .join("");
+
+    const rowsContent = rows || `
+      <tr>
+        <td colspan="7" style="padding: 24px; text-align: center; color: #64748b; font-style: italic; background-color: #f8fafc; border: 1px solid #cbd5e1;">
+          No hay estudiantes registrados en este evento aún.
+        </td>
+      </tr>
+    `;
 
     const cleanEventTitle = (event.titulo || "Evento").replace(/[^a-zA-Z0-9-_]/g, "_");
     const pdfTitle = `Listado-${cleanEventTitle}`;
@@ -578,33 +586,56 @@ export function ManageEvent() {
         <meta charset="utf-8">
         <title>${pdfTitle}</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; }
-          h2 { font-size: 20px; margin-bottom: 4px; color: #004B87; }
-          .meta { font-size: 13px; color: #64748b; margin-bottom: 20px; }
-          table { width: 100%; border-collapse: collapse; font-size: 13px; }
-          th { background: #f1f5f9; padding: 8px 12px; text-align: left; border: 1px solid #ddd; font-size: 11px; text-transform: uppercase; color: #64748b; }
-          td { padding: 8px 12px; border: 1px solid #ddd; }
+          @page { size: A4 portrait; margin: 15mm; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+          body { font-family: Arial, sans-serif; padding: 20px; color: #0f172a; font-size: 10pt; }
+          .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2.5px solid #003366; padding-bottom: 12px; margin-bottom: 20px; }
+          h2 { font-size: 18px; margin: 0 0 6px 0; color: #003366; text-transform: uppercase; font-weight: bold; }
+          .meta { font-size: 10pt; color: #334155; margin-bottom: 20px; background-color: #f1f5f9 !important; border: 1.5px solid #94a3b8; padding: 12px 16px; border-radius: 8px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+          table { width: 100%; border-collapse: collapse; font-size: 10pt; margin-top: 10px; border: 1.5px solid #003366; }
+          th { background-color: #003366 !important; color: #ffffff !important; padding: 10px 12px; text-align: left; font-size: 9.5pt; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #002244; font-weight: bold; }
+          td { padding: 9px 12px; border: 1px solid #cbd5e1; }
+          .footer { margin-top: 35px; text-align: center; font-size: 8.5pt; color: #64748b; border-top: 1.5px solid #cbd5e1; padding-top: 14px; }
         </style>
       </head>
       <body>
+        <div class="header">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <img src="${window.location.origin}/logo-unah.png" style="height: 55px;" onError="this.style.display='none'" />
+            <img src="${window.location.origin}/logo-voae.png" style="height: 55px;" onError="this.style.display='none'" />
+          </div>
+          <div style="text-align: right; font-size: 8.5pt; color: #475569;">
+            <div><strong>UNIVERSIDAD NACIONAL AUTÓNOMA DE HONDURAS</strong></div>
+            <div><strong>VOAE UNAH &mdash; DIRECCIÓN DE VINCULACIÓN</strong></div>
+            <div><strong>Control de Asistencia e Inscripciones</strong></div>
+          </div>
+        </div>
+
         <h2>${event.titulo}</h2>
-        <div class="meta">Tutor: ${event.tutor_nombre || "Tutor Responsable"} &mdash; Fecha: ${new Date(event.fecha_inicio).toLocaleDateString()}</div>
+        <div class="meta">
+          <div><strong>Organizador / Tutor:</strong><br/> ${event.tutor_nombre || "Tutor Responsable"}</div>
+          <div><strong>Fecha del Evento:</strong><br/> ${new Date(event.fecha_inicio).toLocaleDateString("es-HN", { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+          <div><strong>Total Registrados:</strong><br/> ${students.length} Estudiantes</div>
+        </div>
+
         <table>
           <thead>
             <tr>
               <th>Estudiante</th>
               <th>No. Cuenta</th>
-              <th>Email</th>
+              <th>Correo Institucional</th>
               <th style="text-align:center">Estado</th>
-              <th style="text-align:center">Hora llegada</th>
-              <th style="text-align:center">Hora salida</th>
+              <th style="text-align:center">Hora Llegada</th>
+              <th style="text-align:center">Hora Salida</th>
               <th style="text-align:center">Ubicación</th>
             </tr>
           </thead>
-          <tbody>${rows}</tbody>
+          <tbody>${rowsContent}</tbody>
         </table>
-        <div style="margin-top:20px;font-size:11px;color:#94a3b8;text-align:center">
-          Generado el ${new Date().toLocaleDateString()} — Conecta Pumas
+
+        <div class="footer">
+          <p style="margin: 0; font-weight: bold; color: #003366;">Documento oficial generado por la plataforma Conecta Pumas UNAH.</p>
+          <p style="margin: 4px 0 0 0;">Fecha de Emisión: ${new Date().toLocaleDateString("es-HN", { day: 'numeric', month: 'long', year: 'numeric' })} &mdash; Verificación Institucional VOAE</p>
         </div>
       </body>
       </html>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, Link, useNavigate } from "react-router";
 import {
-  Home, Calendar, QrCode, History, Plus, BarChart3, Users, Settings,
+  Home, Calendar, CalendarCheck, QrCode, History, Plus, BarChart3, Users, Settings,
   Shield, FileText, MessageSquare, ChevronDown, ChevronUp,
   MapPin, Bell, LogOut, Rss, KeyRound, User,
   Wifi, ShieldCheck, ClipboardList, SendHorizonal, Database, SlidersHorizontal, Mail,
@@ -29,22 +29,27 @@ const SOCIAL_ITEMS_BY_ROLE: Record<string, MenuItem[]> = {
   tutor: [
     { icon: Rss,      label: "Muro",           path: "/tutor/feed"              },
     { icon: User,     label: "Perfil",         path: "/tutor/ficha"             },
-    { icon: Calendar, label: "Mis Eventos",    path: "/student/events"          },
+    { icon: Calendar, label: "Mis Eventos",      path: "/student/events"          },
     { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
   ],
   admin: [
+    { icon: Rss,      label: "Muro",           path: "/student/feed"            },
+    { icon: User,     label: "Perfil",         path: "/student/ficha"           },
+    { icon: Calendar, label: "Mis Eventos",    path: "/student/events"          },
     { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
-    { icon: Home,     label: "Dashboard",      path: "/admin/administracion"    },
+    { icon: Home,     label: "Dashboard",      path: "/student"                 },
   ],
   voae: [
     { icon: Rss,      label: "Muro",           path: "/voae/feed"               },
+    { icon: User,     label: "Perfil",         path: "/tutor/ficha"             },
+    { icon: Calendar, label: "Mis Eventos",    path: "/student/events"          },
     { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
-    { icon: Home,     label: "Dashboard",      path: "/voae"                    },
   ],
   voae_depto: [
     { icon: Rss,      label: "Muro",           path: "/voae/feed"               },
+    { icon: User,     label: "Perfil",         path: "/tutor/ficha"             },
+    { icon: Calendar, label: "Mis Eventos",    path: "/student/events"          },
     { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
-    { icon: Home,     label: "Dashboard",      path: "/voae-depto"              },
   ],
   dev: [
     { icon: Rss,      label: "Muro",           path: "/student/feed"            },
@@ -60,37 +65,20 @@ const ADMIN_ITEMS_BY_ROLE: Record<string, MenuItem[]> = {
     { icon: History,  label: "Historial",           path: "/tutor/history" },
   ],
   tutor: [
-    { icon: Plus,      label: "Crear evento",       path: "/tutor/create-event" },
-    { icon: Calendar,  label: "Mis eventos",        path: "/tutor/eventos"      },
-    { icon: History,   label: "Historial tutorías", path: "/tutor/history"      },
-    { icon: BarChart3, label: "Reportes",           path: "/tutor/reports"      },
-    { icon: Wifi,      label: "Evento en vivo",     path: "/tutor/live"         },
+    { icon: Calendar,  label: "Gestión de eventos", path: "/tutor/eventos"      },
+    { icon: History,   label: "Historial",           path: "/tutor/history"     },
   ],
   admin: [
-    { icon: Shield,            label: "Panel admin",        path: "/admin/administracion" },
-    { icon: Users,             label: "Usuarios",           path: "/admin/users"          },
-    { icon: KeyRound,          label: "Roles",              path: "/admin/roles"          },
-    { icon: Settings,          label: "Permisos",           path: "/admin/permissions"    },
-    { icon: Calendar,          label: "Gestión de eventos", path: "/admin/events"         },
-    { icon: MessageSquare,     label: "Comentarios",        path: "/admin/comments"       },
-    { icon: Database,          label: "Respaldo",           path: "/admin/backup"         },
-    { icon: SlidersHorizontal, label: "Parámetros",         path: "/admin/parametros"     },
-    { icon: BarChart3,         label: "Reportes",           path: "/tutor/reports"        },
-    { icon: History,           label: "Bitácora",           path: "/employees/logs"       },
+    { icon: Calendar, label: "Gestión de eventos", path: "/tutor/eventos"  },
+    { icon: History,  label: "Historial",           path: "/tutor/history" },
   ],
   voae: [
-    { icon: Home,          label: "Panel VOAE",        path: "/voae"             },
-    { icon: FileText,      label: "Reportes oficiales",path: "/voae/reports"     },
-    { icon: ClipboardList, label: "Histórico eventos", path: "/voae/records"     },
-    { icon: MapPin,        label: "Centros regionales",path: "/voae/centros"     },
-    { icon: ShieldCheck,   label: "Moderadores",       path: "/voae/moderadores" },
-    { icon: History,       label: "Bitácora",          path: "/employees/logs"   },
+    { icon: Calendar, label: "Gestión de eventos", path: "/tutor/eventos"  },
+    { icon: History,  label: "Historial",           path: "/tutor/history" },
   ],
   voae_depto: [
-    { icon: Home,          label: "Panel Coordinación", path: "/voae-depto"          },
-    { icon: FileText,      label: "Reportes",           path: "/voae/reports"        },
-    { icon: ClipboardList, label: "Histórico eventos",  path: "/voae/records"        },
-    { icon: History,       label: "Bitácora",           path: "/employees/logs"      },
+    { icon: Calendar, label: "Gestión de eventos", path: "/tutor/eventos"  },
+    { icon: History,  label: "Historial",           path: "/tutor/history" },
   ],
   dev: [
     { icon: Home,          label: "Panel VOAE",         path: "/voae"                 },
@@ -128,15 +116,35 @@ const ROLE_LABELS: Record<string, string> = {
   dev:        "⚡ Dev / Preview",
 };
 
-const ROLES_ADMIN_LIKE = ["admin", "dev"];
+const ROLES_ADMIN_LIKE = ["dev"];
+
+const VOAE_DEPTO_PANEL_ITEMS: MenuItem[] = [
+  { icon: Home,          label: "Panel de Gestión Coordinación", path: "/voae-depto"         },
+  { icon: ClipboardList, label: "Histórico de eventos",          path: "/voae-depto/records" },
+];
+
+const VOAE_PANEL_ITEMS: MenuItem[] = [
+  { icon: Home,          label: "Panel de gestión VOAE", path: "/voae"          },
+  { icon: ClipboardList, label: "Histórico de eventos",  path: "/voae/records"  },
+];
+
+const ADMIN_PANEL_ITEMS: MenuItem[] = [
+  { icon: Shield,            label: "Panel admin",        path: "/admin/administracion" },
+  { icon: Users,             label: "Usuarios",           path: "/admin/users"          },
+  { icon: KeyRound,          label: "Roles",              path: "/admin/roles"          },
+  { icon: Settings,          label: "Permisos",           path: "/admin/permissions"    },
+  { icon: Database,          label: "Respaldo",           path: "/admin/backup"         },
+  { icon: SlidersHorizontal, label: "Parámetros",         path: "/admin/parametros"     },
+  { icon: History,           label: "Bitácora",           path: "/employees/logs"       },
+];
 
 const ADMIN_SECTION_LABELS: Record<string, string> = {
-  admin:      "Administración",
+  admin:      "Mi Gestión de Eventos",
   dev:        "Administración",
   student:    "Mi Gestión de Eventos",
-  tutor:      "Mis herramientas",
-  voae:       "Panel VOAE",
-  voae_depto: "Panel Coordinación",
+  tutor:      "Mi Gestión de Eventos",
+  voae:       "Mi Gestión de Eventos",
+  voae_depto: "Mi Gestión de Eventos",
 };
 
 const NORM_ROLE: Record<string, string> = {
@@ -156,6 +164,9 @@ export function AppSidebar() {
   const isCollapsed = state === "collapsed";
 
   const [adminOpen, setAdminOpen] = useState(false);
+  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
+  const [voaePanelOpen, setVoaePanelOpen] = useState(false);
+  const [voaeDeptoOpen, setVoaeDeptoOpen] = useState(false);
   const [soporte, setSoporte] = useState({ correo: "", whatsapp: "" });
 
   useEffect(() => {
@@ -256,7 +267,7 @@ export function AppSidebar() {
                     title={isCollapsed ? adminSectionLabel : undefined}
                   >
                     <div className="flex items-center gap-3">
-                      <Shield className="h-5 w-5" />
+                      <CalendarCheck className="h-5 w-5" />
                       {!isCollapsed && <span>{adminSectionLabel}</span>}
                     </div>
                     {!isCollapsed && (
@@ -306,8 +317,149 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {/* ─── APARIENCIAS (solo estudiante) ─── */}
-        {role === "student" && (
+        {/* ─── ADMINISTRACIÓN (solo admin) ─── */}
+        {role === "admin" && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <button
+                    onClick={() => !isCollapsed && setAdminPanelOpen(v => !v)}
+                    className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-white rounded-md hover:bg-[#003366] transition-colors focus:outline-none"
+                    title={isCollapsed ? "Administración" : undefined}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Shield className="h-5 w-5" />
+                      {!isCollapsed && <span>Administración</span>}
+                    </div>
+                    {!isCollapsed && (
+                      adminPanelOpen
+                        ? <ChevronUp   className="h-4 w-4 text-[#FFD100]" />
+                        : <ChevronDown className="h-4 w-4 text-[#FFD100]" />
+                    )}
+                  </button>
+                  {adminPanelOpen && !isCollapsed && (
+                    <div className="pl-6 mt-1 space-y-1 border-l border-white/20 ml-5">
+                      {ADMIN_PANEL_ITEMS.map((item) => {
+                        const active = isPathActive(item.path);
+                        return (
+                          <SidebarMenuButton
+                            key={item.path} asChild isActive={active} tooltip={item.label}
+                            className={active
+                              ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8"
+                              : "text-white/80 hover:bg-[#003366] hover:text-white h-8"}
+                          >
+                            <Link to={item.path} className="flex items-center gap-2">
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.label}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        );
+                      })}
+                    </div>
+                  )}
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* ─── GESTIÓN COORDINACIÓN (solo voae_depto) ─── */}
+        {role === "voae_depto" && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <button
+                    onClick={() => !isCollapsed && setVoaeDeptoOpen(v => !v)}
+                    className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-white rounded-md hover:bg-[#003366] transition-colors focus:outline-none"
+                    title={isCollapsed ? "Gestión Coordinación" : undefined}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Home className="h-5 w-5" />
+                      {!isCollapsed && <span>Gestión Coordinación</span>}
+                    </div>
+                    {!isCollapsed && (
+                      voaeDeptoOpen
+                        ? <ChevronUp   className="h-4 w-4 text-[#FFD100]" />
+                        : <ChevronDown className="h-4 w-4 text-[#FFD100]" />
+                    )}
+                  </button>
+                  {voaeDeptoOpen && !isCollapsed && (
+                    <div className="pl-6 mt-1 space-y-1 border-l border-white/20 ml-5">
+                      {VOAE_DEPTO_PANEL_ITEMS.map((item) => {
+                        const active = isPathActive(item.path);
+                        return (
+                          <SidebarMenuButton
+                            key={item.path} asChild isActive={active} tooltip={item.label}
+                            className={active
+                              ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8"
+                              : "text-white/80 hover:bg-[#003366] hover:text-white h-8"}
+                          >
+                            <Link to={item.path} className="flex items-center gap-2">
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.label}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        );
+                      })}
+                    </div>
+                  )}
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* ─── GESTIÓN VOAE (solo voae) ─── */}
+        {role === "voae" && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <button
+                    onClick={() => !isCollapsed && setVoaePanelOpen(v => !v)}
+                    className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-white rounded-md hover:bg-[#003366] transition-colors focus:outline-none"
+                    title={isCollapsed ? "Gestión VOAE" : undefined}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Home className="h-5 w-5" />
+                      {!isCollapsed && <span>Gestión VOAE</span>}
+                    </div>
+                    {!isCollapsed && (
+                      voaePanelOpen
+                        ? <ChevronUp   className="h-4 w-4 text-[#FFD100]" />
+                        : <ChevronDown className="h-4 w-4 text-[#FFD100]" />
+                    )}
+                  </button>
+                  {voaePanelOpen && !isCollapsed && (
+                    <div className="pl-6 mt-1 space-y-1 border-l border-white/20 ml-5">
+                      {VOAE_PANEL_ITEMS.map((item) => {
+                        const active = isPathActive(item.path);
+                        return (
+                          <SidebarMenuButton
+                            key={item.path} asChild isActive={active} tooltip={item.label}
+                            className={active
+                              ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8"
+                              : "text-white/80 hover:bg-[#003366] hover:text-white h-8"}
+                          >
+                            <Link to={item.path} className="flex items-center gap-2">
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.label}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        );
+                      })}
+                    </div>
+                  )}
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* ─── APARIENCIAS (estudiante y tutor) ─── */}
+        {(role === "student" || role === "tutor" || role === "admin" || role === "voae" || role === "voae_depto") && (
           <SidebarGroup>
             {!isCollapsed && (
               <SidebarGroupLabel className="text-[#FFD100]">Apariencias</SidebarGroupLabel>
@@ -316,12 +468,14 @@ export function AppSidebar() {
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    asChild isActive={isPathActive("/employees/aplicativos")} tooltip="Colores de Aplicativos"
-                    className={isPathActive("/employees/aplicativos")
+                    asChild
+                    isActive={isPathActive("/employees/aplicativos") || isPathActive("/student/apariencias")}
+                    tooltip="Colores de Aplicativos"
+                    className={(isPathActive("/employees/aplicativos") || isPathActive("/student/apariencias"))
                       ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366]"
                       : "text-white hover:bg-[#003366] hover:text-white"}
                   >
-                    <Link to="/student/apariencias">
+                    <Link to={role === "admin" ? "/employees/aplicativos" : "/student/apariencias"}>
                       <Palette className="h-5 w-5" />
                       {!isCollapsed && <span>Colores de Aplicativos</span>}
                     </Link>

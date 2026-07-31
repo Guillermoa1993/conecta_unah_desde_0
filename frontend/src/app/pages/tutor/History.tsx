@@ -81,7 +81,20 @@ export function TutorHistory() {
 
   const totalEventos = myEvents.length;
   const totalEstudiantes = myEvents.reduce((sum, e) => sum + (e.inscritos_count || 0), 0);
-  const promedioGeneral = totalEventos > 0 ? "4.5" : "—"; // Calificación simulada por defecto
+
+  const eventosConCalificacion = myEvents.filter(
+    (e) => (e.calificacion && Number(e.calificacion) > 0) || (e.promedio_calificacion && Number(e.promedio_calificacion) > 0)
+  );
+
+  const promedioGeneral =
+    eventosConCalificacion.length > 0
+      ? (
+          eventosConCalificacion.reduce(
+            (sum, e) => sum + Number(e.calificacion || e.promedio_calificacion || 0),
+            0
+          ) / eventosConCalificacion.length
+        ).toFixed(1)
+      : "—";
 
   if (loading) {
     return <div className="py-20 text-center text-sm text-muted-foreground font-medium">Cargando historial de actividades...</div>;
@@ -137,7 +150,8 @@ export function TutorHistory() {
               myEvents.map((e) => {
                 const participantes = e.inscritos_count || 0;
                 const asistencias = e.asistencias_count || 0;
-                const avg = e.estado === "FINALIZADO" ? "4.5" : "—";
+                const ratingVal = e.calificacion || e.promedio_calificacion;
+                const avg = ratingVal && Number(ratingVal) > 0 ? `${Number(ratingVal).toFixed(1)} ★` : "—";
                 const toneClass = STATUS_TONE[e.estado] || "bg-muted text-muted-foreground";
 
                 return (
