@@ -28,7 +28,11 @@ const SOCIAL_ITEMS: MenuItem[] = [
 
 /* ─── ADMINISTRACIÓN: sección colapsada por rol ─── */
 const ADMIN_ITEMS_BY_ROLE: Record<string, MenuItem[]> = {
-  student: [],
+  student: [
+    { icon: Calendar,      label: "Mis eventos",     path: "/student/events"   },
+    { icon: SendHorizonal, label: "Solicitar evento", path: "/student/solicitar" },
+    { icon: History,       label: "Historial",        path: "/student/history"  },
+  ],
   tutor: [
     { icon: Plus,      label: "Crear evento",       path: "/tutor/create-event" },
     { icon: Calendar,  label: "Mis eventos",        path: "/tutor/eventos"      },
@@ -103,6 +107,7 @@ const ROLES_ADMIN_LIKE = ["admin", "dev"];
 const ADMIN_SECTION_LABELS: Record<string, string> = {
   admin:      "Administración",
   dev:        "Administración",
+  student:    "Mi Gestión de Eventos",
   tutor:      "Mis herramientas",
   voae:       "Panel VOAE",
   voae_depto: "Panel Coordinación",
