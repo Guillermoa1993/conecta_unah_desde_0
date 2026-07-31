@@ -29,9 +29,8 @@ const SOCIAL_ITEMS: MenuItem[] = [
 /* ─── ADMINISTRACIÓN: sección colapsada por rol ─── */
 const ADMIN_ITEMS_BY_ROLE: Record<string, MenuItem[]> = {
   student: [
-    { icon: Calendar, label: "Gestión de eventos", path: "/tutor/eventos"        },
-    { icon: History,  label: "Historial",           path: "/tutor/history"       },
-    { icon: Palette,  label: "Colores de Aplicativos", path: "/employees/aplicativos" },
+    { icon: Calendar, label: "Gestión de eventos", path: "/tutor/eventos"  },
+    { icon: History,  label: "Historial",           path: "/tutor/history" },
   ],
   tutor: [
     { icon: Plus,      label: "Crear evento",       path: "/tutor/create-event" },
@@ -274,6 +273,32 @@ export function AppSidebar() {
                       )}
                     </div>
                   )}
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* ─── APARIENCIAS (solo estudiante) ─── */}
+        {role === "student" && (
+          <SidebarGroup>
+            {!isCollapsed && (
+              <SidebarGroupLabel className="text-[#FFD100]">Apariencias</SidebarGroupLabel>
+            )}
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild isActive={isPathActive("/employees/aplicativos")} tooltip="Colores de Aplicativos"
+                    className={isPathActive("/employees/aplicativos")
+                      ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366]"
+                      : "text-white hover:bg-[#003366] hover:text-white"}
+                  >
+                    <Link to="/employees/aplicativos">
+                      <Palette className="h-5 w-5" />
+                      {!isCollapsed && <span>Colores de Aplicativos</span>}
+                    </Link>
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
