@@ -43,20 +43,51 @@ export function AppNavbar() {
   const usuarioGuardado = authService.getUsuarioGuardado();
   const usuarioActivo = usuario || usuarioGuardado;
 
+  const activeRole = (
+    sessionStorage.getItem("unah_role") ||
+    (location.pathname.startsWith("/voae-depto") ? "VOAE_DEPARTAMENTO" :
+     location.pathname.startsWith("/voae") ? "VOAE_DIRECCION" :
+     location.pathname.startsWith("/tutor") ? "EMPLEADO" :
+     location.pathname.startsWith("/admin") ? "ADMIN" :
+     usuarioActivo?.rol || "ESTUDIANTE")
+  ).toString().toUpperCase();
+
   const getNombreUsuario = () => {
-    if (usuarioActivo?.nombre) return usuarioActivo.nombre;
-    try {
-      const rawLocalUser = localStorage.getItem("unah_usuario");
-      if (rawLocalUser) {
-        const parsed = JSON.parse(rawLocalUser);
-        if (parsed?.nombre) return parsed.nombre;
+    if (usuarioActivo?.nombre) {
+      const userRol = (usuarioActivo.rol || "").toString().toUpperCase();
+      if (
+        (activeRole.includes("DEPTO") || activeRole.includes("COORDINAC")) &&
+        (userRol.includes("DEPTO") || userRol.includes("COORDINAC"))
+      ) {
+        return usuarioActivo.nombre;
       }
-    } catch (e) {}
-    return (
-      localStorage.getItem("unah_usuario_nombre") ||
-      sessionStorage.getItem("unah_nombre") ||
-      "Usuario Puma"
-    );
+      if (
+        activeRole.includes("VOAE") && !activeRole.includes("DEPTO") &&
+        userRol.includes("VOAE") && !userRol.includes("DEPTO")
+      ) {
+        return usuarioActivo.nombre;
+      }
+      if (
+        (activeRole.includes("TUTOR") || activeRole.includes("EMPLEADO")) &&
+        (userRol.includes("TUTOR") || userRol.includes("EMPLEADO") || userRol.includes("DOCENTE"))
+      ) {
+        return usuarioActivo.nombre;
+      }
+      if (activeRole.includes("STUDENT") && userRol.includes("ESTUDIANTE")) {
+        return usuarioActivo.nombre;
+      }
+    }
+
+    if (activeRole.includes("DEPTO") || activeRole.includes("COORDINAC")) {
+      return "Coordinador de Departamento (Prueba)";
+    }
+    if (activeRole.includes("VOAE")) {
+      return "Dirección VOAE (Prueba)";
+    }
+    if (activeRole.includes("TUTOR") || activeRole.includes("EMPLEADO")) {
+      return usuarioActivo?.nombre || "Empleado / Tutor (Prueba)";
+    }
+    return usuarioActivo?.nombre || "Estudiante (Prueba)";
   };
 
   const nombreUsuario = getNombreUsuario();
@@ -71,11 +102,10 @@ export function AppNavbar() {
   };
 
   const getInicioRoute = () => {
-    const rawRole = (usuarioActivo?.rol || sessionStorage.getItem("unah_role") || "").toString().toLowerCase();
-    if (rawRole.includes("depto") || rawRole.includes("departamento") || rawRole.includes("coordinac")) return "/voae-depto";
-    if (rawRole.includes("voae")) return "/voae";
-    if (rawRole.includes("tutor") || rawRole.includes("empleado")) return "/tutor/feed";
-    if (rawRole.includes("admin")) return "/admin/administracion";
+    if (activeRole.includes("DEPTO") || activeRole.includes("COORDINAC")) return "/voae-depto";
+    if (activeRole.includes("VOAE")) return "/voae";
+    if (activeRole.includes("TUTOR") || activeRole.includes("EMPLEADO")) return "/tutor/feed";
+    if (activeRole.includes("ADMIN")) return "/admin/administracion";
     return "/student/feed";
   };
 
@@ -84,8 +114,7 @@ export function AppNavbar() {
   );
 
   const getRoleName = () => {
-    const rawRole = (usuarioActivo?.rol || sessionStorage.getItem("unah_role") || "").toString().toUpperCase();
-    switch (rawRole) {
+    switch (activeRole) {
       case 'ESTUDIANTE':
       case 'STUDENT':
         return 'Estudiante';
