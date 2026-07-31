@@ -30,17 +30,23 @@ type AppTile = {
 type ThemeOption = {
   id: string;
   label: string;
+  description: string;
   gradient: string;
+  colors: string[];
+  cssMain: string;
+  cssAccent: string;
 };
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
 const INSTITUTIONAL_THEME = "from-[#004B87] to-[#002b5c]";
 const THEME_OPTIONS: ThemeOption[] = [
-  { id: "institutional", label: "Institucional", gradient: INSTITUTIONAL_THEME },
-  { id: "ocean", label: "Azul", gradient: "from-blue-500 to-indigo-600" },
-  { id: "emerald", label: "Verde", gradient: "from-emerald-500 to-teal-600" },
-  { id: "amber", label: "Ámbar", gradient: "from-amber-500 to-orange-600" },
-  { id: "rose", label: "Rosa", gradient: "from-rose-500 to-pink-600" },
+  { id: "institutional", label: "Institucional UNAH", description: "Paleta oficial azul y oro",     gradient: INSTITUTIONAL_THEME,                colors: ["#004B87", "#002b5c", "#FFD100"], cssMain: "#004B87", cssAccent: "#003366" },
+  { id: "ocean",         label: "Océano",              description: "Azul intenso e índigo",         gradient: "from-blue-500 to-indigo-600",       colors: ["#3b82f6", "#4f46e5", "#e0e7ff"],  cssMain: "#3b82f6", cssAccent: "#4f46e5" },
+  { id: "emerald",       label: "Esmeralda",           description: "Verde y turquesa",              gradient: "from-emerald-500 to-teal-600",      colors: ["#10b981", "#0d9488", "#d1fae5"],  cssMain: "#10b981", cssAccent: "#0d9488" },
+  { id: "amber",         label: "Ámbar",               description: "Naranja cálido",                gradient: "from-amber-500 to-orange-600",      colors: ["#f59e0b", "#ea580c", "#fef3c7"],  cssMain: "#f59e0b", cssAccent: "#ea580c" },
+  { id: "rose",          label: "Rosa",                description: "Magenta y rosa",                gradient: "from-rose-500 to-pink-600",         colors: ["#f43f5e", "#ec4899", "#ffe4e6"],  cssMain: "#f43f5e", cssAccent: "#be123c" },
+  { id: "violet",        label: "Violeta",             description: "Púrpura elegante",              gradient: "from-purple-500 to-violet-600",     colors: ["#a855f7", "#7c3aed", "#ede9fe"],  cssMain: "#a855f7", cssAccent: "#7c3aed" },
+  { id: "graphite",      label: "Grafito",             description: "Gris sobrio de alto contraste", gradient: "from-gray-700 to-gray-900",         colors: ["#374151", "#111827", "#f3f4f6"],  cssMain: "#374151", cssAccent: "#111827" },
 ];
 
 const GRADIENTS = [
@@ -79,16 +85,7 @@ const TUTOR_APPS = withColor([
   { title: "Bitácora", description: "Historial de acciones registradas en el sistema.", path: "/employees/logs", icon: History },
 ]);
 
-const ADMIN_APPS = withColor([
-  { title: "Administración", description: "Panel centralizado de operaciones y auditoría del sistema.", path: "/admin/administracion", icon: Shield },
-  { title: "Gestión de Eventos", description: "Crea, edita y monitorea eventos académicos institucionales.", path: "/admin/events", icon: Calendar },
-  { title: "Usuarios", description: "Administra cuentas de estudiantes, tutores y personal.", path: "/admin/users", icon: Users },
-  { title: "Roles", description: "Define los roles disponibles dentro del sistema.", path: "/admin/roles", icon: KeyRound },
-  { title: "Permisos", description: "Configura la matriz de acceso por rol y módulo.", path: "/admin/permissions", icon: Settings },
-  { title: "Configuración", description: "Parámetros globales, seguridad y respaldos del sistema.", path: "/admin/settings", icon: Settings },
-  { title: "Notificaciones", description: "Consulta avisos y alertas del sistema.", path: "/employees/notifications", icon: Bell },
-  { title: "Bitácora", description: "Historial de acciones registradas en el sistema.", path: "/employees/logs", icon: History },
-]);
+const ADMIN_APPS = withColor([]);
 
 const VOAE_APPS = withColor([
   { title: "Dashboard", description: "Panorama general de la actividad institucional.", path: "/voae", icon: Home },
@@ -138,7 +135,15 @@ export function Aplicativos() {
     return window.localStorage.getItem("unah_aplicativos_theme") ?? INSTITUTIONAL_THEME;
   });
 
-  const role = sessionStorage.getItem("unah_role") ?? "student";
+  const NORM_ROLE: Record<string, string> = {
+    tutor: "tutor", empleado: "tutor", docente: "tutor",
+    voae: "voae", voae_direccion: "voae",
+    voae_departamento: "voae_depto", voae_depto: "voae_depto",
+    coordinacion: "voae_depto", departamento: "voae_depto",
+    admin: "admin", student: "student", estudiante: "student", dev: "dev",
+  };
+  const rawRole = (sessionStorage.getItem("unah_role") ?? "").toLowerCase();
+  const role = NORM_ROLE[rawRole] ?? "student";
   const apps = CATALOG[role] ?? CATALOG.student;
   const roleLabel = ROLE_LABELS[role] ?? "Estudiante";
 
@@ -162,6 +167,11 @@ export function Aplicativos() {
   const updateTheme = async (gradient: string) => {
     setSelectedTheme(gradient);
     window.localStorage.setItem("unah_aplicativos_theme", gradient);
+    const match = THEME_OPTIONS.find(t => t.gradient === gradient) ?? THEME_OPTIONS[0];
+    document.documentElement.style.setProperty("--sidebar", match.cssMain);
+    document.documentElement.style.setProperty("--sidebar-accent", match.cssAccent);
+    document.documentElement.style.setProperty("--unah-blue", match.cssMain);
+    document.documentElement.style.setProperty("--unah-navy", match.cssAccent);
     
     const token = sessionStorage.getItem("unah_jwt_token");
     if (token) {
@@ -218,48 +228,59 @@ export function Aplicativos() {
         </div>
       </div>
 
-      <Card className="border border-slate-200 shadow-sm rounded-xl bg-slate-50/80">
-        <CardHeader className="p-5">
-          <CardTitle className="text-base font-bold text-[#003366]">Apariencia y Preferencias de Color</CardTitle>
-          <CardDescription>
-            Personaliza el tema visual de los aplicativos. Haz clic en "Restaurar color institucional" para volver a la paleta oficial UNAH.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-5">
-          <div className="flex flex-wrap gap-3">
-            {THEME_OPTIONS.map((theme) => (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-[#003366]">Apariencia y colores del sistema</h2>
+            <p className="text-sm text-muted-foreground">Elige una paleta; el cambio se aplica de inmediato en todas las pantallas.</p>
+          </div>
+          <button
+            type="button"
+            onClick={resetTheme}
+            className="flex items-center gap-2 px-4 py-2 rounded-md border border-[#003366] text-[#003366] text-sm hover:bg-[#003366]/10 transition-colors"
+          >
+            Restaurar colores institucionales
+          </button>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {THEME_OPTIONS.map((theme) => {
+            const isActive = selectedTheme === theme.gradient;
+            return (
               <button
                 key={theme.id}
                 type="button"
                 onClick={() => updateTheme(theme.gradient)}
-                className={`flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all cursor-pointer ${
-                  selectedTheme === theme.gradient
-                    ? "ring-2 ring-[#003366] scale-105"
-                    : "opacity-85 hover:opacity-100"
-                } bg-gradient-to-r ${theme.gradient}`}
+                className={`rounded-xl border-2 overflow-hidden text-left transition-all ${
+                  isActive ? "border-[#003366] shadow-lg scale-[1.02]" : "border-transparent hover:border-gray-300"
+                }`}
               >
-                {theme.label}
+                <div className={`h-20 w-full bg-gradient-to-br ${theme.gradient} relative`}>
+                  {isActive && (
+                    <div className="absolute top-2 right-2 bg-white rounded-full p-1">
+                      <svg className="h-4 w-4 text-[#003366]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                <div className="p-3 bg-white">
+                  <p className="text-sm font-semibold text-gray-800">{theme.label}</p>
+                  <p className="text-xs text-gray-500">{theme.description}</p>
+                  <div className="flex gap-1 mt-2">
+                    {theme.colors.map((c) => (
+                      <span key={c} className="h-4 w-4 rounded-full border border-gray-200" style={{ backgroundColor: c }} />
+                    ))}
+                  </div>
+                  {isActive && <span className="mt-2 inline-block text-xs text-[#003366] font-medium">Activo</span>}
+                </div>
               </button>
-            ))}
-            <button
-              type="button"
-              onClick={resetTheme}
-              className="rounded-xl border border-[#003366] bg-white px-4 py-2 text-sm font-semibold text-[#003366] shadow-sm hover:bg-[#eef4fb] transition-all cursor-pointer"
-            >
-              Restaurar color institucional
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Grid principal de aplicativos */}
-      {filteredApps.length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No se encontraron aplicativos que coincidan con "{search}".
-          </CardContent>
-        </Card>
-      ) : (
+      {filteredApps.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredApps.map((app) => {
             const Icon = app.icon;

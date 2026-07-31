@@ -6,20 +6,25 @@ const ROL_MAP: Record<string, string> = {
   estudiante:        'student',
   tutor:             'tutor',
   empleado:          'tutor',
+  docente:           'tutor',
   admin:             'admin',
   voae:              'voae',
   voae_direccion:    'voae',
-  voae_departamento: 'voae',
+  voae_departamento: 'voae_depto',
+  voae_depto:        'voae_depto',
+  coordinacion:      'voae_depto',
+  departamento:      'voae_depto',
   dev:               'dev',
   student:           'student',
 };
 
 const ROL_PATH: Record<string, string> = {
-  student: '/student/feed',
-  tutor:   '/tutor',
-  admin:   '/admin',
-  voae:    '/voae',
-  dev:     '/student/feed',
+  student:    '/student/feed',
+  tutor:      '/tutor',
+  admin:      '/admin',
+  voae:       '/voae',
+  voae_depto: '/voae-depto',
+  dev:        '/student/feed',
 };
 export function AuthCallback() {
   const [params] = useSearchParams();
