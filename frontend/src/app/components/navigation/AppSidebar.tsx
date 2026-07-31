@@ -61,7 +61,7 @@ const ADMIN_ITEMS_BY_ROLE: Record<string, MenuItem[]> = {
   ],
   tutor: [
     { icon: Plus,      label: "Crear evento",       path: "/tutor/create-event" },
-    { icon: Calendar,  label: "Mis eventos",        path: "/tutor/eventos"      },
+    { icon: Calendar,  label: "Mis eventos",        path: "/student/events"     },
     { icon: History,   label: "Historial tutorías", path: "/tutor/history"      },
     { icon: BarChart3, label: "Reportes",           path: "/tutor/reports"      },
     { icon: Wifi,      label: "Evento en vivo",     path: "/tutor/live"         },
