@@ -21,7 +21,7 @@ type MenuItem = { icon: React.ElementType; label: string; path: string };
 const SOCIAL_ITEMS: MenuItem[] = [
   { icon: Rss,      label: "Muro",           path: "/muro" },
   { icon: User,     label: "Perfil",         path: "/perfil" },
-  { icon: Calendar, label: "Eventos",        path: "/eventos" },
+  { icon: Calendar, label: "Mis Eventos",    path: "/student/events" },
   { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
 ];
 
