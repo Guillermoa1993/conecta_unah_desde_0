@@ -29,9 +29,8 @@ const SOCIAL_ITEMS: MenuItem[] = [
 /* ─── ADMINISTRACIÓN: sección colapsada por rol ─── */
 const ADMIN_ITEMS_BY_ROLE: Record<string, MenuItem[]> = {
   student: [
-    { icon: Calendar,      label: "Gestión de eventos", path: "/tutor/eventos"     },
-    { icon: SendHorizonal, label: "Solicitar evento",   path: "/student/solicitar" },
-    { icon: History,       label: "Historial",           path: "/student/history"  },
+    { icon: Calendar, label: "Gestión de eventos", path: "/tutor/eventos"    },
+    { icon: History,  label: "Historial",           path: "/student/history" },
   ],
   tutor: [
     { icon: Plus,      label: "Crear evento",       path: "/tutor/create-event" },
