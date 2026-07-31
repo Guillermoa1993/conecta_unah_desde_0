@@ -156,7 +156,6 @@ export const router = createBrowserRouter([
       { path: "voae/moderadores",       element: P(<Moderadores />) },
       { path: "voae/records",           element: P(<VOAERecords />) },
       { path: "voae/perfil",             element: P(<PerfilPendiente />) },
-      { path: "voae-depto/perfil", element: P(<PerfilPendiente />) },
       { path: "voae/centros",           element: P(<CentrosRegionales />) },
       { path: "voae/events/:id/validar",element: P(<ValidacionEvento />) },
       { path: "voae/events/:id/validacion",element: P(<AuditoriaEventoFinalizado />) },
@@ -166,6 +165,7 @@ export const router = createBrowserRouter([
       // ── VOAE DEPARTAMENTO (COORDINACIÓN) ─────────────────
       { path: "voae-depto",                    element: P(<VOAEDeptoDashboard />) },
       { path: "voae-depto/records",            element: P(<VOAEDeptoRecords />) },
+      { path: "voae-depto/perfil", element: P(<PerfilPendiente />) },
       { path: "voae-depto/events/:id/validar", element: P(<ValidacionDeptoEvento />) },
     ],
   },
