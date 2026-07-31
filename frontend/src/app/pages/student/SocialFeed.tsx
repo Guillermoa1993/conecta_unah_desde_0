@@ -830,7 +830,7 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
             <button
               className="btn-evento-whatsapp"
               onClick={() => {
-                const text = `¡Mira esta publicación en el muro de UNAH!: "${post.title}" - https://mipumaapp.unah.edu.hn/post/${post.id}`;
+                const text = `¡Mira esta publicación en el muro de UNAH!: "${post.title}" - ${window.location.origin}/post/${post.id}`;
                 window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
               }}
               title="Compartir por WhatsApp"

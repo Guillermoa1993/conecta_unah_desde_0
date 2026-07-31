@@ -541,6 +541,18 @@ useEffect(() => {
     setPumitaSeleccionada(pumita);
   };
 
+  // Mantiene el modal de perfil (pumitaSeleccionada) sincronizado con la lista real:
+  // sin esto, tras enviar/cancelar una solicitud el modal seguía mostrando el estado
+  // viejo (ej. "Agregar Pumita") hasta recargar la página, aunque la lista de fondo
+  // ya estuviera actualizada.
+  useEffect(() => {
+    if (!pumitaSeleccionada) return;
+    const actualizado = pumitas.find((p) => p.id_usuario === pumitaSeleccionada.id_usuario);
+    if (actualizado && actualizado !== pumitaSeleccionada) {
+      setPumitaSeleccionada(actualizado);
+    }
+  }, [pumitas, pumitaSeleccionada]);
+
   const enviarRugidoPuma = (nombre: string) => {
     setMensajePerfilPumita(`Rugido Puma enviado a ${nombre}`);
     mostrarEfectoReaccion('rugido');

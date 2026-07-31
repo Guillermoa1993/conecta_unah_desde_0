@@ -226,7 +226,21 @@ r.get('/:id', autenticar, async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Publicación no encontrada' });
       return;
     }
-    res.json(mapPublicacion(result.rows[0]));
+
+    const pub = result.rows[0];
+    const rolUsuario = (req.usuario!.rol || '').toUpperCase();
+    const esRevisor = ['COORDINACION', 'VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'ADMIN'].includes(rolUsuario);
+    const esAutor = pub.id_usuario === req.usuario!.id;
+    const estaPublicada = pub.estado === 'publicado';
+
+    // Mientras no esté "publicado", solo el propio autor o los roles que la revisan
+    // (Coordinación/VOAE/Admin) pueden verla — evita que el link se comparta antes de tiempo.
+    if (!estaPublicada && !esAutor && !esRevisor) {
+      res.status(404).json({ error: 'Publicación no encontrada' });
+      return;
+    }
+
+    res.json(mapPublicacion(pub));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al obtener la publicación' });
