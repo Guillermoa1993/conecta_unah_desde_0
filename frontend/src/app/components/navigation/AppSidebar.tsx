@@ -29,6 +29,7 @@ const SOCIAL_ITEMS_BY_ROLE: Record<string, MenuItem[]> = {
   tutor: [
     { icon: Rss,      label: "Muro",           path: "/tutor/feed"              },
     { icon: User,     label: "Perfil",         path: "/tutor/ficha"             },
+    { icon: Calendar, label: "Mis Eventos",    path: "/student/events"          },
     { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
   ],
   admin: [
