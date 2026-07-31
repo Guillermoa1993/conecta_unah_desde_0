@@ -17,14 +17,41 @@ import { useModulosPermitidos } from "../../../hooks/useModulosPermitidos";
 /* ─── TIPOS ─── */
 type MenuItem = { icon: React.ElementType; label: string; path: string };
 
-/* ─── RED SOCIAL: mismos ítems para TODOS los roles autenticados ─── */
-const SOCIAL_ITEMS: MenuItem[] = [
-  { icon: Rss,      label: "Muro",           path: "/muro" },
-  { icon: User,     label: "Perfil",         path: "/student/ficha" },
-  { icon: Calendar, label: "Mis Eventos",    path: "/student/events" },
-  { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
-  { icon: Home,     label: "Dashboard",      path: "/student" },
-];
+/* ─── RED SOCIAL: ítems por rol con rutas correctas ─── */
+const SOCIAL_ITEMS_BY_ROLE: Record<string, MenuItem[]> = {
+  student: [
+    { icon: Rss,      label: "Muro",           path: "/student/feed"            },
+    { icon: User,     label: "Perfil",         path: "/student/ficha"           },
+    { icon: Calendar, label: "Mis Eventos",    path: "/student/events"          },
+    { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
+    { icon: Home,     label: "Dashboard",      path: "/student"                 },
+  ],
+  tutor: [
+    { icon: Rss,      label: "Muro",           path: "/tutor/feed"              },
+    { icon: User,     label: "Perfil",         path: "/tutor/ficha"             },
+    { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
+    { icon: Home,     label: "Dashboard",      path: "/tutor"                   },
+  ],
+  admin: [
+    { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
+    { icon: Home,     label: "Dashboard",      path: "/admin/administracion"    },
+  ],
+  voae: [
+    { icon: Rss,      label: "Muro",           path: "/voae/feed"               },
+    { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
+    { icon: Home,     label: "Dashboard",      path: "/voae"                    },
+  ],
+  voae_depto: [
+    { icon: Rss,      label: "Muro",           path: "/voae/feed"               },
+    { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
+    { icon: Home,     label: "Dashboard",      path: "/voae-depto"              },
+  ],
+  dev: [
+    { icon: Rss,      label: "Muro",           path: "/student/feed"            },
+    { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
+    { icon: Home,     label: "Dashboard",      path: "/student"                 },
+  ],
+};
 
 /* ─── ADMINISTRACIÓN: sección colapsada por rol ─── */
 const ADMIN_ITEMS_BY_ROLE: Record<string, MenuItem[]> = {
@@ -195,7 +222,7 @@ export function AppSidebar() {
           )}
           <SidebarGroupContent>
             <SidebarMenu>
-              {SOCIAL_ITEMS.map((item) => {
+              {(SOCIAL_ITEMS_BY_ROLE[role] ?? SOCIAL_ITEMS_BY_ROLE.student).map((item) => {
                 const active = isPathActive(item.path);
                 return (
                   <SidebarMenuItem key={item.path}>
