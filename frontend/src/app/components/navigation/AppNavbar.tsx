@@ -109,6 +109,13 @@ export function AppNavbar() {
     return "/student/feed";
   };
 
+  const getPerfilRoute = () => {
+    if (activeRole.includes("STUDENT") || activeRole.includes("ESTUDIANTE")) {
+      return "/student/ficha";
+    }
+    return "/tutor/ficha";
+  };
+
   const permDeniedOrPending = Object.values(permissions).some(
     (s) => s === "denied" || s === "prompt"
   );
@@ -287,7 +294,7 @@ export function AppNavbar() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate("/perfil")}>
+              <DropdownMenuItem onClick={() => navigate(getPerfilRoute())}>
                 <User className="mr-2 h-4 w-4" />
                 Perfil
               </DropdownMenuItem>
