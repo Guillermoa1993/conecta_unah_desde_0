@@ -1,108 +1,160 @@
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, Link, useNavigate } from "react-router";
 import {
   Home, Calendar, QrCode, History, Plus, BarChart3, Users, Settings,
   Shield, FileText, MessageSquare, ChevronDown, ChevronUp,
-  GraduationCap, MapPin, Bell, LogOut, Rss, Lightbulb, KeyRound, User,
+  MapPin, Bell, LogOut, Rss, KeyRound, User,
   Wifi, ShieldCheck, ClipboardList, SendHorizonal, Database, SlidersHorizontal, Mail,
+  Info, Palette,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   SidebarHeader, useSidebar,
 } from "../ui/sidebar";
+import { useModulosPermitidos } from "../../../hooks/useModulosPermitidos";
 
-/* ─── MENÚS POR ROL ─── */
+/* ─── TIPOS ─── */
 type MenuItem = { icon: React.ElementType; label: string; path: string };
-const STUDENT_ACTIVITY_ITEMS = [
-  { icon: Lightbulb, label: "Feed",        path: "/student/feed"   },
-  { icon: User,     label: "Perfil",      path: "/student/ficha"  },
-  { icon: Calendar, label: "Mis Eventos", path: "/student/events" },
-];
 
-const MENU_BY_ROLE: Record<string, MenuItem[]> = {
+/* ─── RED SOCIAL: ítems por rol con rutas correctas ─── */
+const SOCIAL_ITEMS_BY_ROLE: Record<string, MenuItem[]> = {
   student: [
-   
-    { icon: Home,          label: "Dashboard",       path: "/student"          },
-    { icon: Bell,          label: "Notificaciones",  path: "/employees/notifications" },
+    { icon: Rss,      label: "Muro",           path: "/student/feed"            },
+    { icon: User,     label: "Perfil",         path: "/student/ficha"           },
+    { icon: Calendar, label: "Mis Eventos",    path: "/student/events"          },
+    { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
+    { icon: Home,     label: "Dashboard",      path: "/student"                 },
   ],
   tutor: [
-    { icon: Calendar,      label: "Gestión de eventos", path: "/tutor/eventos"      },
-    { icon: History,       label: "Historial",         path: "/tutor/history"      },
-    { icon: Rss,           label: "Muro Social",       path: "/tutor/feed"         },
-    { icon: Bell,          label: "Notificaciones",    path: "/employees/notifications" },
+    { icon: Rss,      label: "Muro",           path: "/tutor/feed"              },
+    { icon: User,     label: "Perfil",         path: "/tutor/ficha"             },
+    { icon: Calendar, label: "Mis Eventos",      path: "/student/events"          },
+    { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
   ],
   admin: [
-    { icon: Shield,        label: "Administración",     path: "/admin/administracion" },
-    { icon: Users,    label: "Usuarios", path: "/admin/users"       },
-    { icon: KeyRound, label: "Roles",    path: "/admin/roles"       },
-    { icon: Settings, label: "Permisos", path: "/admin/permissions" },
-    { icon: Calendar,      label: "Gestión de Eventos", path: "/admin/events"         },
-    { icon: MessageSquare, label: "Comentarios",        path: "/admin/comments"       },
-    { icon: Database,          label: "Respaldo",           path: "/admin/backup"      },
-    { icon: SlidersHorizontal, label: "Parámetros",         path: "/admin/parametros"  },
-    { icon: BarChart3,     label: "Reportes",           path: "/tutor/reports"        },
-    { icon: Bell,          label: "Notificaciones",     path: "/employees/notifications" },
-    { icon: History,  label: "Bitácora", path: "/employees/logs"    },
-  
+    { icon: Rss,      label: "Muro",           path: "/student/feed"            },
+    { icon: User,     label: "Perfil",         path: "/student/ficha"           },
+    { icon: Calendar, label: "Mis Eventos",    path: "/student/events"          },
+    { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
+    { icon: Home,     label: "Dashboard",      path: "/student"                 },
   ],
   voae: [
-    { icon: Home,           label: "Panel de gestión",   path: "/voae"             },
-    { icon: Rss,            label: "Muro Social",       path: "/voae/feed"        },
-    { icon: FileText,       label: "Reportes Oficiales",path: "/voae/reports"     },
-    { icon: ClipboardList,  label: "Histórico de eventos", path: "/voae/records"     },
-    { icon: MapPin,         label: "Centros Regionales",path: "/voae/centros"     },
-    { icon: ShieldCheck,    label: "Moderadores",       path: "/voae/moderadores" },
-    { icon: Bell,           label: "Notificaciones",    path: "/employees/notifications" },
-    { icon: History,        label: "Bitácora",          path: "/employees/logs"   },
+    { icon: Rss,      label: "Muro",           path: "/voae/feed"               },
+    { icon: User,     label: "Perfil",         path: "/tutor/ficha"             },
+    { icon: Calendar, label: "Mis Eventos",    path: "/student/events"          },
+    { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
+  ],
+  voae_depto: [
+    { icon: Rss,      label: "Muro",           path: "/voae/feed"               },
+    { icon: User,     label: "Perfil",         path: "/tutor/ficha"             },
+    { icon: Calendar, label: "Mis Eventos",    path: "/student/events"          },
+    { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
   ],
   dev: [
-    { icon: Home,          label: "Dashboard Estudiante",path: "/student"        },
-    { icon: Rss,           label: "Muro Social",        path: "/student/feed"   },
-    { icon: Calendar,      label: "Eventos",            path: "/student/events" },
-    { icon: QrCode,        label: "QR Scanner",         path: "/student/scan"   },
-    // Tutor
-    { icon: Calendar,      label: "Mis Eventos",        path: "/tutor/eventos"      },
-    { icon: Plus,          label: "Crear Evento",       path: "/tutor/create-event" },
-    { icon: BarChart3,     label: "Reportes Tutor",     path: "/tutor/reports"  },
-    // Admin
-    { icon: Shield,        label: "Administración",     path: "/admin/administracion" },
-    { icon: Users,         label: "Usuarios",           path: "/admin/users"    },
-    { icon: KeyRound,      label: "Roles",              path: "/admin/roles"    },
-    { icon: Settings,      label: "Permisos",           path: "/admin/permissions" },
-    // VOAE
-    { icon: FileText,      label: "Reportes VOAE",      path: "/voae/reports"     },
-    { icon: ClipboardList, label: "Registros VOAE",     path: "/voae/records"     },
-    { icon: MapPin,        label: "Centros",            path: "/voae/centros"     },
-    { icon: ShieldCheck,   label: "Moderadores",        path: "/voae/moderadores" },
-    // Grupo 3
-    { icon: SendHorizonal, label: "Solicitar Evento",   path: "/student/solicitar"},
-    { icon: Wifi,          label: "Evento en Vivo",     path: "/tutor/live"       },
-    // Shared
-    { icon: SlidersHorizontal, label: "Parámetros",       path: "/admin/parametros"     },
-    { icon: Bell,          label: "Notificaciones",     path: "/employees/notifications" },
-    { icon: History,       label: "Bitácora",           path: "/employees/logs" },
+    { icon: Rss,      label: "Muro",           path: "/student/feed"            },
+    { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
+    { icon: Home,     label: "Dashboard",      path: "/student"                 },
   ],
 };
 
-const ROLE_LABELS: Record<string, string> = {
-  student: "Estudiante",
-  tutor:   "Empleado / Tutor",
-  admin:   "Administrador",
-  voae:    "VOAE",
-  dev:     "⚡ Dev / Preview",
+/* ─── ADMINISTRACIÓN: sección colapsada por rol ─── */
+const ADMIN_ITEMS_BY_ROLE: Record<string, MenuItem[]> = {
+  student: [
+    { icon: Calendar, label: "Gestión de eventos", path: "/tutor/eventos"  },
+    { icon: History,  label: "Historial",           path: "/tutor/history" },
+  ],
+  tutor: [
+    { icon: Calendar,  label: "Gestión de eventos", path: "/tutor/eventos"      },
+    { icon: History,   label: "Historial",           path: "/tutor/history"     },
+  ],
+  admin: [
+    { icon: Calendar, label: "Gestión de eventos", path: "/tutor/eventos"  },
+    { icon: History,  label: "Historial",           path: "/tutor/history" },
+  ],
+  voae: [
+    { icon: Calendar, label: "Gestión de eventos", path: "/tutor/eventos"  },
+    { icon: History,  label: "Historial",           path: "/tutor/history" },
+  ],
+  voae_depto: [
+    { icon: Calendar, label: "Gestión de eventos", path: "/tutor/eventos"  },
+    { icon: History,  label: "Historial",           path: "/tutor/history" },
+  ],
+  dev: [
+    { icon: Home,          label: "Panel VOAE",         path: "/voae"                 },
+    { icon: FileText,      label: "Reportes VOAE",      path: "/voae/reports"         },
+    { icon: Plus,          label: "Crear evento",       path: "/tutor/create-event"   },
+    { icon: BarChart3,     label: "Reportes tutor",     path: "/tutor/reports"        },
+    { icon: QrCode,        label: "QR Scanner",         path: "/student/scan"         },
+    { icon: SendHorizonal, label: "Solicitar evento",   path: "/student/solicitar"    },
+    { icon: History,       label: "Bitácora",           path: "/employees/logs"       },
+  ],
 };
 
-const MAINTENANCE_ITEMS = [
-  { icon: GraduationCap, label: "Carreras",              subPath: "/maintenance/careers"            },
-  { icon: MapPin,        label: "Centros regionales",    subPath: "/maintenance/regional-centers"   },
-  { icon: Users,         label: "Tipos de usuario",      subPath: "/maintenance/user-types"         },
-  { icon: FileText,      label: "Estados de usuario",    subPath: "/maintenance/user-states"        },
-  { icon: Bell,          label: "Tipos de notificación", subPath: "/maintenance/notification-types" },
+/* ─── CATÁLOGO ADMIN filtrado por permisos de Seguridad ─── */
+type CatalogItem = MenuItem & { modulo: string | null };
+
+const ADMIN_MODULE_CATALOG: CatalogItem[] = [
+  { icon: Shield,            label: "Panel admin",        path: "/admin/administracion", modulo: null          },
+  { icon: Users,             label: "Usuarios",           path: "/admin/users",          modulo: "usuarios"    },
+  { icon: KeyRound,          label: "Roles",              path: "/admin/roles",          modulo: "seguridad"   },
+  { icon: Settings,          label: "Permisos",           path: "/admin/permissions",    modulo: "seguridad"   },
+  { icon: Calendar,          label: "Gestión de eventos", path: "/admin/events",         modulo: "eventos"     },
+  { icon: MessageSquare,     label: "Comentarios",        path: "/admin/comments",       modulo: "comentarios" },
+  { icon: Database,          label: "Respaldo",           path: "/admin/backup",         modulo: "respaldos"   },
+  { icon: SlidersHorizontal, label: "Parámetros",         path: "/admin/parametros",     modulo: "parametros"  },
+  { icon: BarChart3,         label: "Reportes",           path: "/tutor/reports",        modulo: "reportes"    },
+  { icon: History,           label: "Bitácora",           path: "/employees/logs",       modulo: "bitacora"    },
 ];
 
-/* ─── ROLES CON MANTENIMIENTO ─── */
-const ROLES_WITH_MAINTENANCE = ["admin", "voae", "tutor", "dev", "student"];
+const ROLE_LABELS: Record<string, string> = {
+  student:    "Estudiante",
+  tutor:      "Empleado",
+  admin:      "Administrador",
+  voae:       "VOAE Dirección",
+  voae_depto: "VOAE Departamento",
+  dev:        "⚡ Dev / Preview",
+};
+
+const ROLES_ADMIN_LIKE = ["dev"];
+
+const VOAE_DEPTO_PANEL_ITEMS: MenuItem[] = [
+  { icon: Home,          label: "Panel de Gestión Coordinación", path: "/voae-depto"         },
+  { icon: ClipboardList, label: "Histórico de eventos",          path: "/voae-depto/records" },
+];
+
+const VOAE_PANEL_ITEMS: MenuItem[] = [
+  { icon: Home,          label: "Panel de gestión VOAE", path: "/voae"          },
+  { icon: ClipboardList, label: "Histórico de eventos",  path: "/voae/records"  },
+];
+
+const ADMIN_PANEL_ITEMS: MenuItem[] = [
+  { icon: Shield,            label: "Panel admin",        path: "/admin/administracion" },
+  { icon: Users,             label: "Usuarios",           path: "/admin/users"          },
+  { icon: KeyRound,          label: "Roles",              path: "/admin/roles"          },
+  { icon: Settings,          label: "Permisos",           path: "/admin/permissions"    },
+  { icon: Database,          label: "Respaldo",           path: "/admin/backup"         },
+  { icon: SlidersHorizontal, label: "Parámetros",         path: "/admin/parametros"     },
+  { icon: History,           label: "Bitácora",           path: "/employees/logs"       },
+];
+
+const ADMIN_SECTION_LABELS: Record<string, string> = {
+  admin:      "Mi Gestión de Eventos",
+  dev:        "Administración",
+  student:    "Mi Gestión de Eventos",
+  tutor:      "Mi Gestión de Eventos",
+  voae:       "Mi Gestión de Eventos",
+  voae_depto: "Mi Gestión de Eventos",
+};
+
+const NORM_ROLE: Record<string, string> = {
+  tutor: "tutor", empleado: "tutor", docente: "tutor",
+  voae: "voae", voae_direccion: "voae",
+  voae_departamento: "voae_depto", voae_depto: "voae_depto",
+  coordinacion: "voae_depto", departamento: "voae_depto",
+  admin: "admin", student: "student", estudiante: "student", dev: "dev",
+};
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
 
 export function AppSidebar() {
@@ -111,8 +163,10 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
 
-  const [maintenanceOpen, setMaintenanceOpen] = useState(false);
-  const [activityOpen, setActivityOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
+  const [voaePanelOpen, setVoaePanelOpen] = useState(false);
+  const [voaeDeptoOpen, setVoaeDeptoOpen] = useState(false);
   const [soporte, setSoporte] = useState({ correo: "", whatsapp: "" });
 
   useEffect(() => {
@@ -121,94 +175,177 @@ export function AppSidebar() {
       .then(d => setSoporte(d))
       .catch(() => {});
   }, []);
- 
-  
-
 
   const rawRole = (sessionStorage.getItem("unah_role") ?? "").toLowerCase();
-  const NORM_ROLE: Record<string, string> = {
-    tutor: "tutor",
-    empleado: "tutor",
-    docente: "tutor",
-    voae: "voae",
-    voae_direccion: "voae",
-    admin: "admin",
-    student: "student",
-    estudiante: "student",
-    dev: "dev",
-  };
-
   const role = NORM_ROLE[rawRole] ?? (
-    location.pathname.startsWith("/tutor") ? "tutor" :
+    location.pathname.startsWith("/voae-depto") ? "voae_depto" :
     location.pathname.startsWith("/voae")  ? "voae" :
+    location.pathname.startsWith("/tutor") ? "tutor" :
     location.pathname.startsWith("/admin") ? "admin" :
     "student"
   );
 
-  const menuItems = MENU_BY_ROLE[role] ?? MENU_BY_ROLE.student;
-  const menuLabel = ROLE_LABELS[role] ?? "Estudiante";
+  const roleLabel = ROLE_LABELS[role] ?? "Estudiante";
 
-  const prefix = location.pathname.startsWith("/tutor") ? "/tutor"
-               : location.pathname.startsWith("/admin") ? "/admin"
-               : location.pathname.startsWith("/voae")  ? "/voae"
-               : "/student";
+  const { modulos: modulosPermitidos, configurado: permisosConfigurados } = useModulosPermitidos();
+
+  const isAdminLikeRole = ROLES_ADMIN_LIKE.includes(role);
+  const adminSectionLabel = ADMIN_SECTION_LABELS[role] ?? "Herramientas";
+
+  const adminItems =
+    isAdminLikeRole && permisosConfigurados
+      ? ADMIN_MODULE_CATALOG.filter(
+          (item) => item.modulo === null || modulosPermitidos.has(item.modulo),
+        )
+      : (ADMIN_ITEMS_BY_ROLE[role] ?? []);
+
+  const hasAdminSection = adminItems.length > 0;
 
   const handleLogout = () => {
     sessionStorage.clear();
     navigate("/", { replace: true });
   };
 
+  const isPathActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(path + "/");
+
   return (
     <Sidebar collapsible="icon" className="border-r border-[#003366]">
       <SidebarHeader className="border-b border-[#003366] p-4">
-        <Link to={menuItems[0]?.path ?? "/"} className="flex items-center gap-3">
+        <Link to="/muro" className="flex items-center gap-3">
           <div className="h-12 w-12 rounded-full overflow-hidden flex-shrink-0 bg-white/10 flex items-center justify-center p-1">
             <img src="/puma_final.png" alt="Mascota UNAH" className="h-full w-full object-contain" />
           </div>
           {!isCollapsed && (
             <div className="animate-fade-in">
               <h2 className="text-lg font-semibold text-white">Conecta Pumas</h2>
+              <p className="text-[10px] uppercase tracking-widest text-white/50">{roleLabel}</p>
             </div>
           )}
         </Link>
       </SidebarHeader>
 
       <SidebarContent className="scrollbar-thin scrollbar-thumb-[#003366] scrollbar-track-transparent">
+        {/* ─── RED SOCIAL (común a todos los roles) ─── */}
         <SidebarGroup>
           {!isCollapsed && (
-            <SidebarGroupLabel className="text-[#FFD100]">{menuLabel}</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-[#FFD100]">Red Social</SidebarGroupLabel>
           )}
           <SidebarGroupContent>
             <SidebarMenu>
+              {(SOCIAL_ITEMS_BY_ROLE[role] ?? SOCIAL_ITEMS_BY_ROLE.student).map((item) => {
+                const active = isPathActive(item.path);
+                return (
+                  <SidebarMenuItem key={item.path}>
+                    <SidebarMenuButton
+                      asChild isActive={active} tooltip={item.label}
+                      className={active
+                        ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366]"
+                        : "text-white hover:bg-[#003366] hover:text-white"}
+                    >
+                      <Link to={item.path}>
+                        <item.icon className="h-5 w-5" />
+                        {!isCollapsed && <span>{item.label}</span>}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-              {/* Mis Actividades — primero, solo para student */}
-              {role === "student" && (
-                <SidebarMenuItem className="mb-2">
+        {/* ─── ADMINISTRACIÓN (colapsada, solo para roles con permisos) ─── */}
+        {hasAdminSection && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
                   <button
-                    onClick={() => !isCollapsed && setActivityOpen(v => !v)}
+                    onClick={() => !isCollapsed && setAdminOpen(v => !v)}
                     className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-white rounded-md hover:bg-[#003366] transition-colors focus:outline-none"
-                    title={isCollapsed ? "Mis Actividades" : undefined}
+                    title={isCollapsed ? adminSectionLabel : undefined}
                   >
                     <div className="flex items-center gap-3">
-                      <Rss className="h-5 w-5" />
-                      {!isCollapsed && <span>Mis Actividades</span>}
+                      <Shield className="h-5 w-5" />
+                      {!isCollapsed && <span>{adminSectionLabel}</span>}
                     </div>
                     {!isCollapsed && (
-                      activityOpen
+                      adminOpen
                         ? <ChevronUp   className="h-4 w-4 text-[#FFD100]" />
                         : <ChevronDown className="h-4 w-4 text-[#FFD100]" />
                     )}
                   </button>
 
-              {activityOpen && !isCollapsed && (
+                  {adminOpen && !isCollapsed && (
                     <div className="pl-6 mt-1 space-y-1 border-l border-white/20 ml-5">
-                      {STUDENT_ACTIVITY_ITEMS.map((item) => {
-                        const isActive = location.pathname === item.path;
+                      {adminItems.map((item) => {
+                        const active = isPathActive(item.path);
                         return (
                           <SidebarMenuButton
-                            key={item.path} asChild isActive={isActive}
-                            tooltip={isCollapsed ? item.label : undefined}
-                            className={isActive
+                            key={item.path} asChild isActive={active} tooltip={item.label}
+                            className={active
+                              ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8"
+                              : "text-white/80 hover:bg-[#003366] hover:text-white h-8"}
+                          >
+                            <Link to={item.path} className="flex items-center gap-2">
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.label}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        );
+                      })}
+
+                      {isAdminLikeRole && (
+                        <SidebarMenuButton
+                          asChild isActive={isPathActive("/employees/aplicativos")} tooltip="Colores de Aplicativos"
+                          className={isPathActive("/employees/aplicativos")
+                            ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8 mt-1"
+                            : "text-white/80 hover:bg-[#003366] hover:text-white h-8 mt-1"}
+                        >
+                          <Link to="/employees/aplicativos" className="flex items-center gap-2">
+                            <Palette className="h-4 w-4" />
+                            <span className="text-xs">Colores de Aplicativos</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      )}
+                    </div>
+                  )}
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* ─── ADMINISTRACIÓN (solo admin) ─── */}
+        {role === "admin" && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <button
+                    onClick={() => !isCollapsed && setAdminPanelOpen(v => !v)}
+                    className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-white rounded-md hover:bg-[#003366] transition-colors focus:outline-none"
+                    title={isCollapsed ? "Administración" : undefined}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Shield className="h-5 w-5" />
+                      {!isCollapsed && <span>Administración</span>}
+                    </div>
+                    {!isCollapsed && (
+                      adminPanelOpen
+                        ? <ChevronUp   className="h-4 w-4 text-[#FFD100]" />
+                        : <ChevronDown className="h-4 w-4 text-[#FFD100]" />
+                    )}
+                  </button>
+                  {adminPanelOpen && !isCollapsed && (
+                    <div className="pl-6 mt-1 space-y-1 border-l border-white/20 ml-5">
+                      {ADMIN_PANEL_ITEMS.map((item) => {
+                        const active = isPathActive(item.path);
+                        return (
+                          <SidebarMenuButton
+                            key={item.path} asChild isActive={active} tooltip={item.label}
+                            className={active
                               ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8"
                               : "text-white/80 hover:bg-[#003366] hover:text-white h-8"}
                           >
@@ -222,66 +359,46 @@ export function AppSidebar() {
                     </div>
                   )}
                 </SidebarMenuItem>
-              )}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
-
-              {/* Ítems del rol */}
-              {menuItems.map((item) => {
-                const isActive = location.pathname === item.path
-                  || (item.path !== "/student" && item.path !== "/tutor"
-                      && item.path !== "/admin"  && item.path !== "/voae"
-                      && location.pathname.startsWith(item.path));
-                return (
-                  <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      asChild isActive={isActive} tooltip={item.label}
-                      className={isActive
-                        ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366]"
-                        : "text-white hover:bg-[#003366] hover:text-white"}
-                    >
-                      <Link to={item.path}>
-                        <item.icon className="h-5 w-5" />
-                        {!isCollapsed && <span>{item.label}</span>}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-
-              {/* Mantenimiento — solo roles permitidos */}
-              {ROLES_WITH_MAINTENANCE.includes(role) && (
-                <SidebarMenuItem className="mt-2">
+        {/* ─── GESTIÓN COORDINACIÓN (solo voae_depto) ─── */}
+        {role === "voae_depto" && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
                   <button
-                    onClick={() => !isCollapsed && setMaintenanceOpen(v => !v)}
+                    onClick={() => !isCollapsed && setVoaeDeptoOpen(v => !v)}
                     className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-white rounded-md hover:bg-[#003366] transition-colors focus:outline-none"
-                    title={isCollapsed ? "Mantenimiento" : undefined}
+                    title={isCollapsed ? "Gestión Coordinación" : undefined}
                   >
                     <div className="flex items-center gap-3">
-                      <Settings className="h-5 w-5" />
-                      {!isCollapsed && <span>Mantenimiento</span>}
+                      <Home className="h-5 w-5" />
+                      {!isCollapsed && <span>Gestión Coordinación</span>}
                     </div>
                     {!isCollapsed && (
-                      maintenanceOpen
+                      voaeDeptoOpen
                         ? <ChevronUp   className="h-4 w-4 text-[#FFD100]" />
                         : <ChevronDown className="h-4 w-4 text-[#FFD100]" />
                     )}
                   </button>
-
-                  {maintenanceOpen && !isCollapsed && (
+                  {voaeDeptoOpen && !isCollapsed && (
                     <div className="pl-6 mt-1 space-y-1 border-l border-white/20 ml-5">
-                      {MAINTENANCE_ITEMS.map((sub) => {
-                        const fullPath = `${prefix}${sub.subPath}`;
-                        const isActive = location.pathname === fullPath;
+                      {VOAE_DEPTO_PANEL_ITEMS.map((item) => {
+                        const active = isPathActive(item.path);
                         return (
                           <SidebarMenuButton
-                            key={fullPath} asChild isActive={isActive} tooltip={sub.label}
-                            className={isActive
+                            key={item.path} asChild isActive={active} tooltip={item.label}
+                            className={active
                               ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8"
                               : "text-white/80 hover:bg-[#003366] hover:text-white h-8"}
                           >
-                            <Link to={fullPath} className="flex items-center gap-2">
-                              <sub.icon className="h-4 w-4" />
-                              <span>{sub.label}</span>
+                            <Link to={item.path} className="flex items-center gap-2">
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.label}</span>
                             </Link>
                           </SidebarMenuButton>
                         );
@@ -289,8 +406,90 @@ export function AppSidebar() {
                     </div>
                   )}
                 </SidebarMenuItem>
-              )}
-              {/* Soporte */}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* ─── GESTIÓN VOAE (solo voae) ─── */}
+        {role === "voae" && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <button
+                    onClick={() => !isCollapsed && setVoaePanelOpen(v => !v)}
+                    className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-white rounded-md hover:bg-[#003366] transition-colors focus:outline-none"
+                    title={isCollapsed ? "Gestión VOAE" : undefined}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Home className="h-5 w-5" />
+                      {!isCollapsed && <span>Gestión VOAE</span>}
+                    </div>
+                    {!isCollapsed && (
+                      voaePanelOpen
+                        ? <ChevronUp   className="h-4 w-4 text-[#FFD100]" />
+                        : <ChevronDown className="h-4 w-4 text-[#FFD100]" />
+                    )}
+                  </button>
+                  {voaePanelOpen && !isCollapsed && (
+                    <div className="pl-6 mt-1 space-y-1 border-l border-white/20 ml-5">
+                      {VOAE_PANEL_ITEMS.map((item) => {
+                        const active = isPathActive(item.path);
+                        return (
+                          <SidebarMenuButton
+                            key={item.path} asChild isActive={active} tooltip={item.label}
+                            className={active
+                              ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366] h-8"
+                              : "text-white/80 hover:bg-[#003366] hover:text-white h-8"}
+                          >
+                            <Link to={item.path} className="flex items-center gap-2">
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.label}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        );
+                      })}
+                    </div>
+                  )}
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* ─── APARIENCIAS (estudiante y tutor) ─── */}
+        {(role === "student" || role === "tutor" || role === "admin" || role === "voae" || role === "voae_depto") && (
+          <SidebarGroup>
+            {!isCollapsed && (
+              <SidebarGroupLabel className="text-[#FFD100]">Apariencias</SidebarGroupLabel>
+            )}
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isPathActive("/employees/aplicativos") || isPathActive("/student/apariencias")}
+                    tooltip="Colores de Aplicativos"
+                    className={(isPathActive("/employees/aplicativos") || isPathActive("/student/apariencias"))
+                      ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366]"
+                      : "text-white hover:bg-[#003366] hover:text-white"}
+                  >
+                    <Link to={role === "admin" ? "/employees/aplicativos" : "/student/apariencias"}>
+                      <Palette className="h-5 w-5" />
+                      {!isCollapsed && <span>Colores de Aplicativos</span>}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* ─── SOPORTE + LOGOUT + ACERCA DE ─── */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
               {(soporte.correo || soporte.whatsapp) && (
                 <SidebarMenuItem className="mt-2 border-t border-white/10 pt-2">
                   {!isCollapsed && (
@@ -317,7 +516,6 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               )}
 
-              {/* Cerrar sesión */}
               <SidebarMenuItem className="mt-4 border-t border-white/10 pt-2">
                 <SidebarMenuButton
                   className="text-red-400 hover:bg-red-500/10 hover:text-red-400 cursor-pointer"
@@ -328,6 +526,19 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild isActive={isPathActive("/employees/acerca-de")} tooltip="Acerca de"
+                  className={isPathActive("/employees/acerca-de")
+                    ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366]"
+                    : "text-white/60 hover:bg-[#003366] hover:text-white"}
+                >
+                  <Link to="/employees/acerca-de" className="flex items-center gap-3">
+                    <Info className="h-5 w-5" />
+                    {!isCollapsed && <span>Acerca de</span>}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

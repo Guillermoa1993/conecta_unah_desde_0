@@ -56,6 +56,9 @@ import { VOAERecords } from "./pages/voae/Records";
 import { CentrosRegionales } from "./pages/voae/CentrosRegionales";
 import { ValidacionEvento } from "./pages/voae/ValidacionEvento";
 import { AuditoriaEventoFinalizado } from "./pages/voae/AuditoriaEventoFinalizado";
+import { VOAEDeptoDashboard } from "./pages/voae/VOAEDeptoDashboard";
+import { VOAEDeptoRecords } from "./pages/voae/VOAEDeptoRecords";
+import { ValidacionDeptoEvento } from "./pages/voae/ValidacionDeptoEvento";
 
 // Employees (compartido por tutor/admin/voae)
 import { Notifications } from "./pages/employees/Notifications";
@@ -63,6 +66,7 @@ import { Logs } from "./pages/employees/Logs";
 
 // Grupo 4 — Employees
 import { Aplicativos } from "./pages/employees/Aplicativos";
+import { AparenciasEstudiante } from "./pages/student/AparenciasEstudiante";
 import { AcercaDe } from "./pages/employees/AcercaDe";
 
 // Mantenimiento (compartido por admin/tutor/voae)
@@ -116,7 +120,8 @@ export const router = createBrowserRouter([
       { path: "student/scan",           element: P(<QRScanner />) },
       { path: "student/survey/:eventId",element: P(<Survey />) },
       { path: "student/history",         element: P(<AcademicHistory />) },
-      { path: "student/solicitar",       element: P(<SolicitarEvento />) },
+      { path: "student/solicitar",        element: P(<SolicitarEvento />) },
+      { path: "student/apariencias",     element: P(<AparenciasEstudiante />) },
       ...maintenanceRoutes("student"),
 
       // ── Tutor ─────────────────────────────────────────────
@@ -145,8 +150,7 @@ export const router = createBrowserRouter([
       { path: "admin/perfil",            element: P(<PerfilPendiente />) },
       ...maintenanceRoutes("admin"),
 
-
-      // ── VOAE ──────────────────────────────────────────────
+      // ── VOAE DIRECCIÓN ────────────────────────────────────
       { path: "voae",                    element: P(<VOAEDashboard />) },
       { path: "voae/reports",           element: P(<OfficialReports />) },
       { path: "voae/moderadores",       element: P(<Moderadores />) },
@@ -158,7 +162,11 @@ export const router = createBrowserRouter([
       { path: "voae/events/:id/validacion",element: P(<AuditoriaEventoFinalizado />) },
       { path: "voae/feed",               element: P(<SocialFeed />) },
       ...maintenanceRoutes("voae"),
-      
+
+      // ── VOAE DEPARTAMENTO (COORDINACIÓN) ─────────────────
+      { path: "voae-depto",                    element: P(<VOAEDeptoDashboard />) },
+      { path: "voae-depto/records",            element: P(<VOAEDeptoRecords />) },
+      { path: "voae-depto/events/:id/validar", element: P(<ValidacionDeptoEvento />) },
     ],
   },
 ]);

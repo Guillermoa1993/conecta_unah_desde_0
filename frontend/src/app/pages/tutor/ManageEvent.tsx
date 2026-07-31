@@ -26,7 +26,9 @@ import {
   LogOut,
   Lock,
   Mail,
+  Star,
 } from "lucide-react";
+import { cn } from "../../../lib/utils";
 import { EventDetailMapPreview } from "../../components/app/EventDetailMapPreview";
 import { LocationPicker, resolveExactBuildingCoords } from "../../components/app/LocationPicker";
 import { api } from "../../../services/api";
@@ -48,7 +50,6 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { Label } from "../../components/ui/label";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
-import { cn } from "../../../lib/utils";
 import { downloadConstanciaPdf, MESES } from "../../../lib/constancia-pdf";
 import { SignatureModal } from "../../components/app/ConstanciaModal";
 import { EventForm } from "../../components/app/EventForm";
@@ -90,9 +91,7 @@ const PLACEHOLDER_TEXT: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = {
   BORRADOR: "Borrador",
-  PENDIENTE_APROBACION: "Pendiente VOAE",
-  PENDIENTE_DEPARTAMENTO: "Pendiente Aprobación Depto.",
-  PENDIENTE_DIRECCION: "Pendiente VOAE Dirección",
+  PENDIENTE_APROBACION: "Pendiente de aprobación",
   PROGRAMADO: "Programado",
   EN_CURSO: "En curso",
   FINALIZADO: "Finalizado",
@@ -183,6 +182,19 @@ export function ManageEvent() {
   const [pageSizeEnrolled, setPageSizeEnrolled] = useState(10);
   const [currentPageAttendance, setCurrentPageAttendance] = useState(1);
   const [pageSizeAttendance, setPageSizeAttendance] = useState(10);
+  const [backendEvaluaciones, setBackendEvaluaciones] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (eventId) {
+      api.get<any[]>(`/eventos/${eventId}/evaluaciones`)
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setBackendEvaluaciones(data);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [eventId]);
 
   const handlePublishDirect = async () => {
     if (!event) return;
@@ -325,12 +337,12 @@ export function ManageEvent() {
     try {
       const updated = await api.put<any>(`/eventos/${event.id}`, {
         ...event,
-        estado: "PENDIENTE_DEPARTAMENTO",
+        estado: "PENDIENTE_APROBACION_DEPTO",
       });
       setEvent(updated);
-      toast.success("Propuesta enviada a VOAE Departamento para revisión inicial");
+      toast.success("Evento enviado a Coordinación de Departamento para revisión");
     } catch (err: any) {
-      toast.error("Error al enviar a VOAE", { description: err.message });
+      toast.error("Error al enviar a Coordinación", { description: err.message });
     }
   };
 
@@ -622,29 +634,73 @@ export function ManageEvent() {
     }
   };
 
-  const steps = [
-    { label: "Creado", isCompleted: true, isActive: false },
-    {
-      label: "Enviado a VOAE",
-      isCompleted: event.estado !== "BORRADOR" && event.estado !== "RECHAZADO",
-      isActive: event.estado === "PENDIENTE_APROBACION"
-    },
-    {
-      label: "Aprobado",
-      isCompleted: ["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
-      isActive: event.estado === "PROGRAMADO"
-    },
-    {
-      label: "En curso",
-      isCompleted: ["EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
-      isActive: ["EN_CURSO", "EN_CURSO_SALIDA"].includes(event.estado)
-    },
-    {
-      label: "Finalizado",
-      isCompleted: event.estado === "FINALIZADO",
-      isActive: event.estado === "FINALIZADO"
-    }
-  ];
+  const isRecreativo = event.tipo_evento === "RECREACION" || event.tipo_evento === "SIN_HORAS" || parseFloat(event.duracion_horas || "0") === 0;
+
+  const steps = isRecreativo
+    ? [
+        {
+          label: "Creado",
+          isCompleted: true,
+          isActive: event.estado === "BORRADOR"
+        },
+        {
+          label: "Enviado a Coordinación",
+          isCompleted: event.estado !== "BORRADOR" && event.estado !== "RECHAZADO",
+          isActive: event.estado === "PENDIENTE_APROBACION_DEPTO" || event.estado === "PENDIENTE_APROBACION"
+        },
+        {
+          label: "Aprobado Coordinación",
+          isCompleted: ["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
+          isActive: event.estado === "PROGRAMADO"
+        },
+        {
+          label: "En curso",
+          isCompleted: ["EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
+          isActive: ["EN_CURSO", "EN_CURSO_SALIDA"].includes(event.estado)
+        },
+        {
+          label: "Finalizado",
+          isCompleted: event.estado === "FINALIZADO",
+          isActive: event.estado === "FINALIZADO"
+        }
+      ]
+    : [
+        {
+          label: "Creado",
+          isCompleted: true,
+          isActive: event.estado === "BORRADOR"
+        },
+        {
+          label: "Enviado a Coordinación",
+          isCompleted: event.estado !== "BORRADOR" && event.estado !== "RECHAZADO",
+          isActive: event.estado === "PENDIENTE_APROBACION_DEPTO" || event.estado === "PENDIENTE_APROBACION"
+        },
+        {
+          label: "Aprobado Coordinación",
+          isCompleted: ["PENDIENTE_APROBACION_VOAE", "PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
+          isActive: false
+        },
+        {
+          label: "Enviado a VOAE",
+          isCompleted: ["PENDIENTE_APROBACION_VOAE", "PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
+          isActive: event.estado === "PENDIENTE_APROBACION_VOAE"
+        },
+        {
+          label: "Aprobado VOAE",
+          isCompleted: ["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
+          isActive: event.estado === "PROGRAMADO"
+        },
+        {
+          label: "En curso",
+          isCompleted: ["EN_CURSO", "EN_CURSO_SALIDA", "FINALIZADO"].includes(event.estado),
+          isActive: ["EN_CURSO", "EN_CURSO_SALIDA"].includes(event.estado)
+        },
+        {
+          label: "Finalizado",
+          isCompleted: event.estado === "FINALIZADO",
+          isActive: event.estado === "FINALIZADO"
+        }
+      ];
 
   // Paginación y ordenamiento de Matriculados
   const totalEnrolled = students.length;
@@ -702,38 +758,22 @@ export function ManageEvent() {
                 variant="outline"
                 size="sm"
                 onClick={() => setIsEditing(true)}
-                className="gap-1.5 border-blue-200 text-[#004B87] hover:bg-blue-50"
+                className="gap-1.5 border-blue-200 text-[#004B87] hover:bg-blue-50 font-semibold"
               >
                 <Pen className="size-4" /> Editar
               </Button>
-              {(() => {
-                const isRecreacion = event.tipo_evento === "RECREACION" || event.tipo_evento === "SIN_HORAS" || parseFloat(event.duracion_horas) === 0;
-                if (isRecreacion) {
-                  return (
-                    <Button
-                      size="sm"
-                      onClick={() => setPublishConfirmOpen(true)}
-                      className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shadow-sm font-semibold"
-                    >
-                      <CheckCircle2 className="size-4" /> Publicar
-                    </Button>
-                  );
-                }
-                return (
-                  <Button
-                    size="sm"
-                    onClick={() => setSendVoaeConfirmOpen(true)}
-                    className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shadow-sm"
-                  >
-                    <Send className="size-4" /> Enviar a VOAE
-                  </Button>
-                );
-              })()}
+              <Button
+                size="sm"
+                onClick={() => setSendVoaeConfirmOpen(true)}
+                className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shadow-sm font-semibold"
+              >
+                <Send className="size-4" /> Enviar a Coordinación
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleDeleteEvent}
-                className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50"
+                className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50 font-semibold"
               >
                 <Trash2 className="size-4" /> Descartar
               </Button>
@@ -781,65 +821,11 @@ export function ManageEvent() {
         </div>
       </div>
 
-      {/* Stepper de Doble Nivel de Aprobación Institucional */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-        <p className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-          <CheckCircle2 className="size-4 text-[#004B87]" /> Flujo de Aprobación Institucional (Doble Nivel)
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-center text-xs">
-          {/* Paso 1: Creado */}
-          <div className={cn("p-2.5 rounded-lg border font-medium flex flex-col items-center gap-1", 
-            event.estado === "BORRADOR" ? "bg-slate-100 border-slate-300 text-slate-800" : "bg-emerald-50 border-emerald-200 text-emerald-800")}>
-            <span className="size-5 rounded-full bg-[#004B87] text-white flex items-center justify-center text-[10px] font-bold">1</span>
-            <span className="font-bold">Creado / Borrador</span>
-            <span className="text-[10px] text-slate-500">Tutor / Solicitante</span>
-          </div>
-
-          {/* Paso 2: Aprobación Departamental */}
-          <div className={cn("p-2.5 rounded-lg border font-medium flex flex-col items-center gap-1",
-            event.estado === "PENDIENTE_DEPARTAMENTO" || event.estado === "PENDIENTE_APROBACION"
-              ? "bg-amber-50 border-amber-300 text-amber-900 animate-pulse"
-              : (event.estado === "PENDIENTE_DIRECCION" || event.estado === "PROGRAMADO" || event.estado === "EN_CURSO" || event.estado === "FINALIZADO")
-              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-              : "bg-slate-50 border-slate-200 text-slate-400")}>
-            <span className="size-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold">2</span>
-            <span className="font-bold">VOAE Departamento</span>
-            <span className="text-[10px] font-medium">
-              {event.estado === "PENDIENTE_DEPARTAMENTO" || event.estado === "PENDIENTE_APROBACION" ? "En revisión de carrera" : "Aprobado por Depto."}
-            </span>
-          </div>
-
-          {/* Paso 3: VOAE Dirección */}
-          <div className={cn("p-2.5 rounded-lg border font-medium flex flex-col items-center gap-1",
-            event.estado === "PENDIENTE_DIRECCION"
-              ? "bg-blue-50 border-blue-300 text-blue-900 animate-pulse"
-              : (event.estado === "PROGRAMADO" || event.estado === "EN_CURSO" || event.estado === "FINALIZADO")
-              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-              : "bg-slate-50 border-slate-200 text-slate-400")}>
-            <span className="size-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">3</span>
-            <span className="font-bold">VOAE Dirección</span>
-            <span className="text-[10px] font-medium">
-              {event.estado === "PENDIENTE_DIRECCION" ? "En firma final" : (event.estado === "PROGRAMADO" || event.estado === "FINALIZADO" || event.estado === "EN_CURSO" ? "Certificado Final" : "Pendiente de Depto.")}
-            </span>
-          </div>
-
-          {/* Paso 4: Programado */}
-          <div className={cn("p-2.5 rounded-lg border font-medium flex flex-col items-center gap-1",
-            event.estado === "PROGRAMADO" || event.estado === "EN_CURSO" || event.estado === "FINALIZADO"
-              ? "bg-emerald-100 border-emerald-300 text-emerald-900"
-              : "bg-slate-50 border-slate-200 text-slate-400")}>
-            <span className="size-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">4</span>
-            <span className="font-bold">Publicado / Activo</span>
-            <span className="text-[10px] text-slate-500">Disponible a alumnos</span>
-          </div>
-        </div>
-      </div>
-
       {/* Banners */}
       {event.estado === "BORRADOR" && (
         <div className="rounded-xl border bg-slate-50 border-slate-200/80 p-4 text-sm flex items-start gap-3 text-slate-600">
           <Info className="size-5 shrink-0 text-slate-400 mt-0.5" />
-          <span>Este evento está en borrador. Puedes editarlo antes de publicarlo.</span>
+          <span>Este evento está en borrador. Puedes editarlo antes de enviarlo a Coordinación para revisión.</span>
         </div>
       )}
 
@@ -1014,24 +1000,25 @@ export function ManageEvent() {
       )}
 
       {/* Stepper Timeline */}
-      {event.tipo_evento === "HORAS_VOAE" && (
-        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center justify-between relative max-w-3xl mx-auto">
-            {/* Connector Line behind steps */}
-            <div className="absolute left-6 right-6 top-4 h-[2px] bg-slate-200 -z-0" />
-            {steps.map((step, idx) => (
-              <TimelineStep key={idx} label={step.label} isCompleted={step.isCompleted} isActive={step.isActive} />
-            ))}
-          </div>
+      <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-6 shadow-sm">
+        <div className="flex items-center justify-between relative max-w-3xl mx-auto">
+          {/* Connector Line behind steps */}
+          <div className="absolute left-6 right-6 top-4 h-[2px] bg-slate-200 -z-0" />
+          {steps.map((step, idx) => (
+            <TimelineStep key={idx} label={step.label} isCompleted={step.isCompleted} isActive={step.isActive} />
+          ))}
         </div>
-      )}
+      </div>
 
-      {/* Tabs list (Control de asistencia, Participantes, Detalle) */}
+      {/* Tabs list (Control de asistencia, Participantes, Detalle, Valoraciones) */}
       <Tabs defaultValue="control" className="space-y-4">
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
-          <TabsTrigger value="control">Control de Asistencia</TabsTrigger>
+        <TabsList className={cn("grid w-full max-w-2xl", event.estado === "FINALIZADO" ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3 sm:w-auto")}>
+          <TabsTrigger value="control">Control Asistencia</TabsTrigger>
           <TabsTrigger value="participantes">Participantes ({students.length})</TabsTrigger>
-          <TabsTrigger value="detalle">Detalle del Evento</TabsTrigger>
+          <TabsTrigger value="detalle">Detalle</TabsTrigger>
+          {event.estado === "FINALIZADO" && (
+            <TabsTrigger value="valoraciones">Valoraciones ({backendEvaluaciones.length})</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="control" className="space-y-4">
@@ -1510,6 +1497,83 @@ export function ManageEvent() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="valoraciones" className="space-y-4">
+          {(() => {
+            const reviewsList = backendEvaluaciones.map((rev: any) => ({
+              id: rev.id,
+              nombre: rev.estudiante_nombre || "Estudiante UNAH",
+              cuenta: rev.estudiante_cuenta || "N/A",
+              estrellas: parseInt(rev.estrellas, 10) || 5,
+              comentario: rev.comentario || "Sin comentario adicional.",
+              fecha: rev.fecha || "N/A",
+            }));
+
+            if (reviewsList.length === 0) {
+              return (
+                <Card className="shadow-sm border-slate-200/80 bg-white">
+                  <CardHeader className="border-b border-slate-100 pb-3.5">
+                    <CardTitle className="text-base text-[#003366] font-bold flex items-center justify-between flex-wrap gap-2">
+                      <span>⭐ Valoraciones y Comentarios de Estudiantes</span>
+                      <span className="text-xs bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 rounded-full font-semibold">
+                        0 Valoraciones
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-12 text-center">
+                    <Star className="size-10 mx-auto text-slate-300 mb-2" />
+                    <p className="font-semibold text-sm text-slate-700">Aún no hay valoraciones registradas para este evento.</p>
+                    <p className="text-xs text-slate-500 mt-1">Los estudiantes que asistieron a este evento finalizado aún no han enviado sus comentarios.</p>
+                  </CardContent>
+                </Card>
+              );
+            }
+
+            const avgCalculated = (reviewsList.reduce((acc, r) => acc + r.estrellas, 0) / reviewsList.length).toFixed(1);
+
+            return (
+              <Card className="shadow-sm border-slate-200/80 bg-white">
+                <CardHeader className="border-b border-slate-100 pb-3.5">
+                  <CardTitle className="text-base text-[#003366] font-bold flex items-center justify-between flex-wrap gap-2">
+                    <span>⭐ Valoraciones y Comentarios de Estudiantes ({reviewsList.length})</span>
+                    <span className="text-xs bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1 rounded-full font-bold">
+                      Promedio: {avgCalculated} / 5 ★
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-5 space-y-4">
+                  {reviewsList.map((rev) => (
+                    <div key={rev.id} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="size-8 rounded-full bg-[#004B87]/15 text-[#004B87] font-bold text-xs flex items-center justify-center font-mono">
+                            {rev.nombre.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
+                          </div>
+                          <div>
+                            <span className="font-semibold text-sm text-slate-800">{rev.nombre}</span>
+                            <span className="text-xs text-slate-500 font-mono ml-2">({rev.cuenta})</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex text-amber-400 text-sm">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <span key={i} className={i < rev.estrellas ? "text-amber-400" : "text-slate-300"}>★</span>
+                            ))}
+                          </div>
+                          <span className="text-xs font-bold text-slate-700">{rev.estrellas}.0</span>
+                          <span className="text-xs text-slate-400 ml-2">{rev.fecha}</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-700 bg-white p-3 rounded-lg border border-slate-100 italic">
+                        "{rev.comentario}"
+                      </p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            );
+          })()}
+        </TabsContent>
       </Tabs>
 
       {/* Signature Modal */}
@@ -1545,13 +1609,13 @@ export function ManageEvent() {
         </DialogContent>
       </Dialog>
 
-      {/* Send to VOAE confirmation modal */}
+      {/* Send to Coordinación confirmation modal */}
       <Dialog open={sendVoaeConfirmOpen} onOpenChange={setSendVoaeConfirmOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-slate-800 font-bold">Confirmar envío a VOAE</DialogTitle>
+            <DialogTitle className="text-slate-800 font-bold">Confirmar envío a Coordinación</DialogTitle>
             <DialogDescription className="text-sm text-slate-500 font-medium mt-2">
-              ¿Está seguro de que desea enviar este evento a VOAE para revisión? Esta acción no se puede deshacer.
+              ¿Está seguro de que desea enviar este evento a la Coordinación de Departamento para revisión? Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 justify-end mt-4">

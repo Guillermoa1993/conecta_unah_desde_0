@@ -2,6 +2,8 @@ import { useNavigate } from "react-router";
 import { GraduationCap, Users, Shield, BookOpen } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
+import { api } from "../../services/api";
+import { authService } from "../../services/auth.service";
 
 const roles = [
   {
@@ -30,16 +32,40 @@ const roles = [
   },
   {
     id: "voae",
-    title: "Personal VOAE",
-    description: "Auditoría, validación de certificados y reportes oficiales",
+    title: "VOAE Dirección",
+    description: "Aprobación final, auditoría de certificados y firmas oficiales",
     icon: Shield,
     path: "/voae",
     color: "from-[#003366] to-[#004B87]",
+  },
+  {
+    id: "voae_depto",
+    title: "VOAE Departamento (Coordinación)",
+    description: "Revisión inicial y filtro de solicitudes por facultad y carrera",
+    icon: Shield,
+    path: "/voae-depto",
+    color: "from-[#004B87] to-[#003366]",
   },
 ];
 
 export function RoleSelector() {
   const navigate = useNavigate();
+
+  const handleSelectRole = async (role: typeof roles[0]) => {
+    try {
+      const res = await api.post<any>("/auth/dev-login", { rol: role.id });
+      if (res && res.token) {
+        authService.setToken(res.token);
+        authService.setUsuarioGuardado(res.usuario);
+        sessionStorage.setItem("unah_session_active", "true");
+        sessionStorage.setItem("unah_role", role.id);
+      }
+    } catch {
+      sessionStorage.setItem("unah_session_active", "true");
+      sessionStorage.setItem("unah_role", role.id);
+    }
+    navigate(role.path);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#004B87] via-[#003366] to-[#004B87] flex items-center justify-center p-6">
@@ -58,7 +84,7 @@ export function RoleSelector() {
             <Card
               key={role.id}
               className="overflow-hidden transition-all hover:scale-105 hover:shadow-2xl cursor-pointer border-2 border-transparent hover:border-[#FFD100]"
-              onClick={() => navigate(role.path)}
+              onClick={() => handleSelectRole(role)}
             >
               <CardHeader className={`bg-gradient-to-r ${role.color} text-white p-6`}>
                 <div className="flex items-center gap-4">

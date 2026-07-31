@@ -118,6 +118,67 @@ export const SEDES_DATA: Record<
       { name: "Parque del Sol UNAH-TEC-Danli", lat: "13.993525936702095", lng: "-86.57068887367457" },
     ],
   },
+  CURNO: {
+    name: "CURNO",
+    lat: "14.67268387845951",
+    lng: "-86.20899693812486",
+    buildings: [
+      {
+        name: "Edificio Administrativo y Módulos de Aulas",
+        lat: "14.67273391872352",
+        lng: "-86.20903657322555",
+      },
+      {
+        name: "Laboratorios de Enfermería y Agropecuarios",
+        lat: "14.6726819288386",
+        lng: "-86.20903455788145",
+      },
+    ],
+  },
+  CUROC: {
+    name: "CUROC",
+    lat: "14.793548724656794",
+    lng: "-88.77184394250352",
+    buildings: [
+      {
+        name: "Edificio Central",
+        lat: "14.79359089570494",
+        lng: "-88.77174500685089",
+      },
+      {
+        name: "Laboratorios",
+        lat: "14.793148479671245",
+        lng: "-88.77161485471171",
+      },
+      {
+        name: "Biblioteca",
+        lat: "14.793100996345268",
+        lng: "-88.77185938738452",
+      },
+      {
+        name: "Centro Experimental de Investigación e Innovación UNAH-CUROC",
+        lat: "14.793153439808075",
+        lng: "-88.7727865535881",
+      },
+    ],
+  },
+  "UNAH-TEC-AGUÁN": {
+    name: "UNAH-TEC-AGUÁN",
+    lat: "15.493792653572447",
+    lng: "-86.58043702316616",
+    buildings: [
+      {
+        name: "Edificio Administrativo",
+        lat: "15.494097893316205",
+        lng: "-86.58070945353802",
+      },
+      {
+        name: "Laboratorios de Innovación Agroindustrial",
+        lat: "15.494212115063707",
+        lng: "-86.58107580938173",
+      },
+    ],
+  },
 };
 
 const TILE_LAYERS = {
@@ -147,6 +208,7 @@ interface LocationPickerProps {
   onLocationChange?: (lat: string, lng: string) => void;
   titleBanner?: string;
   height?: string;
+  isDraggable?: boolean;
 }
 
 export function resolveExactBuildingCoords(
@@ -171,22 +233,27 @@ export function resolveExactBuildingCoords(
   const sedeKey = centroRegional && SEDES_DATA[centroRegional] ? centroRegional : "Ciudad Universitaria";
   const sedeObj = SEDES_DATA[sedeKey];
 
-  const matchedBuilding = sedeObj.buildings.find((b) => fullLoc.startsWith(b.name) || b.name === fullLoc);
+  const matchedBuilding = sedeObj.buildings.find((b) =>
+    fullLoc === b.name ||
+    fullLoc.startsWith(b.name + " - ") ||
+    fullLoc.startsWith(b.name + " | ") ||
+    (fullLoc.startsWith(b.name) && b.name.length > 8)
+  );
 
   let finalLat = "14.084952";
   let finalLng = "-87.164929";
   let buildingName = fullLoc || sedeObj.name;
 
-  if (matchedBuilding) {
-    finalLat = matchedBuilding.lat;
-    finalLng = matchedBuilding.lng;
-    buildingName = matchedBuilding.name;
-  } else if (!isNaN(pLat) && !isNaN(pLng) && pLat !== 0 && pLng !== 0) {
+  if (!isNaN(pLat) && !isNaN(pLng) && pLat !== 0 && pLng !== 0) {
     finalLat = String(pLat);
     finalLng = String(pLng);
   } else if (!isNaN(pipeLat) && !isNaN(pipeLng)) {
     finalLat = String(pipeLat);
     finalLng = String(pipeLng);
+  } else if (matchedBuilding) {
+    finalLat = matchedBuilding.lat;
+    finalLng = matchedBuilding.lng;
+    buildingName = matchedBuilding.name;
   } else {
     finalLat = sedeObj.lat;
     finalLng = sedeObj.lng;
@@ -201,6 +268,7 @@ export function LocationPicker({
   onLocationChange,
   titleBanner,
   height = "260px",
+  isDraggable = false,
 }: LocationPickerProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const fullMapRef = useRef<HTMLDivElement>(null);
@@ -215,6 +283,11 @@ export function LocationPicker({
 
   const [activeLayerKey, setActiveLayerKey] = useState<keyof typeof TILE_LAYERS>("google_roadmap");
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const isDraggableRef = useRef(isDraggable);
+  useEffect(() => {
+    isDraggableRef.current = isDraggable;
+  }, [isDraggable]);
 
   useEffect(() => {
     (async () => {
@@ -257,8 +330,23 @@ export function LocationPicker({
 
     const marker = L.marker([initialLat, initialLng] as L.LatLngExpression, {
       icon: redPinIcon,
-      draggable: false,
+      draggable: isDraggable && !!onLocationChange,
     }).addTo(map);
+
+    if (onLocationChange) {
+      marker.on("dragend", (e: any) => {
+        if (!isDraggableRef.current) return;
+        const pos = e.target.getLatLng();
+        onLocationChange(pos.lat.toString(), pos.lng.toString());
+      });
+
+      map.on("click", (e: any) => {
+        if (!isDraggableRef.current) return;
+        const { lat: clickLat, lng: clickLng } = e.latlng;
+        marker.setLatLng([clickLat, clickLng]);
+        onLocationChange(clickLat.toString(), clickLng.toString());
+      });
+    }
 
     mapInstance.current = map;
     markerInstance.current = marker;
@@ -277,6 +365,16 @@ export function LocationPicker({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leaflet]);
+
+  // Habilitar / deshabilitar arrastre reactivamente segun isDraggable
+  useEffect(() => {
+    if (!markerInstance.current) return;
+    if (isDraggable && onLocationChange) {
+      markerInstance.current.dragging?.enable();
+    } else {
+      markerInstance.current.dragging?.disable();
+    }
+  }, [isDraggable, onLocationChange]);
 
   // Actualizar reactivamente la posición y centrado del mapa cuando cambian lat/lng
   useEffect(() => {
@@ -329,8 +427,23 @@ export function LocationPicker({
 
       const fullMarker = L.marker([curLat, curLng] as L.LatLngExpression, {
         icon: redPinIcon,
-        draggable: false,
+        draggable: isDraggable && !!onLocationChange,
       }).addTo(fullMap);
+
+      if (onLocationChange) {
+        fullMarker.on("dragend", (e: any) => {
+          if (!isDraggableRef.current) return;
+          const pos = e.target.getLatLng();
+          onLocationChange(pos.lat.toString(), pos.lng.toString());
+        });
+
+        fullMap.on("click", (e: any) => {
+          if (!isDraggableRef.current) return;
+          const { lat: clickLat, lng: clickLng } = e.latlng;
+          fullMarker.setLatLng([clickLat, clickLng]);
+          onLocationChange(clickLat.toString(), clickLng.toString());
+        });
+      }
 
       fullMapInstance.current = fullMap;
       fullMarkerInstance.current = fullMarker;
@@ -435,8 +548,11 @@ export function LocationPicker({
         <DialogContent className="max-w-4xl w-[92vw] h-[80vh] max-h-[650px] flex flex-col p-4 z-[99999] overflow-hidden bg-white rounded-2xl">
           <DialogHeader className="pb-2 border-b shrink-0">
             <DialogTitle className="text-base text-[#003366] font-bold flex items-center justify-between">
-              <span>📍 Vista de Inspección en Pantalla Completa</span>
+              <span>📍 Vista de Inspección en Pantalla Completa {titleBanner ? `— ${titleBanner}` : ""}</span>
             </DialogTitle>
+            <p className="text-xs text-slate-500 font-normal mt-0.5">
+              Haz clic en cualquier punto del mapa o arrastra el marcador rojo para colocar la ubicación de tu edificio.
+            </p>
           </DialogHeader>
 
           <div className="flex-1 w-full min-h-0 relative rounded-xl border border-slate-200 overflow-hidden mt-2 shrink">
@@ -449,8 +565,10 @@ export function LocationPicker({
             </span>
             <button
               type="button"
-              onClick={() => setIsFullscreen(false)}
-              className="bg-[#004B87] hover:bg-[#003366] text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors"
+              onClick={() => {
+                setIsFullscreen(false);
+              }}
+              className="bg-[#004B87] hover:bg-[#003366] text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-2xs"
             >
               ✓ Confirmar Ubicación
             </button>

@@ -838,28 +838,44 @@ export function FichaEstudiante() {
         .replace(/\s+/g, " ")
         .trim();
 
-      const nameParts = formData.nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(/\s+/).filter(w => w.length > 2);
+      // ── Validar NOMBRE (ESTRICTO) ──────────────────────────────────────────
+      const nameParts = formData.nombre.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .split(/\s+/).filter(w => w.length >= 3);
 
       let matchingNameParts = 0;
       nameParts.forEach(part => {
-        const corePart = part.length > 4 ? part.substring(0, part.length - 1) : part;
-        if (normalizedOcrText.includes(part) || normalizedOcrText.includes(corePart)) {
+        const stem4 = part.length >= 5 ? part.substring(0, part.length - 1) : part;
+        if (normalizedOcrText.includes(part) || normalizedOcrText.includes(stem4)) {
           matchingNameParts++;
         }
       });
 
-      const nameMatchOk = nameParts.length > 0 ? (matchingNameParts >= Math.min(2, nameParts.length)) : true;
+      console.log("TEXTO OCR ESTUDIANTE:", normalizedOcrText.substring(0, 200));
+      console.log("NOMBRE FORMULARIO:", formData.nombre);
+      console.log("PARTES ENCONTRADAS:", matchingNameParts, "de", nameParts.length);
 
-      // Comparación de cuenta estricta
+      const minPartsRequired = nameParts.length <= 2 ? nameParts.length : Math.ceil(nameParts.length * 0.7);
+      const nameMatchOk = nameParts.length > 0 ? (matchingNameParts >= minPartsRequired) : true;
+
+      // ── Validar NÚMERO DE CUENTA (ESTRICTO EXACTO) ───────────────────────────
       const accountClean = formData.cuenta.trim().replace(/\D/g, '');
       const ocrDigitsOnly = normalizedOcrText.replace(/\D/g, '');
 
-      // Coincide si está en el OCR, o si es una de las cuentas de prueba de la demo (20181001234 o 20241001234)
       let accountMatchOk = false;
-      if (accountClean === "20181001234" || accountClean === "20241001234") {
-        accountMatchOk = true;
-      } else {
-        accountMatchOk = accountClean.length > 0 && ocrDigitsOnly.includes(accountClean);
+
+      // 1) Intentar patrón de cuenta (8 a 11 dígitos)
+      const accountPatternMatch = normalizedOcrText.match(/(?:cuenta|cta\.?)\s*:?\s*(\d{8,11})/i);
+      if (accountPatternMatch) {
+        const foundAccount = accountPatternMatch[1].replace(/\D/g, '');
+        if (foundAccount === accountClean) {
+          accountMatchOk = true;
+        }
+      }
+
+      // 2) Coincidencia exacta del número completo en todos los dígitos leídos
+      if (!accountMatchOk && accountClean.length > 0) {
+        accountMatchOk = ocrDigitsOnly.includes(accountClean);
       }
 
       // Comparación de carrera (normalizando tildes y buscando palabras clave principales)
@@ -964,20 +980,25 @@ export function FichaEstudiante() {
         docTieneFoto
       });
 
-      // El documento se aprueba si cumple la estructura (layout, foto, qr, tablas), el número de cuenta y la foto biométrica facial
-      const shouldApprove = analysis.aspectRatioOk && analysis.qrDetected && analysis.tablesDetected && accountMatchOk && nameMatchOk;
+      // El carnet/Forma 03 se aprueba si:
+      // - Las proporciones son correctas
+      // - Y OBLIGATORIAMENTE tanto el Número de Cuenta como el Nombre Completo coinciden
+      const shouldApprove = analysis.aspectRatioOk && accountMatchOk && nameMatchOk;
+
+      console.log("shouldApprove (Estudiante):", shouldApprove, "| accountMatchOk:", accountMatchOk, "| nameMatchOk:", nameMatchOk);
+
       if (shouldApprove) {
         setErrors([]);
         setForma003Status('verified');
         toast.success(
           documentType === 'forma003'
-            ? `¡Forma 03 verificada y validada biométricamente! Similitud: ${finalSimilarity}%`
-            : `¡Carnet verificado y validado biométricamente! Similitud: ${finalSimilarity}%`
+            ? `¡Forma 03 verificada correctamente! Similitud: ${finalSimilarity}%`
+            : `¡Carnet de estudiante verificado correctamente! Similitud: ${finalSimilarity}%`
         );
       } else {
         setErrors(detectedErrors);
         setForma003Status('failed');
-        toast.error(`La verificación del documento ha fallado.`);
+        toast.error(`La verificación del documento ha fallado. Asegúrese de que su número de cuenta y nombre ingresados coincidan con el carnet.`);
       }
 
     } catch (err: any) {

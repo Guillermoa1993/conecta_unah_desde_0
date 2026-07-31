@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, useBlocker } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -496,6 +496,63 @@ export function FichaEmpleado() {
     });
   };
 
+  /**
+   * Recorta la zona inferior-izquierda del carnet UNAH donde están el N.E. y el nombre completo.
+   * Basado en el layout real: N.E. y nombre ocupan aprox. Y: 55%-92%, X: 0%-65%
+   * Devuelve la imagen recortada preprocesada para OCR.
+   */
+  const cropNameNumberRegion = (base64: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const srcW = img.naturalWidth;
+        const srcH = img.naturalHeight;
+
+        // Zona del nombre y N.E.: parte inferior izquierda del carnet
+        const cropX = 0;
+        const cropY = Math.round(srcH * 0.54); // desde el 54% de altura
+        const cropW = Math.round(srcW * 0.68); // hasta el 68% de ancho
+        const cropH = Math.round(srcH * 0.43); // hasta el final (97%)
+
+        // Escalar 3x para mejor resolución OCR
+        const escala = 3;
+        const canvas = document.createElement('canvas');
+        canvas.width = cropW * escala;
+        canvas.height = cropH * escala;
+        const ctx = canvas.getContext('2d')!;
+
+        // Fondo blanco para el canvas
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Dibujar la región recortada escalada
+        ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+
+        // Preprocesar: escala de grises + inversión + binarización
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        let sumaBrillo = 0;
+        const brillos: number[] = new Array(data.length / 4);
+        for (let i = 0; i < data.length; i += 4) {
+          const b = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+          brillos[i / 4] = b;
+          sumaBrillo += b;
+        }
+        const brilloPromedio = sumaBrillo / brillos.length;
+        const invertir = brilloPromedio < 128; // fondo azul → invertir
+        for (let i = 0; i < data.length; i += 4) {
+          let b = brillos[i / 4];
+          if (invertir) b = 255 - b;
+          const v = b > brilloPromedio ? 255 : 0;
+          data[i] = v; data[i + 1] = v; data[i + 2] = v;
+        }
+        ctx.putImageData(imageData, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => resolve(base64);
+      img.src = base64;
+    });
+  };
 
 
   // Analiza la imagen con Canvas API para verificar la estructura visual y proporciones
@@ -703,22 +760,35 @@ export function FichaEmpleado() {
 
       setScanStepName("Ejecutando OCR para lectura de texto oficial (esto puede demorar unos segundos)...");
 
+      // OCR completo del carnet
       const ocrResult = await Tesseract.recognize(
         imagenParaOcr,
         'spa',
         {
           logger: (m) => {
             if (m.status === 'recognizing text') {
-              setScanProgress(45 + Math.round(m.progress * 25));
-              setScanStepName(`Reconociendo caracteres: ${Math.round(m.progress * 100)}%`);
+              setScanProgress(45 + Math.round(m.progress * 20));
+              setScanStepName(`Reconociendo texto completo: ${Math.round(m.progress * 100)}%`);
             }
           }
         }
       );
 
-      console.log("RESULTADO OCR COMPLETO:", ocrResult.data.text);
+      // OCR específico de la zona del N.E. y nombre (abajo-izquierda)
+      setScanProgress(65);
+      setScanStepName("Leyendo zona de nombre y número de empleado...");
+      const regionNombreNe = await cropNameNumberRegion(forma003);
+      const ocrRegionResult = await Tesseract.recognize(
+        regionNombreNe,
+        'spa',
+        { logger: () => {} }
+      );
 
-      const ocrText = ocrResult.data.text;
+      console.log("OCR COMPLETO:", ocrResult.data.text);
+      console.log("OCR ZONA N.E./NOMBRE:", ocrRegionResult.data.text);
+
+      // Combinar ambos textos para máxima cobertura
+      const ocrText = ocrResult.data.text + "\n" + ocrRegionResult.data.text;
       const cleanText = ocrText.toLowerCase();
 
       // Paso 3: Validar palabras clave obligatorias del documento oficial
@@ -759,32 +829,52 @@ export function FichaEmpleado() {
 
 
 
-      const nameParts = formData.nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(/\s+/).filter(w => w.length > 2);
+      // ── Validar NOMBRE (ESTRICTO) ──────────────────────────────────────────
+      // Normalizar nombre del formulario: sin tildes, minúsculas, solo palabras de 3+ letras
+      const nameParts = formData.nombre.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .split(/\s+/).filter(w => w.length >= 3);
 
       let matchingNameParts = 0;
       nameParts.forEach(part => {
-        const corePart = part.length > 4 ? part.substring(0, part.length - 1) : part;
-        if (normalizedOcrText.includes(part) || normalizedOcrText.includes(corePart)) {
+        // Buscar palabra exacta o prefijo de al menos 4 letras si la palabra es larga
+        const stem4 = part.length >= 5 ? part.substring(0, part.length - 1) : part;
+        if (normalizedOcrText.includes(part) || normalizedOcrText.includes(stem4)) {
           matchingNameParts++;
         }
       });
 
-      console.log("TEXTO OCR CARNET:", normalizedOcrText);
+      console.log("TEXTO OCR COMPLETO:", normalizedOcrText.substring(0, 200));
       console.log("NOMBRE FORMULARIO:", formData.nombre);
       console.log("PARTES DEL NOMBRE:", nameParts);
-      console.log("PARTES ENCONTRADAS:", matchingNameParts);
+      console.log("PARTES ENCONTRADAS:", matchingNameParts, "de", nameParts.length);
 
-      // Con que coincida al menos 2 partes del nombre o el 50% de las partes ingresadas, se considera válido
-      const nameMatchOk = nameParts.length > 0 ? (matchingNameParts >= Math.min(2, nameParts.length)) : true;
+      // Exigir que coincida al menos el 70% de las palabras ingresadas (ej: mínimo 2 de 3 palabras)
+      const minPartsRequired = nameParts.length <= 2 ? nameParts.length : Math.ceil(nameParts.length * 0.7);
+      const nameMatchOk = nameParts.length > 0 ? (matchingNameParts >= minPartsRequired) : true;
 
-      // Comparación de número de empleado estricta
+      // ── Validar NÚMERO DE EMPLEADO (ESTRICTO EXACTO) ─────────────────────────
       const employeeNumClean = formData.numeroEmpleado.trim().replace(/\D/g, '');
       const ocrDigitsOnly = normalizedOcrText.replace(/\D/g, '');
 
-      // Comparación estricta del número de empleado contra el OCR del carnet
-      const employeeNumMatchOk =
-        employeeNumClean.length > 0 &&
-        ocrDigitsOnly.includes(employeeNumClean);
+      let employeeNumMatchOk = false;
+
+      // 1) Intentar extraer número exacto después del patrón "N.E." o "NE" en el OCR
+      const nePatternMatch = normalizedOcrText.match(/n\.?\s*e\.?\s*(\d{3,})/i);
+      if (nePatternMatch) {
+        const foundNeNumber = nePatternMatch[1].replace(/\D/g, '');
+        console.log("Número encontrado vía patrón N.E.:", foundNeNumber);
+        if (foundNeNumber === employeeNumClean) {
+          employeeNumMatchOk = true;
+        }
+      }
+
+      // 2) Coincidencia exacta estricta del número completo dentro de los dígitos escaneados
+      if (!employeeNumMatchOk && employeeNumClean.length > 0) {
+        employeeNumMatchOk = ocrDigitsOnly.includes(employeeNumClean);
+      }
+
+      console.log("N.E. INGRESADO:", employeeNumClean, "| DÍGITOS OCR:", ocrDigitsOnly.substring(0, 80), "| MATCH EXACTO:", employeeNumMatchOk);
 
       // Comparación de departamento (normalizando tildes y buscando palabras clave principales)
       const facultyClean = formData.facultad.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -828,22 +918,28 @@ export function FichaEmpleado() {
 
       if (analysis.photoDetected && formData.foto) {
         setScanStepName("Extrayendo fotografía del carnet cargado...");
-        croppedPhotoUrl = await cropDocumentPhoto(forma003);
-        setCroppedDocPhoto(croppedPhotoUrl);
-        await new Promise(r => setTimeout(r, 600));
+        try {
+          croppedPhotoUrl = await cropDocumentPhoto(forma003);
+          setCroppedDocPhoto(croppedPhotoUrl);
+          await new Promise(r => setTimeout(r, 400));
 
-        setScanStepName("Analizando similitud facial y patrones biométricos...");
-        const resultado = await compararRostros(formData.foto, croppedPhotoUrl);
-        faceMatchScore = resultado.similitud;
-        faceMatchOk = resultado.coincide;
-        setFaceSimilarityScore(faceMatchScore);
-        await new Promise(r => setTimeout(r, 600));
+          setScanStepName("Analizando similitud facial (opcional)...");
+          const resultado = await compararRostros(formData.foto, croppedPhotoUrl);
+          faceMatchScore = resultado.similitud;
+          faceMatchOk = resultado.coincide;
+          setFaceSimilarityScore(faceMatchScore);
+        } catch (faceErr: any) {
+          // El cotejo facial es informativo, no bloquea la validación
+          console.warn("Cotejo facial omitido (modelos no disponibles o imagen incompatible):", faceErr?.message || faceErr);
+          faceMatchOk = true; // no penalizar si faceapi no pudo cargar
+          faceMatchScore = 0;
+          setFaceSimilarityScore(null);
+        }
       } else {
         setCroppedDocPhoto(null);
-        setFaceSimilarityScore(0);
-        detectedErrors.push(
-          "No se detectó un rostro en el carnet para realizar el cotejo facial."
-        );
+        setFaceSimilarityScore(null);
+        // Si no hay foto detectada en el carnet, no penalizar — el OCR ya valida los datos
+        faceMatchOk = true;
       }
 
       if (!faceMatchOk && analysis.photoDetected) {
@@ -883,15 +979,16 @@ export function FichaEmpleado() {
         faceMatchOk
       });
 
-      // El carnet se aprueba si cumple la estructura (layout, foto, qr), el número de empleado y la foto biométrica facial
-      // El carnet se aprueba si cumple la estructura básica, el número de empleado y el nombre
+      // El carnet se aprueba si:
+      // - Las proporciones son correctas (formato horizontal)
+      // - Y OBLIGATORIAMENTE tanto el Nombre como el Número de Empleado coinciden
       const shouldApprove =
         analysis.aspectRatioOk &&
-        analysis.qrDetected &&
         employeeNumMatchOk &&
         nameMatchOk;
 
       console.log("ERRORES DETECTADOS:", detectedErrors);
+      console.log("shouldApprove:", shouldApprove, "| aspectRatioOk:", analysis.aspectRatioOk, "| employeeNumMatchOk:", employeeNumMatchOk, "| nameMatchOk:", nameMatchOk);
 
       if (shouldApprove) {
         setErrors([]);
@@ -900,17 +997,7 @@ export function FichaEmpleado() {
       } else {
         setErrors(detectedErrors);
         setForma003Status('failed');
-        toast.error(`La verificación del carnet ha fallado.`);
-      }
-
-      if (shouldApprove) {
-        setErrors([]);
-        setForma003Status('verified');
-        toast.success(`¡Carnet de empleado verificado correctamente! Similitud general: ${finalSimilarity}%`);
-      } else {
-        setErrors(detectedErrors);
-        setForma003Status('failed');
-        toast.error(`La verificación del carnet ha fallado.`);
+        toast.error(`La verificación del carnet ha fallado. Asegúrese de que el nombre y el número de empleado ingresados coincidan con los de su carnet.`);
       }
 
     } catch (err: any) {

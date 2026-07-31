@@ -7,18 +7,23 @@ export function eventoRouter(ctrl: EventoController): Router {
 
   // Públicos (requieren solo autenticación)
   r.get('/', autenticar, ctrl.getAll);
-  r.get('/mis-eventos', autenticar, autorizar('TUTOR'), ctrl.getMios);
-  r.get('/pendientes', autenticar, autorizar('VOAE', 'ADMIN'), ctrl.getPendientes);
+  r.get('/mis-eventos', autenticar, ctrl.getMios);
+  // VOAE / Depto / Admin: pendientes, aprobar o rechazar
+  r.get('/pendientes', autenticar, autorizar('VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'ADMIN'), ctrl.getPendientes);
   r.get('/:id', autenticar, ctrl.getById);
 
-  // Tutor: crear y editar sus eventos
-  r.post('/', autenticar, autorizar('TUTOR'), ctrl.create);
-  r.put('/:id', autenticar, autorizar('TUTOR', 'ADMIN'), ctrl.update);
-  r.delete('/:id', autenticar, autorizar('TUTOR', 'ADMIN'), ctrl.delete);
+  // Cualquier usuario autenticado (Organizador): crear, editar y eliminar sus propuestas
+  r.post('/', autenticar, ctrl.create);
+  r.put('/:id', autenticar, ctrl.update);
+  r.delete('/:id', autenticar, ctrl.delete);
 
-  // VOAE/Admin: aprobar o rechazar
-  r.patch('/:id/aprobar', autenticar, autorizar('VOAE', 'ADMIN'), ctrl.aprobar);
-  r.patch('/:id/rechazar', autenticar, autorizar('VOAE', 'ADMIN'), ctrl.rechazar);
+  // Evaluaciones y Comentarios de Estudiantes
+  r.get('/:id/evaluaciones', autenticar, ctrl.getEvaluaciones);
+  r.post('/:id/evaluaciones', autenticar, ctrl.crearEvaluacion);
+
+  // VOAE / Depto / Admin: aprobar o rechazar
+  r.patch('/:id/aprobar', autenticar, autorizar('VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'ADMIN'), ctrl.aprobar);
+  r.patch('/:id/rechazar', autenticar, autorizar('VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'ADMIN'), ctrl.rechazar);
 
   return r;
 }

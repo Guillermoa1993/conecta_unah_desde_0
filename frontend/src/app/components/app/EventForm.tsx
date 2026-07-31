@@ -143,7 +143,7 @@ function buildFormDefaults(user: { name?: string }, initialEvent?: UniEvent): Fo
       ubicacion: uRaw,
       enlace_virtual: initialEvent.enlace_virtual || "",
       cupo_maximo: String(initialEvent.cupo_maximo),
-      tutor_responsable: initialEvent.tutor_nombre || user.name || "Dr. Carlos Mendoza",
+      tutor_responsable: initialEvent.tutor_nombre || user.name || "Organizador del evento",
       usa_imagen_personalizada: initialEvent.usa_imagen_personalizada,
       latitud: resolvedLat,
       longitud: resolvedLng,
@@ -167,7 +167,7 @@ function buildFormDefaults(user: { name?: string }, initialEvent?: UniEvent): Fo
     ubicacion: "",
     enlace_virtual: "",
     cupo_maximo: "",
-    tutor_responsable: user.name || "Dr. Carlos Mendoza",
+    tutor_responsable: user.name || "Organizador del evento",
     usa_imagen_personalizada: false,
     latitud: "",
     longitud: "",
@@ -494,6 +494,24 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
 
   const [data, setData] = useState<FormData>(() => buildFormDefaults(user, initialEvent));
 
+  const [isCustomBuilding, setIsCustomBuilding] = useState<boolean>(() => {
+    if (!initialEvent) return false;
+    const u = (initialEvent as any).ubicacion || initialEvent.lugar || "";
+    const bName = u.split("|")[0].split(" - ")[0];
+    const currentSedeData = SEDES_DATA[initialEvent.centro_regional || "Ciudad Universitaria"] || SEDES_DATA["Ciudad Universitaria"];
+    const matched = currentSedeData.buildings.some((b) => bName.startsWith(b.name));
+    return !matched && !!bName;
+  });
+
+  const [customBuildingText, setCustomBuildingText] = useState<string>(() => {
+    if (!initialEvent) return "";
+    const u = (initialEvent as any).ubicacion || initialEvent.lugar || "";
+    const bName = u.split("|")[0].split(" - ")[0];
+    const currentSedeData = SEDES_DATA[initialEvent.centro_regional || "Ciudad Universitaria"] || SEDES_DATA["Ciudad Universitaria"];
+    const matched = currentSedeData.buildings.some((b) => bName.startsWith(b.name));
+    return !matched ? bName : "";
+  });
+
   const isEdit = !!initialEvent;
 
   const hasUnsavedData =
@@ -523,8 +541,8 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       e.titulo =
         "Solo se permiten letras, números, puntos, comas, dos puntos, asteriscos e iguales";
     if (!d.descripcion.trim()) e.descripcion = "La descripción del evento es obligatoria";
-    else if (d.descripcion.trim().split(/\s+/).length > 100)
-      e.descripcion = "La descripción no puede exceder 100 palabras";
+    else if (d.descripcion.trim().split(/\s+/).length > 250)
+      e.descripcion = "La descripción no puede exceder 250 palabras";
     else if (!DESC_RE.test(d.descripcion)) e.descripcion = "Caracteres no permitidos detectados";
     if (d.ubicacion && d.ubicacion.length > 200) e.ubicacion = "No puede exceder 200 caracteres";
     if (d.ubicacion && !UBICACION_RE.test(d.ubicacion))
@@ -547,7 +565,15 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       e.hora_fin = "El horario de fin debe ser posterior al horario de inicio.";
     }
     if (d.tipo_actividad !== "Virtual") {
-      if (!d.ubicacion.trim()) e.ubicacion = "La ubicación física es obligatoria";
+      if (isCustomBuilding) {
+        if (!customBuildingText.trim()) {
+          e.ubicacion = "Escribe el nombre del edificio o ubicación personalizada";
+        }
+      } else {
+        if (!d.ubicacion.trim()) {
+          e.ubicacion = "La ubicación física es obligatoria";
+        }
+      }
     }
     if (d.tipo_actividad !== "Presencial") {
       if (!d.enlace_virtual.trim()) {
@@ -593,8 +619,8 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
     if (field === "descripcion") {
       const cleaned = value.replace(/[<>{}[\]]/g, "");
       const words = cleaned.trim() ? cleaned.trim().split(/\s+/) : [];
-      if (words.length <= 100) return cleaned;
-      return words.slice(0, 100).join(" ");
+      if (words.length <= 250) return cleaned;
+      return words.slice(0, 250).join(" ");
     }
     if (field === "ubicacion")
       return value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ0-9\s,.\-#:=*()+#@!?¿¡"'/_&|%?=+&]/g, "").slice(0, 250);
@@ -605,10 +631,8 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
     const filtered = typeof value === "string" ? filterInput(field, value) : value;
     const next = { ...data, [field]: filtered };
     setData(next);
-    if (touched[field]) {
-      const errs = validate(next);
-      setErrors(errs);
-    }
+    const errs = validate(next);
+    setErrors(errs);
   };
 
   const blur = (field: keyof FormData) => {
@@ -633,6 +657,44 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
     return typeof v === "string" && v.trim().length > 0;
   });
 
+  const getDetectedCategoryInfo = () => {
+    if (data.tipo_evento === "SIN_HORAS") {
+      return { labelText: "Recreación", theme: "recreational" };
+    }
+    const checkedCats = categoriasHoras.filter((c) => c.checked);
+    if (checkedCats.length > 0) {
+      const labelMap: Record<string, string> = {
+        ACADEMICO: "Académico",
+        CULTURAL: "Cultural",
+        DEPORTIVO: "Deportivo",
+        SOCIAL: "Social",
+        RECREACION: "Recreativo",
+      };
+      const catNames = checkedCats.map((c) => labelMap[c.categoria] || c.categoria);
+      const labelText = catNames.join(" / ");
+
+      const primaryCat = checkedCats[0].categoria;
+      let theme = "academic";
+      if (primaryCat === "CULTURAL") theme = "art";
+      else if (primaryCat === "DEPORTIVO") theme = "sports";
+      else if (primaryCat === "SOCIAL") theme = "social";
+      else if (primaryCat === "ACADEMICO") theme = "academic";
+
+      return { labelText, theme };
+    }
+    const labelMap: Record<string, string> = {
+      ACADEMICO: "Académico",
+      CULTURAL: "Cultural",
+      DEPORTIVO: "Deportivo",
+      SOCIAL: "Social",
+      RECREACION: "Recreativo",
+    };
+    return {
+      labelText: labelMap[data.categoria] || data.categoria || "Académico",
+      theme: "academic",
+    };
+  };
+
   const handleNext = () => {
     const errs = validate(data);
     setErrors(errs);
@@ -654,7 +716,11 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       }
     }
     const currentFields =
-      currentStep === 1 ? (["titulo", "descripcion"] as (keyof FormData)[]) : step2RequiredFields();
+      currentStep === 1
+        ? (["titulo", "descripcion"] as (keyof FormData)[])
+        : currentStep === 2
+          ? step2RequiredFields()
+          : [];
     setTouched((prev) => {
       const next = { ...prev };
       currentFields.forEach((f) => {
@@ -668,28 +734,10 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       return;
     }
 
-    if (currentStep === 3) {
-      if (!imgPortada) {
-        const isRecreativo = data.tipo_evento !== "HORAS_VOAE";
-        let pCat = "RECREACION";
-        let themeToUse = "recreational";
-        if (!isRecreativo) {
-          const checkedCatsWithHours = categoriasHoras.filter((c) => c.checked && c.horas > 0);
-          const checkedCatsAll = categoriasHoras.filter((c) => c.checked);
-          pCat = checkedCatsWithHours.length > 0
-            ? checkedCatsWithHours[0].categoria
-            : (checkedCatsAll.length > 0 ? checkedCatsAll[checkedCatsAll.length - 1].categoria : data.categoria);
-          const autoThemeMap: Record<string, string> = {
-            ACADEMICO: "academic",
-            CULTURAL: "art",
-            DEPORTIVO: "sports",
-            SOCIAL: "social",
-          };
-          themeToUse = autoThemeMap[pCat] || "academic";
-        }
-        const autoCover = generateAiCoverCanvas(data.titulo, isRecreativo ? "Recreación" : pCat, themeToUse);
-        setImgPortada(autoCover);
-      }
+    if (!data.usa_imagen_personalizada || !imgPortada) {
+      const { labelText, theme } = getDetectedCategoryInfo();
+      const autoCover = generateAiCoverCanvas(data.titulo, labelText, theme);
+      setImgPortada(autoCover);
     }
 
     setCurrentStep((s) => Math.min(s + 1, 4));
@@ -752,19 +800,21 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       ? checkedCategorias.map((ch) => ({ categoria: ch.categoria, horas: ch.horas }))
       : undefined;
 
-    const isRecreativoSubmit = data.tipo_evento !== "HORAS_VOAE";
-    const autoThemeMap: Record<string, string> = {
-      ACADEMICO: "academic",
-      CULTURAL: "art",
-      DEPORTIVO: "sports",
-      SOCIAL: "social",
-    };
-    const themeToUse = isRecreativoSubmit ? "recreational" : (autoThemeMap[primaryCategoria] || "academic");
-    const finalPortada = imgPortada || generateAiCoverCanvas(
-      data.titulo,
-      isRecreativoSubmit ? "Recreación" : primaryCategoria,
-      themeToUse
-    );
+    const { labelText, theme } = getDetectedCategoryInfo();
+    const autoCover = generateAiCoverCanvas(data.titulo, labelText, theme);
+    const finalPortada = (data.usa_imagen_personalizada && imgPortada) ? imgPortada : autoCover;
+
+    const currentSedeData = SEDES_DATA[data.centro_regional] || SEDES_DATA["Ciudad Universitaria"];
+    let finalUbicacion = data.ubicacion || data.enlace_virtual || "";
+    if (data.tipo_actividad !== "Virtual" && isCustomBuilding) {
+      const cleanText = customBuildingText.trim();
+      const curLat = data.latitud || currentSedeData.lat;
+      const curLng = data.longitud || currentSedeData.lng;
+      const link = `https://www.google.com/maps/search/?api=1&query=${curLat},${curLng}`;
+      if (cleanText) {
+        finalUbicacion = `${cleanText}|${link}|${curLat},${curLng}`;
+      }
+    }
 
     const payload = {
       titulo: data.titulo,
@@ -775,7 +825,10 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
       fecha_fin: data.fecha_fin + "T" + data.hora_fin + ":00",
       duracion_horas: calcDuration(),
       cupo_maximo: parseInt(data.cupo_maximo, 10) || 0,
-      lugar: data.ubicacion || data.enlace_virtual || "",
+      lugar: finalUbicacion,
+      ubicacion: finalUbicacion,
+      latitud: data.latitud ? parseFloat(data.latitud) : undefined,
+      longitud: data.longitud ? parseFloat(data.longitud) : undefined,
       tipo_actividad: data.tipo_actividad,
       centro_regional: data.centro_regional,
       usa_imagen_personalizada: data.usa_imagen_personalizada,
@@ -844,6 +897,27 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
     reader.readAsDataURL(file);
   };
 
+  const getCreatorName = () => {
+    try {
+      const rawUser = localStorage.getItem("unah_usuario") || sessionStorage.getItem("unah_usuario");
+      if (rawUser) {
+        const parsed = JSON.parse(rawUser);
+        if (parsed?.nombre) return parsed.nombre;
+      }
+    } catch (e) {
+      // fallo al parsear json
+    }
+    return (
+      localStorage.getItem("unah_nombre") ||
+      sessionStorage.getItem("unah_nombre") ||
+      user?.name ||
+      (user as any)?.nombre ||
+      "Organizador Universitario"
+    );
+  };
+
+  const creatorName = getCreatorName();
+
   const renderStep1 = () => (
     <div className="h-full flex flex-col justify-center">
       <div className="space-y-3">
@@ -851,7 +925,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
           <CheckCircle2 className="size-5 text-green-500 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium">
-              Evento creado por: <span className="font-semibold">{user.name}</span>
+              Evento creado por: <span className="font-semibold">{creatorName}</span>
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
               Detectado automáticamente desde tu cuenta institucional.
@@ -1092,14 +1166,14 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
             onChange={(e) => set("descripcion", e.target.value)}
             onBlur={() => blur("descripcion")}
             rows={2}
-            placeholder="Describe los objetivos y contenido del evento (máximo 100 palabras)..."
+            placeholder="Describe los objetivos y contenido del evento (máximo 250 palabras)..."
             className={cn("mt-1", errors.descripcion && "border-red-500")}
           />
           {errors.descripcion && (
             <p className="text-xs mt-0.5 text-red-800">{errors.descripcion}</p>
           )}
           <p className="text-[10px] text-muted-foreground text-right mt-0.5">
-            {data.descripcion.trim() ? data.descripcion.trim().split(/\s+/).length : 0} / 100
+            {data.descripcion.trim() ? data.descripcion.trim().split(/\s+/).length : 0} / 250
             palabras
           </p>
         </div>
@@ -1173,9 +1247,14 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
 
           const currentSedeData = SEDES_DATA[data.centro_regional] || SEDES_DATA["Ciudad Universitaria"];
 
-          // Parseo seguro del edificio y aula sin romper nombres con guiones (ej. Biblioteca – UNAH)
-          const matchedBuilding = currentSedeData.buildings.find((b) => fullUbicacion.startsWith(b.name));
-          const buildingName = matchedBuilding ? matchedBuilding.name : (fullUbicacion.includes(" - ") ? fullUbicacion.split(" - ")[0] : fullUbicacion);
+          const matchedBuilding = isCustomBuilding
+            ? undefined
+            : currentSedeData.buildings.find((b) => fullUbicacion === b.name || fullUbicacion.startsWith(b.name + " - "));
+
+          const buildingName = isCustomBuilding
+            ? customBuildingText
+            : (matchedBuilding ? matchedBuilding.name : (fullUbicacion.includes(" - ") ? fullUbicacion.split(" - ")[0] : fullUbicacion));
+
           const aulaName = matchedBuilding
             ? fullUbicacion.slice(matchedBuilding.name.length).replace(/^ - /, "")
             : (fullUbicacion.includes(" - ") ? fullUbicacion.split(" - ").slice(1).join(" - ") : "");
@@ -1227,21 +1306,45 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                     Edificio / Ubicación física <span className="text-red-500">*</span>
                   </Label>
                   <select
-                    value={buildingName}
+                    value={isCustomBuilding ? "OTRO" : buildingName}
                     onChange={(e) => {
                       const val = e.target.value;
-                      const bObj = currentSedeData.buildings.find((b) => b.name === val);
-                      const bLat = bObj ? bObj.lat : currentSedeData.lat;
-                      const bLng = bObj ? bObj.lng : currentSedeData.lng;
-                      const fullLoc = aulaName ? `${val} - ${aulaName}` : val;
-                      const link = `https://www.google.com/maps/search/?api=1&query=${bLat},${bLng}`;
+                      if (val === "OTRO") {
+                        setIsCustomBuilding(true);
+                        const bLat = data.latitud || currentSedeData.lat;
+                        const bLng = data.longitud || currentSedeData.lng;
+                        const currentText = customBuildingText || "";
+                        const fullLocStr = aulaName ? `${currentText} - ${aulaName}` : currentText;
+                        const link = `https://www.google.com/maps/search/?api=1&query=${bLat},${bLng}`;
 
-                      setData((prev) => ({
-                        ...prev,
-                        latitud: bLat,
-                        longitud: bLng,
-                        ubicacion: val ? `${fullLoc}|${link}|${bLat},${bLng}` : ""
-                      }));
+                        setData((prev) => ({
+                          ...prev,
+                          latitud: bLat,
+                          longitud: bLng,
+                          ubicacion: currentText ? `${fullLocStr}|${link}|${bLat},${bLng}` : ""
+                        }));
+                        if (currentText.trim()) {
+                          setErrors((prev) => ({ ...prev, ubicacion: undefined }));
+                        }
+                      } else {
+                        setIsCustomBuilding(false);
+                        setCustomBuildingText("");
+                        const bObj = currentSedeData.buildings.find((b) => b.name === val);
+                        const bLat = bObj ? bObj.lat : currentSedeData.lat;
+                        const bLng = bObj ? bObj.lng : currentSedeData.lng;
+                        const fullLocStr = aulaName ? `${val} - ${aulaName}` : val;
+                        const link = `https://www.google.com/maps/search/?api=1&query=${bLat},${bLng}`;
+
+                        setData((prev) => ({
+                          ...prev,
+                          latitud: bLat,
+                          longitud: bLng,
+                          ubicacion: val ? `${fullLocStr}|${link}|${bLat},${bLng}` : ""
+                        }));
+                        if (val) {
+                          setErrors((prev) => ({ ...prev, ubicacion: undefined }));
+                        }
+                      }
                     }}
                     onBlur={() => blur("ubicacion")}
                     className={cn(
@@ -1255,8 +1358,42 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                         {b.name}
                       </option>
                     ))}
+                    <option value="OTRO">📍 Otro / No encontré mi edificio (Especificar manualmente)</option>
                   </select>
                   {errors.ubicacion && <p className="text-xs mt-0.5 text-red-800">{errors.ubicacion}</p>}
+
+                  {isCustomBuilding && (
+                    <div className="mt-2 space-y-1 animate-in fade-in duration-200">
+                      <Label className="text-xs font-bold text-[#003366]">
+                        Nombre del Edificio / Ubicación personalizada <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        value={customBuildingText}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCustomBuildingText(val);
+                          const fullLocStr = aulaName ? `${val} - ${aulaName}` : val;
+                          setData((prev) => {
+                            const curLat = prev.latitud || currentSedeData.lat;
+                            const curLng = prev.longitud || currentSedeData.lng;
+                            const link = `https://www.google.com/maps/search/?api=1&query=${curLat},${curLng}`;
+                            return {
+                              ...prev,
+                              ubicacion: val ? `${fullLocStr}|${link}|${curLat},${curLng}` : ""
+                            };
+                          });
+                          if (val.trim()) {
+                            setErrors((prev) => ({ ...prev, ubicacion: undefined }));
+                          }
+                        }}
+                        placeholder="Escribe el nombre de tu edificio o ubicación..."
+                        className="h-11 bg-white border-blue-300 focus:border-[#004B87]"
+                      />
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        ℹ️ Escribe el nombre del edificio y marca la ubicación en el mapa haciendo clic o arrastrando el marcador.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -1267,11 +1404,12 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                     value={aulaName}
                     onChange={(e) => {
                       const val = e.target.value;
-                      const fullLoc = val ? `${buildingName} - ${val}` : buildingName;
+                      const activeBName = isCustomBuilding ? customBuildingText : buildingName;
+                      const fullLocStr = val ? `${activeBName} - ${val}` : activeBName;
                       const link = `https://www.google.com/maps/search/?api=1&query=${resolvedLat},${resolvedLng}`;
                       setData((prev) => ({
                         ...prev,
-                        ubicacion: buildingName ? `${fullLoc}|${link}|${resolvedLat},${resolvedLng}` : ""
+                        ubicacion: activeBName ? `${fullLocStr}|${link}|${resolvedLat},${resolvedLng}` : ""
                       }));
                     }}
                     placeholder="Ej. Aula 101, Cubículo 4..."
@@ -1280,23 +1418,41 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                 </div>
               </div>
 
-              {/* Mini Preview del Mapa con Coordenadas Predefinidas Exactas */}
+              {/* Mini Preview del Mapa con Coordenadas Predefinidas Exactas o Personalizadas */}
               <div className="space-y-1 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs">
                 <Label className="text-xs font-bold text-[#003366] uppercase tracking-wider block">
-                  📍 Ubicación en Mapa (Coordenadas Predefinidas Exactas)
+                  📍 Ubicación en Mapa ({isCustomBuilding ? "Ubicación Personalizada Marcada en Mapa" : "Coordenadas Predefinidas Exactas"})
                 </Label>
                 <LocationPicker
                   lat={resolvedLat}
                   lng={resolvedLng}
-                  titleBanner={buildingName ? `${buildingName} (${data.centro_regional})` : data.centro_regional}
+                  isDraggable={isCustomBuilding}
+                  titleBanner={
+                    isCustomBuilding
+                      ? (customBuildingText ? `Edificio: ${customBuildingText}` : `Ubicación Personalizada (${data.centro_regional})`)
+                      : (buildingName ? `${buildingName} (${data.centro_regional})` : data.centro_regional)
+                  }
                   onLocationChange={(nLat: string, nLng: string) => {
+                    const activeBName = isCustomBuilding ? customBuildingText : buildingName;
+                    const fullLocStr = aulaName ? `${activeBName} - ${aulaName}` : activeBName;
+                    const link = `https://www.google.com/maps/search/?api=1&query=${nLat},${nLng}`;
                     setData((prev) => ({
                       ...prev,
                       latitud: nLat,
                       longitud: nLng,
+                      ubicacion: activeBName ? `${fullLocStr}|${link}|${nLat},${nLng}` : prev.ubicacion
                     }));
                   }}
                 />
+                <div className="mt-2 flex items-center justify-between gap-2 px-3.5 py-2 bg-slate-50 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 shadow-2xs">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <MapPin className="size-4 text-[#004B87] shrink-0" />
+                    <span className="truncate">Coordenadas GPS:</span>
+                  </div>
+                  <span className="font-mono bg-white px-2.5 py-0.5 rounded-md border border-slate-200 text-[#004B87] shrink-0">
+                    Lat: {resolvedLat} | Lng: {resolvedLng}
+                  </span>
+                </div>
               </div>
             </div>
           );
@@ -1398,42 +1554,57 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <select
-                      value={aiTheme}
-                      onChange={(e) => setAiTheme(e.target.value)}
-                      className="h-9 text-xs rounded-xl border border-indigo-200 bg-white px-3 font-semibold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                    >
-                      <option value="academic">🎓 Académico UNAH</option>
-                      <option value="tech">🚀 Tech & Futurista</option>
-                      <option value="art">🎨 Arte & Cultura</option>
-                      <option value="sports">🏆 Deportes & Salud</option>
-                      <option value="social">🤝 Social & Comunidad</option>
-                    </select>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setIsGeneratingAiCover(true);
+                      setTimeout(() => {
+                        let detectedCategory = "INSTITUCIONAL";
+                        let themeToUse = "academic";
 
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        setIsGeneratingAiCover(true);
-                        setTimeout(() => {
-                          const aiImg = generateAiCoverCanvas(data.titulo, data.categoria, aiTheme);
-                          if (aiImg) {
-                            setImgPortada(aiImg);
-                            set("usa_imagen_personalizada", true);
-                            toast.success("¡Portada generada exitosamente con IA!");
-                          } else {
-                            toast.error("Error al generar portada con IA");
+                        if (data.tipo_evento === "SIN_HORAS") {
+                          detectedCategory = "RECREATIVO";
+                          themeToUse = "recreational";
+                        } else {
+                          const checkedCats = categoriasHoras.filter((c) => c.checked);
+                          if (checkedCats.length > 0) {
+                            const catNames = checkedCats.map((c) => {
+                              const labelMap: Record<string, string> = {
+                                ACADEMICO: "Académico",
+                                CULTURAL: "Cultural",
+                                DEPORTIVO: "Deportivo",
+                                SOCIAL: "Social",
+                                RECREACION: "Recreativo",
+                              };
+                              return labelMap[c.categoria] || c.categoria;
+                            });
+                            detectedCategory = catNames.join(" / ");
+
+                            const primaryCat = checkedCats[0].categoria;
+                            if (primaryCat === "CULTURAL") themeToUse = "art";
+                            else if (primaryCat === "DEPORTIVO") themeToUse = "sports";
+                            else if (primaryCat === "SOCIAL") themeToUse = "social";
+                            else if (primaryCat === "ACADEMICO") themeToUse = "academic";
                           }
-                          setIsGeneratingAiCover(false);
-                        }, 250);
-                      }}
-                      disabled={isGeneratingAiCover}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs h-9 gap-1.5 rounded-xl shadow-xs transition-colors"
-                    >
-                      <Wand2 className="size-3.5" />
-                      {isGeneratingAiCover ? "Generando..." : "Generar Portada IA"}
-                    </Button>
-                  </div>
+                        }
+
+                        const aiImg = generateAiCoverCanvas(data.titulo, detectedCategory, themeToUse);
+                        if (aiImg) {
+                          setImgPortada(aiImg);
+                          set("usa_imagen_personalizada", true);
+                          toast.success(`¡Portada IA generada automáticamente para ámbito(s): ${detectedCategory}!`);
+                        } else {
+                          toast.error("Error al generar portada con IA");
+                        }
+                        setIsGeneratingAiCover(false);
+                      }, 250);
+                    }}
+                    disabled={isGeneratingAiCover}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs h-9 gap-1.5 rounded-xl shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Wand2 className="size-3.5" />
+                    {isGeneratingAiCover ? "Generando..." : "Generar Portada IA"}
+                  </Button>
                 </div>
               </div>
 
@@ -1466,8 +1637,18 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                 {imgPortada ? (
                   <div className="flex flex-col items-center gap-2">
                     <img src={imgPortada} alt="Portada Generada/Subida" className="max-h-28 rounded-lg object-contain border border-slate-200 shadow-2xs" />
-                    <div className="flex items-center gap-3 mt-1">
+                    <div className="flex items-center gap-2.5 mt-1 flex-wrap justify-center">
                       <span className="text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">✓ Portada Lista</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          portadaInputRef.current?.click();
+                        }}
+                        className="text-xs font-bold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md border border-indigo-200 transition-colors flex items-center gap-1.5"
+                      >
+                        <Upload className="size-3.5" /> Elegir una de tu dispositivo
+                      </button>
                       <button
                         type="button"
                         onClick={(e) => {
@@ -1481,13 +1662,13 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-2">
-                    <Upload className="size-8 text-muted-foreground/50" />
-                    <div className="text-sm font-medium">
-                      Arrastra o haz clic para subir portada propia
+                  <div className="flex flex-col items-center gap-2 py-1">
+                    <Upload className="size-8 text-indigo-600/80" />
+                    <div className="text-sm font-bold text-slate-800">
+                      Elegir una de tu dispositivo
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      JPG, PNG o WEBP · Máximo 5MB
+                      Haz clic aquí o arrastra tu imagen (JPG, PNG o WEBP · Máximo 5MB)
                     </div>
                   </div>
                 )}
@@ -1645,18 +1826,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
               return (
                 <div>
                   <span className="text-muted-foreground">Ubicación:</span>{" "}
-                  {bLink ? (
-                    <a
-                      href={bLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#004B87] hover:underline font-semibold"
-                    >
-                      {bName} (Ver en Google Maps)
-                    </a>
-                  ) : (
-                    bName
-                  )}
+                  <span className="font-semibold text-slate-800">{bName}</span>
                 </div>
               );
             })()}
@@ -1764,7 +1934,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
         </div>
       </div>
 
-      <div className="shrink-0 border-t bg-background px-4 py-3 md:px-6 md:py-4 lg:px-8">
+      <div className="shrink-0 border-t bg-background px-4 py-3 md:px-6 md:py-4 lg:px-8 pr-16 md:pr-24">
         <div className="mx-auto flex items-center justify-between" style={{ maxWidth: "1000px" }}>
           <div>
             {currentStep > 1 && (

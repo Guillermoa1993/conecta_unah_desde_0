@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { CheckCircle2, XCircle, PenLine, RotateCcw, Stamp, ArrowLeft, AlertTriangle, MapPin, Camera, Eye } from "lucide-react";
+import { CheckCircle2, XCircle, ArrowLeft, AlertTriangle, MapPin, Camera, Eye, Building2 } from "lucide-react";
 import { api } from "../../../services/api";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
@@ -41,74 +41,25 @@ const CATEGORY_COLORS: Record<string, string> = {
   SOCIAL: "#f59e0b",
 };
 
-function DigitalCanvas({ onSigned }: { onSigned: (dataUrl: string) => void }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  const drawing = useRef(false);
-  const [hasStrokes, setHasStrokes] = useState(false);
-
-  useEffect(() => {
-    const canvas = ref.current!;
-    const ctx = canvas.getContext("2d")!;
-    ctx.strokeStyle = "#003366"; ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.lineJoin = "round";
-
-    const getXY = (e: MouseEvent | TouchEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      if ("touches" in e) { return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top }; }
-      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    };
-
-    const start = (e: MouseEvent | TouchEvent) => { e.preventDefault(); drawing.current = true; const {x,y} = getXY(e); ctx.beginPath(); ctx.moveTo(x,y); };
-    const move  = (e: MouseEvent | TouchEvent) => { e.preventDefault(); if (!drawing.current) return; const {x,y} = getXY(e); ctx.lineTo(x,y); ctx.stroke(); setHasStrokes(true); };
-    const stop  = () => { drawing.current = false; };
-
-    canvas.addEventListener("mousedown", start); canvas.addEventListener("mousemove", move); canvas.addEventListener("mouseup", stop);
-    canvas.addEventListener("touchstart", start, { passive:false }); canvas.addEventListener("touchmove", move, { passive:false }); canvas.addEventListener("touchend", stop);
-    return () => {
-      canvas.removeEventListener("mousedown", start); canvas.removeEventListener("mousemove", move); canvas.removeEventListener("mouseup", stop);
-      canvas.removeEventListener("touchstart", start); canvas.removeEventListener("touchmove", move); canvas.removeEventListener("touchend", stop);
-    };
-  }, []);
-
-  const clear = () => { const c = ref.current!; c.getContext("2d")!.clearRect(0,0,c.width,c.height); setHasStrokes(false); };
-  const confirm = () => { if (!hasStrokes) { toast.error("Firma antes de confirmar"); return; } onSigned(ref.current!.toDataURL()); };
-
-  return (
-    <div className="space-y-2">
-      <div className="border-2 border-dashed border-[#004B87]/30 rounded-xl overflow-hidden bg-white">
-        <canvas ref={ref} width={480} height={120} className="w-full touch-none cursor-crosshair"/>
-      </div>
-      <div className="flex gap-2">
-        <button type="button" onClick={clear} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-bold text-[#717182] hover:bg-gray-50 transition-colors">
-          <RotateCcw className="h-3.5 w-3.5"/>Limpiar
-        </button>
-        <button type="button" onClick={confirm} className="flex items-center gap-1.5 px-4 py-1.5 bg-[#004B87] hover:bg-[#003366] text-white rounded-lg text-xs font-bold transition-colors">
-          <PenLine className="h-3.5 w-3.5"/>Confirmar firma
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export function ValidacionEvento() {
+export function ValidacionDeptoEvento() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [event, setEvent] = useState<any>(null);
+
+  const [event, setEvent] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [signatureUrl, setSignatureUrl] = useState<string|null>(null);
-  const [showSigning, setShowSigning] = useState(false);
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<string|null>(null);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [motivoRechazo, setMotivoRechazo] = useState("");
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const fetchEventDetails = async () => {
-    if (!id) return;
     try {
       setLoading(true);
       const data = await api.get<any>(`/eventos/${id}`);
       setEvent(data);
     } catch (err: any) {
-      toast.error("Error al obtener los detalles del evento", { description: err.message });
+      toast.error("Error al cargar evento", { description: err.message });
     } finally {
       setLoading(false);
     }
@@ -118,20 +69,14 @@ export function ValidacionEvento() {
     fetchEventDetails();
   }, [id]);
 
-  const handleSign = (dataUrl: string) => {
-    setSignatureUrl(dataUrl);
-    setShowSigning(false);
-    toast.success("Firma guardada — ya puedes validar o rechazar el evento");
-  };
-
   const handleAprobar = async () => {
     if (!event) return;
     try {
       await api.patch(`/eventos/${event.id}/aprobar`);
-      toast.success("¡Evento aprobado con éxito!");
-      navigate("/voae");
+      toast.success("¡Propuesta aprobada por Coordinación y enviada a Dirección VOAE!");
+      navigate("/voae-depto");
     } catch (err: any) {
-      toast.error("Error al aprobar el evento", { description: err.message });
+      toast.error("Error al aprobar la propuesta", { description: err.message });
     }
   };
 
@@ -143,37 +88,38 @@ export function ValidacionEvento() {
     if (!event) return;
     try {
       await api.patch(`/eventos/${event.id}/rechazar`, { motivo: motivoRechazo });
-      toast.success("Evento rechazado correctamente");
+      toast.success("Propuesta rechazada correctamente");
       setRejectDialogOpen(false);
-      navigate("/voae");
+      navigate("/voae-depto");
     } catch (err: any) {
-      toast.error("Error al rechazar el evento", { description: err.message });
+      toast.error("Error al rechazar la propuesta", { description: err.message });
     }
   };
 
   if (loading) {
-    return <div className="py-20 text-center text-sm text-muted-foreground">Cargando evento...</div>;
+    return <div className="py-20 text-center text-sm text-muted-foreground">Cargando propuesta...</div>;
   }
 
   if (!event) {
     return (
       <div className="py-20 text-center">
         <AlertTriangle className="size-12 mx-auto text-red-500 mb-3" />
-        <p className="text-sm font-semibold">Evento no encontrado.</p>
-        <Link to="/voae" className="text-xs text-[#004B87] underline mt-2 block">Volver al panel</Link>
+        <p className="text-sm font-semibold">Propuesta no encontrada.</p>
+        <Link to="/voae-depto" className="text-xs text-[#004B87] underline mt-2 block">Volver al panel de Coordinación</Link>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-12">
+    <div className="max-w-4xl mx-auto space-y-6 pb-12 animate-fade-in">
       <Link
-        to="/voae"
+        to="/voae-depto"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition"
       >
-        <ArrowLeft className="size-4" /> Volver al panel
+        <ArrowLeft className="size-4" /> Volver al panel de Coordinación
       </Link>
 
+      {/* Encabezado Principal (Idéntico a Imagen 211) */}
       <div className="flex items-center gap-4">
         <div className="size-12 rounded-full overflow-hidden bg-[#004B87]/15 text-[#004B87] font-bold text-lg flex items-center justify-center shrink-0 border border-slate-200">
           {(event.creador_foto || event.tutor_foto || event.foto_url) ? (
@@ -193,7 +139,7 @@ export function ValidacionEvento() {
         </div>
       </div>
 
-      {/* Grid: Portada + Tarjeta de ubicación con Mini Preview del Mapa (Como en Imagen 191) */}
+      {/* Grid: Portada + Tarjeta de ubicación con Mini Preview del Mapa (Como en Imagen 211) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Portada del Evento */}
         <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm h-64 md:h-72 w-full flex items-center justify-center group">
@@ -234,7 +180,7 @@ export function ValidacionEvento() {
               </div>
 
               {!isVirtual && (
-                <div className="rounded-xl overflow-hidden border border-slate-200 shadow-2xs">
+                <div className="rounded-xl overflow-hidden border border-slate-200 shadow-2xs font-sans" style={{ height: "160px" }}>
                   <LocationPicker
                     lat={latVal}
                     lng={lngVal}
@@ -281,7 +227,7 @@ export function ValidacionEvento() {
         </div>
       )}
 
-      {/* Ficha Técnica del Evento (Imagen 134) */}
+      {/* Ficha Técnica del Evento (Idéntico a Imagen 212) */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
         <h3 className="font-bold text-[#003366] text-sm border-b pb-2">Ficha Técnica del Evento</h3>
 
@@ -388,24 +334,41 @@ export function ValidacionEvento() {
         >
           <XCircle className="size-4 mr-1.5" /> Rechazar
         </Button>
-        <Button
-          className="px-6 bg-[#22c55e] hover:bg-emerald-600 h-11 text-xs font-bold rounded-xl text-white"
-          onClick={() => setApproveDialogOpen(true)}
-        >
-          <CheckCircle2 className="size-4 mr-1.5" /> Aprobar y publicar en muro
-        </Button>
+        {(() => {
+          const isRecreativo = event.tipo_evento === "RECREACION" || Number(event.duracion_horas || 0) === 0;
+          return (
+            <Button
+              className="px-6 bg-[#22c55e] hover:bg-emerald-600 h-11 text-xs font-bold rounded-xl text-white shadow-sm"
+              onClick={() => setApproveDialogOpen(true)}
+            >
+              <CheckCircle2 className="size-4 mr-1.5" />
+              {isRecreativo ? "Aprobar y publicar evento" : "Aprobar y enviar a VOAE"}
+            </Button>
+          );
+        })()}
       </div>
 
       {/* Approve dialog */}
       <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-[#003366] flex items-center gap-1.5 font-bold">
-              ¿Está seguro de aprobar este evento?
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500 mt-1">
-              Al aprobar esta solicitud, el evento pasará al estado <strong>PROGRAMADO</strong> y estará disponible para que el tutor inicie el registro de asistencia. Los estudiantes podrán inscribirse.
-            </DialogDescription>
+            {(() => {
+              const isRecreativo = event.tipo_evento === "RECREACION" || Number(event.duracion_horas || 0) === 0;
+              return (
+                <>
+                  <DialogTitle className="text-[#003366] flex items-center gap-1.5 font-bold">
+                    {isRecreativo
+                      ? "¿Está seguro de aprobar y publicar este evento recreativo?"
+                      : "¿Está seguro de aprobar y enviar este evento a VOAE Dirección?"}
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-slate-500 mt-1">
+                    {isRecreativo
+                      ? "Al ser un evento recreativo (sin horas VOAE), al ser aprobado por Coordinación de Departamento se publicará inmediatamente en el Muro Social sin requerir aprobación de Dirección VOAE."
+                      : "Al aprobar esta propuesta en Coordinación, el evento pasará a revisión final de Dirección VOAE antes de su publicación en el Muro Social."}
+                  </DialogDescription>
+                </>
+              );
+            })()}
           </DialogHeader>
           <DialogFooter className="mt-4 flex gap-2">
             <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
@@ -430,7 +393,7 @@ export function ValidacionEvento() {
           <DialogHeader>
             <DialogTitle className="text-[#003366] font-bold">¿Está seguro de rechazar esta propuesta?</DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Escribe detalladamente los motivos del rechazo. El tutor recibirá una notificación con este motivo para poder corregir su propuesta.
+              Escribe detalladamente los motivos del rechazo. El tutor recibirá una notificación con este motivo.
             </DialogDescription>
           </DialogHeader>
           <div className="py-2">

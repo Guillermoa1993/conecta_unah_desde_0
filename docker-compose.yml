@@ -12,11 +12,15 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: production
+
     container_name: unah_backend
+
     ports:
       - "5000:5000"
+
     env_file:
       - ./backend/.env
+
     environment:
       - PORT=5000
       - DATABASE_URL=${DATABASE_URL}
@@ -29,6 +33,7 @@ services:
       - AZURE_REDIRECT_URI=${AZURE_REDIRECT_URI}
       - GMAIL_USER=${GMAIL_USER}
       - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
+
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
@@ -39,6 +44,43 @@ services:
     networks:
       - unah_network
 
+  # ── Backend Desarrollo ─────────────────────────────────────────────────────
+  backend-dev:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+
+    container_name: unah_backend_dev
+
+    ports:
+      - "5000:5000"
+
+    env_file:
+      - ./backend/.env
+
+    environment:
+      - PORT=${PORT}
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - NODE_OPTIONS=--dns-result-order=ipv4first
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
+      - AZURE_REDIRECT_URI=${AZURE_REDIRECT_URI}
+      - GMAIL_USER=${GMAIL_USER}
+      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
+
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+    profiles:
+      - dev
+
+    restart: unless-stopped
+
   # ───────────────────────────────────────────────────────────────────────────
   # FRONTEND (React + Vite + Tailwind + Nginx)
   # ───────────────────────────────────────────────────────────────────────────
@@ -47,15 +89,46 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: production
+
     container_name: unah_frontend
+
     ports:
       - "5173:80"
+
     depends_on:
       backend:
         condition: service_healthy
+
     restart: unless-stopped
     networks:
       - unah_network
+
+  # ── Frontend Desarrollo ────────────────────────────────────────────────────
+  frontend-dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+
+    container_name: unah_frontend_dev
+
+    ports:
+      - "5173:5185"
+
+    environment:
+      - VITE_API_URL=http://backend-dev:5000/api
+
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+    depends_on:
+      - backend-dev
+
+    profiles:
+      - dev
+
+    restart: unless-stopped
 
   # ───────────────────────────────────────────────────────────────────────────
   # ADMINER (Gestor Web de Base de Datos PostgreSQL)

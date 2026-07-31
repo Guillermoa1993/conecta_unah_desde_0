@@ -9,44 +9,82 @@ export class AprobarRechazarEvento {
     private readonly usuarioRepo: UsuarioRepository,
   ) {}
 
-  async aprobar(evento_id: string, aprobado_por: string) {
+  async aprobar(evento_id: string, aprobado_por: string, rol_aprobador?: string) {
     const evento = await this.eventoRepo.findById(evento_id);
     if (!evento) throw new Error('Evento no encontrado');
-    if (evento.estado !== 'PENDIENTE_APROBACION') throw new Error('El evento no está pendiente de aprobación');
 
-    const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'PROGRAMADO', { aprobado_por });
+    const estadoActual = evento.estado;
+    const esPendienteDepto = estadoActual === 'PENDIENTE_APROBACION_DEPTO' || estadoActual === 'PENDIENTE_APROBACION';
+    const esPendienteVoae = estadoActual === 'PENDIENTE_APROBACION_VOAE';
 
+    if (!esPendienteDepto && !esPendienteVoae) {
+      throw new Error('El evento no está pendiente de aprobación');
+    }
+
+    const rolUpper = (rol_aprobador || '').toUpperCase();
+    const esDepto = rolUpper.includes('DEPTO') || rolUpper.includes('DEPARTAMENTO') || rolUpper.includes('COORDINACION');
+    const isRecreativo = evento.tipo_evento === 'RECREACION' || Number((evento as any).duracion_horas || 0) === 0;
+
+    // Si es evento Recreativo O si es aprobación por Dirección VOAE -> pasa directamente a PROGRAMADO
+    if (isRecreativo || (!esPendienteDepto && !esDepto)) {
+      const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'PROGRAMADO', { aprobado_por });
+
+      await this.notificacionRepo.crear({
+        usuario_id: Number(evento.tutor_id),
+        mensaje: isRecreativo
+          ? `Tu evento recreativo "${evento.titulo}" fue aprobado por Coordinación de Departamento y ya está publicado.`
+          : `Tu evento "${evento.titulo}" fue aprobado por Dirección VOAE y ya está publicado.`,
+        tipo: 'EVENTO_APROBADO',
+      });
+
+      // Avisar a todos los estudiantes que hay un evento nuevo disponible
+      const estudiantes = await this.usuarioRepo.findAll({ rol: 'ESTUDIANTE' });
+      await Promise.all(
+        estudiantes.map((estudiante) =>
+          this.notificacionRepo.crear({
+            usuario_id: estudiante.id_usuario,
+            mensaje: `Nuevo evento disponible: "${evento.titulo}"`,
+            tipo: 'EVENTO_DISPONIBLE',
+            referencia_tipo: 'EVENTO',
+            referencia_id: Number(evento.id),
+          }),
+        ),
+      );
+
+      return actualizado;
+    }
+
+    // Para eventos con horas VOAE aprobados por primera vez por Coordinación Depto -> pasa a PENDIENTE_APROBACION_VOAE
+    const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'PENDIENTE_APROBACION_VOAE', { aprobado_por });
     await this.notificacionRepo.crear({
       usuario_id: Number(evento.tutor_id),
-      mensaje: `Tu evento "${evento.titulo}" fue aprobado y ya está publicado.`,
-      tipo: 'EVENTO_APROBADO',
+      mensaje: `Tu evento "${evento.titulo}" fue aprobado por Coordinación de Departamento y enviado a Dirección VOAE.`,
+      tipo: 'EVENTO_APROBADO_DEPTO',
     });
-
-    // Avisar a todos los estudiantes que hay un evento nuevo disponible
-    const estudiantes = await this.usuarioRepo.findAll({ rol: 'ESTUDIANTE' });
-    await Promise.all(
-      estudiantes.map((estudiante) =>
-        this.notificacionRepo.crear({
-          usuario_id: estudiante.id_usuario,
-          mensaje: `Nuevo evento disponible: "${evento.titulo}"`,
-          tipo: 'EVENTO_DISPONIBLE',
-          referencia_tipo: 'EVENTO',
-          referencia_id: Number(evento.id),
-        }),
-      ),
-    );
-
     return actualizado;
   }
 
-  async rechazar(evento_id: string, aprobado_por: string, motivo_rechazo: string) {
+  async rechazar(evento_id: string, aprobado_por: string, motivo_rechazo: string, rol_aprobador?: string) {
     if (!motivo_rechazo?.trim()) throw new Error('El motivo de rechazo es obligatorio');
 
     const evento = await this.eventoRepo.findById(evento_id);
     if (!evento) throw new Error('Evento no encontrado');
-    if (evento.estado !== 'PENDIENTE_APROBACION') throw new Error('El evento no está pendiente de aprobación');
 
-    const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'RECHAZADO', { aprobado_por, motivo_rechazo });
+    const estadoActual = evento.estado;
+    const esPendiente = estadoActual === 'PENDIENTE_APROBACION_DEPTO' || 
+                        estadoActual === 'PENDIENTE_APROBACION_VOAE' || 
+                        estadoActual === 'PENDIENTE_APROBACION';
+
+    if (!esPendiente) throw new Error('El evento no está pendiente de aprobación');
+
+    const rolUpper = (rol_aprobador || '').toUpperCase();
+    const esDepto = rolUpper.includes('DEPTO') || rolUpper.includes('DEPARTAMENTO') || rolUpper.includes('COORDINACION');
+    const esPendienteDepto = estadoActual === 'PENDIENTE_APROBACION_DEPTO' || estadoActual === 'PENDIENTE_APROBACION';
+
+    const fueRechazadoPorDepto = esPendienteDepto || esDepto;
+    const motivoFinal = fueRechazadoPorDepto ? `[DEPTO] ${motivo_rechazo.trim()}` : `[VOAE] ${motivo_rechazo.trim()}`;
+
+    const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'RECHAZADO', { aprobado_por, motivo_rechazo: motivoFinal });
 
     await this.notificacionRepo.crear({
       usuario_id: Number(evento.tutor_id),
