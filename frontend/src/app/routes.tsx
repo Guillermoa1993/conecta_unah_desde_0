@@ -64,6 +64,7 @@ import { Logs } from "./pages/employees/Logs";
 
 // Grupo 4 — Employees
 import { Aplicativos } from "./pages/employees/Aplicativos";
+import { AparenciasEstudiante } from "./pages/student/AparenciasEstudiante";
 import { AcercaDe } from "./pages/employees/AcercaDe";
 
 // Mantenimiento (compartido por admin/tutor/voae)
@@ -117,7 +118,8 @@ export const router = createBrowserRouter([
       { path: "student/scan",           element: P(<QRScanner />) },
       { path: "student/survey/:eventId",element: P(<Survey />) },
       { path: "student/history",         element: P(<AcademicHistory />) },
-      { path: "student/solicitar",       element: P(<SolicitarEvento />) },
+      { path: "student/solicitar",        element: P(<SolicitarEvento />) },
+      { path: "student/apariencias",     element: P(<AparenciasEstudiante />) },
       ...maintenanceRoutes("student"),
 
       // ── Tutor ─────────────────────────────────────────────

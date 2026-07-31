@@ -294,7 +294,7 @@ export function AppSidebar() {
                       ? "bg-[#FFD100] text-[#003366] hover:bg-[#FFD100] hover:text-[#003366]"
                       : "text-white hover:bg-[#003366] hover:text-white"}
                   >
-                    <Link to="/employees/aplicativos">
+                    <Link to="/student/apariencias">
                       <Palette className="h-5 w-5" />
                       {!isCollapsed && <span>Colores de Aplicativos</span>}
                     </Link>
