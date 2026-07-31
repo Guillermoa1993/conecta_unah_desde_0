@@ -43,7 +43,23 @@ export function AppNavbar() {
   const usuarioGuardado = authService.getUsuarioGuardado();
   const usuarioActivo = usuario || usuarioGuardado;
 
-  const nombreUsuario = usuarioActivo?.nombre || localStorage.getItem("unah_usuario_nombre") || "Usuario Puma";
+  const getNombreUsuario = () => {
+    if (usuarioActivo?.nombre) return usuarioActivo.nombre;
+    try {
+      const rawLocalUser = localStorage.getItem("unah_usuario");
+      if (rawLocalUser) {
+        const parsed = JSON.parse(rawLocalUser);
+        if (parsed?.nombre) return parsed.nombre;
+      }
+    } catch (e) {}
+    return (
+      localStorage.getItem("unah_usuario_nombre") ||
+      sessionStorage.getItem("unah_nombre") ||
+      "Usuario Puma"
+    );
+  };
+
+  const nombreUsuario = getNombreUsuario();
   const fotoUsuario = usuarioActivo?.foto_url || localStorage.getItem("unah_foto_perfil");
 
   const getInitials = (name: string) => {
@@ -52,6 +68,15 @@ export function AppNavbar() {
       return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     }
     return name.slice(0, 2).toUpperCase();
+  };
+
+  const getInicioRoute = () => {
+    const rawRole = (usuarioActivo?.rol || sessionStorage.getItem("unah_role") || "").toString().toLowerCase();
+    if (rawRole.includes("depto") || rawRole.includes("departamento") || rawRole.includes("coordinac")) return "/voae-depto";
+    if (rawRole.includes("voae")) return "/voae";
+    if (rawRole.includes("tutor") || rawRole.includes("empleado")) return "/tutor/feed";
+    if (rawRole.includes("admin")) return "/admin/administracion";
+    return "/student/feed";
   };
 
   const permDeniedOrPending = Object.values(permissions).some(
@@ -224,7 +249,7 @@ export function AppNavbar() {
                     <AvatarImage src={fotoUsuario} alt={nombreUsuario} className="object-cover" />
                   )}
                   <AvatarFallback className="bg-[#004B87] text-white text-xs font-semibold">
-                    {usuario?.nombre ? getInitials(usuario.nombre) : <User className="h-4 w-4" />}
+                    {getInitials(nombreUsuario)}
                   </AvatarFallback>
                 </Avatar>
                 <span className="text-sm font-medium text-[#004B87]">{nombreUsuario}</span>
@@ -233,10 +258,7 @@ export function AppNavbar() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => {
-                const userType = sessionStorage.getItem("unah_user_type");
-                navigate(userType === "empleado" ? "/tutor/ficha" : "/student/ficha");
-              }}>
+              <DropdownMenuItem onClick={() => navigate("/perfil")}>
                 <User className="mr-2 h-4 w-4" />
                 Perfil
               </DropdownMenuItem>
@@ -245,10 +267,7 @@ export function AppNavbar() {
                 Notificaciones
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => {
-                const userType = sessionStorage.getItem("unah_user_type");
-                navigate(userType === "empleado" ? "/tutor" : "/student");
-              }}>
+              <DropdownMenuItem onClick={() => navigate(getInicioRoute())}>
                 <Home className="mr-2 h-4 w-4" />
                 Inicio
               </DropdownMenuItem>
