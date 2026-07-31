@@ -23,6 +23,7 @@ const SOCIAL_ITEMS: MenuItem[] = [
   { icon: User,     label: "Perfil",         path: "/student/ficha" },
   { icon: Calendar, label: "Mis Eventos",    path: "/student/events" },
   { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
+  { icon: Home,     label: "Dashboard",      path: "/student" },
 ];
 
 /* ─── ADMINISTRACIÓN: sección colapsada por rol ─── */
