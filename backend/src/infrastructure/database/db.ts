@@ -11,8 +11,7 @@ import path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 // En producción Docker inyecta DATABASE_URL directamente como variable de entorno.
-// dotenv.config() NO es necesario aquí — las variables ya están disponibles
-// a través de process.env gracias al docker-compose.yml environment section.
+// dotenv.config() carga el .env en desarrollo local.
 
 if (!process.env.DATABASE_URL) {
   console.error('❌ DATABASE_URL no está definida. Verifica el docker-compose.yml o el archivo .env');
