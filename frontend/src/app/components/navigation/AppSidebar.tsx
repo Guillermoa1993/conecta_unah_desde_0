@@ -20,7 +20,7 @@ type MenuItem = { icon: React.ElementType; label: string; path: string };
 /* ─── RED SOCIAL: mismos ítems para TODOS los roles autenticados ─── */
 const SOCIAL_ITEMS: MenuItem[] = [
   { icon: Rss,      label: "Muro",           path: "/muro" },
-  { icon: User,     label: "Perfil",         path: "/perfil" },
+  { icon: User,     label: "Perfil",         path: "/student/ficha" },
   { icon: Calendar, label: "Mis Eventos",    path: "/student/events" },
   { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
 ];
