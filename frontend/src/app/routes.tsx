@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate } from "react-router";
 import { RootLayout } from "./components/layouts/RootLayout";
 import { ProtectedRoute } from "./components/guards/ProtectedRoute";
 import { PostDetail } from "./pages/PostDetail";
+import { PerfilRedirect } from "./pages/shared/PerfilRedirect";
+import { PerfilPendiente } from "./pages/shared/PerfilPendiente";
 
 // Auth & registro (públicas)
 import { AuthCallback } from "./pages/AuthCallback";
@@ -97,7 +99,7 @@ export const router = createBrowserRouter([
 
       // ── Alias cortos usados por el sidebar actual (Red Social) ──
       { path: "muro",                   element: P(<SocialFeed />) },
-      { path: "perfil",                 element: P(<StudentProfile />) },
+      { path: "perfil",                 element: P(<PerfilRedirect />) },
       { path: "eventos",                element: P(<AvailableEvents />) },
 
       // ── Empleados (tutor/admin/voae comparten) ────────────
@@ -140,18 +142,23 @@ export const router = createBrowserRouter([
       { path: "admin/permissions",      element: P(<Permissions />) },
       { path: "admin/backup",            element: P(<BackupRestore />) },
       { path: "admin/parametros",        element: P(<Parametros />) },
+      { path: "admin/perfil",            element: P(<PerfilPendiente />) },
       ...maintenanceRoutes("admin"),
+
 
       // ── VOAE ──────────────────────────────────────────────
       { path: "voae",                    element: P(<VOAEDashboard />) },
       { path: "voae/reports",           element: P(<OfficialReports />) },
       { path: "voae/moderadores",       element: P(<Moderadores />) },
       { path: "voae/records",           element: P(<VOAERecords />) },
+      { path: "voae/perfil",             element: P(<PerfilPendiente />) },
+      { path: "voae-depto/perfil", element: P(<PerfilPendiente />) },
       { path: "voae/centros",           element: P(<CentrosRegionales />) },
       { path: "voae/events/:id/validar",element: P(<ValidacionEvento />) },
       { path: "voae/events/:id/validacion",element: P(<AuditoriaEventoFinalizado />) },
       { path: "voae/feed",               element: P(<SocialFeed />) },
       ...maintenanceRoutes("voae"),
+      
     ],
   },
 ]);
