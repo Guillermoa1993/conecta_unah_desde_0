@@ -578,33 +578,55 @@ export function ManageEvent() {
         <meta charset="utf-8">
         <title>${pdfTitle}</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; }
-          h2 { font-size: 20px; margin-bottom: 4px; color: #004B87; }
-          .meta { font-size: 13px; color: #64748b; margin-bottom: 20px; }
-          table { width: 100%; border-collapse: collapse; font-size: 13px; }
-          th { background: #f1f5f9; padding: 8px 12px; text-align: left; border: 1px solid #ddd; font-size: 11px; text-transform: uppercase; color: #64748b; }
-          td { padding: 8px 12px; border: 1px solid #ddd; }
+          @page { size: A4 portrait; margin: 15mm; }
+          body { font-family: Arial, sans-serif; padding: 20px; color: #1e293b; font-size: 10pt; }
+          .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #003366; padding-bottom: 12px; margin-bottom: 20px; }
+          h2 { font-size: 18px; margin: 0 0 6px 0; color: #003366; text-transform: uppercase; font-weight: bold; }
+          .meta { font-size: 12px; color: #475569; margin-bottom: 20px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px 14px; border-radius: 8px; display: flex; justify-content: space-between; }
+          table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }
+          th { background: #003366; color: white; padding: 8px 10px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+          td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
+          .footer { margin-top: 30px; text-align: center; font-size: 8.5pt; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 12px; }
         </style>
       </head>
       <body>
+        <div class="header">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <img src="${window.location.origin}/logo-unah.png" style="height: 55px;" onError="this.style.display='none'" />
+            <img src="${window.location.origin}/logo-voae.png" style="height: 55px;" onError="this.style.display='none'" />
+          </div>
+          <div style="text-align: right; font-size: 8.5pt; color: #64748b;">
+            <div><strong>UNIVERSIDAD NACIONAL AUTÓNOMA DE HONDURAS</strong></div>
+            <div><strong>VOAE UNAH &mdash; DIRECCIÓN DE VINCULACIÓN</strong></div>
+            <div><strong>Control de Asistencia e Inscripciones</strong></div>
+          </div>
+        </div>
+
         <h2>${event.titulo}</h2>
-        <div class="meta">Tutor: ${event.tutor_nombre || "Tutor Responsable"} &mdash; Fecha: ${new Date(event.fecha_inicio).toLocaleDateString()}</div>
+        <div class="meta">
+          <span><strong>Organizador / Tutor:</strong> ${event.tutor_nombre || "Tutor Responsable"}</span>
+          <span><strong>Fecha del Evento:</strong> ${new Date(event.fecha_inicio).toLocaleDateString("es-HN", { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+          <span><strong>Total Registrados:</strong> ${students.length} Estudiantes</span>
+        </div>
+
         <table>
           <thead>
             <tr>
               <th>Estudiante</th>
               <th>No. Cuenta</th>
-              <th>Email</th>
+              <th>Correo Institucional</th>
               <th style="text-align:center">Estado</th>
-              <th style="text-align:center">Hora llegada</th>
-              <th style="text-align:center">Hora salida</th>
+              <th style="text-align:center">Hora Llegada</th>
+              <th style="text-align:center">Hora Salida</th>
               <th style="text-align:center">Ubicación</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
-        <div style="margin-top:20px;font-size:11px;color:#94a3b8;text-align:center">
-          Generado el ${new Date().toLocaleDateString()} — Conecta Pumas
+
+        <div class="footer">
+          <p style="margin: 0; font-weight: bold;">Documento oficial generado por la plataforma Conecta Pumas UNAH.</p>
+          <p style="margin: 4px 0 0 0;">Fecha de Emisión: ${new Date().toLocaleDateString("es-HN", { day: 'numeric', month: 'long', year: 'numeric' })} &mdash; Verificación Institucional VOAE</p>
         </div>
       </body>
       </html>
