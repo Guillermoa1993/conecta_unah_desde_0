@@ -23,7 +23,12 @@ export class AprobarRechazarEvento {
 
     const rolUpper = (rol_aprobador || '').toUpperCase();
     const esDepto = rolUpper.includes('DEPTO') || rolUpper.includes('DEPARTAMENTO') || rolUpper.includes('COORDINACION');
-    const isRecreativo = evento.tipo_evento === 'RECREACION' || Number((evento as any).duracion_horas || 0) === 0;
+    const evAny = evento as any;
+    const isRecreativo =
+      evAny.tipo_evento === 'RECREACION' ||
+      evAny.tipo_evento === 'SIN_HORAS' ||
+      evAny.categoria === 'RECREACION' ||
+      Number(evAny.duracion_horas || 0) === 0;
 
     // Si es evento Recreativo O si es aprobación por Dirección VOAE -> pasa directamente a PROGRAMADO
     if (isRecreativo || (!esPendienteDepto && !esDepto)) {
