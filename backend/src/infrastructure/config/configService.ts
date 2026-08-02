@@ -3,11 +3,15 @@ import pool from '../database/db';
 const cache: Record<string, string> = {};
 
 export async function loadConfig(): Promise<void> {
-  const result = await pool.query('SELECT nombre, valor FROM tabla_grupo_1_parametros');
-  for (const row of result.rows) {
-    cache[row.nombre] = row.valor;
+  try {
+    const result = await pool.query('SELECT nombre, valor FROM tabla_grupo_1_parametros');
+    for (const row of result.rows) {
+      cache[row.nombre] = row.valor;
+    }
+    console.log(`⚙️  Config cargada desde BD (${result.rows.length} parámetros)`);
+  } catch (err: any) {
+    console.warn(`⚠️ Warning: No se pudo cargar config desde BD (${err.message}). Se usará process.env.`);
   }
-  console.log(`⚙️  Config cargada desde BD (${result.rows.length} parámetros)`);
 }
 
 // Lee de BD primero, luego process.env como fallback

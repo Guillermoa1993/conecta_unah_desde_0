@@ -355,6 +355,7 @@ loadConfig().then(() => {
     app.listen(PORT, () => banner('http', PORT));
   }
 }).catch(err => {
-  console.error('Error cargando config desde BD:', err);
-  process.exit(1);
+  console.error('⚠️ Warning cargando config desde BD:', err?.message || err);
+  const PORT = Number(process.env.PORT) || 5000;
+  app.listen(PORT, () => console.log(`🚀 UNAH Conecta API corriendo en http://localhost:${PORT}`));
 });
