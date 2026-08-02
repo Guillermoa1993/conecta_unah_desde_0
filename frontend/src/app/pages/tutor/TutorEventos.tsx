@@ -878,7 +878,7 @@ export function TutorEventos() {
       setLoading(true);
       setError(false);
       const data = await api.get<any[]>("/eventos/mis-eventos");
-      setAllEvents(data || []);
+      setAllEvents(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Error fetching tutor events:", err);
       setError(true);

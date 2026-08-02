@@ -201,6 +201,32 @@ actualizarPerfil = async (req: Request, res: Response, next: NextFunction) => {
       } catch (dbErr: any) {
         console.warn(`⚠️ Warning en devLogin al consultar DB (${dbErr.message}). Se usará usuario mock por defecto.`);
       }
+
+      if (!usuario) {
+        // Intentar registrar el usuario de prueba en la base de datos real
+        try {
+          const targetRol = rol.includes('depto') || rol.includes('departamento') || rol.includes('coordinacion')
+            ? 'VOAE_DEPARTAMENTO'
+            : rol.includes('voae')
+            ? 'VOAE_DIRECCION'
+            : rol.includes('tutor') || rol.includes('empleado')
+            ? 'EMPLEADO'
+            : rol.includes('admin')
+            ? 'ADMIN'
+            : 'ESTUDIANTE';
+
+          await this.usuarioRepo!.create({
+            nombre: `Usuario ${targetRol} (Prueba)`,
+            correo: correo,
+            password: 'Password123!',
+            rol: targetRol,
+          });
+          usuario = await this.usuarioRepo!.findByCorreo(correo);
+        } catch (createErr: any) {
+          console.warn(`⚠️ No se pudo registrar usuario en DB (${createErr.message}).`);
+        }
+      }
+
       if (!usuario) {
         if (rol.includes('depto') || rol.includes('departamento') || rol.includes('coordinacion')) {
           usuario = {
