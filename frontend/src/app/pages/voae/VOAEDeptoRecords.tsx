@@ -11,6 +11,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { api } from "../../../services/api";
+import { authService } from "../../../services/auth.service";
 import { Button } from "../../components/ui/button";
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -72,6 +73,10 @@ export function VOAEDeptoRecords() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("aprobados");
 
+  const usuarioActivo: any = authService.getUsuarioGuardado();
+  const userFacultad = usuarioActivo?.facultad_nombre || usuarioActivo?.facultad;
+  const userCarrera = usuarioActivo?.carrera_nombre || usuarioActivo?.carrera || usuarioActivo?.departamento_nombre || usuarioActivo?.departamento;
+
   // Paginación Inteligente
   const [itemsPerPageApproved, setItemsPerPageApproved] = useState(3);
   const [pageApproved, setPageApproved] = useState(1);
@@ -98,21 +103,36 @@ export function VOAEDeptoRecords() {
   const approvedDeptoEvents = useMemo(
     () =>
       allEvents
-        .filter((e) =>
-          [
+        .filter((e) => {
+          const isApproved = [
             "PENDIENTE_APROBACION_VOAE",
             "PROGRAMADO",
             "EN_CURSO",
             "EN_CURSO_SALIDA",
             "FINALIZADO",
-          ].includes(String(e.estado).trim().toUpperCase())
-        )
+          ].includes(String(e.estado).trim().toUpperCase());
+          if (!isApproved) return false;
+
+          if (userFacultad || userCarrera) {
+            const evFac = String(e.facultad || e.facultad_nombre || "").toLowerCase();
+            const evCar = String(e.carrera || e.departamento || e.carrera_nombre || e.departamento_nombre || "").toLowerCase();
+            const uFac = String(userFacultad || "").toLowerCase();
+            const uCar = String(userCarrera || "").toLowerCase();
+
+            const matchFac = !uFac || evFac.includes(uFac) || uFac.includes(evFac);
+            const matchCar = !uCar || evCar.includes(uCar) || uCar.includes(evCar);
+
+            return matchFac && matchCar;
+          }
+
+          return true;
+        })
         .sort(
           (a, b) =>
             new Date(b.updated_at || b.fecha_inicio).getTime() -
             new Date(a.updated_at || a.fecha_inicio).getTime()
         ),
-    [allEvents]
+    [allEvents, userFacultad, userCarrera]
   );
 
   // 2. Rechazados por Coordinación
@@ -123,6 +143,19 @@ export function VOAEDeptoRecords() {
           if (String(e.estado).trim().toUpperCase() !== "RECHAZADO") return false;
           const m = String(e.motivo_rechazo || "");
           if (m.startsWith("[VOAE]")) return false;
+
+          if (userFacultad || userCarrera) {
+            const evFac = String(e.facultad || e.facultad_nombre || "").toLowerCase();
+            const evCar = String(e.carrera || e.departamento || e.carrera_nombre || e.departamento_nombre || "").toLowerCase();
+            const uFac = String(userFacultad || "").toLowerCase();
+            const uCar = String(userCarrera || "").toLowerCase();
+
+            const matchFac = !uFac || evFac.includes(uFac) || uFac.includes(evFac);
+            const matchCar = !uCar || evCar.includes(uCar) || uCar.includes(evCar);
+
+            return matchFac && matchCar;
+          }
+
           return true;
         })
         .sort(
@@ -130,7 +163,7 @@ export function VOAEDeptoRecords() {
             new Date(b.updated_at || b.fecha_inicio).getTime() -
             new Date(a.updated_at || a.fecha_inicio).getTime()
         ),
-    [allEvents]
+    [allEvents, userFacultad, userCarrera]
   );
 
   // Paginación Aprobados
