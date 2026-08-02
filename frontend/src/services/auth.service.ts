@@ -6,7 +6,6 @@ export const authService = {
     const data = await api.post<LoginResponse>('/auth/login', payload);
     localStorage.setItem('unah_token', data.token);
     localStorage.setItem('unah_usuario', JSON.stringify(data.usuario));
-    sessionStorage.setItem('unah_usuario', JSON.stringify(data.usuario));
     return data;
   },
 
@@ -32,13 +31,12 @@ export const authService = {
   logout(): void {
     localStorage.removeItem('unah_token');
     localStorage.removeItem('unah_usuario');
-    sessionStorage.removeItem('unah_usuario');
     sessionStorage.removeItem('unah_role');
   },
 
   getUsuarioGuardado(): Usuario | null {
     try {
-      const raw = localStorage.getItem('unah_usuario') || sessionStorage.getItem('unah_usuario');
+      const raw = localStorage.getItem('unah_usuario');
       return raw ? (JSON.parse(raw) as Usuario) : null;
     } catch {
       return null;
@@ -59,7 +57,6 @@ export const authService = {
 
   setUsuarioGuardado(usuario: Usuario): void {
     localStorage.setItem('unah_usuario', JSON.stringify(usuario));
-    sessionStorage.setItem('unah_usuario', JSON.stringify(usuario));
   },
 
   async getMe(token: string): Promise<Usuario> {
