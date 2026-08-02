@@ -196,9 +196,9 @@ export function ValidacionEvento() {
       {/* Grid: Portada + Tarjeta de ubicación con Mini Preview del Mapa (Como en Imagen 191) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Portada del Evento */}
-        <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shadow-sm h-64 md:h-72 w-full flex items-center justify-center p-2 group">
+        <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm h-64 md:h-72 w-full flex items-center justify-center group">
           {event.portada_url || event.imagen_url ? (
-            <img src={event.portada_url || event.imagen_url} alt="Banner del evento" className="max-w-full max-h-full object-contain rounded-xl" />
+            <img src={event.portada_url || event.imagen_url} alt="Banner del evento" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-[#003366] to-[#004B87] flex flex-col items-center justify-center text-white p-6 text-center">
               <span className="text-xs font-bold uppercase tracking-widest text-[#FFD100] mb-2">{getCategoryLabelHeader(event)}</span>
