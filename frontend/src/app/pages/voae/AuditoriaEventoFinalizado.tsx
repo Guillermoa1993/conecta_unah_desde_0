@@ -569,18 +569,18 @@ export function AuditoriaEventoFinalizado() {
         </div>
 
         {/* Tabla de Asistentes con Paginación y Restricción de Certificado */}
-        <div className="rounded-xl border border-slate-200 overflow-x-auto bg-white">
-          <table className="w-full text-sm">
+        <div className="rounded-xl border border-slate-200 overflow-x-auto bg-white shadow-2xs">
+          <table className="w-full text-sm whitespace-nowrap">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Estudiante</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Cuenta</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Correo institucional</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Carrera</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Inscripción</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Estado</th>
-                <th className="text-center px-4 py-3 text-xs font-bold text-slate-700">Certificado</th>
-                <th className="text-right px-4 py-3 text-xs font-bold text-slate-700">Acción VOAE</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">Estudiante</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">Cuenta</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">Correo institucional</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">Carrera</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">Inscripción</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">Estado</th>
+                <th className="text-center px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">Certificado</th>
+                <th className="text-right px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">Acción VOAE</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
@@ -594,7 +594,9 @@ export function AuditoriaEventoFinalizado() {
                 paginatedInscripciones.map((student) => {
                   const isApproved = student.estado === "ASISTIDO" || student.asistio;
                   const isRejected = student.estado === "RECHAZADO" || student.estado === "NO_ASISTIO";
-                  const studentName = student.nombre_estudiante || student.nombre || student.studentName || "Estudiante UNAH";
+                  const rawName = student.nombre_estudiante || student.nombre || student.studentName || "Estudiante UNAH";
+                  const nameParts = rawName.trim().split(" ").filter(Boolean);
+                  const studentName = nameParts.length >= 2 ? `${nameParts[0]} ${nameParts[1]}` : rawName;
                   const studentAccount = student.numero_cuenta || student.cuenta || student.studentId || "20211000000";
                   const studentEmail = student.correo || `${studentAccount}@unah.hn`;
                   const studentCareer = student.carrera || student.estudiante_carrera || "Ingeniería en Sistemas";
@@ -603,7 +605,7 @@ export function AuditoriaEventoFinalizado() {
                   return (
                     <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
                       {/* Avatar + Nombre */}
-                      <td className="px-4 py-3 font-semibold text-slate-800 flex items-center gap-2.5">
+                      <td className="px-4 py-3 font-semibold text-slate-800 flex items-center gap-2.5 whitespace-nowrap">
                         {student.fotoUrl || student.avatar ? (
                           <img
                             src={student.fotoUrl || student.avatar}

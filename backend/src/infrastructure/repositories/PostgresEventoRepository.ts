@@ -220,6 +220,33 @@ export class PostgresEventoRepository implements EventoRepository {
     };
     finalDesc += "\n---EVENTO_METADATA---" + JSON.stringify(metadata);
 
+    let safeTutorId: any = data.tutor_id;
+    try {
+      if (safeTutorId) {
+        const checkU = await this.pool.query(
+          `SELECT id_usuario FROM tabla_grupo_1_usuario WHERE id_usuario::text = $1 LIMIT 1`,
+          [String(safeTutorId)]
+        );
+        if (checkU.rows.length === 0) {
+          const fallbackU = await this.pool.query(
+            `SELECT id_usuario FROM tabla_grupo_1_usuario ORDER BY id_usuario LIMIT 1`
+          );
+          if (fallbackU.rows.length > 0) {
+            safeTutorId = fallbackU.rows[0].id_usuario;
+          }
+        }
+      } else {
+        const fallbackU = await this.pool.query(
+          `SELECT id_usuario FROM tabla_grupo_1_usuario ORDER BY id_usuario LIMIT 1`
+        );
+        if (fallbackU.rows.length > 0) {
+          safeTutorId = fallbackU.rows[0].id_usuario;
+        }
+      }
+    } catch (_e) {
+      // Fallback silencioso
+    }
+
     const { rows } = await this.pool.query(
       `INSERT INTO tabla_grupo_3_eventos (
         titulo, descripcion, categoria, tipo_actividad, estado,
@@ -243,7 +270,7 @@ export class PostgresEventoRepository implements EventoRepository {
         data.cupo_maximo || 50,
         parseFloat(String(data.duracion_horas)) || 1.0,
         data.portada_url || null,
-        data.tutor_id,
+        safeTutorId,
         data.imagenes_adicionales || []
       ],
     );

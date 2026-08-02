@@ -1175,11 +1175,11 @@ export function ManageEvent() {
 
             <TabsContent value="enrolled">
               <Card className="shadow-sm border-slate-200">
-                <CardContent className="p-0">
+                <CardContent className="p-0 overflow-x-auto">
                   {students.length === 0 ? (
                     <div className="text-center py-12 text-sm text-muted-foreground">No hay estudiantes inscritos en este evento.</div>
                   ) : (
-                    <Table>
+                    <Table className="whitespace-nowrap">
                       <TableHeader className="bg-slate-50">
                         <TableRow>
                           <TableHead className="font-semibold text-slate-700">Estudiante</TableHead>
@@ -1263,11 +1263,11 @@ export function ManageEvent() {
 
             <TabsContent value="attendance">
               <Card className="shadow-sm border-slate-200">
-                <CardContent className="p-0">
+                <CardContent className="p-0 overflow-x-auto">
                   {students.length === 0 ? (
                     <div className="text-center py-12 text-sm text-muted-foreground">No hay estudiantes registrados.</div>
                   ) : (
-                    <Table>
+                    <Table className="whitespace-nowrap">
                       <TableHeader className="bg-slate-50">
                         <TableRow>
                           <TableHead className="w-12"></TableHead>

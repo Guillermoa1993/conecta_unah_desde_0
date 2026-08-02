@@ -582,16 +582,16 @@ export function VOAEDashboard() {
           <div className="space-y-4">
             <div className="space-y-3">
               {paginatedClosed.map((ev) => (
-                <div key={ev.id} className="rounded-lg border p-4 flex items-center gap-4 bg-slate-50 hover:bg-slate-100 transition-colors">
+                <div key={ev.id} className="rounded-lg border p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50 hover:bg-slate-100 transition-colors">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-slate-800">{ev.titulo}</p>
                     <p className="text-[11px] text-muted-foreground font-medium mt-1">
                       Organizador: <strong>{ev.tutor_nombre || ev.creador_nombre || "Tutor"}</strong> · Fin: {formatDate(ev.fecha_fin)} · {ev.inscritos_count || 0} alumnos inscritos
                     </p>
                   </div>
-                  <Button asChild size="sm" variant="outline" className="border-slate-300 hover:border-[#004B87] hover:text-[#004B87] font-semibold">
+                  <Button asChild size="sm" variant="outline" className="w-full sm:w-auto border-slate-300 hover:border-[#004B87] hover:text-[#004B87] font-semibold justify-center">
                     <Link to={`/voae/events/${ev.id}/validacion`}>
-                      <ShieldCheck className="size-3.5 mr-1.5 text-emerald-600" /> Ver validaciones
+                      <ShieldCheck className="size-3.5 mr-1.5 text-emerald-600 shrink-0" /> Ver validaciones
                     </Link>
                   </Button>
                 </div>

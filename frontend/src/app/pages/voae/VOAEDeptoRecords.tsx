@@ -177,30 +177,30 @@ export function VOAEDeptoRecords() {
       <section className="bg-white rounded-xl border p-6 shadow-sm space-y-4">
         {/* Selector de pestañas: Aprobados / Rechazados */}
         <div className="flex items-center justify-between border-b pb-3 flex-wrap gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
             <Button
               variant={activeTab === "aprobados" ? "default" : "outline"}
               size="sm"
               onClick={() => setActiveTab("aprobados")}
-              className={
+              className={`w-full sm:w-auto text-left justify-center sm:justify-start ${
                 activeTab === "aprobados"
                   ? "bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                   : "text-slate-600"
-              }
+              }`}
             >
-              <CheckCircle2 className="size-4 mr-1.5" /> Aprobados por Coordinación ({approvedDeptoEvents.length})
+              <CheckCircle2 className="size-4 mr-1.5 shrink-0" /> Aprobados por Coordinación ({approvedDeptoEvents.length})
             </Button>
             <Button
               variant={activeTab === "rechazados" ? "default" : "outline"}
               size="sm"
               onClick={() => setActiveTab("rechazados")}
-              className={
+              className={`w-full sm:w-auto text-left justify-center sm:justify-start ${
                 activeTab === "rechazados"
                   ? "bg-red-600 hover:bg-red-700 text-white font-bold"
                   : "text-slate-600"
-              }
+              }`}
             >
-              <XCircle className="size-4 mr-1.5" /> Rechazados por Coordinación ({rejectedDeptoEvents.length})
+              <XCircle className="size-4 mr-1.5 shrink-0" /> Rechazados por Coordinación ({rejectedDeptoEvents.length})
             </Button>
           </div>
 
