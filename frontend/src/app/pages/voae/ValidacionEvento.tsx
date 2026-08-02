@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { CheckCircle2, XCircle, PenLine, RotateCcw, Stamp, ArrowLeft, AlertTriangle, MapPin, Camera, Eye } from "lucide-react";
+import { CheckCircle2, XCircle, ArrowLeft, AlertTriangle, MapPin, Camera, Eye, FileText, Download, RotateCcw, PenLine, Building2, Loader2 } from "lucide-react";
 import { api } from "../../../services/api";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
@@ -100,6 +100,8 @@ export function ValidacionEvento() {
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string|null>(null);
   const [motivoRechazo, setMotivoRechazo] = useState("");
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
 
   const fetchEventDetails = async () => {
     if (!id) return;
@@ -125,13 +127,16 @@ export function ValidacionEvento() {
   };
 
   const handleAprobar = async () => {
-    if (!event) return;
+    if (!event || isApproving) return;
     try {
+      setIsApproving(true);
       await api.patch(`/eventos/${event.id}/aprobar`);
       toast.success("¡Evento aprobado con éxito!");
       navigate("/voae");
     } catch (err: any) {
       toast.error("Error al aprobar el evento", { description: err.message });
+    } finally {
+      setIsApproving(false);
     }
   };
 
@@ -140,14 +145,17 @@ export function ValidacionEvento() {
       toast.error("Debes ingresar un motivo de rechazo");
       return;
     }
-    if (!event) return;
+    if (!event || isRejecting) return;
     try {
+      setIsRejecting(true);
       await api.patch(`/eventos/${event.id}/rechazar`, { motivo: motivoRechazo });
       toast.success("Evento rechazado correctamente");
       setRejectDialogOpen(false);
       navigate("/voae");
     } catch (err: any) {
       toast.error("Error al rechazar el evento", { description: err.message });
+    } finally {
+      setIsRejecting(false);
     }
   };
 
@@ -421,17 +429,19 @@ export function ValidacionEvento() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 flex gap-2">
-            <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
+            <Button variant="outline" disabled={isApproving} onClick={() => setApproveDialogOpen(false)}>
               Cancelar
             </Button>
             <Button
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2"
+              disabled={isApproving}
               onClick={() => {
                 setApproveDialogOpen(false);
                 handleAprobar();
               }}
             >
-              Confirmar Aprobación
+              {isApproving && <Loader2 className="size-4 animate-spin" />}
+              {isApproving ? "Aprobando..." : "Confirmar Aprobación"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -452,11 +462,15 @@ export function ValidacionEvento() {
               onChange={(e) => setMotivoRechazo(e.target.value)}
               placeholder="Ingresa el motivo del rechazo del evento..."
               className="h-12"
+              disabled={isRejecting}
             />
           </div>
           <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleRechazar}>Confirmar Rechazo</Button>
+            <Button variant="outline" disabled={isRejecting} onClick={() => setRejectDialogOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" disabled={isRejecting} onClick={handleRechazar} className="gap-2">
+              {isRejecting && <Loader2 className="size-4 animate-spin" />}
+              {isRejecting ? "Rechazando..." : "Confirmar Rechazo"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

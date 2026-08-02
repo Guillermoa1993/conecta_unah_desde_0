@@ -19,6 +19,7 @@ import {
   QrCode,
   Copy,
   Download,
+  Loader2,
 } from "lucide-react";
 import { api } from "../../../services/api";
 import { toast } from "sonner";
@@ -326,6 +327,9 @@ function EventCard({
   const [publishConfirm, setPublishConfirm] = useState(false);
   const [shareQrOpen, setShareQrOpen] = useState(false);
   const [cancelVoaeConfirm, setCancelVoaeConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const navigate = useNavigate();
 
   const [localPortadaUrl, setLocalPortadaUrl] = useState<string | undefined>(
@@ -339,7 +343,9 @@ function EventCard({
   const statusStyle = STATUS_BADGE[event.estado] || STATUS_BADGE.BORRADOR;
 
   const handlePublish = async () => {
+    if (isPublishing) return;
     try {
+      setIsPublishing(true);
       const payload = {
         ...event,
         estado: "PENDIENTE_APROBACION_DEPTO",
@@ -350,11 +356,15 @@ function EventCard({
       onRefresh();
     } catch (err: any) {
       toast.error("Error al enviar evento a Coordinación", { description: err.message });
+    } finally {
+      setIsPublishing(false);
     }
   };
 
   const handleCancelRequest = async () => {
+    if (isCanceling) return;
     try {
+      setIsCanceling(true);
       const payload = {
         ...event,
         estado: "BORRADOR",
@@ -365,6 +375,8 @@ function EventCard({
       onRefresh();
     } catch (err: any) {
       toast.error("Error al cancelar la solicitud", { description: err.message });
+    } finally {
+      setIsCanceling(false);
     }
   };
 
@@ -683,23 +695,30 @@ function EventCard({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setDeleteConfirm(false)}>
+            <Button variant="outline" disabled={isDeleting} onClick={() => setDeleteConfirm(false)}>
               Cancelar
             </Button>
             <Button
               variant="destructive"
+              disabled={isDeleting}
+              className="gap-1.5"
               onClick={async () => {
+                if (isDeleting) return;
                 try {
+                  setIsDeleting(true);
                   await api.delete(`/eventos/${event.id_evento || event.id}`);
                   toast.success("Borrador eliminado");
                   setDeleteConfirm(false);
                   onRefresh();
                 } catch (err: any) {
                   toast.error("Error al eliminar borrador", { description: err.message });
+                } finally {
+                  setIsDeleting(false);
                 }
               }}
             >
-              Eliminar
+              {isDeleting && <Loader2 className="size-4 animate-spin" />}
+              {isDeleting ? "Eliminando..." : "Eliminar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -717,14 +736,16 @@ function EventCard({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setCancelVoaeConfirm(false)}>
+            <Button variant="outline" disabled={isCanceling} onClick={() => setCancelVoaeConfirm(false)}>
               No, mantener solicitud
             </Button>
             <Button
-              className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+              className="bg-amber-600 hover:bg-amber-700 text-white font-semibold gap-1.5"
+              disabled={isCanceling}
               onClick={handleCancelRequest}
             >
-              Sí, devolver a borrador
+              {isCanceling && <Loader2 className="size-4 animate-spin" />}
+              {isCanceling ? "Cancelando..." : "Sí, devolver a borrador"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -742,15 +763,17 @@ function EventCard({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 justify-end mt-4">
-            <Button variant="outline" className="font-semibold" onClick={() => setPublishConfirm(false)}>
+            <Button variant="outline" className="font-semibold" disabled={isPublishing} onClick={() => setPublishConfirm(false)}>
               Cancelar
             </Button>
             <Button
-              className="text-white font-bold"
+              className="text-white font-bold gap-1.5"
               style={{ backgroundColor: "#004B87" }}
+              disabled={isPublishing}
               onClick={handlePublish}
             >
-              Confirmar envío
+              {isPublishing && <Loader2 className="size-4 animate-spin" />}
+              {isPublishing ? "Enviando..." : "Confirmar envío"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -18,6 +18,7 @@ import {
   Printer,
   X,
   FileCheck,
+  Loader2,
 } from "lucide-react";
 import { api } from "../../../services/api";
 import { toast } from "sonner";
@@ -236,6 +237,7 @@ export function AuditoriaEventoFinalizado() {
     return localStorage.getItem(`voae_audit_completed_${id}`) === "true";
   });
   const [showFinalizeAuditModal, setShowFinalizeAuditModal] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
 
   // Modals state
   const [showSigningModal, setShowSigningModal] = useState(false);
@@ -374,31 +376,36 @@ export function AuditoriaEventoFinalizado() {
     setAuditStudent(null);
   };
 
-  const handleFinalizarAuditoriaCompleta = () => {
-    setAuditCompleted(true);
-    localStorage.setItem(`voae_audit_completed_${id}`, "true");
-    setShowFinalizeAuditModal(false);
+  const handleFinalizarAuditoriaCompleta = async () => {
+    setIsFinalizing(true);
+    try {
+      setAuditCompleted(true);
+      localStorage.setItem(`voae_audit_completed_${id}`, "true");
+      setShowFinalizeAuditModal(false);
 
-    // Guardar notificación para estudiantes
-    const notifs = JSON.parse(localStorage.getItem("voae_student_notifications") || "[]");
-    inscripciones.forEach((st) => {
-      const isApproved = st.estado === "ASISTIDO" || st.asistio;
-      const stAccount = st.numero_cuenta || st.cuenta || "estudiante";
-      notifs.push({
-        id: Date.now() + Math.random(),
-        estudiante_cuenta: stAccount,
-        evento_id: id,
-        titulo_evento: event.titulo,
-        tipo: isApproved ? "APROBADO" : "RECHAZADO",
-        mensaje: isApproved
-          ? `¡Felicidades! Tu constancia de participación en "${event.titulo}" ha sido auditada y aprobada por VOAE. Ya puedes descargar tu certificado.`
-          : `Tu constancia para el evento "${event.titulo}" fue denegada por VOAE. Motivo: ${st.motivo_rechazo || "Marca de asistencia no válida."}`,
-        fecha: new Date().toISOString(),
+      // Guardar notificación para estudiantes
+      const notifs = JSON.parse(localStorage.getItem("voae_student_notifications") || "[]");
+      inscripciones.forEach((st) => {
+        const isApproved = st.estado === "ASISTIDO" || st.asistio;
+        const stAccount = st.numero_cuenta || st.cuenta || "estudiante";
+        notifs.push({
+          id: Date.now() + Math.random(),
+          estudiante_cuenta: stAccount,
+          evento_id: id,
+          titulo_evento: event.titulo,
+          tipo: isApproved ? "APROBADO" : "RECHAZADO",
+          mensaje: isApproved
+            ? `¡Felicidades! Tu constancia de participación en "${event.titulo}" ha sido auditada y aprobada por VOAE. Ya puedes descargar tu certificado.`
+            : `Tu constancia para el evento "${event.titulo}" fue denegada por VOAE. Motivo: ${st.motivo_rechazo || "Marca de asistencia no válida."}`,
+          fecha: new Date().toISOString(),
+        });
       });
-    });
-    localStorage.setItem("voae_student_notifications", JSON.stringify(notifs));
+      localStorage.setItem("voae_student_notifications", JSON.stringify(notifs));
 
-    toast.success(`Auditoría finalizada con éxito. Se han emitido ${asistentes.length} certificados oficiales.`);
+      toast.success(`Auditoría finalizada con éxito. Se han emitido ${asistentes.length} certificados oficiales.`);
+    } finally {
+      setIsFinalizing(false);
+    }
   };
 
   const categoriaNombre =
@@ -1169,11 +1176,12 @@ export function AuditoriaEventoFinalizado() {
           </div>
 
           <DialogFooter className="gap-2 pt-2">
-            <Button variant="outline" onClick={() => setShowFinalizeAuditModal(false)} className="text-xs font-semibold">
+            <Button variant="outline" disabled={isFinalizing} onClick={() => setShowFinalizeAuditModal(false)} className="text-xs font-semibold">
               Cancelar
             </Button>
-            <Button onClick={handleFinalizarAuditoriaCompleta} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5">
-              <CheckCircle2 className="size-4" /> ✓ Confirmar y Emitir Certificados
+            <Button disabled={isFinalizing} onClick={handleFinalizarAuditoriaCompleta} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5">
+              {isFinalizing ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+              {isFinalizing ? "Emitiendo certificados..." : "✓ Confirmar y Emitir Certificados"}
             </Button>
           </DialogFooter>
         </DialogContent>
