@@ -7,6 +7,7 @@ import { Button } from "../../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import { LocationPicker, resolveExactBuildingCoords } from "../../components/app/LocationPicker";
+import { EventCoverBanner } from "../../components/app/EventCoverBanner";
 
 const CATEGORY_LABEL: Record<string, string> = {
   ACADEMICO: "Académico",
@@ -154,18 +155,8 @@ export function ValidacionDeptoEvento() {
 
       {/* Grid: Portada + Tarjeta de ubicación con Mini Preview del Mapa (Como en Imagen 211) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Portada del Evento */}
-        <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm h-64 md:h-72 w-full flex items-center justify-center group">
-          {event.portada_url || event.imagen_url ? (
-            <img src={event.portada_url || event.imagen_url} alt="Banner del evento" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-[#003366] to-[#004B87] flex flex-col items-center justify-center text-white p-6 text-center">
-              <span className="text-xs font-bold uppercase tracking-widest text-[#FFD100] mb-2">{getCategoryLabelHeader(event)}</span>
-              <h3 className="text-2xl font-black uppercase tracking-tight">{event.titulo}</h3>
-              <p className="text-[11px] text-slate-300 mt-4 font-semibold">UNIVERSIDAD NACIONAL AUTÓNOMA DE HONDURAS • CONECTA PUMAS</p>
-            </div>
-          )}
-        </div>
+        {/* Portada del Evento Ilustrada Dinámica por Ámbito */}
+        <EventCoverBanner event={event} heightClass="h-64 md:h-72" />
 
         {/* Ubicación y Mini Preview del Mapa Leaflet */}
         {(() => {

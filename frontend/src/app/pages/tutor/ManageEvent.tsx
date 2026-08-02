@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { EventDetailMapPreview } from "../../components/app/EventDetailMapPreview";
+import { EventCoverBanner } from "../../components/app/EventCoverBanner";
 import { LocationPicker, resolveExactBuildingCoords } from "../../components/app/LocationPicker";
 import { api } from "../../../services/api";
 import { VoaeDrawer } from "../../components/app/VoaeDrawer";
@@ -902,28 +903,7 @@ export function ManageEvent() {
             </>
           )}
 
-          {event.portada_url || event.imagen_url ? (
-            <img src={event.portada_url || event.imagen_url} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <div
-              className="w-full h-full grid place-items-center"
-              style={{ backgroundColor: PLACEHOLDER_BG[event.categoria] || "#f1f5f9" }}
-            >
-              <div
-                className="size-20 rounded-full grid place-items-center"
-                style={{
-                  backgroundColor: PLACEHOLDER_INITIALS_BG[event.categoria] || "#e2e8f0",
-                }}
-              >
-                <div
-                  className="text-3xl font-bold"
-                  style={{ color: PLACEHOLDER_TEXT[event.categoria] || "#64748b" }}
-                >
-                  {CATEGORY_LABEL[event.categoria]?.slice(0, 2).toUpperCase()}
-                </div>
-              </div>
-            </div>
-          )}
+          <EventCoverBanner event={event} heightClass="h-64 md:h-72" showDetailsOverlay={false} />
         </div>
 
         {/* Right: Maps / Link box */}
