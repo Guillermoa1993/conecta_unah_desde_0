@@ -114,6 +114,7 @@ export class PostgresEventoRepository implements EventoRepository {
   }
 
   async findAll(filtros: FiltrosEvento = {}): Promise<Evento[]> {
+    await this.expirarEventosVencidos();
     const conditions: string[] = [];
     const values: unknown[] = [];
     let idx = 1;
@@ -152,6 +153,7 @@ export class PostgresEventoRepository implements EventoRepository {
   }
 
   async findByTutor(tutor_id: string): Promise<Evento[]> {
+    await this.expirarEventosVencidos();
     const { rows } = await this.pool.query(
       `SELECT e.*, u.nombre AS tutor_nombre, p.foto_url AS tutor_foto,
               f.nombre AS facultad_nombre, c.nombre AS carrera_nombre, d.nombre AS departamento_nombre,
