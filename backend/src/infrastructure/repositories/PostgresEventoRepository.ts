@@ -371,4 +371,28 @@ export class PostgresEventoRepository implements EventoRepository {
     );
     return rows[0];
   }
+
+  async expirarEventosVencidos(): Promise<{ actualizados: number; detalles: any[] }> {
+    try {
+      const query = `
+        UPDATE tabla_grupo_3_eventos
+        SET estado = 'FINALIZADO',
+            fecha_actualizacion = NOW()
+        WHERE estado IN ('PROGRAMADO', 'EN_CURSO', 'EN_CURSO_SALIDA', 'PENDIENTE_APROBACION_DEPTO', 'PENDIENTE_APROBACION_VOAE', 'PENDIENTE_APROBACION')
+          AND (
+            fecha_inicio <= NOW() - INTERVAL '24 hours'
+            OR (fecha_fin IS NOT NULL AND fecha_fin <= NOW() - INTERVAL '24 hours')
+          )
+        RETURNING id, titulo, estado, fecha_inicio, fecha_fin;
+      `;
+      const { rows } = await this.pool.query(query);
+      return {
+        actualizados: rows.length,
+        detalles: rows.map(r => ({ id: r.id, titulo: r.titulo, estado: r.estado, fecha_inicio: r.fecha_inicio }))
+      };
+    } catch (err: any) {
+      console.warn("⚠️ Warning en expirarEventosVencidos:", err?.message || err);
+      return { actualizados: 0, detalles: [] };
+    }
+  }
 }

@@ -20,4 +20,5 @@ export interface EventoRepository {
   cambiarEstado(id: string, estado: EstadoEvento, datos?: { aprobado_por?: string; motivo_rechazo?: string }): Promise<Evento | null>;
   delete(id: string): Promise<boolean>;
   contarInscripciones(evento_id: string): Promise<number>;
+  expirarEventosVencidos?(): Promise<{ actualizados: number; detalles: any[] }>;
 }

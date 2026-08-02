@@ -280,8 +280,9 @@ export function AuditoriaEventoFinalizado() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-20">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#003366]"></div>
+      <div className="flex flex-col justify-center items-center py-24 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3 max-w-5xl mx-auto my-8">
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-[#004B87] border-t-transparent"></div>
+        <p className="text-xs font-bold text-[#004B87] animate-pulse">Cargando datos de auditoría de evento finalizado...</p>
       </div>
     );
   }
@@ -561,7 +562,7 @@ export function AuditoriaEventoFinalizado() {
         </div>
 
         {/* Tabla de Asistentes con Paginación y Restricción de Certificado */}
-        <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+        <div className="rounded-xl border border-slate-200 overflow-x-auto bg-white">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>

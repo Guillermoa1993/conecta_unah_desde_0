@@ -152,7 +152,12 @@ export function ValidacionEvento() {
   };
 
   if (loading) {
-    return <div className="py-20 text-center text-sm text-muted-foreground">Cargando evento...</div>;
+    return (
+      <div className="flex flex-col justify-center items-center py-24 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3 max-w-4xl mx-auto my-8">
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-[#004B87] border-t-transparent"></div>
+        <p className="text-xs font-bold text-[#004B87] animate-pulse">Cargando propuesta de evento para Dirección VOAE...</p>
+      </div>
+    );
   }
 
   if (!event) {
