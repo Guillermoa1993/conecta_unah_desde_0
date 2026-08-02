@@ -315,6 +315,14 @@ export function ValidacionDeptoEvento() {
             <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Horas de Duración</span>
             <span className="font-semibold text-slate-800 block">{event.duracion_horas} hrs (totales)</span>
           </div>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Facultad del Solicitante</span>
+            <span className="font-semibold text-slate-800 block">{event.facultad || "Facultad de Ciencias"}</span>
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Carrera / Departamento</span>
+            <span className="font-semibold text-slate-800 block">{event.departamento || event.carrera || "Departamento General"}</span>
+          </div>
         </div>
 
         <div className="pt-4 border-t">

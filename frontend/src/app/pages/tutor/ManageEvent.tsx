@@ -1507,6 +1507,14 @@ export function ManageEvent() {
                     <span className="font-semibold text-slate-800 mt-0.5 block">{event.duracion_horas} hrs ({event.tipo_duracion === "TOTALES" ? "totales" : "diarias"})</span>
                   </div>
                 )}
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Facultad del Organizador</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">{event.facultad || "Facultad de Ciencias"}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Carrera / Departamento</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">{event.departamento || event.carrera || "Departamento General"}</span>
+                </div>
                 <div className="sm:col-span-2 md:col-span-3 border-t border-slate-100 pt-3">
                   <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Descripción del evento</span>
                   <p className="text-slate-700 leading-relaxed mt-1 bg-slate-50 p-3 rounded-lg border border-slate-100 whitespace-pre-wrap">{event.descripcion}</p>

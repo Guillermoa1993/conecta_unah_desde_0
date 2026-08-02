@@ -86,6 +86,9 @@ export class PostgresEventoRepository implements EventoRepository {
       creador_nombre: row.tutor_nombre || undefined,
       tutor_foto: row.tutor_foto || undefined,
       creador_foto: row.tutor_foto || undefined,
+      facultad: row.facultad_nombre || "Facultad de Ciencias",
+      carrera: row.carrera_nombre || row.departamento_nombre || "Departamento General",
+      departamento: row.departamento_nombre || row.carrera_nombre || "Departamento General",
       latitud: pLat as any,
       longitud: pLng as any,
     };
@@ -94,6 +97,7 @@ export class PostgresEventoRepository implements EventoRepository {
   async findById(id: string): Promise<Evento | null> {
     const { rows } = await this.pool.query(
       `SELECT e.*, u.nombre AS tutor_nombre, p.foto_url AS tutor_foto,
+              f.nombre AS facultad_nombre, c.nombre AS carrera_nombre, d.nombre AS departamento_nombre,
               TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
               TO_CHAR(e.fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
@@ -101,6 +105,9 @@ export class PostgresEventoRepository implements EventoRepository {
        FROM tabla_grupo_3_eventos e
        LEFT JOIN tabla_grupo_1_usuario u ON e.tutor_id::text = u.id_usuario::text
        LEFT JOIN tabla_grupo_1_perfil  p ON u.id_usuario = p.id_usuario
+       LEFT JOIN tabla_grupo_1_carreras c ON u.id_carrera = c.id_carrera
+       LEFT JOIN tabla_grupo_1_facultad f ON c.id_facultad = f.id_facultad
+       LEFT JOIN tabla_grupo_1_departamento d ON p.id_departamento = d.id_departamento
        WHERE e.id = $1`, [id]
     );
     return rows[0] ? this.mapRowToEvento(rows[0]) : null;
@@ -121,6 +128,7 @@ export class PostgresEventoRepository implements EventoRepository {
 
     const { rows } = await this.pool.query(
       `SELECT e.*, u.nombre AS tutor_nombre, p.foto_url AS tutor_foto,
+              f.nombre AS facultad_nombre, c.nombre AS carrera_nombre, d.nombre AS departamento_nombre,
               TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
               TO_CHAR(e.fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
@@ -128,6 +136,9 @@ export class PostgresEventoRepository implements EventoRepository {
        FROM tabla_grupo_3_eventos e
        LEFT JOIN tabla_grupo_1_usuario u ON e.tutor_id::text = u.id_usuario::text
        LEFT JOIN tabla_grupo_1_perfil  p ON u.id_usuario = p.id_usuario
+       LEFT JOIN tabla_grupo_1_carreras c ON u.id_carrera = c.id_carrera
+       LEFT JOIN tabla_grupo_1_facultad f ON c.id_facultad = f.id_facultad
+       LEFT JOIN tabla_grupo_1_departamento d ON p.id_departamento = d.id_departamento
        ${where} ORDER BY e.fecha_inicio DESC LIMIT $${idx++} OFFSET $${idx++}`,
       [...values, limit, offset],
     );
@@ -143,6 +154,7 @@ export class PostgresEventoRepository implements EventoRepository {
   async findByTutor(tutor_id: string): Promise<Evento[]> {
     const { rows } = await this.pool.query(
       `SELECT e.*, u.nombre AS tutor_nombre, p.foto_url AS tutor_foto,
+              f.nombre AS facultad_nombre, c.nombre AS carrera_nombre, d.nombre AS departamento_nombre,
               TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
               TO_CHAR(e.fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
@@ -150,6 +162,9 @@ export class PostgresEventoRepository implements EventoRepository {
        FROM tabla_grupo_3_eventos e
        LEFT JOIN tabla_grupo_1_usuario u ON e.tutor_id::text = u.id_usuario::text
        LEFT JOIN tabla_grupo_1_perfil  p ON u.id_usuario = p.id_usuario
+       LEFT JOIN tabla_grupo_1_carreras c ON u.id_carrera = c.id_carrera
+       LEFT JOIN tabla_grupo_1_facultad f ON c.id_facultad = f.id_facultad
+       LEFT JOIN tabla_grupo_1_departamento d ON p.id_departamento = d.id_departamento
        WHERE e.tutor_id = $1 ORDER BY e.created_at DESC`,
       [tutor_id],
     );
@@ -168,6 +183,7 @@ export class PostgresEventoRepository implements EventoRepository {
 
     const { rows } = await this.pool.query(
       `SELECT e.*, u.nombre AS tutor_nombre, p.foto_url AS tutor_foto,
+              f.nombre AS facultad_nombre, c.nombre AS carrera_nombre, d.nombre AS departamento_nombre,
               TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
               TO_CHAR(e.fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
@@ -175,8 +191,12 @@ export class PostgresEventoRepository implements EventoRepository {
        FROM tabla_grupo_3_eventos e
        LEFT JOIN tabla_grupo_1_usuario u ON e.tutor_id::text = u.id_usuario::text
        LEFT JOIN tabla_grupo_1_perfil  p ON u.id_usuario = p.id_usuario
+       LEFT JOIN tabla_grupo_1_carreras c ON u.id_carrera = c.id_carrera
+       LEFT JOIN tabla_grupo_1_facultad f ON c.id_facultad = f.id_facultad
+       LEFT JOIN tabla_grupo_1_departamento d ON p.id_departamento = d.id_departamento
        WHERE ${whereCondition} ORDER BY e.created_at ASC`,
     );
+    return rows.map(r => this.mapRowToEvento(r));
     return rows.map(r => this.mapRowToEvento(r));
   }
 

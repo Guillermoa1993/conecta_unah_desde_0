@@ -235,8 +235,8 @@ export function VOAEDeptoDashboard() {
                         <h3 className="font-semibold text-slate-800 text-sm truncate">
                           {ev.titulo}
                         </h3>
-                        <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                          <Building2 className="size-3" /> Facultad / Depto
+                        <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                          <Building2 className="size-3" /> {ev.facultad || 'Facultad de Ciencias'} • {ev.departamento || ev.carrera || 'Departamento General'}
                         </span>
                       </div>
                       <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-1 flex-wrap font-medium">

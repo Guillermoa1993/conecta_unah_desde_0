@@ -579,6 +579,14 @@ function EventCard({
                 >
                   <Send className="size-3.5" /> Enviar
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 text-xs h-8 px-2.5 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 flex-1 justify-center font-semibold"
+                  onClick={() => setDeleteConfirm(true)}
+                >
+                  <Trash2 className="size-3.5" /> Descartar
+                </Button>
               </>
             )}
             {(event.estado === "PROGRAMADO" ||
@@ -604,7 +612,9 @@ function EventCard({
                 </Button>
               </>
             )}
-            {event.estado === "PENDIENTE_APROBACION" && (
+            {(event.estado === "PENDIENTE_APROBACION" ||
+              event.estado === "PENDIENTE_APROBACION_DEPTO" ||
+              event.estado === "PENDIENTE_APROBACION_VOAE") && (
               <>
                 <Button
                   asChild
@@ -618,11 +628,11 @@ function EventCard({
                 </Button>
                 <Button
                   size="sm"
-                  variant="ghost"
-                  className="gap-1 text-xs h-8 px-2.5 text-amber-600 hover:text-amber-700 flex-1 justify-center font-semibold"
+                  variant="outline"
+                  className="gap-1 text-xs h-8 px-2.5 text-amber-700 hover:text-amber-800 hover:bg-amber-50 border-amber-300 flex-1 justify-center font-semibold"
                   onClick={() => setCancelVoaeConfirm(true)}
                 >
-                  <XCircle className="size-3.5" /> Cancelar
+                  <XCircle className="size-3.5" /> Cancelar solicitud
                 </Button>
               </>
             )}
