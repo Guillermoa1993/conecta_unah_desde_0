@@ -568,8 +568,97 @@ export function AuditoriaEventoFinalizado() {
           </div>
         </div>
 
-        {/* Tabla de Asistentes con Paginación y Restricción de Certificado */}
-        <div className="rounded-xl border border-slate-200 overflow-x-auto bg-white shadow-2xs w-full min-w-0">
+        {/* Vista Móvil: Tarjetas Adaptativas que abarcan el 100% de la pantalla del teléfono */}
+        <div className="md:hidden space-y-3">
+          {totalItems === 0 ? (
+            <div className="px-4 py-8 text-center text-xs text-slate-400 font-medium bg-white rounded-xl border border-slate-200">
+              No hay estudiantes registrados en este evento aún.
+            </div>
+          ) : (
+            paginatedInscripciones.map((student) => {
+              const isApproved = student.estado === "ASISTIDO" || student.asistio;
+              const isRejected = student.estado === "RECHAZADO" || student.estado === "NO_ASISTIO";
+              const rawName = student.nombre_estudiante || student.nombre || student.studentName || "Estudiante UNAH";
+              const nameParts = rawName.trim().split(" ").filter(Boolean);
+              const studentName = nameParts.length >= 2 ? `${nameParts[0]} ${nameParts[1]}` : rawName;
+              const studentAccount = student.numero_cuenta || student.cuenta || student.studentId || "20211000000";
+              const studentEmail = student.correo || `${studentAccount}@unah.hn`;
+              const studentCareer = student.carrera || student.estudiante_carrera || "Ingeniería en Sistemas";
+
+              return (
+                <div key={student.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      {student.fotoUrl || student.avatar ? (
+                        <img
+                          src={student.fotoUrl || student.avatar}
+                          alt=""
+                          className="size-8 rounded-full object-cover border border-slate-200"
+                        />
+                      ) : (
+                        <div className="size-8 rounded-full bg-[#003366]/10 text-[#003366] flex items-center justify-center font-bold text-xs">
+                          {studentName.charAt(0)}
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="font-bold text-slate-800 text-sm leading-tight">{studentName}</h4>
+                        <span className="text-[11px] font-mono text-slate-500">{studentAccount}</span>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase shrink-0 ${
+                        isApproved
+                          ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                          : isRejected
+                          ? "bg-rose-100 text-rose-700 border border-rose-200"
+                          : "bg-amber-100 text-amber-800 border border-amber-200"
+                      }`}
+                    >
+                      {isApproved ? "Asistió" : isRejected ? "Rechazado" : "Pendiente"}
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs space-y-1">
+                    <div>
+                      <span className="text-slate-400 font-semibold block text-[10px] uppercase">Carrera</span>
+                      <span className="font-medium text-slate-700">{studentCareer}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-semibold block text-[10px] uppercase">Correo</span>
+                      <span className="font-mono text-slate-600 text-[11px]">{studentEmail}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                    {isApproved ? (
+                      <Button
+                        size="sm"
+                        onClick={() => setCertStudent(student)}
+                        className="bg-[#003366] hover:bg-[#002244] text-white text-xs h-8 px-3 font-semibold gap-1.5 flex-1 justify-center"
+                      >
+                        <FileText className="size-3.5" /> Certificado
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-slate-400 font-medium">Certificado no disponible</span>
+                    )}
+
+                    <Button
+                      size="sm"
+                      onClick={() => setAuditStudent({ ...student, studentCareer, studentEmail, studentAccount, studentName })}
+                      className="bg-[#004B87] hover:bg-[#003366] text-white text-xs h-8 px-3 font-bold gap-1.5 flex-1 justify-center"
+                    >
+                      <Eye className="size-3.5" /> {isApproved || isRejected ? "Revisar" : "Auditar"}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Vista Escritorio: Tabla tradicional */}
+        <div className="hidden md:block rounded-xl border border-slate-200 overflow-x-auto bg-white shadow-2xs w-full min-w-0">
           <table className="w-full text-sm whitespace-nowrap min-w-[700px]">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
@@ -647,7 +736,7 @@ export function AuditoriaEventoFinalizado() {
                         </span>
                       </td>
 
-                      {/* Certificado (VOAE auditor siempre puede ver/previsualizar el certificado del estudiante aprobado) */}
+                      {/* Certificado */}
                       <td className="px-4 py-3 text-center">
                         {isApproved ? (
                           <Button
