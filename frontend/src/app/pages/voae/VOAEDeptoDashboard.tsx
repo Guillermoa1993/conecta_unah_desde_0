@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import { Clock, CheckCircle2, XCircle, Eye, Building2, ChevronLeft, ChevronRight, ListFilter } from "lucide-react";
 import { api } from "../../../services/api";
+import { authService } from "../../../services/auth.service";
 import { Button } from "../../components/ui/button";
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -88,42 +89,76 @@ export function VOAEDeptoDashboard() {
     fetchEvents();
   }, []);
 
-  // 1. Pendientes de Coordinación
+  const usuarioActivo: any = authService.getUsuarioGuardado();
+  const userFacultad = usuarioActivo?.facultad_nombre || usuarioActivo?.facultad;
+  const userCarrera = usuarioActivo?.carrera_nombre || usuarioActivo?.carrera || usuarioActivo?.departamento_nombre || usuarioActivo?.departamento;
+
+  // 1. Pendientes de Coordinación (filtrados por ámbito de Facultad y Carrera del Coordinador)
   const pendingDeptoEvents = useMemo(
     () =>
       allEvents
-        .filter(
-          (e) =>
+        .filter((e) => {
+          const isPending =
             e.estado === "PENDIENTE_APROBACION_DEPTO" ||
-            e.estado === "PENDIENTE_APROBACION"
-        )
+            e.estado === "PENDIENTE_APROBACION";
+          if (!isPending) return false;
+
+          if (userFacultad || userCarrera) {
+            const evFac = String(e.facultad || e.facultad_nombre || "").toLowerCase();
+            const evCar = String(e.carrera || e.departamento || e.carrera_nombre || e.departamento_nombre || "").toLowerCase();
+            const uFac = String(userFacultad || "").toLowerCase();
+            const uCar = String(userCarrera || "").toLowerCase();
+
+            const matchFac = !uFac || evFac.includes(uFac) || uFac.includes(evFac);
+            const matchCar = !uCar || evCar.includes(uCar) || uCar.includes(evCar);
+
+            return matchFac && matchCar;
+          }
+
+          return true;
+        })
         .sort(
           (a, b) =>
             new Date(a.fecha_inicio).getTime() -
             new Date(b.fecha_inicio).getTime()
         ),
-    [allEvents]
+    [allEvents, userFacultad, userCarrera]
   );
 
   // 2. Aprobados por Coordinación
   const approvedDeptoEvents = useMemo(
     () =>
       allEvents
-        .filter((e) =>
-          [
+        .filter((e) => {
+          const isApproved = [
             "PENDIENTE_APROBACION_VOAE",
             "PROGRAMADO",
             "EN_CURSO",
             "EN_CURSO_SALIDA",
             "FINALIZADO",
-          ].includes(String(e.estado).trim().toUpperCase())
-        )
+          ].includes(String(e.estado).trim().toUpperCase());
+          if (!isApproved) return false;
+
+          if (userFacultad || userCarrera) {
+            const evFac = String(e.facultad || e.facultad_nombre || "").toLowerCase();
+            const evCar = String(e.carrera || e.departamento || e.carrera_nombre || e.departamento_nombre || "").toLowerCase();
+            const uFac = String(userFacultad || "").toLowerCase();
+            const uCar = String(userCarrera || "").toLowerCase();
+
+            const matchFac = !uFac || evFac.includes(uFac) || uFac.includes(evFac);
+            const matchCar = !uCar || evCar.includes(uCar) || uCar.includes(evCar);
+
+            return matchFac && matchCar;
+          }
+
+          return true;
+        })
         .sort(
           (a, b) =>
             new Date(b.updated_at || b.fecha_inicio).getTime() -
             new Date(a.updated_at || a.fecha_inicio).getTime()
         ),
-    [allEvents]
+    [allEvents, userFacultad, userCarrera]
   );
 
   // 3. Rechazados por Coordinación (excluye los rechazados por Dirección VOAE)
@@ -134,6 +169,19 @@ export function VOAEDeptoDashboard() {
           if (String(e.estado).trim().toUpperCase() !== "RECHAZADO") return false;
           const m = String(e.motivo_rechazo || "");
           if (m.startsWith("[VOAE]")) return false;
+
+          if (userFacultad || userCarrera) {
+            const evFac = String(e.facultad || e.facultad_nombre || "").toLowerCase();
+            const evCar = String(e.carrera || e.departamento || e.carrera_nombre || e.departamento_nombre || "").toLowerCase();
+            const uFac = String(userFacultad || "").toLowerCase();
+            const uCar = String(userCarrera || "").toLowerCase();
+
+            const matchFac = !uFac || evFac.includes(uFac) || uFac.includes(evFac);
+            const matchCar = !uCar || evCar.includes(uCar) || uCar.includes(evCar);
+
+            return matchFac && matchCar;
+          }
+
           return true;
         })
         .sort(
@@ -141,7 +189,7 @@ export function VOAEDeptoDashboard() {
             new Date(b.updated_at || b.fecha_inicio).getTime() -
             new Date(a.updated_at || a.fecha_inicio).getTime()
         ),
-    [allEvents]
+    [allEvents, userFacultad, userCarrera]
   );
 
   // Paginación Pendientes
