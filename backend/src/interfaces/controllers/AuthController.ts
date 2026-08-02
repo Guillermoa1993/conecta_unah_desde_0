@@ -195,7 +195,12 @@ actualizarPerfil = async (req: Request, res: Response, next: NextFunction) => {
         return;
       }
 
-      let usuario = await this.usuarioRepo!.findByCorreo(correo) as any;
+      let usuario: any = null;
+      try {
+        usuario = await this.usuarioRepo!.findByCorreo(correo);
+      } catch (dbErr: any) {
+        console.warn(`⚠️ Warning en devLogin al consultar DB (${dbErr.message}). Se usará usuario mock por defecto.`);
+      }
       if (!usuario) {
         if (rol.includes('depto') || rol.includes('departamento') || rol.includes('coordinacion')) {
           usuario = {
