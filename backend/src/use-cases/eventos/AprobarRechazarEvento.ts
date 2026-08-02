@@ -14,12 +14,10 @@ export class AprobarRechazarEvento {
     if (!evento) throw new Error('Evento no encontrado');
 
     const estadoActual = evento.estado;
-    const esPendienteDepto = estadoActual === 'PENDIENTE_APROBACION_DEPTO' || estadoActual === 'PENDIENTE_APROBACION';
-    const esPendienteVoae = estadoActual === 'PENDIENTE_APROBACION_VOAE';
-
-    if (!esPendienteDepto && !esPendienteVoae) {
-      throw new Error('El evento no está pendiente de aprobación');
+    if (estadoActual === 'PROGRAMADO') {
+      return evento;
     }
+    const esPendienteDepto = estadoActual === 'PENDIENTE_APROBACION_DEPTO' || estadoActual === 'PENDIENTE_APROBACION' || estadoActual === 'BORRADOR';
 
     const rolUpper = (rol_aprobador || '').toUpperCase();
     const esDepto = rolUpper.includes('DEPTO') || rolUpper.includes('DEPARTAMENTO') || rolUpper.includes('COORDINACION');

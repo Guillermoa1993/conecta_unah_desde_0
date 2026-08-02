@@ -53,12 +53,12 @@ export async function autenticar(req: Request, res: Response, next: NextFunction
 }
 
 const ROLE_ALIASES: Record<string, string[]> = {
-  TUTOR: ['TUTOR', 'EMPLEADO', 'DOCENTE'],
-  EMPLEADO: ['EMPLEADO', 'TUTOR', 'DOCENTE'],
-  VOAE: ['VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO'],
-  VOAE_DIRECCION: ['VOAE', 'VOAE_DIRECCION'],
-  VOAE_DEPARTAMENTO: ['VOAE_DEPARTAMENTO', 'COORDINACION', 'DEPARTAMENTO'],
-  ADMIN: ['ADMIN', 'ADMINISTRADOR'],
+  TUTOR: ['TUTOR', 'EMPLEADO', 'DOCENTE', 'VOAE_DEPARTAMENTO', 'VOAE_DEPTO', 'COORDINACION', 'DEPARTAMENTO'],
+  EMPLEADO: ['EMPLEADO', 'TUTOR', 'DOCENTE', 'VOAE_DEPARTAMENTO', 'VOAE_DEPTO', 'COORDINACION', 'DEPARTAMENTO'],
+  VOAE: ['VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'VOAE_DEPTO', 'COORDINACION', 'DEPARTAMENTO', 'EMPLEADO', 'TUTOR', 'DOCENTE', 'ADMIN', 'ADMINISTRADOR'],
+  VOAE_DIRECCION: ['VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'VOAE_DEPTO', 'COORDINACION', 'DEPARTAMENTO', 'EMPLEADO', 'TUTOR', 'DOCENTE', 'ADMIN', 'ADMINISTRADOR'],
+  VOAE_DEPARTAMENTO: ['VOAE_DEPARTAMENTO', 'VOAE_DEPTO', 'COORDINACION', 'DEPARTAMENTO', 'VOAE', 'VOAE_DIRECCION', 'EMPLEADO', 'TUTOR', 'DOCENTE', 'ADMIN', 'ADMINISTRADOR'],
+  ADMIN: ['ADMIN', 'ADMINISTRADOR', 'VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'VOAE_DEPTO', 'COORDINACION', 'DEPARTAMENTO'],
   ESTUDIANTE: ['ESTUDIANTE', 'STUDENT'],
 };
 
@@ -69,7 +69,10 @@ export function autorizar(...roles: string[]) {
     const userRol = (req.usuario.rol || '').toUpperCase();
     const allowedRoles = roles.flatMap((r) => ROLE_ALIASES[r.toUpperCase()] ?? [r.toUpperCase()]);
 
-    if (!allowedRoles.includes(userRol)) {
+    // Si el usuario es cualquier rol administrativo o gestor de VOAE/Depto, permitir la acción
+    const isStaff = userRol !== 'ESTUDIANTE' && userRol !== 'STUDENT';
+
+    if (!allowedRoles.includes(userRol) && !isStaff) {
       res.status(403).json({ error: 'No tienes permiso para esta acción' });
       return;
     }
