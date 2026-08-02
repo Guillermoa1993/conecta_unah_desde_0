@@ -25,6 +25,7 @@ import { api } from "../../../services/api";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { EventForm } from "../../components/app/EventForm";
+import { EventCoverBanner } from "../../components/app/EventCoverBanner";
 import {
   Dialog,
   DialogContent,
@@ -392,26 +393,9 @@ function EventCard({
   return (
     <>
       <div className="rounded-xl border bg-card shadow-xs overflow-hidden flex flex-col w-full min-w-0">
-        {/* Portada del Evento (Cuadrada/Boxy en móvil como recuadro celeste de Imagen 228) */}
+        {/* Portada del Evento Ilustrada Dinámica por Ámbito */}
         <div className="relative aspect-[4/3] sm:aspect-video h-48 sm:h-44 group w-full overflow-hidden">
-          {localPortadaUrl ? (
-            <img
-              src={localPortadaUrl}
-              alt=""
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div
-              className="w-full h-full grid place-items-center"
-              style={{ backgroundColor: catColor + "20" }}
-            >
-              <span className="text-3xl font-bold text-white opacity-60">
-                {(CATEGORY_LABEL as any)[event.categoria]
-                  ?.slice(0, 2)
-                  .toUpperCase() || "EV"}
-              </span>
-            </div>
-          )}
+          <EventCoverBanner event={{ ...event, portada_url: localPortadaUrl }} heightClass="h-full" showDetailsOverlay={false} />
 
           {/* Status badge overlay */}
           {event.estado === "BORRADOR" && (
