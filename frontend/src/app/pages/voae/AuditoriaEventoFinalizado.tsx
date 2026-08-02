@@ -481,15 +481,15 @@ export function AuditoriaEventoFinalizado() {
           <div className="bg-white p-3 rounded-xl border border-slate-200/60 shadow-2xs flex items-center gap-3">
             {/* Círculo Celeste: Imagen del Creador/Tutor */}
             <div className="size-10 rounded-full overflow-hidden bg-sky-100 border border-sky-300 flex items-center justify-center shrink-0">
-              {event.tutor_foto ? (
-                <img src={event.tutor_foto} alt="Tutor" className="size-full object-cover" />
+              {(event.tutor_foto || event.creador_foto || event.foto_url) ? (
+                <img src={event.tutor_foto || event.creador_foto || event.foto_url} alt="Tutor" className="size-full object-cover" />
               ) : (
-                <User className="size-5 text-sky-700" />
+                <span className="font-bold text-sky-800 text-xs font-mono">{(event.tutor_nombre || event.creador_nombre || "Tutor")?.slice(0, 2).toUpperCase()}</span>
               )}
             </div>
             <div className="min-w-0">
               <span className="text-slate-400 font-medium block">Tutor / Creador</span>
-              <span className="font-bold text-slate-800 truncate block">{event.tutor_nombre || "Prof. Responsable"}</span>
+              <span className="font-bold text-slate-800 truncate block">{event.tutor_nombre || event.creador_nombre || "Prof. Responsable"}</span>
             </div>
           </div>
 
