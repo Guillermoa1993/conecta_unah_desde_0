@@ -101,7 +101,7 @@ export function TutorHistory() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6 w-full min-w-0 max-w-full overflow-x-hidden">
       <PageHeader
         title="Historial de actividades"
         description="Todos los eventos creados, estados y resultados."
@@ -125,8 +125,8 @@ export function TutorHistory() {
         />
       </div>
 
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden bg-white border-slate-200/80">
-        <Table>
+      <div className="rounded-xl border bg-card shadow-sm overflow-x-auto bg-white border-slate-200/80 w-full min-w-0">
+        <Table className="whitespace-nowrap min-w-[700px]">
           <TableHeader>
             <TableRow>
               <TableHead>Nombre del evento</TableHead>

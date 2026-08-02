@@ -156,7 +156,7 @@ export function VOAEDeptoRecords() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
+    <div className="max-w-6xl mx-auto space-y-6 animate-fade-in w-full max-w-full overflow-x-hidden min-w-0">
       <Link
         to="/voae-depto"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-[#004B87] transition font-medium"

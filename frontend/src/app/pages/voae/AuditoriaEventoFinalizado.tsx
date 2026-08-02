@@ -414,7 +414,7 @@ export function AuditoriaEventoFinalizado() {
       : CATEGORY_LABEL[event.categoria] || event.categoria || "Académico";
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-fade-in pb-12">
+    <div className="max-w-6xl mx-auto space-y-6 animate-fade-in pb-12 w-full max-w-full overflow-x-hidden min-w-0">
       {/* Navigation header */}
       <div className="flex items-center justify-between">
         <Link
@@ -533,44 +533,44 @@ export function AuditoriaEventoFinalizado() {
             </span>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
             {/* Círculo Morado: Registrar mi firma */}
             <Button
               onClick={() => setShowSigningModal(true)}
               variant="outline"
-              className="border-purple-300 bg-purple-50 text-purple-800 hover:bg-purple-100 font-semibold text-xs h-9 gap-2 shadow-2xs"
+              className="w-full sm:w-auto border-purple-300 bg-purple-50 text-purple-800 hover:bg-purple-100 font-semibold text-xs h-9 gap-2 shadow-2xs justify-center"
             >
-              <PenLine className="size-4 text-purple-600" />
+              <PenLine className="size-4 text-purple-600 shrink-0" />
               {signatureUrl ? "Firma Registrada ✓ (Modificar)" : "Registrar mi firma"}
             </Button>
 
             {/* Cierre de Auditoría y Liberación de Certificados */}
             {auditCompleted ? (
-              <div className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1.5 shadow-2xs">
-                <CheckCircle2 className="size-4 text-emerald-600" /> Auditoría Finalizada & Certificados Emitidos
+              <div className="w-full sm:w-auto px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center justify-center gap-1.5 shadow-2xs">
+                <CheckCircle2 className="size-4 text-emerald-600 shrink-0" /> Auditoría Finalizada & Certificados Emitidos
               </div>
             ) : pendientes.length > 0 ? (
               <Button
                 disabled
-                className="bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs h-9 cursor-not-allowed gap-2 opacity-90 shadow-2xs"
+                className="w-full sm:w-auto bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs h-9 cursor-not-allowed gap-2 opacity-90 shadow-2xs justify-center"
                 title="Debes auditar el 100% de las asistencias antes de finalizar la auditoría"
               >
-                <Clock className="size-4 text-amber-600" /> Auditar pendientes (Faltan {pendientes.length})
+                <Clock className="size-4 text-amber-600 shrink-0" /> Auditar pendientes (Faltan {pendientes.length})
               </Button>
             ) : (
               <Button
                 onClick={() => setShowFinalizeAuditModal(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 gap-2 shadow-md animate-pulse"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 gap-2 shadow-md animate-pulse justify-center"
               >
-                <CheckCircle2 className="size-4" /> Finalizar Auditoría y Emitir Certificados
+                <CheckCircle2 className="size-4 shrink-0" /> Finalizar Auditoría y Emitir Certificados
               </Button>
             )}
           </div>
         </div>
 
         {/* Tabla de Asistentes con Paginación y Restricción de Certificado */}
-        <div className="rounded-xl border border-slate-200 overflow-x-auto bg-white shadow-2xs">
-          <table className="w-full text-sm whitespace-nowrap">
+        <div className="rounded-xl border border-slate-200 overflow-x-auto bg-white shadow-2xs w-full min-w-0">
+          <table className="w-full text-sm whitespace-nowrap min-w-[700px]">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="text-left px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">Estudiante</th>
