@@ -43,6 +43,7 @@ const CATEGORY_META: Record<
     mainIcon: React.ElementType;
     subIcon: React.ElementType;
     bgPatternIcons: React.ElementType[];
+    accentColorClass: string;
     illustrationText: string;
   }
 > = {
@@ -51,11 +52,12 @@ const CATEGORY_META: Record<
     primaryColor: "#003366",
     gradientFrom: "from-[#001D3D] via-[#003366]",
     gradientTo: "to-[#004B87]",
-    badgeBg: "bg-blue-950/80 border-blue-400/40 text-blue-100",
+    badgeBg: "bg-blue-950/90 border-blue-400/50 text-blue-100",
     badgeText: "text-blue-200",
     mainIcon: GraduationCap,
     subIcon: BookOpen,
     bgPatternIcons: [GraduationCap, BookOpen, Award, Globe, Compass],
+    accentColorClass: "text-cyan-300/40",
     illustrationText: "📚 Conferencias, Talleres & Aprendizaje",
   },
   CULTURAL: {
@@ -63,11 +65,12 @@ const CATEGORY_META: Record<
     primaryColor: "#d97706",
     gradientFrom: "from-[#451a03] via-[#78350f]",
     gradientTo: "to-[#b45309]",
-    badgeBg: "bg-amber-950/80 border-amber-400/40 text-amber-100",
+    badgeBg: "bg-amber-950/90 border-amber-400/50 text-amber-100",
     badgeText: "text-amber-200",
     mainIcon: Palette,
     subIcon: Music,
     bgPatternIcons: [Palette, Music, Brush, Tv, Sparkles],
+    accentColorClass: "text-amber-300/45",
     illustrationText: "🎭 Arte, Expresión & Talento Universitario",
   },
   DEPORTIVO: {
@@ -75,11 +78,12 @@ const CATEGORY_META: Record<
     primaryColor: "#059669",
     gradientFrom: "from-[#022c22] via-[#064e3b]",
     gradientTo: "to-[#047857]",
-    badgeBg: "bg-emerald-950/80 border-emerald-400/40 text-emerald-100",
+    badgeBg: "bg-emerald-950/90 border-emerald-400/50 text-emerald-100",
     badgeText: "text-emerald-200",
     mainIcon: Trophy,
     subIcon: Activity,
     bgPatternIcons: [Trophy, Activity, Medal, Flame, Zap],
+    accentColorClass: "text-emerald-300/45",
     illustrationText: "⚽ Torneos, Salud & Alto Rendimiento",
   },
   SOCIAL: {
@@ -87,11 +91,12 @@ const CATEGORY_META: Record<
     primaryColor: "#7c3aed",
     gradientFrom: "from-[#2e1065] via-[#4c1d95]",
     gradientTo: "to-[#6d28d9]",
-    badgeBg: "bg-purple-950/80 border-purple-400/40 text-purple-100",
+    badgeBg: "bg-purple-950/90 border-purple-400/50 text-purple-100",
     badgeText: "text-purple-200",
     mainIcon: Users,
     subIcon: HeartHandshake,
     bgPatternIcons: [Users, HeartHandshake, Smile, Globe, Award],
+    accentColorClass: "text-purple-300/45",
     illustrationText: "🤝 Vinculación, Comunidad & Voluntariado",
   },
   RECREACION: {
@@ -99,11 +104,12 @@ const CATEGORY_META: Record<
     primaryColor: "#8b5cf6",
     gradientFrom: "from-[#4a044e] via-[#701a75]",
     gradientTo: "to-[#be185d]",
-    badgeBg: "bg-pink-950/80 border-pink-400/40 text-pink-100",
+    badgeBg: "bg-pink-950/90 border-pink-400/50 text-pink-100",
     badgeText: "text-pink-200",
     mainIcon: PartyPopper,
     subIcon: Sparkles,
     bgPatternIcons: [PartyPopper, Sparkles, Gamepad2, Star, Flame],
+    accentColorClass: "text-pink-300/45",
     illustrationText: "🎪 Convivencia, Juegos & Festivales Pumas",
   },
 };
@@ -180,7 +186,7 @@ export const EventCoverBanner: React.FC<EventCoverBannerProps> = ({
     );
   }
 
-  // Si NO hay foto subida, generamos la Portada Ilustrada Dinámica por Ámbito (Fondo con Arte Integrado)
+  // Si NO hay foto subida, generamos la Portada Ilustrada Dinámica por Ámbito (Fondo con Arte Integrado de Alto Contraste)
   const secondaryCatKey = categories[1];
   const tertiaryCatKey = categories[2];
 
@@ -204,85 +210,85 @@ export const EventCoverBanner: React.FC<EventCoverBannerProps> = ({
   if (tertiaryMeta) allBgIcons.push(...tertiaryMeta.bgPatternIcons);
 
   return (
-    <div className={`relative rounded-2xl overflow-hidden border border-slate-700/50 bg-gradient-to-br ${gradientClass} shadow-md ${heightClass} w-full flex flex-col justify-between p-4 sm:p-5 text-white group select-none`}>
+    <div className={`relative rounded-2xl overflow-hidden border border-slate-700/60 bg-gradient-to-br ${gradientClass} shadow-md ${heightClass} w-full flex flex-col justify-between p-4 sm:p-5 text-white group select-none`}>
       
-      {/* 🎨 FONDO CON ARTE TEMÁTICO ILUSTRADO EN MARCA DE AGUA (INTEGRADO AL FONDO) */}
+      {/* 🎨 FONDO CON ARTE TEMÁTICO ILUSTRADO DE ALTO CONTRASTE (INTEGRADO DIRECTAMENTE AL FONDO DE LA PORTADA) */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
         
-        {/* Mosaico de Íconos Temáticos Ilustrados en Fondo */}
-        <div className="absolute -top-4 -right-4 size-44 sm:size-52 text-white/20 transform rotate-12 transition-transform duration-700 group-hover:scale-110 group-hover:rotate-6">
-          <MainIcon className="w-full h-full stroke-[1.5]" />
+        {/* Ícono Principal Gigante Ilustrado en Fondo (Derecha) */}
+        <div className={`absolute -top-6 -right-6 size-48 sm:size-56 ${primaryMeta.accentColorClass} transform rotate-12 transition-transform duration-700 group-hover:scale-110 group-hover:rotate-6`}>
+          <MainIcon className="w-full h-full stroke-[2]" />
         </div>
 
-        {/* Segundo ícono ilustrado en fondo (Centro-Derecha) */}
+        {/* Segundo ícono temático ilustrado (Centro-Derecha) */}
         {allBgIcons[1] && (
-          <div className="absolute top-1/2 right-16 sm:right-24 -translate-y-1/2 size-28 sm:size-36 text-white/15 transform -rotate-12">
-            {React.createElement(allBgIcons[1], { className: "w-full h-full stroke-[1.5]" })}
+          <div className={`absolute top-1/3 right-14 sm:right-24 size-28 sm:size-36 ${primaryMeta.accentColorClass} transform -rotate-12`}>
+            {React.createElement(allBgIcons[1], { className: "w-full h-full stroke-[2]" })}
           </div>
         )}
 
-        {/* Tercer ícono ilustrado en fondo (Abajo-Derecha) */}
+        {/* Tercer ícono temático ilustrado (Abajo-Derecha) */}
         {allBgIcons[2] && (
-          <div className="absolute -bottom-6 right-6 size-32 sm:size-40 text-white/20 transform rotate-45">
-            {React.createElement(allBgIcons[2], { className: "w-full h-full stroke-[1.5]" })}
+          <div className={`absolute -bottom-4 right-4 size-32 sm:size-40 ${primaryMeta.accentColorClass} transform rotate-45`}>
+            {React.createElement(allBgIcons[2], { className: "w-full h-full stroke-[2]" })}
           </div>
         )}
 
-        {/* Cuarto ícono ilustrado en fondo (Arriba-Centro) */}
+        {/* Cuarto ícono temático ilustrado (Arriba-Centro) */}
         {allBgIcons[3] && (
-          <div className="absolute top-2 left-1/3 size-20 sm:size-24 text-white/10 transform rotate-12">
-            {React.createElement(allBgIcons[3], { className: "w-full h-full stroke-[1.2]" })}
+          <div className={`absolute top-2 left-1/3 size-20 sm:size-24 ${primaryMeta.accentColorClass} transform rotate-12`}>
+            {React.createElement(allBgIcons[3], { className: "w-full h-full stroke-[1.8]" })}
           </div>
         )}
 
-        {/* Quinto ícono ilustrado en fondo (Abajo-Izquierda) */}
+        {/* Quinto ícono temático ilustrado (Abajo-Izquierda) */}
         {allBgIcons[4] && (
-          <div className="absolute -bottom-6 -left-6 size-28 sm:size-32 text-white/15 transform -rotate-12">
-            {React.createElement(allBgIcons[4], { className: "w-full h-full stroke-[1.2]" })}
+          <div className={`absolute -bottom-4 -left-4 size-28 sm:size-32 ${primaryMeta.accentColorClass} transform -rotate-12`}>
+            {React.createElement(allBgIcons[4], { className: "w-full h-full stroke-[1.8]" })}
           </div>
         )}
 
-        {/* Círculos con Resplandor Neón */}
-        <div className="absolute -top-12 -left-12 size-40 rounded-full bg-white/10 blur-xl" />
-        <div className="absolute -bottom-10 right-1/4 size-48 rounded-full bg-amber-400/10 blur-2xl" />
+        {/* Resplandores Neón de Fondo por Ámbito */}
+        <div className="absolute -top-10 -left-10 size-44 rounded-full bg-white/15 blur-xl" />
+        <div className="absolute -bottom-10 right-1/4 size-52 rounded-full bg-amber-400/20 blur-2xl" />
       </div>
 
-      {/* Capa de contraste sutil para garantizar legibilidad del texto */}
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-slate-950/30 z-[1] pointer-events-none" />
+      {/* Capa de contraste suave para asegurar legibilidad */}
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/40 z-[1] pointer-events-none" />
 
       {/* ── Encabezado: Badges de Categoría ── */}
       <div className="relative z-10 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          {categories.map((catKey, idx) => {
+          {categories.map((catKey) => {
             const meta = CATEGORY_META[catKey] || CATEGORY_META.ACADEMICO;
             const Icon = meta.mainIcon;
             return (
               <span
                 key={catKey}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider border shadow-md backdrop-blur-md ${meta.badgeBg}`}
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border shadow-md backdrop-blur-md ${meta.badgeBg}`}
               >
-                <Icon className="size-3.5" />
+                <Icon className="size-4 text-[#FFD100]" />
                 {meta.label}
               </span>
             );
           })}
 
           {categories.length > 1 && (
-            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-[#FFD100] text-slate-950 uppercase tracking-widest shadow-2xs">
+            <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#FFD100] text-slate-950 uppercase tracking-widest shadow-2xs">
               {categories.length === 2 ? "Doble Ámbito VOAE" : "Triple Ámbito VOAE"}
             </span>
           )}
         </div>
 
-        <div className="size-7 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center text-white/90 border border-white/20">
+        <div className="size-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/30 shadow-xs">
           <MainIcon className="size-4" />
         </div>
       </div>
 
       {/* ── Título e Información Temática Central ── */}
       <div className="relative z-10 my-auto py-1 space-y-1">
-        <div className="flex items-center gap-1.5 text-[#FFD100] text-[11px] font-bold uppercase tracking-wider drop-shadow-sm">
-          <SubIcon className="size-3.5 shrink-0" />
+        <div className="flex items-center gap-1.5 text-[#FFD100] text-xs font-black uppercase tracking-wider drop-shadow-md">
+          <SubIcon className="size-4 shrink-0 text-[#FFD100]" />
           <span className="truncate">
             {categories.length > 1
               ? `Ámbitos Combinados: ${categories.map((c) => CATEGORY_META[c]?.label || c).join(" + ")}`
@@ -290,7 +296,7 @@ export const EventCoverBanner: React.FC<EventCoverBannerProps> = ({
           </span>
         </div>
 
-        <h3 className="text-lg sm:text-xl lg:text-2xl font-black uppercase tracking-tight leading-snug drop-shadow-lg line-clamp-2 text-white">
+        <h3 className="text-lg sm:text-xl lg:text-2xl font-black uppercase tracking-tight leading-snug drop-shadow-xl line-clamp-2 text-white">
           {event?.titulo || "Evento Universitario UNAH"}
         </h3>
       </div>
@@ -305,7 +311,7 @@ export const EventCoverBanner: React.FC<EventCoverBannerProps> = ({
             </span>
           </span>
 
-          <span className="hidden sm:inline-block font-mono text-[10px] text-white/80 uppercase shrink-0">
+          <span className="hidden sm:inline-block font-mono text-[10px] text-white/90 uppercase shrink-0">
             CONECTA PUMAS 2026
           </span>
         </div>
