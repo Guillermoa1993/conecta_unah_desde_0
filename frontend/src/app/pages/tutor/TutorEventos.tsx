@@ -981,16 +981,20 @@ export function TutorEventos() {
       // Filtro por nombre
       const matchName = !q || (e.titulo || "").toLowerCase().includes(q);
 
-      // Filtro por ámbito: chequea categoria principal o distribucion_horas
+      // Filtro por ámbito
       let matchAmbito = true;
       if (ambitoFilter) {
-        const mainCat = String(e.categoria || e.tipo_evento || "").toUpperCase();
-        const distCats = Array.isArray(e.distribucion_horas)
-          ? e.distribucion_horas.map((d: any) => String(d.categoria || "").toUpperCase())
-          : [];
-        matchAmbito =
-          mainCat === ambitoFilter ||
-          distCats.includes(ambitoFilter);
+        if (ambitoFilter === "RECREACION") {
+          // Recreativo: el campo tipo_evento del evento es "RECREACION"
+          matchAmbito = String(e.tipo_evento || "").toUpperCase() === "RECREACION";
+        } else {
+          // Ámbitos VOAE (ACADEMICO, CULTURAL, DEPORTIVO, SOCIAL):
+          // vienen del campo distribucion_horas[].categoria
+          const distCats = Array.isArray(e.distribucion_horas)
+            ? e.distribucion_horas.map((d: any) => String(d.categoria || "").toUpperCase())
+            : [];
+          matchAmbito = distCats.includes(ambitoFilter);
+        }
       }
 
       return matchName && matchAmbito;
