@@ -406,7 +406,7 @@ export class PostgresEventoRepository implements EventoRepository {
       const query = `
         UPDATE tabla_grupo_3_eventos
         SET estado = 'FINALIZADO',
-            fecha_actualizacion = NOW()
+            updated_at = NOW()
         WHERE estado IN ('PROGRAMADO', 'EN_CURSO', 'EN_CURSO_SALIDA', 'PENDIENTE_APROBACION_DEPTO', 'PENDIENTE_APROBACION_VOAE', 'PENDIENTE_APROBACION')
           AND (
             fecha_inicio <= NOW() - INTERVAL '24 hours'
