@@ -912,7 +912,7 @@ export function TutorEventos() {
 
   // Paginación inteligente
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(6);
+  const [pageSize, setPageSize] = useState(3);
 
   const fetchEvents = async () => {
     try {
@@ -1267,82 +1267,94 @@ export function TutorEventos() {
             ))}
           </div>
 
-          {/* ── Paginación Inteligente ── */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-xs w-full min-w-0">
-              {/* Info izquierda */}
-              <span className="text-xs text-slate-500 font-semibold shrink-0">
-                <span className="hidden sm:inline">Mostrando </span>
-                <span className="text-slate-800 font-black">{(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filteredEvents.length)}</span>
-                <span className="hidden sm:inline"> de <span className="text-slate-800 font-black">{filteredEvents.length}</span></span>
-              </span>
+          {/* ── Paginación Inteligente (siempre visible) ── */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-xs w-full min-w-0">
+            {/* Info izquierda */}
+            <span className="text-xs text-slate-500 font-semibold shrink-0 order-2 sm:order-1">
+              <span className="hidden sm:inline">Mostrando </span>
+              <span className="text-slate-800 font-black">{Math.min((page - 1) * pageSize + 1, filteredEvents.length)}–{Math.min(page * pageSize, filteredEvents.length)}</span>
+              <span className="text-slate-500"> de </span>
+              <span className="text-slate-800 font-black">{filteredEvents.length}</span>
+              <span className="hidden sm:inline text-slate-500"> eventos</span>
+            </span>
 
-              {/* Controles de páginas */}
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setPage(1)}
-                  disabled={page === 1}
-                  className="hidden sm:flex size-8 items-center justify-center rounded-lg border text-xs font-black transition disabled:opacity-30 hover:bg-slate-100"
-                >
-                  «
-                </button>
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="flex size-8 items-center justify-center rounded-lg border text-slate-600 transition disabled:opacity-30 hover:bg-slate-100"
-                >
-                  <ChevronLeft className="size-4" />
-                </button>
+            {/* Controles de páginas */}
+            <div className="flex items-center gap-1 order-1 sm:order-2">
+              {/* Botón Primera Página */}
+              <button
+                onClick={() => setPage(1)}
+                disabled={page === 1}
+                className="hidden sm:flex size-8 items-center justify-center rounded-lg border text-xs font-black text-slate-600 transition disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-100"
+                title="Primera página"
+              >
+                «
+              </button>
 
-                {/* Números de página */}
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-                  .reduce<(number | string)[]>((acc, p, idx, arr) => {
-                    if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
-                    acc.push(p);
-                    return acc;
-                  }, [])
-                  .map((p, i) =>
-                    p === "..." ? (
-                      <span key={`ellipsis-${i}`} className="size-8 flex items-center justify-center text-xs text-slate-400">…</span>
-                    ) : (
-                      <button
-                        key={p}
-                        onClick={() => setPage(p as number)}
-                        className={cn(
-                          "size-8 flex items-center justify-center rounded-lg text-xs font-black transition border",
-                          page === p
-                            ? "bg-[#004B87] text-white border-[#004B87] shadow-sm"
-                            : "text-slate-600 border-slate-200 hover:bg-slate-100"
-                        )}
-                      >
-                        {p}
-                      </button>
-                    )
-                  )}
+              {/* Botón Anterior */}
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="flex items-center gap-1 px-3 h-8 rounded-lg border text-xs font-bold text-slate-700 transition disabled:opacity-35 disabled:cursor-not-allowed hover:bg-slate-100 hover:border-slate-300"
+                title="Página anterior"
+              >
+                <ChevronLeft className="size-3.5" />
+                <span className="hidden sm:inline">Anterior</span>
+              </button>
 
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="flex size-8 items-center justify-center rounded-lg border text-slate-600 transition disabled:opacity-30 hover:bg-slate-100"
-                >
-                  <ChevronRight className="size-4" />
-                </button>
-                <button
-                  onClick={() => setPage(totalPages)}
-                  disabled={page === totalPages}
-                  className="hidden sm:flex size-8 items-center justify-center rounded-lg border text-xs font-black transition disabled:opacity-30 hover:bg-slate-100"
-                >
-                  »
-                </button>
-              </div>
+              {/* Números de página */}
+              {totalPages > 1 && Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, i) =>
+                  p === "..." ? (
+                    <span key={`ellipsis-${i}`} className="size-8 flex items-center justify-center text-xs text-slate-400">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p as number)}
+                      className={cn(
+                        "size-8 flex items-center justify-center rounded-lg text-xs font-black transition border",
+                        page === p
+                          ? "bg-[#004B87] text-white border-[#004B87] shadow-sm"
+                          : "text-slate-600 border-slate-200 hover:bg-slate-100"
+                      )}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
 
-              {/* Página actual */}
-              <span className="text-xs text-slate-500 font-semibold shrink-0">
-                Pág. <span className="text-slate-800 font-black">{page}</span>/<span className="text-slate-800 font-black">{totalPages}</span>
-              </span>
+              {/* Botón Siguiente */}
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="flex items-center gap-1 px-3 h-8 rounded-lg border text-xs font-bold text-slate-700 transition disabled:opacity-35 disabled:cursor-not-allowed hover:bg-slate-100 hover:border-slate-300"
+                title="Página siguiente"
+              >
+                <span className="hidden sm:inline">Siguiente</span>
+                <ChevronRight className="size-3.5" />
+              </button>
+
+              {/* Botón Última Página */}
+              <button
+                onClick={() => setPage(totalPages)}
+                disabled={page === totalPages}
+                className="hidden sm:flex size-8 items-center justify-center rounded-lg border text-xs font-black text-slate-600 transition disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-100"
+                title="Última página"
+              >
+                »
+              </button>
             </div>
-          )}
+
+            {/* Página actual */}
+            <span className="text-xs text-slate-500 font-semibold shrink-0 order-3">
+              Pág. <span className="text-slate-800 font-black">{page}</span>/<span className="text-slate-800 font-black">{totalPages}</span>
+            </span>
+          </div>
         </>
       )}
     </div>
