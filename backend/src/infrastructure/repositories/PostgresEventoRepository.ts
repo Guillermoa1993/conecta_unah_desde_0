@@ -409,8 +409,8 @@ export class PostgresEventoRepository implements EventoRepository {
             updated_at = NOW()
         WHERE estado IN ('PROGRAMADO', 'EN_CURSO', 'EN_CURSO_SALIDA', 'PENDIENTE_APROBACION_DEPTO', 'PENDIENTE_APROBACION_VOAE', 'PENDIENTE_APROBACION')
           AND (
-            fecha_inicio <= NOW() - INTERVAL '24 hours'
-            OR (fecha_fin IS NOT NULL AND fecha_fin <= NOW() - INTERVAL '24 hours')
+            (fecha_fin IS NOT NULL AND fecha_fin <= NOW() - INTERVAL '24 hours')
+            OR (fecha_fin IS NULL AND fecha_inicio <= NOW() - INTERVAL '24 hours')
           )
         RETURNING id, titulo, estado, fecha_inicio, fecha_fin;
       `;
