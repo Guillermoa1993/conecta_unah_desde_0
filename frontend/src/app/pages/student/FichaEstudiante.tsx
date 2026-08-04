@@ -231,6 +231,7 @@ export function FichaEstudiante() {
     faceMatchScore?: number;
     faceMatchOk?: boolean;
     docTieneFoto?: boolean;
+    docRect?: { leftPct: number; topPct: number; widthPct: number; heightPct: number };
   } | null>(null);
 
   const [enviando, setEnviando] = useState(false);
@@ -521,6 +522,7 @@ export function FichaEstudiante() {
     tablesDetected: boolean;
     tableLinesCount: number;
     layoutScore: number;
+    docRect: { leftPct: number; topPct: number; widthPct: number; heightPct: number };
   }> => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -549,13 +551,60 @@ export function FichaEstudiante() {
         ctx.drawImage(img, 0, 0, sampleW, sampleH);
         const data = ctx.getImageData(0, 0, sampleW, sampleH).data;
 
-        // 1. Región de la Foto de Perfil
-        // - Forma 03: X: 4% - 15%, Y: 15% - 45% (costado izquierdo)
-        // - Carnet: X: 70% - 95%, Y: 8% - 58% (costado derecho)
-        const photoX = type === 'forma003' ? Math.round(0.04 * sampleW) : Math.round(0.70 * sampleW);
-        const photoY = type === 'forma003' ? Math.round(0.15 * sampleH) : Math.round(0.08 * sampleH);
-        const photoW = type === 'forma003' ? Math.round(0.11 * sampleW) : Math.round(0.25 * sampleW);
-        const photoH = type === 'forma003' ? Math.round(0.30 * sampleH) : Math.round(0.50 * sampleH);
+        // ── 0. Detección automática del rectángulo del documento (Bounding Box) ──
+        // Busca los 4 bordes del papel del documento dentro de la imagen
+        let minX = sampleW, maxX = 0, minY = sampleH, maxY = 0;
+        let countBright = 0;
+
+        for (let y = 0; y < sampleH; y += 2) {
+          for (let x = 0; x < sampleW; x += 2) {
+            const idx = (y * sampleW + x) * 4;
+            const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+            const brightness = (r + g + b) / 3;
+            // Fondo claro del papel oficial (Forma 03 / Carnet)
+            if (brightness > 175) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+              countBright++;
+            }
+          }
+        }
+
+        // Si se encuentra una región clara bien definida (al menos 15% de la imagen)
+        let docBoxX = 0;
+        let docBoxY = 0;
+        let docBoxW = sampleW;
+        let docBoxH = sampleH;
+
+        if (countBright > (sampleW * sampleH * 0.15) && maxX > minX + 50 && maxY > minY + 50) {
+          docBoxX = minX;
+          docBoxY = minY;
+          docBoxW = maxX - minX;
+          docBoxH = maxY - minY;
+        }
+
+        const docRect = {
+          leftPct: (docBoxX / sampleW) * 100,
+          topPct: (docBoxY / sampleH) * 100,
+          widthPct: (docBoxW / sampleW) * 100,
+          heightPct: (docBoxH / sampleH) * 100,
+        };
+
+        // 1. Región de la Foto de Perfil (relativa al rectángulo detectado del documento)
+        const photoX = type === 'forma003'
+          ? Math.round(docBoxX + 0.04 * docBoxW)
+          : Math.round(docBoxX + 0.70 * docBoxW);
+        const photoY = type === 'forma003'
+          ? Math.round(docBoxY + 0.15 * docBoxH)
+          : Math.round(docBoxY + 0.08 * docBoxH);
+        const photoW = type === 'forma003'
+          ? Math.round(0.11 * docBoxW)
+          : Math.round(0.25 * docBoxW);
+        const photoH = type === 'forma003'
+          ? Math.round(0.30 * docBoxH)
+          : Math.round(0.50 * docBoxH);
         let photoSum = 0;
         let photoSqSum = 0;
         let photoCount = 0;
@@ -576,13 +625,19 @@ export function FichaEstudiante() {
         const photoVariance = (photoSqSum / (photoCount || 1)) - (photoMean * photoMean);
         const photoDetected = photoVariance > 250;
 
-        // 2. Región del Código QR o Sello Institucional
-        // - Forma 03 (QR): X: 84% - 96%, Y: 15% - 45% (arriba a la derecha)
-        // - Carnet (Sello): X: 4% - 22%, Y: 8% - 40% (arriba a la izquierda)
-        const qrX = type === 'forma003' ? Math.round(0.84 * sampleW) : Math.round(0.04 * sampleW);
-        const qrY = type === 'forma003' ? Math.round(0.15 * sampleH) : Math.round(0.08 * sampleH);
-        const qrW = type === 'forma003' ? Math.round(0.12 * sampleW) : Math.round(0.18 * sampleW);
-        const qrH = type === 'forma003' ? Math.round(0.30 * sampleH) : Math.round(0.32 * sampleH);
+        // 2. Región del Código QR o Sello Institucional (relativa al rectángulo detectado)
+        const qrX = type === 'forma003'
+          ? Math.round(docBoxX + 0.84 * docBoxW)
+          : Math.round(docBoxX + 0.04 * docBoxW);
+        const qrY = type === 'forma003'
+          ? Math.round(docBoxY + 0.15 * docBoxH)
+          : Math.round(docBoxY + 0.08 * docBoxH);
+        const qrW = type === 'forma003'
+          ? Math.round(0.12 * docBoxW)
+          : Math.round(0.18 * docBoxW);
+        const qrH = type === 'forma003'
+          ? Math.round(0.30 * docBoxH)
+          : Math.round(0.32 * docBoxH);
         let qrTransitions = 0;
         let qrRowsChecked = 0;
 
@@ -606,16 +661,20 @@ export function FichaEstudiante() {
         const avgQrTransitions = qrTransitions / (qrRowsChecked || 1);
         const qrDetected = type === 'forma003' ? (avgQrTransitions > 5.5) : (avgQrTransitions > 3.0);
 
-        // 3. Región de Estructura / Tablas o Campos de Datos
-        // - Forma 03: Tablas de Asignaturas (Y: 50% - 95%)
-        // - Carnet: Campos de datos textuales / líneas (Y: 38% - 90%, X: 4% - 66%)
+        // 3. Región de Estructura / Tablas o Campos de Datos (relativa al rectángulo detectado)
         let tableLinesCount = 0;
-        const startY = type === 'forma003' ? Math.round(sampleH * 0.5) : Math.round(sampleH * 0.38);
-        const endY = type === 'forma003' ? Math.round(sampleH * 0.95) : Math.round(sampleH * 0.90);
+        const startY = type === 'forma003'
+          ? Math.round(docBoxY + docBoxH * 0.5)
+          : Math.round(docBoxY + docBoxH * 0.38);
+        const endY = type === 'forma003'
+          ? Math.round(docBoxY + docBoxH * 0.95)
+          : Math.round(docBoxY + docBoxH * 0.90);
         for (let y = startY; y < endY; y += 2) {
           let darkPixels = 0;
           let totalInRow = 0;
-          for (let x = Math.round(sampleW * 0.05); x < Math.round(sampleW * 0.95); x++) {
+          const startXScan = Math.round(docBoxX + docBoxW * 0.05);
+          const endXScan = Math.round(docBoxX + docBoxW * 0.95);
+          for (let x = startXScan; x < endXScan; x++) {
             const idx = (y * sampleW + x) * 4;
             if (idx < data.length) {
               const r = data[idx], g = data[idx + 1], b = data[idx + 2];
@@ -656,7 +715,8 @@ export function FichaEstudiante() {
           qrTransitions: avgQrTransitions,
           tablesDetected,
           tableLinesCount,
-          layoutScore
+          layoutScore,
+          docRect
         });
       };
       img.onerror = () => resolve({
@@ -668,7 +728,8 @@ export function FichaEstudiante() {
         qrTransitions: 0,
         tablesDetected: false,
         tableLinesCount: 0,
-        layoutScore: 0
+        layoutScore: 0,
+        docRect: { leftPct: 0, topPct: 0, widthPct: 100, heightPct: 100 }
       });
       img.src = base64;
     });
@@ -977,7 +1038,8 @@ export function FichaEstudiante() {
         dataMatchStatus: dMatchStatus,
         faceMatchScore,
         faceMatchOk,
-        docTieneFoto
+        docTieneFoto,
+        docRect: analysis.docRect
       });
 
       // El carnet/Forma 03 se aprueba si:
@@ -1599,6 +1661,14 @@ export function FichaEstudiante() {
                   </p>
                 </div>
 
+                {/* Mensaje de recomendación antes de subir la imagen */}
+                <div className="mb-4 p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-amber-800 text-xs font-semibold shadow-sm">
+                  <span className="text-base flex-shrink-0">⚠️</span>
+                  <p>
+                    Asegúrate de que la imagen sea nítida, tenga buena iluminación y muestre los cuatro bordes completos de la Forma 03.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
                   {/* LEFT: Upload + Preview with Layout Overlays (col-span-7) */}
@@ -1619,62 +1689,79 @@ export function FichaEstudiante() {
                           {/* Visual Layout Overlays (only when not scanning and we have results) */}
                           {forma003Status !== 'scanning' && validationDetails && (
                             <div className="absolute inset-0 pointer-events-none">
-                              {/* Photo Bounding Box */}
-                              <div
-                                className={`absolute border-2 rounded ${validationDetails.photoDetected
-                                    ? 'border-emerald-500 bg-emerald-500/10'
-                                    : 'border-rose-500 bg-rose-500/10'
-                                  }`}
-                                style={{
-                                  left: documentType === 'forma003' ? '4%' : '70%',
-                                  top: documentType === 'forma003' ? '15%' : '8%',
-                                  width: documentType === 'forma003' ? '11%' : '25%',
-                                  height: documentType === 'forma003' ? '30%' : '50%'
-                                }}
-                              >
-                                <span className={`absolute -top-5 left-0 text-[8px] font-bold px-1 rounded uppercase text-white ${validationDetails.photoDetected ? 'bg-emerald-500' : 'bg-rose-500'
-                                  }`}>
-                                  Foto: {validationDetails.photoDetected ? 'OK' : 'No Det.'}
-                                </span>
-                              </div>
+                              {/* 0. Document Bounding Box (Rectángulo azul cian del documento detectado) */}
+                              {validationDetails.docRect && (
+                                <div
+                                  className="absolute border-2 border-cyan-400 bg-cyan-400/5 rounded transition-all duration-300"
+                                  style={{
+                                    left: `${validationDetails.docRect.leftPct}%`,
+                                    top: `${validationDetails.docRect.topPct}%`,
+                                    width: `${validationDetails.docRect.widthPct}%`,
+                                    height: `${validationDetails.docRect.heightPct}%`
+                                  }}
+                                >
+                                  <span className="absolute -top-5 left-0 text-[8px] font-bold px-1 rounded uppercase bg-cyan-500 text-white shadow-sm">
+                                    Documento Detectado ({documentType === 'forma003' ? 'Forma 03' : 'Carnet'})
+                                  </span>
 
-                              {/* QR / Barcode Bounding Box */}
-                              <div
-                                className={`absolute border-2 rounded ${validationDetails.qrDetected
-                                    ? 'border-emerald-500 bg-emerald-500/10'
-                                    : 'border-rose-500 bg-rose-500/10'
-                                  }`}
-                                style={{
-                                  left: documentType === 'forma003' ? '84%' : '4%',
-                                  top: documentType === 'forma003' ? '15%' : '8%',
-                                  width: documentType === 'forma003' ? '12%' : '18%',
-                                  height: documentType === 'forma003' ? '30%' : '32%'
-                                }}
-                              >
-                                <span className={`absolute -top-5 right-0 text-[8px] font-bold px-1 rounded uppercase text-white ${validationDetails.qrDetected ? 'bg-emerald-500' : 'bg-rose-500'
-                                  }`}>
-                                  {documentType === 'forma003' ? 'QR' : 'Sello'}: {validationDetails.qrDetected ? 'OK' : 'No Det.'}
-                                </span>
-                              </div>
+                                  {/* Photo Bounding Box (Relativa al Documento) */}
+                                  <div
+                                    className={`absolute border-2 rounded ${validationDetails.photoDetected
+                                        ? 'border-emerald-500 bg-emerald-500/10'
+                                        : 'border-rose-500 bg-rose-500/10'
+                                      }`}
+                                    style={{
+                                      left: documentType === 'forma003' ? '4%' : '70%',
+                                      top: documentType === 'forma003' ? '15%' : '8%',
+                                      width: documentType === 'forma003' ? '11%' : '25%',
+                                      height: documentType === 'forma003' ? '30%' : '50%'
+                                    }}
+                                  >
+                                    <span className={`absolute -top-5 left-0 text-[8px] font-bold px-1 rounded uppercase text-white ${validationDetails.photoDetected ? 'bg-emerald-500' : 'bg-rose-500'
+                                      }`}>
+                                      Foto: {validationDetails.photoDetected ? 'OK' : 'No Det.'}
+                                    </span>
+                                  </div>
 
-                              {/* Structure/Tables Bounding Box */}
-                              <div
-                                className={`absolute border-2 border-dashed rounded ${validationDetails.tablesDetected
-                                    ? 'border-emerald-500 bg-emerald-500/5'
-                                    : 'border-rose-500 bg-rose-500/5'
-                                  }`}
-                                style={{
-                                  left: documentType === 'forma003' ? '2%' : '4%',
-                                  top: documentType === 'forma003' ? '50%' : '38%',
-                                  width: documentType === 'forma003' ? '96%' : '62%',
-                                  height: documentType === 'forma003' ? '43%' : '52%'
-                                }}
-                              >
-                                <span className={`absolute top-1 left-2 text-[8px] font-bold px-1 rounded uppercase text-white ${validationDetails.tablesDetected ? 'bg-emerald-500' : 'bg-rose-500'
-                                  }`}>
-                                  {documentType === 'forma003' ? 'Tablas Asignaturas' : 'Campos de Texto'} ({validationDetails.tablesDetected ? 'OK' : 'No Det.'})
-                                </span>
-                              </div>
+                                  {/* QR / Barcode Bounding Box (Relativa al Documento) */}
+                                  <div
+                                    className={`absolute border-2 rounded ${validationDetails.qrDetected
+                                        ? 'border-emerald-500 bg-emerald-500/10'
+                                        : 'border-rose-500 bg-rose-500/10'
+                                      }`}
+                                    style={{
+                                      left: documentType === 'forma003' ? '84%' : '4%',
+                                      top: documentType === 'forma003' ? '15%' : '8%',
+                                      width: documentType === 'forma003' ? '12%' : '18%',
+                                      height: documentType === 'forma003' ? '30%' : '32%'
+                                    }}
+                                  >
+                                    <span className={`absolute -top-5 right-0 text-[8px] font-bold px-1 rounded uppercase text-white ${validationDetails.qrDetected ? 'bg-emerald-500' : 'bg-rose-500'
+                                      }`}>
+                                      {documentType === 'forma003' ? 'QR' : 'Sello'}: {validationDetails.qrDetected ? 'OK' : 'No Det.'}
+                                    </span>
+                                  </div>
+
+                                  {/* Structure/Tables Bounding Box (Relativa al Documento) */}
+                                  <div
+                                    className={`absolute border-2 border-dashed rounded ${validationDetails.tablesDetected
+                                        ? 'border-emerald-500 bg-emerald-500/5'
+                                        : 'border-rose-500 bg-rose-500/5'
+                                      }`}
+                                    style={{
+                                      left: documentType === 'forma003' ? '2%' : '4%',
+                                      top: documentType === 'forma003' ? '50%' : '38%',
+                                      width: documentType === 'forma003' ? '96%' : '62%',
+                                      height: documentType === 'forma003' ? '43%' : '52%'
+                                    }}
+                                  >
+                                    <span className={`absolute top-1 left-2 text-[8px] font-bold px-1 rounded uppercase text-white ${validationDetails.tablesDetected ? 'bg-emerald-500' : 'bg-rose-500'
+                                      }`}>
+                                      {documentType === 'forma003' ? 'Tablas Asignaturas' : 'Campos de Texto'} ({validationDetails.tablesDetected ? 'OK' : 'No Det.'})
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -1717,8 +1804,8 @@ export function FichaEstudiante() {
                             <p className="text-sm font-bold text-slate-600">
                               Subir imagen de su {documentType === 'forma003' ? 'Forma 03 Oficial' : 'Carnet Estudiantil'}
                             </p>
-                            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                              Debe ser captura horizontal/apaisada de frente.<br />
+                            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                              Debe ser captura horizontal nítida, con buena iluminación y 4 bordes visibles.<br />
                               Formatos: JPG, PNG · Máx. 5 MB
                             </p>
                           </div>
@@ -1759,10 +1846,10 @@ export function FichaEstudiante() {
                       }}
                     />
 
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                       <label
                         htmlFor="forma003-upload"
-                        className="flex-grow h-10 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer text-sm font-semibold flex items-center justify-center gap-2"
+                        className="flex-grow h-11 sm:h-10 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer text-sm font-semibold flex items-center justify-center gap-2 px-3"
                       >
                         <FileSignature className="h-4 w-4" />
                         {forma003 ? 'Cambiar archivo' : `Seleccionar ${documentType === 'forma003' ? 'Forma 03' : 'Carnet'}`}
@@ -1770,7 +1857,7 @@ export function FichaEstudiante() {
                       <Button
                         type="button"
                         onClick={() => startCamera('documento')}
-                        className="h-10 px-4 rounded-lg bg-[#004B87] hover:bg-[#003366] text-white text-sm font-semibold flex items-center justify-center gap-2"
+                        className="h-11 sm:h-10 px-4 rounded-lg bg-[#004B87] hover:bg-[#003366] text-white text-sm font-semibold flex items-center justify-center gap-2 w-full sm:w-auto"
                       >
                         <Camera className="h-4 w-4" /> Tomar Foto
                       </Button>
@@ -1787,7 +1874,7 @@ export function FichaEstudiante() {
                             setCroppedDocPhoto(null);
                             setFaceSimilarityScore(null);
                           }}
-                          className="h-10 px-3 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50 transition-colors text-xs font-bold"
+                          className="h-11 sm:h-10 px-3 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50 transition-colors text-xs font-bold w-full sm:w-auto"
                         >
                           Quitar
                         </button>

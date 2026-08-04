@@ -299,11 +299,29 @@ export function Login() {
         body: JSON.stringify({ correo }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Error al enviar código");
+      if (!res.ok) {
+        const errorMsg = data.error ?? "Error al enviar código";
+        if (errorMsg.includes("no está registrado") || errorMsg.includes("Debes enrolarte")) {
+          toast.error("Este correo no está registrado. Debes enrolarte primero.");
+          setTimeout(() => {
+            navigate("/registro", { state: { email: correo } });
+          }, 1500);
+          return;
+        }
+        throw new Error(errorMsg);
+      }
       toast.success(`Código de seguridad enviado a: ${correo}`);
       setStep(2);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al enviar código");
+      const errMsg = err instanceof Error ? err.message : "Error al enviar código";
+      if (errMsg.includes("no está registrado") || errMsg.includes("Debes enrolarte")) {
+        toast.error("Este correo no está registrado. Debes enrolarte primero.");
+        setTimeout(() => {
+          navigate("/registro", { state: { email: correo } });
+        }, 1500);
+      } else {
+        toast.error(errMsg);
+      }
     } finally {
       setLoading(false);
     }
