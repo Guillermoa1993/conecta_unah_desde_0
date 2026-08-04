@@ -302,10 +302,9 @@ export function Login() {
       if (!res.ok) {
         const errorMsg = data.error ?? "Error al enviar código";
         if (errorMsg.includes("no está registrado") || errorMsg.includes("Debes enrolarte")) {
-          toast.error("Este correo no está registrado. Debes enrolarte primero.");
-          setTimeout(() => {
-            navigate("/registro", { state: { email: correo } });
-          }, 1500);
+          toast.info("Cuenta no enrolada. Redirigiendo al formulario de enrolamiento...");
+          const targetPath = domain === "@unah.edu.hn" ? "/registro/empleado" : "/registro/estudiante";
+          navigate(targetPath, { state: { email: correo } });
           return;
         }
         throw new Error(errorMsg);
@@ -315,10 +314,9 @@ export function Login() {
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : "Error al enviar código";
       if (errMsg.includes("no está registrado") || errMsg.includes("Debes enrolarte")) {
-        toast.error("Este correo no está registrado. Debes enrolarte primero.");
-        setTimeout(() => {
-          navigate("/registro", { state: { email: correo } });
-        }, 1500);
+        toast.info("Cuenta no enrolada. Redirigiendo al formulario de enrolamiento...");
+        const targetPath = domain === "@unah.edu.hn" ? "/registro/empleado" : "/registro/estudiante";
+        navigate(targetPath, { state: { email: correo } });
       } else {
         toast.error(errMsg);
       }
