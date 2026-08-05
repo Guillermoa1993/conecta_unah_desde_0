@@ -87,10 +87,8 @@ export function AppNavbar() {
   };
 
   const getPerfilRoute = () => {
-    if (activeRole.includes("STUDENT") || activeRole.includes("ESTUDIANTE")) {
-      return "/student/ficha";
-    }
-    return "/tutor/ficha";
+    if (activeRole.includes("TUTOR") || activeRole.includes("EMPLEADO") || activeRole.includes("DOCENTE")) return "/tutor/ficha";
+    return "/student/ficha";
   };
 
   const permDeniedOrPending = Object.values(permissions).some(

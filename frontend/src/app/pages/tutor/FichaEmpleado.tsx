@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
 import { useLocation, useNavigate, useBlocker } from "react-router";
+import { authService } from "../../../services/auth.service";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -71,6 +73,21 @@ export function FichaEmpleado() {
   const [correoDominio, setCorreoDominio] = useState("@unah.edu.hn");
   const [correoYaExiste, setCorreoYaExiste] = useState(false);
   const [fromCallback, setFromCallback] = useState(false);
+
+  // Guard: solo bloquea si hay sesión activa en esta pestaña Y ya está enrolado
+  useEffect(() => {
+    const sessionActive = sessionStorage.getItem('unah_session_active') === 'true';
+    if (!sessionActive || !authService.getToken()) return;
+    const usuario = authService.getUsuarioGuardado();
+    if (usuario?.enrolado) {
+      const rol = sessionStorage.getItem('unah_role') ?? 'tutor';
+      const ROL_PATH: Record<string, string> = {
+        student: '/student/feed', tutor: '/tutor/eventos',
+        admin: '/admin', voae: '/voae', voae_depto: '/voae-depto', dev: '/student/feed',
+      };
+      navigate(ROL_PATH[rol] ?? '/tutor/eventos', { replace: true });
+    }
+  }, []);
 
   // Pre-fill email if coming from Login redirect or AuthCallback (enrolamiento incompleto)
   useEffect(() => {

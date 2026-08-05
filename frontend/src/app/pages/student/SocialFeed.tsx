@@ -1666,7 +1666,11 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
 
   // Sync to localStorage
   useEffect(() => {
-    localStorage.setItem("unah_posts", JSON.stringify(posts));
+    try {
+      localStorage.setItem("unah_posts", JSON.stringify(posts));
+    } catch {
+      localStorage.removeItem("unah_posts");
+    }
   }, [posts]);
 
   const [hiddenPostIds, setHiddenPostIds] = useState<Set<number>>(() => {
@@ -1971,8 +1975,12 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
     setPosts(prev => prev.map(p => p.id === editPost.id ? updated : p));
     const saved = localStorage.getItem("unah_posts");
     if (saved) {
-      const list = JSON.parse(saved).map((p: any) => p.id === editPost.id ? updated : p);
-      localStorage.setItem("unah_posts", JSON.stringify(list));
+      try {
+        const list = JSON.parse(saved).map((p: any) => p.id === editPost.id ? updated : p);
+        localStorage.setItem("unah_posts", JSON.stringify(list));
+      } catch {
+        localStorage.removeItem("unah_posts");
+      }
     }
     setEditPost(null);
     showToast("✅ Publicación actualizada");

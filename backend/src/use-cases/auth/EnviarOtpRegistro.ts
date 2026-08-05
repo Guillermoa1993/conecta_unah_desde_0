@@ -12,7 +12,11 @@ export class EnviarOtpRegistro {
     }
 
     const existente = await this.usuarioRepo.findByCorreo(correo);
-    if (existente) throw new Error('Este correo ya está registrado');
+    if (existente) {
+      const enrolado = await this.usuarioRepo.estaEnrolado(existente.id_usuario);
+      if (enrolado) throw new Error('Este correo ya está registrado');
+      // Usuario existe pero no está enrolado — permitir envío de OTP para completar enrolamiento
+    }
 
     const codigo = Math.floor(100000 + Math.random() * 900000).toString();
     guardarOtpRegistro(correo, codigo);
