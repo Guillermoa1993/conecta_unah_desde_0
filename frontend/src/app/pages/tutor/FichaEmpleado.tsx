@@ -71,12 +71,28 @@ export function FichaEmpleado() {
   const [correoDominio, setCorreoDominio] = useState("@unah.edu.hn");
   const [correoYaExiste, setCorreoYaExiste] = useState(false);
 
+  // Pre-fill email if coming from Login redirect (unregistered email)
+  useEffect(() => {
+    const state = location.state as { email?: string } | null;
+    if (state?.email) {
+      const email = state.email;
+      const atIndex = email.indexOf("@");
+      if (atIndex > 0) {
+        setCorreoUsuario(email.substring(0, atIndex));
+        const dom = email.substring(atIndex);
+        if (dom === "@unah.hn" || dom === "@unah.edu.hn") {
+          setCorreoDominio(dom);
+        }
+      }
+    }
+  }, []);
+
   useEffect(() => {
     setFormData((prev) => ({ ...prev, correo: `${correoUsuario.trim()}${correoDominio}` }));
   }, [correoUsuario, correoDominio]);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/catalogos/departamentos")
+    fetch(`${API_URL}/catalogos/departamentos`)
       .then((res) => res.json())
       .then((data) => setDepartamentos(data))
       .catch(() => toast.error("No se pudieron cargar los departamentos"));
@@ -303,7 +319,7 @@ export function FichaEmpleado() {
   const handleSendOtp = async () => {
     setEnviando(true);
     try {
-      const res = await fetch("http://localhost:5000/api/auth/otp-registro/enviar", {
+      const res = await fetch(`${API_URL}/auth/otp-registro/enviar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ correo: formData.correo }),
@@ -328,7 +344,7 @@ export function FichaEmpleado() {
     }
     setEnviando(true);
     try {
-      const res = await fetch("http://localhost:5000/api/auth/registro-empleado", {
+      const res = await fetch(`${API_URL}/auth/registro-empleado`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -574,8 +590,8 @@ export function FichaEmpleado() {
         const h = img.naturalHeight;
         const aspectRatio = w / h;
 
-        // Proporciones: Carnet tiene formato landscape (~1.58). Aceptamos entre 1.2 y 1.9
-        const aspectRatioOk = (aspectRatio >= 1.2 && aspectRatio <= 1.9);
+        // Proporciones: Carnet tiene formato landscape (~1.58). Aceptamos flexiblemente entre 0.9 y 2.5
+        const aspectRatioOk = (aspectRatio >= 0.9 && aspectRatio <= 2.5);
 
         const targetAspect = 1.58;
         const aspectScore = aspectRatioOk ? 100 : Math.max(0, 100 - Math.abs(aspectRatio - targetAspect) * 120);
@@ -1497,11 +1513,11 @@ export function FichaEmpleado() {
                       onClick={() => document.getElementById("forma003-upload")?.click()}
                     >
                       {forma003 ? (
-                        <div className="relative aspect-[1.58] max-w-md mx-auto overflow-hidden rounded-lg bg-black flex items-center justify-center shadow-inner">
+                        <div className="relative w-full flex items-center justify-center p-3 min-h-[220px] max-h-[460px] bg-slate-900/5 rounded-lg shadow-inner">
                           <img
                             src={forma003}
                             alt="Carnet Empleado"
-                            className="w-full h-full object-contain"
+                            className="max-w-full max-h-[440px] h-auto w-auto object-contain rounded-lg shadow-sm"
                           />
                           {forma003Status === 'scanning' && (
                             <div className="absolute inset-0 bg-slate-900/60 rounded-xl flex flex-col items-center justify-center p-6 text-center">

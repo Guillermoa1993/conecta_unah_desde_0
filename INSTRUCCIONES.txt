@@ -8,9 +8,9 @@ Plataforma web para gestión de eventos universitarios.
 Roles: Estudiante | Tutor | VOAE | Admin | Dev (preview)
 
 Base de datos: PostgreSQL en Render.com (en la nube — sin configuración local)
-  Host:     dpg-d931mbugvqtc739qj7h0-a.virginia-postgres.render.com
-  DB:       unah_conecta2
-  Usuario:  unah_conecta2_user
+  Host:     dpg-d9najp2jnfac73an21k0-a.virginia-postgres.render.com
+  DB:       unah_9an6
+  Usuario:  unah_9an6_user
 
 ESTRUCTURA DEL PROYECTO
 -----------------------

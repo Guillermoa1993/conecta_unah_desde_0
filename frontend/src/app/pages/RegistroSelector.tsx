@@ -1,10 +1,12 @@
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { ArrowLeft, User, GraduationCap, Briefcase } from "lucide-react";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 
 export function RegistroSelector() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const emailFromLogin = (location.state as { email?: string } | null)?.email ?? "";
 
   return (
     <div
@@ -33,7 +35,7 @@ export function RegistroSelector() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
           {/* Estudiante Card */}
           <Card
-            onClick={() => navigate("/registro/estudiante")}
+            onClick={() => navigate("/registro/estudiante", { state: { email: emailFromLogin } })}
             className="bg-white/10 backdrop-blur-md border border-white/20 hover:border-[#FFD100] text-white cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-2xl rounded-2xl group overflow-hidden flex flex-col justify-center min-h-[300px]"
           >
             <CardContent className="p-8 flex flex-col items-center justify-center h-full space-y-6">
@@ -58,7 +60,7 @@ export function RegistroSelector() {
 
           {/* Docente Card */}
           <Card
-            onClick={() => navigate("/registro/empleado")}
+            onClick={() => navigate("/registro/empleado", { state: { email: emailFromLogin } })}
             className="bg-white/10 backdrop-blur-md border border-white/20 hover:border-[#FFD100] text-white cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-2xl rounded-2xl group overflow-hidden flex flex-col justify-center min-h-[300px]"
           >
             <CardContent className="p-8 flex flex-col items-center justify-center h-full space-y-6">
