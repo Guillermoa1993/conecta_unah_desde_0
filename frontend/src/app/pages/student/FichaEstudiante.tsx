@@ -104,6 +104,7 @@ export function FichaEstudiante() {
   const [correoUsuario, setCorreoUsuario] = useState("");
   const [correoDominio, setCorreoDominio] = useState("@unah.hn");
   const [correoYaExiste, setCorreoYaExiste] = useState(false);
+  const [correoExisteNoEnrolado, setCorreoExisteNoEnrolado] = useState(false);
   const [fromCallback, setFromCallback] = useState(false);
 
   // Pre-fill email si viene de AuthCallback (enrolamiento incompleto)
@@ -141,7 +142,10 @@ export function FichaEstudiante() {
     const timeoutId = setTimeout(() => {
       fetch(`http://localhost:5000/api/auth/verificar-correo?correo=${encodeURIComponent(formData.correo)}`)
         .then((res) => res.json())
-        .then((data) => setCorreoYaExiste(data.existe && data.enrolado))
+        .then((data) => {
+          setCorreoYaExiste(data.existe && data.enrolado);
+          setCorreoExisteNoEnrolado(data.existe && !data.enrolado);
+        })
         .catch(() => setCorreoYaExiste(false));
     }, 500);
 
@@ -2131,6 +2135,25 @@ export function FichaEstudiante() {
               >
                 Siguiente
                 <ArrowRight className="h-4 w-4" />
+              </Button>
+            ) : correoExisteNoEnrolado ? (
+              <Button
+                type="button"
+                onClick={handleNextStep}
+                disabled={enviando || forma003Status !== 'verified'}
+                className="ml-auto px-8 h-12 bg-[#004B87] hover:bg-[#003366] disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-extrabold rounded-xl shadow-lg flex items-center gap-2"
+              >
+                {enviando ? (
+                  <>
+                    <span className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <ClipboardCheck className="h-4 w-4" />
+                    Completar datos
+                  </>
+                )}
               </Button>
             ) : (
               <Button
