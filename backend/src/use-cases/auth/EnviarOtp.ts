@@ -9,14 +9,10 @@ export class EnviarOtp {
     const usuario = await this.usuarioRepo.findByCorreo(correo);
     if (!usuario) throw new Error('CORREO_NO_REGISTRADO');
 
-    // Si el usuario fue creado previamente por el administrador pero aún no se ha enrolado
-    // (le faltan datos esenciales como teléfono, número de cuenta/empleado o su nombre es incompleto/genérico)
-    const esEstudiante = usuario.id_rol === 1 || usuario.rol === 'ESTUDIANTE';
-    const noEnroladoEstudiante = esEstudiante && (!usuario.numero_cuenta || !usuario.telefono || !usuario.nombre || usuario.nombre.trim().toLowerCase() === 'usuario' || usuario.nombre.trim().toLowerCase() === 'estudiante');
-    const noEnroladoEmpleado = !esEstudiante && usuario.id_rol !== 3 && (!usuario.numero_empleado || !usuario.telefono || !usuario.nombre || usuario.nombre.trim().toLowerCase() === 'usuario' || usuario.nombre.trim().toLowerCase() === 'empleado');
-
-    if (noEnroladoEstudiante || noEnroladoEmpleado) {
-      throw new Error('NO_ENROLADO');
+    const rolBase = [1, 2].includes(usuario.id_rol); // estudiante o tutor/empleado
+    if (rolBase) {
+      const enrolado = await this.usuarioRepo.estaEnrolado(usuario.id_usuario);
+      if (!enrolado) throw new Error('NO_ENROLADO');
     }
 
     if (usuario.estado !== 'ACTIVO') throw new Error('Cuenta suspendida o inactiva');

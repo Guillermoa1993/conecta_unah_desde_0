@@ -54,12 +54,8 @@ export function AuthCallback() {
         const rolRaw = usuario.rol.toLowerCase();
         const rol = ROL_MAP[rolRaw] ?? 'student';
 
-        // Verificar enrolamiento completo para estudiantes y tutores/empleados
-        const nombre = (usuario.nombre || '').trim().toLowerCase();
-        const placeholder = ['usuario', 'estudiante', 'empleado', 'tutor', 'docente'].includes(nombre);
-        const noEnrolado =
-          (rol === 'student' && (!usuario.numero_cuenta || !usuario.telefono || !usuario.nombre || placeholder)) ||
-          (rol === 'tutor'   && (!usuario.numero_empleado || !usuario.telefono || !usuario.nombre || placeholder));
+        // Verificar enrolamiento: el campo viene del JOIN con tabla_grupo_1_verificacion_enrolamiento
+        const noEnrolado = (rol === 'student' || rol === 'tutor') && !usuario.enrolado;
 
         if (noEnrolado) {
           const destino = rol === 'student' ? '/registro/estudiante' : '/registro/empleado';
