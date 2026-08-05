@@ -62,9 +62,7 @@ export function AuthCallback() {
           (rol === 'tutor'   && (!usuario.numero_empleado || !usuario.telefono || !usuario.nombre || placeholder));
 
         if (noEnrolado) {
-          const correo = (usuario.correo || '').toLowerCase();
-          const esDocente = correo.endsWith('@unah.edu.hn');
-          const destino = esDocente ? '/registro/empleado' : '/registro/estudiante';
+          const destino = rol === 'student' ? '/registro/estudiante' : '/registro/empleado';
           navigate(destino, { replace: true, state: { email: usuario.correo, fromCallback: true } });
           return;
         }
