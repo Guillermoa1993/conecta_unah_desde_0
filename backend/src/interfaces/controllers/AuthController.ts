@@ -121,7 +121,9 @@ actualizarPerfil = async (req: Request, res: Response, next: NextFunction) => {
         return;
       }
       const usuario = await this.usuarioRepo!.findByCorreo(correo);
-      res.json({ existe: !!usuario });
+      if (!usuario) { res.json({ existe: false, enrolado: false }); return; }
+      const enrolado = await this.usuarioRepo!.estaEnrolado(usuario.id_usuario);
+      res.json({ existe: true, enrolado });
     } catch (err) { next(err); }
   };
 

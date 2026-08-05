@@ -141,7 +141,7 @@ export function FichaEstudiante() {
     const timeoutId = setTimeout(() => {
       fetch(`http://localhost:5000/api/auth/verificar-correo?correo=${encodeURIComponent(formData.correo)}`)
         .then((res) => res.json())
-        .then((data) => setCorreoYaExiste(data.existe))
+        .then((data) => setCorreoYaExiste(data.existe && data.enrolado))
         .catch(() => setCorreoYaExiste(false));
     }, 500);
 
