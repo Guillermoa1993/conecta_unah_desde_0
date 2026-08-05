@@ -1,12 +1,13 @@
 import { useRef, useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { CheckCircle2, XCircle, ArrowLeft, AlertTriangle, MapPin, Camera, Eye, Building2 } from "lucide-react";
+import { CheckCircle2, XCircle, ArrowLeft, AlertTriangle, MapPin, Camera, Eye, Building2, Loader2 } from "lucide-react";
 import { api } from "../../../services/api";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import { LocationPicker, resolveExactBuildingCoords } from "../../components/app/LocationPicker";
+import { EventCoverBanner } from "../../components/app/EventCoverBanner";
 
 const CATEGORY_LABEL: Record<string, string> = {
   ACADEMICO: "Académico",
@@ -52,6 +53,8 @@ export function ValidacionDeptoEvento() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [motivoRechazo, setMotivoRechazo] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
 
   const fetchEventDetails = async () => {
     try {
@@ -70,13 +73,16 @@ export function ValidacionDeptoEvento() {
   }, [id]);
 
   const handleAprobar = async () => {
-    if (!event) return;
+    if (!event || isApproving) return;
     try {
+      setIsApproving(true);
       await api.patch(`/eventos/${event.id}/aprobar`);
       toast.success("¡Propuesta aprobada por Coordinación y enviada a Dirección VOAE!");
       navigate("/voae-depto");
     } catch (err: any) {
       toast.error("Error al aprobar la propuesta", { description: err.message });
+    } finally {
+      setIsApproving(false);
     }
   };
 
@@ -85,19 +91,27 @@ export function ValidacionDeptoEvento() {
       toast.error("Debes ingresar un motivo de rechazo");
       return;
     }
-    if (!event) return;
+    if (!event || isRejecting) return;
     try {
+      setIsRejecting(true);
       await api.patch(`/eventos/${event.id}/rechazar`, { motivo: motivoRechazo });
       toast.success("Propuesta rechazada correctamente");
       setRejectDialogOpen(false);
       navigate("/voae-depto");
     } catch (err: any) {
       toast.error("Error al rechazar la propuesta", { description: err.message });
+    } finally {
+      setIsRejecting(false);
     }
   };
 
   if (loading) {
-    return <div className="py-20 text-center text-sm text-muted-foreground">Cargando propuesta...</div>;
+    return (
+      <div className="flex flex-col justify-center items-center py-24 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3 max-w-4xl mx-auto my-8">
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-[#004B87] border-t-transparent"></div>
+        <p className="text-xs font-bold text-[#004B87] animate-pulse">Cargando propuesta de evento para Coordinación...</p>
+      </div>
+    );
   }
 
   if (!event) {
@@ -141,18 +155,8 @@ export function ValidacionDeptoEvento() {
 
       {/* Grid: Portada + Tarjeta de ubicación con Mini Preview del Mapa (Como en Imagen 211) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Portada del Evento */}
-        <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm h-64 md:h-72 w-full flex items-center justify-center group">
-          {event.portada_url || event.imagen_url ? (
-            <img src={event.portada_url || event.imagen_url} alt="Banner del evento" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-[#003366] to-[#004B87] flex flex-col items-center justify-center text-white p-6 text-center">
-              <span className="text-xs font-bold uppercase tracking-widest text-[#FFD100] mb-2">{getCategoryLabelHeader(event)}</span>
-              <h3 className="text-2xl font-black uppercase tracking-tight">{event.titulo}</h3>
-              <p className="text-[11px] text-slate-300 mt-4 font-semibold">UNIVERSIDAD NACIONAL AUTÓNOMA DE HONDURAS • CONECTA PUMAS</p>
-            </div>
-          )}
-        </div>
+        {/* Portada del Evento Ilustrada Dinámica por Ámbito */}
+        <EventCoverBanner event={event} heightClass="h-64 md:h-72" />
 
         {/* Ubicación y Mini Preview del Mapa Leaflet */}
         {(() => {
@@ -315,6 +319,14 @@ export function ValidacionDeptoEvento() {
             <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Horas de Duración</span>
             <span className="font-semibold text-slate-800 block">{event.duracion_horas} hrs (totales)</span>
           </div>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Facultad del Solicitante</span>
+            <span className="font-semibold text-slate-800 block">{event.facultad || "Facultad de Ciencias"}</span>
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-0.5">Carrera / Departamento</span>
+            <span className="font-semibold text-slate-800 block">{event.departamento || event.carrera || "Departamento General"}</span>
+          </div>
         </div>
 
         <div className="pt-4 border-t">
@@ -371,17 +383,19 @@ export function ValidacionDeptoEvento() {
             })()}
           </DialogHeader>
           <DialogFooter className="mt-4 flex gap-2">
-            <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
+            <Button variant="outline" disabled={isApproving} onClick={() => setApproveDialogOpen(false)}>
               Cancelar
             </Button>
             <Button
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2"
+              disabled={isApproving}
               onClick={() => {
                 setApproveDialogOpen(false);
                 handleAprobar();
               }}
             >
-              Confirmar Aprobación
+              {isApproving && <Loader2 className="size-4 animate-spin" />}
+              {isApproving ? "Aprobando..." : "Confirmar Aprobación"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -402,11 +416,15 @@ export function ValidacionDeptoEvento() {
               onChange={(e) => setMotivoRechazo(e.target.value)}
               placeholder="Ingresa el motivo del rechazo del evento..."
               className="h-12"
+              disabled={isRejecting}
             />
           </div>
           <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleRechazar}>Confirmar Rechazo</Button>
+            <Button variant="outline" disabled={isRejecting} onClick={() => setRejectDialogOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" disabled={isRejecting} onClick={handleRechazar} className="gap-2">
+              {isRejecting && <Loader2 className="size-4 animate-spin" />}
+              {isRejecting ? "Rechazando..." : "Confirmar Rechazo"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

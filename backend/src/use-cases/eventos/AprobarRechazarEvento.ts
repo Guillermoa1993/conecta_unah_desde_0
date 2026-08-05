@@ -14,12 +14,10 @@ export class AprobarRechazarEvento {
     if (!evento) throw new Error('Evento no encontrado');
 
     const estadoActual = evento.estado;
-    const esPendienteDepto = estadoActual === 'PENDIENTE_APROBACION_DEPTO' || estadoActual === 'PENDIENTE_APROBACION';
-    const esPendienteVoae = estadoActual === 'PENDIENTE_APROBACION_VOAE';
-
-    if (!esPendienteDepto && !esPendienteVoae) {
-      throw new Error('El evento no está pendiente de aprobación');
+    if (estadoActual === 'PROGRAMADO') {
+      return evento;
     }
+    const esPendienteDepto = estadoActual === 'PENDIENTE_APROBACION_DEPTO' || estadoActual === 'PENDIENTE_APROBACION' || estadoActual === 'BORRADOR';
 
     const rolUpper = (rol_aprobador || '').toUpperCase();
     const esDepto = rolUpper.includes('DEPTO') || rolUpper.includes('DEPARTAMENTO') || rolUpper.includes('COORDINACION');
@@ -34,38 +32,46 @@ export class AprobarRechazarEvento {
     if (isRecreativo || (!esPendienteDepto && !esDepto)) {
       const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'PROGRAMADO', { aprobado_por });
 
-      await this.notificacionRepo.crear({
-        usuario_id: Number(evento.tutor_id),
-        mensaje: isRecreativo
-          ? `Tu evento recreativo "${evento.titulo}" fue aprobado por Coordinación de Departamento y ya está publicado.`
-          : `Tu evento "${evento.titulo}" fue aprobado por Dirección VOAE y ya está publicado.`,
-        tipo: 'EVENTO_APROBADO',
-      });
+      try {
+        await this.notificacionRepo.crear({
+          usuario_id: Number(evento.tutor_id),
+          mensaje: isRecreativo
+            ? `Tu evento recreativo "${evento.titulo}" fue aprobado por Coordinación de Departamento y ya está publicado.`
+            : `Tu evento "${evento.titulo}" fue aprobado por Dirección VOAE y ya está publicado.`,
+          tipo: 'EVENTO_APROBADO',
+        });
 
-      // Avisar a todos los estudiantes que hay un evento nuevo disponible
-      const estudiantes = await this.usuarioRepo.findAll({ rol: 'ESTUDIANTE' });
-      await Promise.all(
-        estudiantes.map((estudiante) =>
-          this.notificacionRepo.crear({
-            usuario_id: estudiante.id_usuario,
-            mensaje: `Nuevo evento disponible: "${evento.titulo}"`,
-            tipo: 'EVENTO_DISPONIBLE',
-            referencia_tipo: 'EVENTO',
-            referencia_id: Number(evento.id),
-          }),
-        ),
-      );
+        // Avisar a todos los estudiantes que hay un evento nuevo disponible
+        const estudiantes = await this.usuarioRepo.findAll({ rol: 'ESTUDIANTE' });
+        await Promise.all(
+          estudiantes.map((estudiante) =>
+            this.notificacionRepo.crear({
+              usuario_id: estudiante.id_usuario,
+              mensaje: `Nuevo evento disponible: "${evento.titulo}"`,
+              tipo: 'EVENTO_DISPONIBLE',
+              referencia_tipo: 'EVENTO',
+              referencia_id: Number(evento.id),
+            }).catch(() => null),
+          ),
+        );
+      } catch (e) {
+        console.warn("⚠️ Aviso: No se pudo enviar la notificacion por email/sistema pero el evento fue aprobado con éxito.", e);
+      }
 
       return actualizado;
     }
 
     // Para eventos con horas VOAE aprobados por primera vez por Coordinación Depto -> pasa a PENDIENTE_APROBACION_VOAE
     const actualizado = await this.eventoRepo.cambiarEstado(evento_id, 'PENDIENTE_APROBACION_VOAE', { aprobado_por });
-    await this.notificacionRepo.crear({
-      usuario_id: Number(evento.tutor_id),
-      mensaje: `Tu evento "${evento.titulo}" fue aprobado por Coordinación de Departamento y enviado a Dirección VOAE.`,
-      tipo: 'EVENTO_APROBADO_DEPTO',
-    });
+    try {
+      await this.notificacionRepo.crear({
+        usuario_id: Number(evento.tutor_id),
+        mensaje: `Tu evento "${evento.titulo}" fue aprobado por Coordinación de Departamento y enviado a Dirección VOAE.`,
+        tipo: 'EVENTO_APROBADO_DEPTO',
+      });
+    } catch (e) {
+      console.warn("⚠️ Aviso: No se pudo enviar la notificacion pero el evento fue aprobado con éxito.", e);
+    }
     return actualizado;
   }
 

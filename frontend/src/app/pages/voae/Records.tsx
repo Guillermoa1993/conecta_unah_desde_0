@@ -405,7 +405,7 @@ export function VOAERecords() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
+    <div className="max-w-6xl mx-auto space-y-6 animate-fade-in w-full max-w-full overflow-x-hidden min-w-0">
       <div>
         <h1 className="text-3xl font-bold text-[#003366]">Histórico de Eventos VOAE</h1>
         <p className="text-muted-foreground mt-1">

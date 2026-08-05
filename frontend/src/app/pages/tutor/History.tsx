@@ -101,7 +101,7 @@ export function TutorHistory() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6 w-full min-w-0 max-w-full overflow-x-hidden">
       <PageHeader
         title="Historial de actividades"
         description="Todos los eventos creados, estados y resultados."
@@ -125,8 +125,64 @@ export function TutorHistory() {
         />
       </div>
 
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden bg-white border-slate-200/80">
-        <Table>
+      {/* Vista Móvil: Tarjetas Adaptativas que abarcan el 100% de la pantalla del teléfono */}
+      <div className="md:hidden space-y-3">
+        {myEvents.length === 0 ? (
+          <div className="bg-white rounded-xl border p-6 text-center text-sm text-slate-500 font-medium">
+            No has creado ningún evento aún.
+          </div>
+        ) : (
+          myEvents.map((e) => {
+            const participantes = e.inscritos_count || 0;
+            const asistencias = e.asistencias_count || 0;
+            const ratingVal = e.calificacion || e.promedio_calificacion;
+            const avg = ratingVal && Number(ratingVal) > 0 ? `${Number(ratingVal).toFixed(1)} ★` : "—";
+            const toneClass = STATUS_TONE[e.estado] || "bg-muted text-muted-foreground";
+
+            return (
+              <div key={e.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-bold text-slate-800 text-sm leading-snug">{e.titulo}</h3>
+                  <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full border font-bold uppercase shrink-0 ${toneClass}`}>
+                    {STATUS_LABEL[e.estado] || e.estado}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                  <div>
+                    <span className="text-slate-500 block text-[10px] uppercase font-semibold">Fecha</span>
+                    <span className="font-medium text-slate-700">
+                      {e.fecha_inicio ? new Date(e.fecha_inicio).toLocaleDateString("es-HN") : "N/A"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px] uppercase font-semibold">Categoría</span>
+                    <span className="font-medium text-slate-700">{CATEGORY_LABEL[e.categoria] || e.categoria}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px] uppercase font-semibold">Participantes / Asistió</span>
+                    <span className="font-medium text-slate-700">{participantes} inscritos / {asistencias} asist.</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px] uppercase font-semibold">Calificación</span>
+                    <span className="font-medium text-slate-700">{avg}</span>
+                  </div>
+                </div>
+
+                <Button asChild size="sm" variant="outline" className="w-full border-[#004B87] text-[#004B87] hover:bg-blue-50 font-semibold justify-center">
+                  <Link to={`/tutor/event/${e.id}`}>
+                    <Eye className="size-3.5 mr-1.5" /> Ver detalle del evento
+                  </Link>
+                </Button>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Vista Escritorio: Tabla tradicional con encabezados */}
+      <div className="hidden md:block rounded-xl border bg-card shadow-sm overflow-x-auto bg-white border-slate-200/80 w-full min-w-0">
+        <Table className="whitespace-nowrap w-full">
           <TableHeader>
             <TableRow>
               <TableHead>Nombre del evento</TableHead>

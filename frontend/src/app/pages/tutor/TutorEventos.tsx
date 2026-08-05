@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useNavigate } from "react-router";
 import {
   CalendarDays,
@@ -19,11 +19,18 @@ import {
   QrCode,
   Copy,
   Download,
+  Loader2,
+  Search,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
 } from "lucide-react";
 import { api } from "../../../services/api";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { EventForm } from "../../components/app/EventForm";
+import { EventCoverBanner } from "../../components/app/EventCoverBanner";
 import {
   Dialog,
   DialogContent,
@@ -326,6 +333,9 @@ function EventCard({
   const [publishConfirm, setPublishConfirm] = useState(false);
   const [shareQrOpen, setShareQrOpen] = useState(false);
   const [cancelVoaeConfirm, setCancelVoaeConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const navigate = useNavigate();
 
   const [localPortadaUrl, setLocalPortadaUrl] = useState<string | undefined>(
@@ -339,7 +349,9 @@ function EventCard({
   const statusStyle = STATUS_BADGE[event.estado] || STATUS_BADGE.BORRADOR;
 
   const handlePublish = async () => {
+    if (isPublishing) return;
     try {
+      setIsPublishing(true);
       const payload = {
         ...event,
         estado: "PENDIENTE_APROBACION_DEPTO",
@@ -350,11 +362,15 @@ function EventCard({
       onRefresh();
     } catch (err: any) {
       toast.error("Error al enviar evento a Coordinación", { description: err.message });
+    } finally {
+      setIsPublishing(false);
     }
   };
 
   const handleCancelRequest = async () => {
+    if (isCanceling) return;
     try {
+      setIsCanceling(true);
       const payload = {
         ...event,
         estado: "BORRADOR",
@@ -365,6 +381,8 @@ function EventCard({
       onRefresh();
     } catch (err: any) {
       toast.error("Error al cancelar la solicitud", { description: err.message });
+    } finally {
+      setIsCanceling(false);
     }
   };
 
@@ -380,26 +398,9 @@ function EventCard({
   return (
     <>
       <div className="rounded-xl border bg-card shadow-xs overflow-hidden flex flex-col w-full min-w-0">
-        {/* Portada del Evento (Cuadrada/Boxy en móvil como recuadro celeste de Imagen 228) */}
+        {/* Portada del Evento Ilustrada Dinámica por Ámbito */}
         <div className="relative aspect-[4/3] sm:aspect-video h-48 sm:h-44 group w-full overflow-hidden">
-          {localPortadaUrl ? (
-            <img
-              src={localPortadaUrl}
-              alt=""
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div
-              className="w-full h-full grid place-items-center"
-              style={{ backgroundColor: catColor + "20" }}
-            >
-              <span className="text-3xl font-bold text-white opacity-60">
-                {(CATEGORY_LABEL as any)[event.categoria]
-                  ?.slice(0, 2)
-                  .toUpperCase() || "EV"}
-              </span>
-            </div>
-          )}
+          <EventCoverBanner event={{ ...event, portada_url: localPortadaUrl }} heightClass="h-full" showDetailsOverlay={false} />
 
           {/* Status badge overlay */}
           {event.estado === "BORRADOR" && (
@@ -579,6 +580,14 @@ function EventCard({
                 >
                   <Send className="size-3.5" /> Enviar
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 text-xs h-8 px-2.5 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 flex-1 justify-center font-semibold"
+                  onClick={() => setDeleteConfirm(true)}
+                >
+                  <Trash2 className="size-3.5" /> Descartar
+                </Button>
               </>
             )}
             {(event.estado === "PROGRAMADO" ||
@@ -604,7 +613,9 @@ function EventCard({
                 </Button>
               </>
             )}
-            {event.estado === "PENDIENTE_APROBACION" && (
+            {(event.estado === "PENDIENTE_APROBACION" ||
+              event.estado === "PENDIENTE_APROBACION_DEPTO" ||
+              event.estado === "PENDIENTE_APROBACION_VOAE") && (
               <>
                 <Button
                   asChild
@@ -618,11 +629,11 @@ function EventCard({
                 </Button>
                 <Button
                   size="sm"
-                  variant="ghost"
-                  className="gap-1 text-xs h-8 px-2.5 text-amber-600 hover:text-amber-700 flex-1 justify-center font-semibold"
+                  variant="outline"
+                  className="gap-1 text-xs h-8 px-2.5 text-amber-700 hover:text-amber-800 hover:bg-amber-50 border-amber-300 flex-1 justify-center font-semibold"
                   onClick={() => setCancelVoaeConfirm(true)}
                 >
-                  <XCircle className="size-3.5" /> Cancelar
+                  <XCircle className="size-3.5" /> Cancelar solicitud
                 </Button>
               </>
             )}
@@ -673,23 +684,30 @@ function EventCard({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setDeleteConfirm(false)}>
+            <Button variant="outline" disabled={isDeleting} onClick={() => setDeleteConfirm(false)}>
               Cancelar
             </Button>
             <Button
               variant="destructive"
+              disabled={isDeleting}
+              className="gap-1.5"
               onClick={async () => {
+                if (isDeleting) return;
                 try {
+                  setIsDeleting(true);
                   await api.delete(`/eventos/${event.id_evento || event.id}`);
                   toast.success("Borrador eliminado");
                   setDeleteConfirm(false);
                   onRefresh();
                 } catch (err: any) {
                   toast.error("Error al eliminar borrador", { description: err.message });
+                } finally {
+                  setIsDeleting(false);
                 }
               }}
             >
-              Eliminar
+              {isDeleting && <Loader2 className="size-4 animate-spin" />}
+              {isDeleting ? "Eliminando..." : "Eliminar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -707,14 +725,16 @@ function EventCard({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setCancelVoaeConfirm(false)}>
+            <Button variant="outline" disabled={isCanceling} onClick={() => setCancelVoaeConfirm(false)}>
               No, mantener solicitud
             </Button>
             <Button
-              className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+              className="bg-amber-600 hover:bg-amber-700 text-white font-semibold gap-1.5"
+              disabled={isCanceling}
               onClick={handleCancelRequest}
             >
-              Sí, devolver a borrador
+              {isCanceling && <Loader2 className="size-4 animate-spin" />}
+              {isCanceling ? "Cancelando..." : "Sí, devolver a borrador"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -732,15 +752,17 @@ function EventCard({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 justify-end mt-4">
-            <Button variant="outline" className="font-semibold" onClick={() => setPublishConfirm(false)}>
+            <Button variant="outline" className="font-semibold" disabled={isPublishing} onClick={() => setPublishConfirm(false)}>
               Cancelar
             </Button>
             <Button
-              className="text-white font-bold"
+              className="text-white font-bold gap-1.5"
               style={{ backgroundColor: "#004B87" }}
+              disabled={isPublishing}
               onClick={handlePublish}
             >
-              Confirmar envío
+              {isPublishing && <Loader2 className="size-4 animate-spin" />}
+              {isPublishing ? "Enviando..." : "Confirmar envío"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -866,12 +888,31 @@ function CalendarIllustration() {
   );
 }
 
+const AMBITO_OPTIONS = [
+  { value: "", label: "Todos los Ámbitos", emoji: "🌐" },
+  { value: "ACADEMICO", label: "Académico", emoji: "🎓" },
+  { value: "CULTURAL", label: "Cultural", emoji: "🎭" },
+  { value: "DEPORTIVO", label: "Deportivo", emoji: "⚽" },
+  { value: "SOCIAL", label: "Social", emoji: "🤝" },
+  { value: "RECREACION", label: "Recreativo", emoji: "🎪" },
+];
+
+const PAGE_SIZE_OPTIONS = [3, 6, 9, 12];
+
 export function TutorEventos() {
   const [allEvents, setAllEvents] = useState<any[]>([]);
   const [tab, setTab] = useState<TabType>("borradores");
   const [editingEvent, setEditingEvent] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  // Busqueda y filtros
+  const [search, setSearch] = useState("");
+  const [ambitoFilter, setAmbitoFilter] = useState("");
+
+  // Paginación inteligente
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(3);
 
   const fetchEvents = async () => {
     try {
@@ -891,6 +932,14 @@ export function TutorEventos() {
     fetchEvents();
   }, []);
 
+  // Al cambiar de tab, se resetea la búsqueda, filtro y página
+  const handleTabChange = (newTab: TabType) => {
+    setTab(newTab);
+    setSearch("");
+    setAmbitoFilter("");
+    setPage(1);
+  };
+
   const counts: Record<TabType, number> = {
     borradores: allEvents.filter((e) => e.estado === "BORRADOR").length,
     programados: allEvents.filter((e) =>
@@ -908,21 +957,58 @@ export function TutorEventos() {
     rechazados: allEvents.filter((e) => e.estado === "RECHAZADO").length,
   };
 
-  const filteredEvents = allEvents.filter((e) => {
-    if (tab === "borradores") return e.estado === "BORRADOR";
-    if (tab === "programados")
-      return ["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA"].includes(e.estado);
-    if (tab === "pendientes_depto")
-      return e.estado === "PENDIENTE_APROBACION_DEPTO";
-    if (tab === "pendientes_voae")
-      return (
-        e.estado === "PENDIENTE_APROBACION_VOAE" ||
-        e.estado === "PENDIENTE_APROBACION"
-      );
-    if (tab === "finalizados") return e.estado === "FINALIZADO";
-    if (tab === "rechazados") return e.estado === "RECHAZADO";
-    return false;
-  });
+  // Filtrado por tab + búsqueda + ámbito
+  const filteredEvents = useMemo(() => {
+    const byTab = allEvents.filter((e) => {
+      if (tab === "borradores") return e.estado === "BORRADOR";
+      if (tab === "programados")
+        return ["PROGRAMADO", "EN_CURSO", "EN_CURSO_SALIDA"].includes(e.estado);
+      if (tab === "pendientes_depto")
+        return e.estado === "PENDIENTE_APROBACION_DEPTO";
+      if (tab === "pendientes_voae")
+        return (
+          e.estado === "PENDIENTE_APROBACION_VOAE" ||
+          e.estado === "PENDIENTE_APROBACION"
+        );
+      if (tab === "finalizados") return e.estado === "FINALIZADO";
+      if (tab === "rechazados") return e.estado === "RECHAZADO";
+      return false;
+    });
+
+    const q = search.trim().toLowerCase();
+
+    return byTab.filter((e) => {
+      // Filtro por nombre
+      const matchName = !q || (e.titulo || "").toLowerCase().includes(q);
+
+      // Filtro por ámbito
+      let matchAmbito = true;
+      if (ambitoFilter) {
+        if (ambitoFilter === "RECREACION") {
+          // Recreativo: el campo tipo_evento del evento es "RECREACION"
+          matchAmbito = String(e.tipo_evento || "").toUpperCase() === "RECREACION";
+        } else {
+          // Ámbitos VOAE (ACADEMICO, CULTURAL, DEPORTIVO, SOCIAL):
+          // vienen del campo distribucion_horas[].categoria
+          const distCats = Array.isArray(e.distribucion_horas)
+            ? e.distribucion_horas.map((d: any) => String(d.categoria || "").toUpperCase())
+            : [];
+          matchAmbito = distCats.includes(ambitoFilter);
+        }
+      }
+
+      return matchName && matchAmbito;
+    });
+  }, [allEvents, tab, search, ambitoFilter]);
+
+  // Paginación
+  const totalPages = Math.max(1, Math.ceil(filteredEvents.length / pageSize));
+  const paginatedEvents = filteredEvents.slice((page - 1) * pageSize, page * pageSize);
+
+  // Resetear página si los filtros cambian
+  useEffect(() => {
+    setPage(1);
+  }, [search, ambitoFilter, tab]);
 
   const handleEdit = (event: any) => {
     setEditingEvent(event);
@@ -980,7 +1066,7 @@ export function TutorEventos() {
           return (
             <button
               key={t.key}
-              onClick={() => setTab(t.key)}
+              onClick={() => handleTabChange(t.key)}
               className={cn(
                 "flex flex-col sm:flex-row items-center justify-center text-center px-2 py-2 rounded-lg text-[11px] sm:text-sm font-semibold transition cursor-pointer min-w-0 leading-tight",
                 isActive
@@ -1008,6 +1094,87 @@ export function TutorEventos() {
           );
         })}
       </div>
+
+      {/* ── Barra de Búsqueda + Filtro de Ámbito ── */}
+      <div className="flex flex-col sm:flex-row gap-2 w-full min-w-0">
+        {/* Buscador por nombre */}
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar evento por nombre..."
+            className="w-full pl-9 pr-9 py-2.5 text-sm rounded-xl border border-slate-200 bg-white shadow-xs focus:outline-none focus:ring-2 focus:ring-[#004B87]/30 focus:border-[#004B87] transition placeholder:text-slate-400 font-medium"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+            >
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Filtro por Ámbito */}
+        <div className="relative min-w-[160px] sm:min-w-[180px]">
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
+          <select
+            value={ambitoFilter}
+            onChange={(e) => setAmbitoFilter(e.target.value)}
+            className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl border border-slate-200 bg-white shadow-xs focus:outline-none focus:ring-2 focus:ring-[#004B87]/30 focus:border-[#004B87] transition font-medium text-slate-700 appearance-none cursor-pointer"
+          >
+            {AMBITO_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.emoji} {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Selector de tamaño de página */}
+        <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-xs shrink-0">
+          <span className="text-[11px] text-slate-500 font-semibold hidden sm:inline">Ver:</span>
+          {PAGE_SIZE_OPTIONS.map((size) => (
+            <button
+              key={size}
+              onClick={() => { setPageSize(size); setPage(1); }}
+              className={cn(
+                "text-[11px] font-black px-2 py-0.5 rounded-lg transition",
+                pageSize === size
+                  ? "bg-[#004B87] text-white"
+                  : "text-slate-500 hover:bg-slate-100"
+              )}
+            >
+              {size}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Badge de resultados */}
+      {(search || ambitoFilter) && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-slate-500 font-medium">
+            {filteredEvents.length === 0
+              ? "Sin resultados"
+              : `${filteredEvents.length} resultado${filteredEvents.length !== 1 ? "s" : ""}`}
+          </span>
+          {search && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-[#004B87]/10 text-[#004B87] px-2.5 py-0.5 rounded-full">
+              🔍 "{search}"
+              <button onClick={() => setSearch("")}><X className="size-3" /></button>
+            </span>
+          )}
+          {ambitoFilter && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-purple-100 text-purple-700 px-2.5 py-0.5 rounded-full">
+              {AMBITO_OPTIONS.find(o => o.value === ambitoFilter)?.emoji} {AMBITO_OPTIONS.find(o => o.value === ambitoFilter)?.label}
+              <button onClick={() => setAmbitoFilter("")}><X className="size-3" /></button>
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Content Grid (1 columna con tarjetas más cuadradas en móvil como cuadro celeste de Imagen 228) */}
       {loading ? (
@@ -1074,18 +1241,125 @@ export function TutorEventos() {
             </Button>
           )}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 w-full min-w-0">
-          {filteredEvents.map((event) => (
-            <EventCard
-              key={event.id || event.id_evento}
-              event={event}
-              onDelete={() => {}}
-              onEdit={handleEdit}
-              onRefresh={fetchEvents}
-            />
-          ))}
+      ) : filteredEvents.length === 0 && (search || ambitoFilter) ? (
+        <div className="py-16 text-center bg-white rounded-xl border p-8">
+          <div className="size-16 mx-auto rounded-full bg-slate-100 grid place-items-center mb-4">
+            <Search className="size-8 text-slate-400" />
+          </div>
+          <p className="text-base text-slate-700 font-semibold">No se encontraron eventos</p>
+          <p className="text-sm text-slate-500 mt-1">
+            Intenta con otro nombre o ámbito.
+          </p>
+          <button
+            onClick={() => { setSearch(""); setAmbitoFilter(""); }}
+            className="mt-4 text-sm font-semibold text-[#004B87] hover:underline"
+          >
+            Limpiar filtros
+          </button>
         </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 w-full min-w-0">
+            {paginatedEvents.map((event) => (
+              <EventCard
+                key={event.id || event.id_evento}
+                event={event}
+                onDelete={() => {}}
+                onEdit={handleEdit}
+                onRefresh={fetchEvents}
+              />
+            ))}
+          </div>
+
+          {/* ── Paginación Inteligente (siempre visible) ── */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-xs w-full min-w-0">
+            {/* Info izquierda */}
+            <span className="text-xs text-slate-500 font-semibold shrink-0 order-2 sm:order-1">
+              <span className="hidden sm:inline">Mostrando </span>
+              <span className="text-slate-800 font-black">{Math.min((page - 1) * pageSize + 1, filteredEvents.length)}–{Math.min(page * pageSize, filteredEvents.length)}</span>
+              <span className="text-slate-500"> de </span>
+              <span className="text-slate-800 font-black">{filteredEvents.length}</span>
+              <span className="hidden sm:inline text-slate-500"> eventos</span>
+            </span>
+
+            {/* Controles de páginas */}
+            <div className="flex items-center gap-1 order-1 sm:order-2">
+              {/* Botón Primera Página */}
+              <button
+                onClick={() => setPage(1)}
+                disabled={page === 1}
+                className="hidden sm:flex size-8 items-center justify-center rounded-lg border text-xs font-black text-slate-600 transition disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-100"
+                title="Primera página"
+              >
+                «
+              </button>
+
+              {/* Botón Anterior */}
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="flex items-center gap-1 px-3 h-8 rounded-lg border text-xs font-bold text-slate-700 transition disabled:opacity-35 disabled:cursor-not-allowed hover:bg-slate-100 hover:border-slate-300"
+                title="Página anterior"
+              >
+                <ChevronLeft className="size-3.5" />
+                <span className="hidden sm:inline">Anterior</span>
+              </button>
+
+              {/* Números de página */}
+              {totalPages > 1 && Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, i) =>
+                  p === "..." ? (
+                    <span key={`ellipsis-${i}`} className="size-8 flex items-center justify-center text-xs text-slate-400">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p as number)}
+                      className={cn(
+                        "size-8 flex items-center justify-center rounded-lg text-xs font-black transition border",
+                        page === p
+                          ? "bg-[#004B87] text-white border-[#004B87] shadow-sm"
+                          : "text-slate-600 border-slate-200 hover:bg-slate-100"
+                      )}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+
+              {/* Botón Siguiente */}
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="flex items-center gap-1 px-3 h-8 rounded-lg border text-xs font-bold text-slate-700 transition disabled:opacity-35 disabled:cursor-not-allowed hover:bg-slate-100 hover:border-slate-300"
+                title="Página siguiente"
+              >
+                <span className="hidden sm:inline">Siguiente</span>
+                <ChevronRight className="size-3.5" />
+              </button>
+
+              {/* Botón Última Página */}
+              <button
+                onClick={() => setPage(totalPages)}
+                disabled={page === totalPages}
+                className="hidden sm:flex size-8 items-center justify-center rounded-lg border text-xs font-black text-slate-600 transition disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-100"
+                title="Última página"
+              >
+                »
+              </button>
+            </div>
+
+            {/* Página actual */}
+            <span className="text-xs text-slate-500 font-semibold shrink-0 order-3">
+              Pág. <span className="text-slate-800 font-black">{page}</span>/<span className="text-slate-800 font-black">{totalPages}</span>
+            </span>
+          </div>
+        </>
       )}
     </div>
   );

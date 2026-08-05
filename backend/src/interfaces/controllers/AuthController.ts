@@ -205,9 +205,38 @@ actualizarPerfil = async (req: Request, res: Response, next: NextFunction) => {
             correo: 'voae_depto@unah.hn',
             rol: 'VOAE_DEPARTAMENTO',
           };
+        } else if (rol.includes('voae')) {
+          usuario = {
+            id_usuario: 88,
+            id: 88,
+            nombre: 'Dirección VOAE (Prueba)',
+            correo: 'voae@unah.hn',
+            rol: 'VOAE_DIRECCION',
+          };
+        } else if (rol.includes('tutor') || rol.includes('empleado')) {
+          usuario = {
+            id_usuario: 77,
+            id: 77,
+            nombre: 'Empleado / Tutor (Prueba)',
+            correo: 'tutor@unah.edu.hn',
+            rol: 'EMPLEADO',
+          };
+        } else if (rol.includes('admin')) {
+          usuario = {
+            id_usuario: 66,
+            id: 66,
+            nombre: 'Administrador (Prueba)',
+            correo: 'admin@unah.hn',
+            rol: 'ADMIN',
+          };
         } else {
-          res.status(404).json({ error: `Usuario de prueba "${correo}" no encontrado en la DB` });
-          return;
+          usuario = {
+            id_usuario: 55,
+            id: 55,
+            nombre: 'Estudiante (Prueba)',
+            correo: 'guillermo.ayestas@unah.hn',
+            rol: 'ESTUDIANTE',
+          };
         }
       }
 

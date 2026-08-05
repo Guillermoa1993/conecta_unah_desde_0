@@ -1184,7 +1184,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
   const renderStep2 = () => (
     <div className="h-full flex flex-col justify-center">
       <div className="space-y-3">
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
             <Label>
               Fecha de inicio <span className="text-red-500">*</span>

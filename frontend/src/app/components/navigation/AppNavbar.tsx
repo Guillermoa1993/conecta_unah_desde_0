@@ -265,7 +265,7 @@ export function AppNavbar() {
                     {getInitials(nombreUsuario)}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium text-[#004B87]">{nombreUsuario}</span>
+                <span className="text-sm font-medium text-[#004B87] hidden lg:inline truncate max-w-[160px]">{nombreUsuario}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

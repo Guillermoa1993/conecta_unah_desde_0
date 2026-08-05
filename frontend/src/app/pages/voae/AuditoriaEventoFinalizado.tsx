@@ -18,6 +18,7 @@ import {
   Printer,
   X,
   FileCheck,
+  Loader2,
 } from "lucide-react";
 import { api } from "../../../services/api";
 import { toast } from "sonner";
@@ -236,6 +237,7 @@ export function AuditoriaEventoFinalizado() {
     return localStorage.getItem(`voae_audit_completed_${id}`) === "true";
   });
   const [showFinalizeAuditModal, setShowFinalizeAuditModal] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
 
   // Modals state
   const [showSigningModal, setShowSigningModal] = useState(false);
@@ -280,8 +282,9 @@ export function AuditoriaEventoFinalizado() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-20">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#003366]"></div>
+      <div className="flex flex-col justify-center items-center py-24 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3 max-w-5xl mx-auto my-8">
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-[#004B87] border-t-transparent"></div>
+        <p className="text-xs font-bold text-[#004B87] animate-pulse">Cargando datos de auditoría de evento finalizado...</p>
       </div>
     );
   }
@@ -373,31 +376,36 @@ export function AuditoriaEventoFinalizado() {
     setAuditStudent(null);
   };
 
-  const handleFinalizarAuditoriaCompleta = () => {
-    setAuditCompleted(true);
-    localStorage.setItem(`voae_audit_completed_${id}`, "true");
-    setShowFinalizeAuditModal(false);
+  const handleFinalizarAuditoriaCompleta = async () => {
+    setIsFinalizing(true);
+    try {
+      setAuditCompleted(true);
+      localStorage.setItem(`voae_audit_completed_${id}`, "true");
+      setShowFinalizeAuditModal(false);
 
-    // Guardar notificación para estudiantes
-    const notifs = JSON.parse(localStorage.getItem("voae_student_notifications") || "[]");
-    inscripciones.forEach((st) => {
-      const isApproved = st.estado === "ASISTIDO" || st.asistio;
-      const stAccount = st.numero_cuenta || st.cuenta || "estudiante";
-      notifs.push({
-        id: Date.now() + Math.random(),
-        estudiante_cuenta: stAccount,
-        evento_id: id,
-        titulo_evento: event.titulo,
-        tipo: isApproved ? "APROBADO" : "RECHAZADO",
-        mensaje: isApproved
-          ? `¡Felicidades! Tu constancia de participación en "${event.titulo}" ha sido auditada y aprobada por VOAE. Ya puedes descargar tu certificado.`
-          : `Tu constancia para el evento "${event.titulo}" fue denegada por VOAE. Motivo: ${st.motivo_rechazo || "Marca de asistencia no válida."}`,
-        fecha: new Date().toISOString(),
+      // Guardar notificación para estudiantes
+      const notifs = JSON.parse(localStorage.getItem("voae_student_notifications") || "[]");
+      inscripciones.forEach((st) => {
+        const isApproved = st.estado === "ASISTIDO" || st.asistio;
+        const stAccount = st.numero_cuenta || st.cuenta || "estudiante";
+        notifs.push({
+          id: Date.now() + Math.random(),
+          estudiante_cuenta: stAccount,
+          evento_id: id,
+          titulo_evento: event.titulo,
+          tipo: isApproved ? "APROBADO" : "RECHAZADO",
+          mensaje: isApproved
+            ? `¡Felicidades! Tu constancia de participación en "${event.titulo}" ha sido auditada y aprobada por VOAE. Ya puedes descargar tu certificado.`
+            : `Tu constancia para el evento "${event.titulo}" fue denegada por VOAE. Motivo: ${st.motivo_rechazo || "Marca de asistencia no válida."}`,
+          fecha: new Date().toISOString(),
+        });
       });
-    });
-    localStorage.setItem("voae_student_notifications", JSON.stringify(notifs));
+      localStorage.setItem("voae_student_notifications", JSON.stringify(notifs));
 
-    toast.success(`Auditoría finalizada con éxito. Se han emitido ${asistentes.length} certificados oficiales.`);
+      toast.success(`Auditoría finalizada con éxito. Se han emitido ${asistentes.length} certificados oficiales.`);
+    } finally {
+      setIsFinalizing(false);
+    }
   };
 
   const categoriaNombre =
@@ -406,7 +414,7 @@ export function AuditoriaEventoFinalizado() {
       : CATEGORY_LABEL[event.categoria] || event.categoria || "Académico";
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-fade-in pb-12">
+    <div className="max-w-6xl mx-auto space-y-6 animate-fade-in pb-12 w-full max-w-full overflow-x-hidden min-w-0">
       {/* Navigation header */}
       <div className="flex items-center justify-between">
         <Link
@@ -481,15 +489,15 @@ export function AuditoriaEventoFinalizado() {
           <div className="bg-white p-3 rounded-xl border border-slate-200/60 shadow-2xs flex items-center gap-3">
             {/* Círculo Celeste: Imagen del Creador/Tutor */}
             <div className="size-10 rounded-full overflow-hidden bg-sky-100 border border-sky-300 flex items-center justify-center shrink-0">
-              {event.tutor_foto ? (
-                <img src={event.tutor_foto} alt="Tutor" className="size-full object-cover" />
+              {(event.tutor_foto || event.creador_foto || event.foto_url) ? (
+                <img src={event.tutor_foto || event.creador_foto || event.foto_url} alt="Tutor" className="size-full object-cover" />
               ) : (
-                <User className="size-5 text-sky-700" />
+                <span className="font-bold text-sky-800 text-xs font-mono">{(event.tutor_nombre || event.creador_nombre || "Tutor")?.slice(0, 2).toUpperCase()}</span>
               )}
             </div>
             <div className="min-w-0">
               <span className="text-slate-400 font-medium block">Tutor / Creador</span>
-              <span className="font-bold text-slate-800 truncate block">{event.tutor_nombre || "Prof. Responsable"}</span>
+              <span className="font-bold text-slate-800 truncate block">{event.tutor_nombre || event.creador_nombre || "Prof. Responsable"}</span>
             </div>
           </div>
 
@@ -525,54 +533,143 @@ export function AuditoriaEventoFinalizado() {
             </span>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
             {/* Círculo Morado: Registrar mi firma */}
             <Button
               onClick={() => setShowSigningModal(true)}
               variant="outline"
-              className="border-purple-300 bg-purple-50 text-purple-800 hover:bg-purple-100 font-semibold text-xs h-9 gap-2 shadow-2xs"
+              className="w-full sm:w-auto border-purple-300 bg-purple-50 text-purple-800 hover:bg-purple-100 font-semibold text-xs h-9 gap-2 shadow-2xs justify-center"
             >
-              <PenLine className="size-4 text-purple-600" />
+              <PenLine className="size-4 text-purple-600 shrink-0" />
               {signatureUrl ? "Firma Registrada ✓ (Modificar)" : "Registrar mi firma"}
             </Button>
 
             {/* Cierre de Auditoría y Liberación de Certificados */}
             {auditCompleted ? (
-              <div className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1.5 shadow-2xs">
-                <CheckCircle2 className="size-4 text-emerald-600" /> Auditoría Finalizada & Certificados Emitidos
+              <div className="w-full sm:w-auto px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center justify-center gap-1.5 shadow-2xs">
+                <CheckCircle2 className="size-4 text-emerald-600 shrink-0" /> Auditoría Finalizada & Certificados Emitidos
               </div>
             ) : pendientes.length > 0 ? (
               <Button
                 disabled
-                className="bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs h-9 cursor-not-allowed gap-2 opacity-90 shadow-2xs"
+                className="w-full sm:w-auto bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs h-9 cursor-not-allowed gap-2 opacity-90 shadow-2xs justify-center"
                 title="Debes auditar el 100% de las asistencias antes de finalizar la auditoría"
               >
-                <Clock className="size-4 text-amber-600" /> Auditar pendientes (Faltan {pendientes.length})
+                <Clock className="size-4 text-amber-600 shrink-0" /> Auditar pendientes (Faltan {pendientes.length})
               </Button>
             ) : (
               <Button
                 onClick={() => setShowFinalizeAuditModal(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 gap-2 shadow-md animate-pulse"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 gap-2 shadow-md animate-pulse justify-center"
               >
-                <CheckCircle2 className="size-4" /> Finalizar Auditoría y Emitir Certificados
+                <CheckCircle2 className="size-4 shrink-0" /> Finalizar Auditoría y Emitir Certificados
               </Button>
             )}
           </div>
         </div>
 
-        {/* Tabla de Asistentes con Paginación y Restricción de Certificado */}
-        <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
-          <table className="w-full text-sm">
+        {/* Vista Móvil: Tarjetas Adaptativas que abarcan el 100% de la pantalla del teléfono */}
+        <div className="md:hidden space-y-3">
+          {totalItems === 0 ? (
+            <div className="px-4 py-8 text-center text-xs text-slate-400 font-medium bg-white rounded-xl border border-slate-200">
+              No hay estudiantes registrados en este evento aún.
+            </div>
+          ) : (
+            paginatedInscripciones.map((student) => {
+              const isApproved = student.estado === "ASISTIDO" || student.asistio;
+              const isRejected = student.estado === "RECHAZADO" || student.estado === "NO_ASISTIO";
+              const rawName = student.nombre_estudiante || student.nombre || student.studentName || "Estudiante UNAH";
+              const nameParts = rawName.trim().split(" ").filter(Boolean);
+              const studentName = nameParts.length >= 2 ? `${nameParts[0]} ${nameParts[1]}` : rawName;
+              const studentAccount = student.numero_cuenta || student.cuenta || student.studentId || "20211000000";
+              const studentEmail = student.correo || `${studentAccount}@unah.hn`;
+              const studentCareer = student.carrera || student.estudiante_carrera || "Ingeniería en Sistemas";
+
+              return (
+                <div key={student.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      {student.fotoUrl || student.avatar ? (
+                        <img
+                          src={student.fotoUrl || student.avatar}
+                          alt=""
+                          className="size-8 rounded-full object-cover border border-slate-200"
+                        />
+                      ) : (
+                        <div className="size-8 rounded-full bg-[#003366]/10 text-[#003366] flex items-center justify-center font-bold text-xs">
+                          {studentName.charAt(0)}
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="font-bold text-slate-800 text-sm leading-tight">{studentName}</h4>
+                        <span className="text-[11px] font-mono text-slate-500">{studentAccount}</span>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase shrink-0 ${
+                        isApproved
+                          ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                          : isRejected
+                          ? "bg-rose-100 text-rose-700 border border-rose-200"
+                          : "bg-amber-100 text-amber-800 border border-amber-200"
+                      }`}
+                    >
+                      {isApproved ? "Asistió" : isRejected ? "Rechazado" : "Pendiente"}
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs space-y-1">
+                    <div>
+                      <span className="text-slate-400 font-semibold block text-[10px] uppercase">Carrera</span>
+                      <span className="font-medium text-slate-700">{studentCareer}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-semibold block text-[10px] uppercase">Correo</span>
+                      <span className="font-mono text-slate-600 text-[11px]">{studentEmail}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                    {isApproved ? (
+                      <Button
+                        size="sm"
+                        onClick={() => setCertStudent(student)}
+                        className="bg-[#003366] hover:bg-[#002244] text-white text-xs h-8 px-3 font-semibold gap-1.5 flex-1 justify-center"
+                      >
+                        <FileText className="size-3.5" /> Certificado
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-slate-400 font-medium">Certificado no disponible</span>
+                    )}
+
+                    <Button
+                      size="sm"
+                      onClick={() => setAuditStudent({ ...student, studentCareer, studentEmail, studentAccount, studentName })}
+                      className="bg-[#004B87] hover:bg-[#003366] text-white text-xs h-8 px-3 font-bold gap-1.5 flex-1 justify-center"
+                    >
+                      <Eye className="size-3.5" /> {isApproved || isRejected ? "Revisar" : "Auditar"}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Vista Escritorio: Tabla tradicional */}
+        <div className="hidden md:block rounded-xl border border-slate-200 overflow-x-auto bg-white shadow-2xs w-full min-w-0">
+          <table className="w-full text-sm whitespace-nowrap min-w-[700px]">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Estudiante</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Cuenta</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Correo institucional</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Carrera</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Inscripción</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700">Estado</th>
-                <th className="text-center px-4 py-3 text-xs font-bold text-slate-700">Certificado</th>
-                <th className="text-right px-4 py-3 text-xs font-bold text-slate-700">Acción VOAE</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">Estudiante</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">Cuenta</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">Correo institucional</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">Carrera</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">Inscripción</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">Estado</th>
+                <th className="text-center px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">Certificado</th>
+                <th className="text-right px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">Acción VOAE</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
@@ -586,7 +683,9 @@ export function AuditoriaEventoFinalizado() {
                 paginatedInscripciones.map((student) => {
                   const isApproved = student.estado === "ASISTIDO" || student.asistio;
                   const isRejected = student.estado === "RECHAZADO" || student.estado === "NO_ASISTIO";
-                  const studentName = student.nombre_estudiante || student.nombre || student.studentName || "Estudiante UNAH";
+                  const rawName = student.nombre_estudiante || student.nombre || student.studentName || "Estudiante UNAH";
+                  const nameParts = rawName.trim().split(" ").filter(Boolean);
+                  const studentName = nameParts.length >= 2 ? `${nameParts[0]} ${nameParts[1]}` : rawName;
                   const studentAccount = student.numero_cuenta || student.cuenta || student.studentId || "20211000000";
                   const studentEmail = student.correo || `${studentAccount}@unah.hn`;
                   const studentCareer = student.carrera || student.estudiante_carrera || "Ingeniería en Sistemas";
@@ -595,7 +694,7 @@ export function AuditoriaEventoFinalizado() {
                   return (
                     <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
                       {/* Avatar + Nombre */}
-                      <td className="px-4 py-3 font-semibold text-slate-800 flex items-center gap-2.5">
+                      <td className="px-4 py-3 font-semibold text-slate-800 flex items-center gap-2.5 whitespace-nowrap">
                         {student.fotoUrl || student.avatar ? (
                           <img
                             src={student.fotoUrl || student.avatar}
@@ -637,7 +736,7 @@ export function AuditoriaEventoFinalizado() {
                         </span>
                       </td>
 
-                      {/* Certificado (VOAE auditor siempre puede ver/previsualizar el certificado del estudiante aprobado) */}
+                      {/* Certificado */}
                       <td className="px-4 py-3 text-center">
                         {isApproved ? (
                           <Button
@@ -1168,11 +1267,12 @@ export function AuditoriaEventoFinalizado() {
           </div>
 
           <DialogFooter className="gap-2 pt-2">
-            <Button variant="outline" onClick={() => setShowFinalizeAuditModal(false)} className="text-xs font-semibold">
+            <Button variant="outline" disabled={isFinalizing} onClick={() => setShowFinalizeAuditModal(false)} className="text-xs font-semibold">
               Cancelar
             </Button>
-            <Button onClick={handleFinalizarAuditoriaCompleta} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5">
-              <CheckCircle2 className="size-4" /> ✓ Confirmar y Emitir Certificados
+            <Button disabled={isFinalizing} onClick={handleFinalizarAuditoriaCompleta} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5">
+              {isFinalizing ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+              {isFinalizing ? "Emitiendo certificados..." : "✓ Confirmar y Emitir Certificados"}
             </Button>
           </DialogFooter>
         </DialogContent>
