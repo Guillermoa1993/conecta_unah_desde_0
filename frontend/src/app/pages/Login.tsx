@@ -301,7 +301,7 @@ export function Login() {
       const data = await res.json();
       if (!res.ok) {
         const errorMsg = data.error ?? "Error al enviar código";
-        if (errorMsg.includes("no está registrado") || errorMsg.includes("Debes enrolarte")) {
+        if (errorMsg === "NO_ENROLADO") {
           toast.info("Cuenta no enrolada. Redirigiendo al formulario de enrolamiento...");
           const targetPath = domain === "@unah.edu.hn" ? "/registro/empleado" : "/registro/estudiante";
           navigate(targetPath, { state: { email: correo } });
@@ -313,13 +313,7 @@ export function Login() {
       setStep(2);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : "Error al enviar código";
-      if (errMsg.includes("no está registrado") || errMsg.includes("Debes enrolarte")) {
-        toast.info("Cuenta no enrolada. Redirigiendo al formulario de enrolamiento...");
-        const targetPath = domain === "@unah.edu.hn" ? "/registro/empleado" : "/registro/estudiante";
-        navigate(targetPath, { state: { email: correo } });
-      } else {
-        toast.error(errMsg);
-      }
+      toast.error(errMsg);
     } finally {
       setLoading(false);
     }

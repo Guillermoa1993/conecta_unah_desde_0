@@ -7,7 +7,7 @@ export class EnviarOtp {
 
   async execute(correo: string): Promise<void> {
     const usuario = await this.usuarioRepo.findByCorreo(correo);
-    if (!usuario) throw new Error('NO_ENROLADO');
+    if (!usuario) throw new Error('CORREO_NO_REGISTRADO');
 
     // Si el usuario fue creado previamente por el administrador pero aún no se ha enrolado
     // (le faltan datos esenciales como teléfono, número de cuenta/empleado o su nombre es incompleto/genérico)

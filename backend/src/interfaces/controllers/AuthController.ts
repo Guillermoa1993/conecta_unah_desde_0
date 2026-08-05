@@ -70,8 +70,12 @@ actualizarPerfil = async (req: Request, res: Response, next: NextFunction) => {
       await this.enviarOtpUseCase.execute(correo);
       res.json({ mensaje: 'Código enviado correctamente' });
     } catch (err) {
+      if (err instanceof Error && err.message === 'CORREO_NO_REGISTRADO') {
+        res.status(404).json({ error: 'Este correo no está registrado.' });
+        return;
+      }
       if (err instanceof Error && err.message === 'NO_ENROLADO') {
-        res.status(404).json({ error: 'Este correo no está registrado. Debes enrolarte primero.' });
+        res.status(403).json({ error: 'NO_ENROLADO' });
         return;
       }
       next(err);
