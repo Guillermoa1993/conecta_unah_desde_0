@@ -70,10 +70,12 @@ export function FichaEmpleado() {
   const [correoUsuario, setCorreoUsuario] = useState("");
   const [correoDominio, setCorreoDominio] = useState("@unah.edu.hn");
   const [correoYaExiste, setCorreoYaExiste] = useState(false);
+  const [fromCallback, setFromCallback] = useState(false);
 
-  // Pre-fill email if coming from Login redirect (unregistered email)
+  // Pre-fill email if coming from Login redirect or AuthCallback (enrolamiento incompleto)
   useEffect(() => {
-    const state = location.state as { email?: string } | null;
+    const state = location.state as { email?: string; fromCallback?: boolean } | null;
+    if (state?.fromCallback) setFromCallback(true);
     if (state?.email) {
       const email = state.email;
       const atIndex = email.indexOf("@");
@@ -1288,7 +1290,8 @@ export function FichaEmpleado() {
                       required
                       placeholder="nombre.apellido"
                       value={correoUsuario}
-                      onChange={(e) => setCorreoUsuario(e.target.value)}
+                      disabled={fromCallback}
+                      onChange={(e) => { if (!fromCallback) setCorreoUsuario(e.target.value); }}
                       className={`h-11 flex-1 rounded-lg bg-slate-50 focus-visible:ring-[#FFD100] border-slate-200 text-[#003366] ${correoUsuario && !(correoDominio === "@unah.hn" || correoDominio === "@unah.edu.hn")
                         ? "border-red-400 focus-visible:ring-red-400"
                         : correoUsuario

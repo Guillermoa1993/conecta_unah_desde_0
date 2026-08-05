@@ -104,6 +104,22 @@ export function FichaEstudiante() {
   const [correoUsuario, setCorreoUsuario] = useState("");
   const [correoDominio, setCorreoDominio] = useState("@unah.hn");
   const [correoYaExiste, setCorreoYaExiste] = useState(false);
+  const [fromCallback, setFromCallback] = useState(false);
+
+  // Pre-fill email si viene de AuthCallback (enrolamiento incompleto)
+  useEffect(() => {
+    const state = location.state as { email?: string; fromCallback?: boolean } | null;
+    if (state?.fromCallback) setFromCallback(true);
+    if (state?.email) {
+      const email = state.email;
+      const atIndex = email.indexOf("@");
+      if (atIndex > 0) {
+        setCorreoUsuario(email.substring(0, atIndex));
+        const dom = email.substring(atIndex);
+        if (dom === "@unah.hn" || dom === "@unah.edu.hn") setCorreoDominio(dom);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     fetch("http://localhost:5000/api/catalogos/carreras")
@@ -117,6 +133,7 @@ export function FichaEstudiante() {
   }, [correoUsuario, correoDominio]);
 
   useEffect(() => {
+    if (fromCallback) { setCorreoYaExiste(false); return; }
     if (!correoUsuario || !isEmailLegitimate(correoUsuario)) {
       setCorreoYaExiste(false);
       return;
@@ -1335,7 +1352,9 @@ export function FichaEstudiante() {
                         required
                         placeholder="nombre.apellido"
                         value={correoUsuario}
+                        disabled={fromCallback}
                         onChange={(e) => {
+                          if (fromCallback) return;
                           const val = e.target.value.replace(/[\s@]/g, "");
                           setCorreoUsuario(val);
                         }}

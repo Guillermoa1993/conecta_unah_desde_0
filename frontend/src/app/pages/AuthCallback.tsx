@@ -49,10 +49,24 @@ export function AuthCallback() {
 
     // Llamar al backend para obtener el perfil completo
     authService.getMe(token)
-      .then((usuario) => {
+      .then((usuario: any) => {
         authService.setUsuarioGuardado(usuario);
         const rolRaw = usuario.rol.toLowerCase();
         const rol = ROL_MAP[rolRaw] ?? 'student';
+
+        // Verificar enrolamiento completo para estudiantes y tutores/empleados
+        const nombre = (usuario.nombre || '').trim().toLowerCase();
+        const placeholder = ['usuario', 'estudiante', 'empleado', 'tutor', 'docente'].includes(nombre);
+        const noEnrolado =
+          (rol === 'student' && (!usuario.numero_cuenta || !usuario.telefono || !usuario.nombre || placeholder)) ||
+          (rol === 'tutor'   && (!usuario.numero_empleado || !usuario.telefono || !usuario.nombre || placeholder));
+
+        if (noEnrolado) {
+          const destino = rol === 'student' ? '/registro/estudiante' : '/registro/empleado';
+          navigate(destino, { replace: true, state: { email: usuario.correo, fromCallback: true } });
+          return;
+        }
+
         sessionStorage.setItem('unah_role', rol);
         sessionStorage.setItem('unah_session_active', 'true');
         const guardada = sessionStorage.getItem('unah_redirect_after_login');
