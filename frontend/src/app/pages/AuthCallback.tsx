@@ -54,11 +54,11 @@ export function AuthCallback() {
         const rolRaw = usuario.rol.toLowerCase();
         const rol = ROL_MAP[rolRaw] ?? 'student';
 
-        // Verificar enrolamiento: el campo viene del JOIN con tabla_grupo_1_verificacion_enrolamiento
-        const noEnrolado = (rol === 'student' || rol === 'tutor') && !usuario.enrolado;
-
-        if (noEnrolado) {
-          const destino = rol === 'student' ? '/registro/estudiante' : '/registro/empleado';
+        // Verificar enrolamiento para todos los roles
+        if (!usuario.enrolado) {
+          let destino = '/registro';
+          if (rol === 'student') destino = '/registro/estudiante';
+          else if (rol === 'tutor') destino = '/registro/empleado';
           navigate(destino, { replace: true, state: { email: usuario.correo, fromCallback: true } });
           return;
         }
