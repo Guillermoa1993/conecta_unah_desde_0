@@ -33,12 +33,6 @@ interface Evento {
 
 export const AvailableEvents: React.FC = () => {
 
-  // Solo el rol Estudiante puede matricularse a eventos; los demás roles
-  // (tutor, admin, voae) solo pueden ver la pantalla y los eventos, sin
-  // poder inscribirse — así el botón no aparece para quien de todos modos
-  // el backend le va a rechazar la inscripción.
-  const rolActual = (sessionStorage.getItem("unah_role") ?? "").toLowerCase();
-  const puedeMatricularse = rolActual === "estudiante" || rolActual === "dev";
 
   const [origenFiltro, setOrigenFiltro] = useState<'mis-eventos' | 'nuevos'>('mis-eventos');
   const [busqueda, setBusqueda] = useState('');
@@ -200,7 +194,6 @@ export const AvailableEvents: React.FC = () => {
       }
     };
   }, [escanerQR]);
-
 
   const inscribirseAEvento = async (id: number) => {
     try {
@@ -520,8 +513,16 @@ export const AvailableEvents: React.FC = () => {
                   )}
                 </div>
               </div>
-              {/* ACCIONES DE FILA (SOLO PANTALLA INSCRITOS) */}
+              {/* ACCIONES DE FILA */}
               <div className="w-full md:w-auto flex flex-wrap justify-end gap-2 shrink-0">
+                {origenFiltro === 'nuevos' && (
+                  <button
+                    onClick={() => inscribirseAEvento(evento.EVENTO_ID)}
+                    className="bg-[#004B87] text-white hover:bg-[#003560] px-5 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm"
+                  >
+                    Inscribirme al Evento
+                  </button>
+                )}
                 {origenFiltro === 'mis-eventos' && (
                   <>
                     {/* Botón de Entrada QR */}
@@ -749,7 +750,7 @@ export const AvailableEvents: React.FC = () => {
                   </div>
                 </div>
               </div>
-              {!eventoDetalleModal.INSCRITO && puedeMatricularse && (
+              {!eventoDetalleModal.INSCRITO && (
                 <button onClick={() => inscribirseAEvento(eventoDetalleModal.EVENTO_ID)} className="w-full py-3 bg-[#004B87] hover:bg-[#003560] text-white font-bold rounded-xl transition-all">
                   Inscribirme al Evento
                 </button>
