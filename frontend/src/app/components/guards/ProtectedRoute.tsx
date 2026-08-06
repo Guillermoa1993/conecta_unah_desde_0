@@ -57,9 +57,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (location.pathname.startsWith("/admin") && role !== "admin" && role !== "dev") {
     return <Navigate to="/muro" replace />;
   }
-
-  // Bloqueo estricto: solo admin y dev pueden ingresar a rutas /admin/*
-  if (location.pathname.startsWith("/admin") && role !== "admin" && role !== "dev") {
+  // Bloqueo estricto: el Centro de Notificaciones (envío masivo) es solo para personal
+  if (location.pathname.startsWith("/employees/notifications") && role === "student") {
     return <Navigate to="/muro" replace />;
   }
 

@@ -94,8 +94,8 @@ function dedupePosts(list: Post[]): Post[] {
   return result;
 }
 
-const getPostUserAvatar = (post: Post): string => {
-  if (post.profilePic && typeof post.profilePic === "string" && (post.profilePic.startsWith("http://") || post.profilePic.startsWith("https://") || post.profilePic.startsWith("data:image/") || post.profilePic.startsWith("/"))) {
+const getPostUserAvatar = (post: Post): string | null => {
+  if (post.profilePic && typeof post.profilePic === "string" && post.profilePic !== "/puma-icon.png" && (post.profilePic.startsWith("http://") || post.profilePic.startsWith("https://") || post.profilePic.startsWith("data:image/") || post.profilePic.startsWith("/")) && !post.profilePic.includes("puma-icon.png")) {
     return post.profilePic;
   }
   if (post.author === "Camel García") return "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80";
@@ -103,13 +103,10 @@ const getPostUserAvatar = (post: Post): string => {
   if (post.author === "Carlos Mendoza") return "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80";
   if (post.author === "Puma Head") return "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80";
   if (post.author === "Miguel Torres") return "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=150&q=80";
-  if (post.author === "VOAE") return "/puma-icon.png";
-  if (post.author === "Comunidad Académica UNAH") return "/puma-icon.png";
-  if (post.author === "Conecta Puma") return "/puma-icon.png";
-  return "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80";
+  return null;
 };
 
-const getCommentUserAvatar = (comment: Comment): string => {
+const getCommentUserAvatar = (comment: Comment): string | null => {
   const author = comment.author;
   if (author === "Camel García") return "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80";
   if (author === "Valeria Rojas") return "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80";
@@ -117,15 +114,11 @@ const getCommentUserAvatar = (comment: Comment): string => {
   if (author === "Puma Head") return "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80";
   if (author === "Miguel Torres") return "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80";
   if (author === "Laura Paz") return "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80";
-  if (author === "VOAE") return "/puma-icon.png";
-  if (author === "Comunidad Académica UNAH") return "/puma-icon.png";
-  if (author === "Conecta Puma") return "/puma-icon.png";
-  if (author === "Yo") return "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80";
 
-  if (comment.authorPic && typeof comment.authorPic === "string" && (comment.authorPic.startsWith("http://") || comment.authorPic.startsWith("https://") || comment.authorPic.startsWith("data:image/") || comment.authorPic.startsWith("/"))) {
+  if (comment.authorPic && typeof comment.authorPic === "string" && comment.authorPic !== "/puma-icon.png" && (comment.authorPic.startsWith("http://") || comment.authorPic.startsWith("https://") || comment.authorPic.startsWith("data:image/") || comment.authorPic.startsWith("/")) && !comment.authorPic.includes("puma-icon.png")) {
     return comment.authorPic;
   }
-  return "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80";
+  return null;
 };
 
 const getPostImages = (post: Post): string[] => {
@@ -316,9 +309,10 @@ function Toast({ message }: { message: string }) {
 }
 
 /* ─── FLOATING REACTION BUTTON ─── */
-function FloatingReactionBtn({ post, onReact }: {
+function FloatingReactionBtn({ post, onReact, disabled }: {
   post: Post;
   onReact: (id: number, t: ActiveReaction) => void;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -333,7 +327,7 @@ function FloatingReactionBtn({ post, onReact }: {
   return (
     <div ref={ref} style={{ position:"relative", display:"inline-flex", alignItems:"center" }}>
       {/* FLOATING EMOJI PICKER */}
-      {open && (
+      {open && !disabled && (
         <div className="emoji-picker-float" style={{ padding: "8px 10px", gap: "4px" }}>
           {EMOJIS.map(e => (
             <button
@@ -355,8 +349,8 @@ function FloatingReactionBtn({ post, onReact }: {
       {/* MAIN REACTION BUTTON */}
       <button
         className={`reaction-main-btn${post.userReaction ? " reacted" : ""}`}
-        onClick={() => setOpen(v => !v)}
-        style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+        onClick={() => !disabled && setOpen(v => !v)}
+        style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: disabled ? "default" : "pointer" }}
       >
         {post.userReaction ? (
           <img src={getReactionIcon(post.userReaction)} style={{ width: "24px", height: "24px", objectFit: "contain", verticalAlign: "middle", mixBlendMode: "multiply" }} alt="reacción" />
@@ -505,7 +499,7 @@ function DetailModal({ post, onClose }: { post: Post; onClose: () => void }) {
     const hours = (post.voaeHoras && post.voaeHoras > 0) ? post.voaeHoras : ((post.id % 4) + 1);
     metaItems.push(
       { icon: <IconCalendar />, label: "FECHA", value: post.fecha || "No especificada" },
-      { icon: <IconMapPin />,  label: "LUGAR", value: post.lugar || "No especificado" },
+      { icon: <IconMapPin />,  label: "LUGAR", value: post.lugar && post.lugar.includes('|') ? post.lugar.split('|')[0] : (post.lugar || "No especificado") },
       { icon: <IconUsers />,   label: "CUPOS DISPONIBLES", value: post.cupos !== undefined ? `${post.cupos} disponibles` : "No especificados" },
       { icon: <IconStopwatch />, label: "HORAS A OBTENER", value: `${hours} horas` }
     );
@@ -537,7 +531,11 @@ function DetailModal({ post, onClose }: { post: Post; onClose: () => void }) {
         {/* ── Author row ── */}
         <div className="dmc-author-row">
           <div className="dmc-avatar">
-            <img src={getPostUserAvatar(post)} style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+            {getPostUserAvatar(post) ? (
+              <img src={getPostUserAvatar(post)!} style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+            ) : (
+              post.initials || (post.author ? post.author.split(' ').map(n => n ? n[0] : '').join('').substring(0, 2).toUpperCase() : 'UN')
+            )}
           </div>
           <div>
             <div className="dmc-post-title" style={{ fontSize: "18px", fontWeight: "900", color: "#003366" }}>{post.title}</div>
@@ -614,7 +612,7 @@ function EventDrawer({ post, onClose, onInscribir, isLoggedIn }:
           <p className="drawer-desc">{post.desc}</p>
           <div className="drawer-meta-grid">
             {post.fecha && <div className="drawer-meta-item"><span className="drawer-meta-icon">📅</span><div><div className="drawer-meta-label">Fecha</div><div className="drawer-meta-val">{post.fecha}</div></div></div>}
-            {post.lugar && <div className="drawer-meta-item"><span className="drawer-meta-icon">📍</span><div><div className="drawer-meta-label">Lugar</div><div className="drawer-meta-val">{post.lugar}</div></div></div>}
+            {post.lugar && <div className="drawer-meta-item"><span className="drawer-meta-icon">📍</span><div><div className="drawer-meta-label">Lugar</div><div className="drawer-meta-val">{post.lugar.includes('|') ? post.lugar.split('|')[0] : post.lugar}</div></div></div>}
             {post.cupos!==undefined && <div className="drawer-meta-item"><span className="drawer-meta-icon">👥</span><div><div className="drawer-meta-label">Cupos</div><div className="drawer-meta-val">{post.cupos} disponibles</div></div></div>}
           </div>
           <div className="drawer-tags">{post.tags.map(t=><span key={t} className="tag">{t}</span>)}</div>
@@ -645,14 +643,14 @@ function EventDrawer({ post, onClose, onInscribir, isLoggedIn }:
 
 /* ─── POST CARD ─── */
 function PostCard({ post, onReact, onToggleComments, onAddComment, onReactComment, onHide, onUnhide, onSave, onShare,
-  onOpenDrawer, onInscribir, onOpenDetail, onEdit, openCommentIds, isLoggedIn, showOnlySaved, showHiddenOnly }:
+  onOpenDrawer, onInscribir, onOpenDetail, onEdit, onDenunciar, openCommentIds, isLoggedIn, showOnlySaved, showHiddenOnly, isDenunciadasTab }:
   { post:Post; onReact:(id:number,t:ActiveReaction)=>void; onToggleComments:(id:number)=>void;
     onAddComment:(id:number,text:string,replyTo?:string,parentId?:number,replyToText?:string)=>void;
     onReactComment:(postId:number,commentId:number,t:ActiveReaction)=>void;
     onHide:(id:number)=>void; onUnhide:(id:number)=>void; onSave:(id:number)=>void; onShare:(id:number)=>void;
     onOpenDrawer:(p:Post)=>void; onInscribir:(id:number)=>void; onOpenDetail:(p:Post)=>void;
-    onEdit:(p:Post)=>void;
-    openCommentIds:Set<number>; isLoggedIn:boolean; showOnlySaved?:boolean; showHiddenOnly?:boolean }) {
+    onEdit:(p:Post)=>void; onDenunciar?:(id:number)=>void;
+    openCommentIds:Set<number>; isLoggedIn:boolean; showOnlySaved?:boolean; showHiddenOnly?:boolean; isDenunciadasTab?:boolean }) {
 
   const [commentInput, setCommentInput] = useState("");
   const [replyingTo, setReplyingTo] = useState<{ author: string; parentId: number; text: string } | null>(null);
@@ -687,7 +685,11 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
 
       <div className="post-header">
         <div className="post-avatar">
-          <img src={getPostUserAvatar(post)} className="post-avatar-img" />
+          {getPostUserAvatar(post) ? (
+            <img src={getPostUserAvatar(post)!} className="post-avatar-img" />
+          ) : (
+            post.initials || (post.author ? post.author.split(' ').map(n => n ? n[0] : '').join('').substring(0, 2).toUpperCase() : 'UN')
+          )}
         </div>
         <div className="post-author">
           <div className="post-author-name">{post.author}</div>
@@ -698,31 +700,36 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
             <span>🕐 {post.time}</span>
           </div>
         </div>
-        {/* ⋮ Menú vertical (solo Eventos) — oculta el post sin eliminarlo del DOM */}
-        {showHiddenOnly ? (
-          <button className="post-hide-btn" onClick={() => onUnhide(post.id)} title={isEvento ? "Restaurar evento" : "Restaurar publicación"}>♻️</button>
-        ) : isEvento ? (
-          <div ref={menuRef} style={{ position:"relative" }}>
-            <button
-              className="post-menu-btn post-dots-btn"
-              onClick={() => setMenuOpen(v => !v)}
-              title="Opciones"
-            >⋮</button>
-            {menuOpen && (
-              <div className="post-menu open">
-                {esMiPublicacion && (
-                  <div className="post-menu-item" onClick={() => { onEdit(post); setMenuOpen(false); }}>
-                    ✏️ Editar
+        {/* ⋮ Menú vertical — opciones del post */}
+        {!isDenunciadasTab && (
+          showHiddenOnly ? (
+            <button className="post-hide-btn" onClick={() => onUnhide(post.id)} title={isEvento ? "Restaurar evento" : "Restaurar publicación"}>♻️</button>
+          ) : (
+            <div ref={menuRef} style={{ position:"relative" }}>
+              <button
+                className="post-menu-btn post-dots-btn"
+                onClick={() => setMenuOpen(v => !v)}
+                title="Opciones"
+              >⋮</button>
+              {menuOpen && (
+                <div className="post-menu open">
+                  {esMiPublicacion && (
+                    <div className="post-menu-item" onClick={() => { onEdit(post); setMenuOpen(false); }}>
+                      ✏️ Editar
+                    </div>
+                  )}
+                  <div className="post-menu-item" onClick={() => { onHide(post.id); setMenuOpen(false); }}>
+                    🙈 Ocultar {isEvento ? "evento" : "publicación"}
                   </div>
-                )}
-                <div className="post-menu-item" onClick={() => { onHide(post.id); setMenuOpen(false); }}>
-                  🙈 Ocultar evento
+                  {!isEvento && !esMiPublicacion && onDenunciar && (
+                    <div className="post-menu-item" style={{color:"#f87171"}} onClick={() => { onDenunciar(post.id); setMenuOpen(false); }}>
+                      🚩 Reportar
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <button className="post-hide-btn" onClick={() => onHide(post.id)} title="Ocultar publicación">✕</button>
+              )}
+            </div>
+          )
         )}
       </div>
 
@@ -778,7 +785,7 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
           /* ── BARRA EVENTO: diseño imagen de referencia ── */
           <div className="post-reactions post-reactions-evento">
             {/* Izquierda: Reaccionar + Comentario */}
-            <FloatingReactionBtn post={post} onReact={onReact} />
+            <FloatingReactionBtn post={post} onReact={onReact} disabled={isDenunciadasTab} />
             <button className={`action-icon-btn${commentsOpen?" active-comment":""}`} onClick={()=>onToggleComments(post.id)}>
               <span>💬</span>
               {post.comments.length > 0 && <span style={{fontSize:11}}>{post.comments.length}</span>}
@@ -787,67 +794,77 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
             <div className="reaction-spacer" />
 
             {/* Centro: botón + naranja circular */}
-            <button
-              className={`btn-evento-join${post.inscrito?" joined":""}`}
-              onClick={()=>onInscribir(post.id)}
-              title={post.inscrito?"Inscrito":"Inscribirse al evento"}
-            >
-              {post.inscrito ? "✓" : "+"}
-            </button>
+            {!isDenunciadasTab && (
+              <button
+                className={`btn-evento-join${post.inscrito?" joined":""}`}
+                onClick={()=>onInscribir(post.id)}
+                title={post.inscrito?"Inscrito":"Inscribirse al evento"}
+              >
+                {post.inscrito ? "✓" : "+"}
+              </button>
+            )}
 
             {/* Derecha: Ver Detalle, guardar (lápiz), Compartir, WhatsApp */}
             
 
-            <button className={`btn-evento-icon${post.saved?" saved":""}`} onClick={()=>onSave(post.id)} title={post.saved?"Guardado":"Guardar"}>
-              🔖{post.saved && <span style={{color:"#B8860B", fontWeight:700, fontSize:12, marginLeft:4}}>Guardado</span>}
-            </button>
+            {!isDenunciadasTab && (
+              <>
+                <button className={`btn-evento-icon${post.saved?" saved":""}`} onClick={()=>onSave(post.id)} title={post.saved?"Guardado":"Guardar"}>
+                  🔖{post.saved && <span style={{color:"#B8860B", fontWeight:700, fontSize:12, marginLeft:4}}>Guardado</span>}
+                </button>
 
-            <button className="btn-evento-action" onClick={() => onShare(post.id)} title="Copiar enlace">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:3}}><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-              Compartir
-            </button>
+                <button className="btn-evento-action" onClick={() => onShare(post.id)} title="Copiar enlace">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:3}}><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                  Compartir
+                </button>
 
-            <button
-              className="btn-evento-whatsapp"
-              onClick={() => {
-                const text = `¡Mira esta publicación en el muro de UNAH!: "${post.title}" - ${window.location.origin}/post/${post.id}`;
-                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-              }}
-              title="Compartir por WhatsApp"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-            </button>
+                <button
+                  className="btn-evento-whatsapp"
+                  onClick={() => {
+                    const text = `¡Mira esta publicación en el muro de UNAH!: "${post.title}" - ${window.location.origin}/post/${post.id}`;
+                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+                  }}
+                  title="Compartir por WhatsApp"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                </button>
+              </>
+            )}
           </div>
         ) : (
           /* ── BARRA PUBLICACIÓN: diseño imagen referencia ── */
           <div className="post-reactions post-reactions-evento">
-            <FloatingReactionBtn post={post} onReact={onReact} />
+            <FloatingReactionBtn post={post} onReact={onReact} disabled={isDenunciadasTab} />
             <button className={`action-icon-btn${commentsOpen?" active-comment":""}`} onClick={()=>onToggleComments(post.id)}>
               <span>💬</span>
               {post.comments.length > 0 && <span style={{fontSize:11}}>{post.comments.length}</span>}
             </button>
             <div className="reaction-spacer" />
-            <button
-              className="btn-evento-whatsapp"
-              onClick={() => {
-                const text = `¡Mira esta publicación en el muro de UNAH!: "${post.title}" - https://mipumaapp.unah.edu.hn/post/${post.id}`;
-                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-              }}
-              title="Compartir por WhatsApp"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-            </button>
-            <button className="btn-evento-action" onClick={() => onShare(post.id)} title="Copiar enlace">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:3}}><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-              Compartir
-            </button>
-            <button
-              className={`btn-pub-save${post.saved?" saved":""}`}
-              onClick={()=>onSave(post.id)}
-              title={post.saved?"Guardado":"Guardar"}
-            >
-              🔖{post.saved && <span style={{color:"#B8860B", fontWeight:700, fontSize:12, marginLeft:4}}>Guardado</span>}
-            </button>
+            {!isDenunciadasTab && (
+              <>
+                <button
+                  className="btn-evento-whatsapp"
+                  onClick={() => {
+                    const text = `¡Mira esta publicación en el muro de UNAH!: "${post.title}" - ${window.location.origin}/post/${post.id}`;
+                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+                  }}
+                  title="Compartir por WhatsApp"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                </button>
+                <button className="btn-evento-action" onClick={() => onShare(post.id)} title="Copiar enlace">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:3}}><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                  Compartir
+                </button>
+                <button
+                  className={`btn-pub-save${post.saved?" saved":""}`}
+                  onClick={()=>onSave(post.id)}
+                  title={post.saved?"Guardado":"Guardar"}
+                >
+                  🔖{post.saved && <span style={{color:"#B8860B", fontWeight:700, fontSize:12, marginLeft:4}}>Guardado</span>}
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -862,7 +879,11 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
                   {/* Parent Comment */}
                   <div className="comment-item">
                     <div className="comment-ava" style={{ overflow: "hidden" }}>
-                      <img src={getCommentUserAvatar(parent)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      {getCommentUserAvatar(parent) ? (
+                        <img src={getCommentUserAvatar(parent)!} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        parent.authorInitials || (parent.author ? parent.author.split(' ').map(n => n ? n[0] : '').join('').substring(0, 2).toUpperCase() : 'UN')
+                      )}
                     </div>
                     <div className="comment-bubble-wrap">
                       <div className="comment-bubble">
@@ -870,10 +891,12 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
                         <div className="comment-text">{parent.text}</div>
                         <div className="comment-time">{parent.time}</div>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <CommentReactionBtn comment={parent} onReact={(t) => onReactComment(post.id, parent.id, t)} />
-                        <button className="comment-reply-btn" onClick={() => setReplyingTo({ author: parent.author, parentId: parent.id, text: parent.text })}>Responder</button>
-                      </div>
+                      {!isDenunciadasTab && (
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <CommentReactionBtn comment={parent} onReact={(t) => onReactComment(post.id, parent.id, t)} />
+                          <button className="comment-reply-btn" onClick={() => setReplyingTo({ author: parent.author, parentId: parent.id, text: parent.text })}>Responder</button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -881,7 +904,11 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
                   {replies.map(reply => (
                     <div key={reply.id} className="comment-item" style={{ marginLeft: "36px", borderLeft: "2px dashed var(--navy-border)", paddingLeft: "10px", marginTop: "4px" }}>
                       <div className="comment-ava" style={{ width: "24px", height: "24px", fontSize: "9px", overflow: "hidden" }}>
-                        <img src={getCommentUserAvatar(reply)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        {getCommentUserAvatar(reply) ? (
+                          <img src={getCommentUserAvatar(reply)!} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ) : (
+                          reply.authorInitials || (reply.author ? reply.author.split(' ').map(n => n ? n[0] : '').join('').substring(0, 2).toUpperCase() : 'UN')
+                        )}
                       </div>
                       <div className="comment-bubble-wrap">
                         <div className="comment-bubble" style={{ padding: "6px 10px" }}>
@@ -913,10 +940,12 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
                           <div className="comment-text">{reply.text}</div>
                           <div className="comment-time">{reply.time}</div>
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <CommentReactionBtn comment={reply} onReact={(t) => onReactComment(post.id, reply.id, t)} />
-                          <button className="comment-reply-btn" onClick={() => setReplyingTo({ author: reply.author, parentId: parent.id, text: reply.text })}>Responder</button>
-                        </div>
+                        {!isDenunciadasTab && (
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <CommentReactionBtn comment={reply} onReact={(t) => onReactComment(post.id, reply.id, t)} />
+                            <button className="comment-reply-btn" onClick={() => setReplyingTo({ author: reply.author, parentId: parent.id, text: reply.text })}>Responder</button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -978,39 +1007,41 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
             </div>
           )}
 
-          <div className="comment-input-row">
-            <div className="comment-input-wrap" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <button
-                type="button"
-                className="comment-emoji-toggle-btn"
-                onClick={() => setShowEmojiPicker(v => !v)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "2px 0 2px 2px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#003366",
-                  transition: "opacity 0.2s"
-                }}
-                title="Emojis"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: showEmojiPicker ? 1 : 0.6 }}>
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-                  <line x1="9" y1="9" x2="9.01" y2="9" />
-                  <line x1="15" y1="9" x2="15.01" y2="9" />
-                </svg>
-              </button>
-              <input className="comment-input" value={commentInput}
-                onChange={e => setCommentInput(e.target.value)}
-                placeholder={replyingTo ? "Escribe una respuesta..." : "Escribe un comentario..."}
-                onKeyDown={e => { if (e.key === "Enter") addComment(); }} />
+          {!isDenunciadasTab && (
+            <div className="comment-input-row">
+              <div className="comment-input-wrap" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <button
+                  type="button"
+                  className="comment-emoji-toggle-btn"
+                  onClick={() => setShowEmojiPicker(v => !v)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: "2px 0 2px 2px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#003366",
+                    transition: "opacity 0.2s"
+                  }}
+                  title="Emojis"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: showEmojiPicker ? 1 : 0.6 }}>
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                    <line x1="9" y1="9" x2="9.01" y2="9" />
+                    <line x1="15" y1="9" x2="15.01" y2="9" />
+                  </svg>
+                </button>
+                <input className="comment-input" value={commentInput}
+                  onChange={e => setCommentInput(e.target.value)}
+                  placeholder={replyingTo ? "Escribe una respuesta..." : "Escribe un comentario..."}
+                  onKeyDown={e => { if (e.key === "Enter") addComment(); }} />
+              </div>
+              <button className="comment-send" onClick={addComment}>➤</button>
             </div>
-            <button className="comment-send" onClick={addComment}>➤</button>
-          </div>
+          )}
         </div>
       )}
     </div>
@@ -1040,12 +1071,17 @@ function NewPostModal({ onClose, onCreate }: {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const tagsRef = useRef<HTMLInputElement>(null);
   
-  const CONNECTIONS = [
-    { name: "Camel García", initials: "CG" },
-    { name: "Valeria Rojas", initials: "VR" },
-    { name: "Miguel Torres", initials: "MT" },
-    { name: "Puma Head", initials: "PH" },
-  ];
+  const [connections, setConnections] = useState<{ name: string; initials: string; pic?: string | null }[]>([]);
+
+  useEffect(() => {
+    publicacionService.getUsuariosMenciones()
+      .then(data => {
+        setConnections(data);
+      })
+      .catch(err => {
+        console.error("Error al cargar usuarios para menciones:", err);
+      });
+  }, []);
 
   const handleTagsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -1140,11 +1176,7 @@ function NewPostModal({ onClose, onCreate }: {
     <div style={{display:"flex",position:"fixed",inset:0,background:"rgba(0,51,102,0.4)",zIndex:200,alignItems:"center",justifyContent:"center"}} onClick={onClose}>
       <div style={{background:"var(--navy-mid)",borderRadius:"var(--radius)",padding:28,width:500,maxWidth:"95vw",
         boxShadow:"0 16px 48px rgba(0,0,0,0.15)",border:"1px solid var(--navy-border)",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
-        <h2 style={{fontSize:18,fontWeight:800,color:"var(--white)",marginBottom:6}}>+ Nueva Publicación</h2>
-        <div style={{fontSize:12,color:"var(--text-secondary)",marginBottom:16,lineHeight:1.5}}>
-          📨 Tu publicación no se muestra de inmediato: se envía como <b>solicitud a Coordinación</b>, quien la remite a <b>VOAE</b> para su autorización.
-          Una vez aprobada, Coordinación la publica y te llega una notificación.
-        </div>
+        <h2 style={{fontSize:18,fontWeight:800,color:"var(--white)",marginBottom:16}}>+ Nueva Publicación</h2>
         
         <label style={lbl}>TÍTULO</label>
         <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: 12 }}>
@@ -1285,13 +1317,19 @@ function NewPostModal({ onClose, onCreate }: {
           />
           {showTagSuggestions && (
             <div className="tag-suggestions-dropdown" style={{ top: "calc(100% - 14px)" }}>
-              {CONNECTIONS.filter(c => c.name.toLowerCase().includes(tagSearchQuery)).map(c => (
+              {connections.filter(c => c.name.toLowerCase().includes(tagSearchQuery)).map(c => (
                 <div
                   key={c.name}
                   className="tag-suggestion-item"
                   onClick={() => handleSelectTag(c.name)}
                 >
-                  <span className="tag-avatar">{c.initials}</span>
+                  <span className="tag-avatar" style={{ overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {c.pic ? (
+                      <img src={c.pic} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt={c.name} />
+                    ) : (
+                      c.initials
+                    )}
+                  </span>
                   <span className="tag-name">{c.name}</span>
                 </div>
               ))}
@@ -1302,7 +1340,7 @@ function NewPostModal({ onClose, onCreate }: {
         <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
           <button onClick={onClose} style={{background:"none",border:"1.5px solid var(--navy-border)",borderRadius:"var(--radius-sm)",
             padding:"9px 18px",fontSize:13,fontWeight:600,color:"var(--text-secondary)",cursor:"pointer"}}>Cancelar</button>
-          <button className="btn-primary" onClick={create}>Enviar solicitud</button>
+          <button className="btn-primary" onClick={create}>Publicar</button>
         </div>
       </div>
     </div>
@@ -1382,7 +1420,11 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
     if (localStorage.getItem("unah_seed_version") !== SEED_VERSION) {
       localStorage.removeItem("unah_posts");
       loadedPosts = [];
-      localStorage.setItem("unah_seed_version", SEED_VERSION);
+      try {
+        localStorage.setItem("unah_seed_version", SEED_VERSION);
+      } catch (e) {
+        console.warn("No se pudo guardar 'unah_seed_version' en localStorage:", e);
+      }
     }
 
     // Sync with unah_events (AvailableEvents)
@@ -1427,7 +1469,15 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
   const [openCommentIds,setOpenCommentIds]=useState<Set<number>>(new Set());
   const [notiOpen,setNotiOpen]=useState(false);
   const [showModal,setShowModal]=useState(false);
+  const [showDenunciaModal, setShowDenunciaModal] = useState(false);
+  const [denunciaPostId, setDenunciaPostId] = useState<number | null>(null);
+  const [motivoDenuncia, setMotivoDenuncia] = useState("");
+  const [detalleDenuncia, setDetalleDenuncia] = useState("");
+  const [denunciadas, setDenunciadas] = useState<any[]>([]);
+  const [loadingDenunciadas, setLoadingDenunciadas] = useState(false);
   const [toast,setToast]=useState("");
+  const [postIdAEliminar, setPostIdAEliminar] = useState<number | null>(null);
+  const [tituloPostAEliminar, setTituloPostAEliminar] = useState<string>("");
 
   const [searchQuery,setSearchQuery]=useState("");
   const [drawerPost,setDrawerPost]=useState<Post|null>(null);
@@ -1467,17 +1517,37 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
     cargarPumitasReales();
   }, []);
 
+  // Controla el spinner de carga inicial del muro: solo se apaga después
+  // del primer fetch (éxito o error) y no vuelve a activarse en cada
+  // sondeo de fondo, para no interrumpir al usuario mientras navega.
+  const [cargandoFeedInicial, setCargandoFeedInicial] = useState(true);
+
   // Cargar eventos, publicaciones, comentarios y reacciones reales de la base de datos
   useEffect(() => {
     const fetchBackendData = async () => {
       try {
-        const [dbEvents, dbComments, dbReactions, dbPubs, myEvents] = await Promise.all([
-          eventosService.getAll().catch(() => []),
-          comentarioService.getComentarios().catch(() => []),
-          reaccionPostService.getReacciones().catch(() => ({ counts: [], userReactions: [] })),
-          publicacionService.getPublicaciones().catch(() => []),
-          grupo2EventosService.obtenerMisEventos().catch(() => [])
+        const [dbEventsRes, dbCommentsRes, dbReactionsRes, dbPubsRes, myEventsRes] = await Promise.allSettled([
+          eventosService.getAll(),
+          comentarioService.getComentarios(),
+          reaccionPostService.getReacciones(),
+          publicacionService.getPublicaciones(),
+          grupo2EventosService.obtenerMisEventos()
         ]);
+
+        // Eventos y publicaciones son las fuentes que arman el feed desde cero.
+        // Si fallan (token expirado, red caída, etc.) NO reconstruimos con listas
+        // vacías — eso borraba los guardados cada vez que el token vencía (8h).
+        // Nos quedamos con lo que ya había hasta que el backend vuelva a responder.
+        if (dbEventsRes.status === "rejected" || dbPubsRes.status === "rejected") {
+          console.warn("No se pudo sincronizar con el backend (token expirado o sin conexión); se mantiene el feed actual sin cambios.");
+          return;
+        }
+
+        const dbEvents = dbEventsRes.value;
+        const dbComments = dbCommentsRes.status === "fulfilled" ? dbCommentsRes.value : [];
+        const dbReactions = dbReactionsRes.status === "fulfilled" ? dbReactionsRes.value : { counts: [], userReactions: [] };
+        const dbPubs = dbPubsRes.value;
+        const myEvents = myEventsRes.status === "fulfilled" ? myEventsRes.value : [];
 
         const mapCategoryToScope = (cat: string): string => {
           const lower = cat.toLowerCase();
@@ -1661,16 +1731,23 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
       }
     };
 
-    fetchBackendData();
+    fetchBackendData().finally(() => setCargandoFeedInicial(false));
+    // Antes se consultaba cada 2 segundos, pero /comentarios y /reacciones-post traen
+    // TODOS los registros de la app sin filtrar. Con muchos usuarios conectados a la vez
+    // eso saturaba el backend y hacía sentir lento todo el sistema (no solo el muro).
+    // 15 segundos sigue sintiéndose "casi en vivo" pero baja la carga ~7 veces.
+    const interval = setInterval(fetchBackendData, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   // Sync to localStorage
   useEffect(() => {
     try {
       localStorage.setItem("unah_posts", JSON.stringify(posts));
-    } catch {
-      localStorage.removeItem("unah_posts");
-    }
+} catch (e) {
+    console.warn("No se pudo guardar 'unah_posts' en localStorage (cuota excedida):", e);
+    localStorage.removeItem("unah_posts");
+  }
   }, [posts]);
 
   const [hiddenPostIds, setHiddenPostIds] = useState<Set<number>>(() => {
@@ -1689,7 +1766,11 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
   });
 
   useEffect(() => {
-    localStorage.setItem("unah_hidden_posts", JSON.stringify(Array.from(hiddenPostIds)));
+    try {
+      localStorage.setItem("unah_hidden_posts", JSON.stringify(Array.from(hiddenPostIds)));
+    } catch (e) {
+      console.warn("No se pudo guardar 'unah_hidden_posts' en localStorage:", e);
+    }
   }, [hiddenPostIds]);
 
   const [visibleCount, setVisibleCount] = useState<number>(8);
@@ -1748,7 +1829,96 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
     return ()=>document.removeEventListener("click",h);
   },[]);
 
+  const fetchDenunciadas = async () => {
+    setLoadingDenunciadas(true);
+    try {
+      const data = await publicacionService.getDenunciadas();
+      setDenunciadas(data);
+    } catch (e) {
+      console.error("Error al cargar publicaciones denunciadas:", e);
+    } finally {
+      setLoadingDenunciadas(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeFilter === "Denuncias") {
+      fetchDenunciadas();
+    }
+  }, [activeFilter]);
+
+  const handleOpenDenunciarModal = (id: number) => {
+    setDenunciaPostId(id);
+    setMotivoDenuncia("Contenido Inadecuado");
+    setDetalleDenuncia("");
+    setShowDenunciaModal(true);
+  };
+
+  const handleConfirmDenuncia = async () => {
+    if (!denunciaPostId || !motivoDenuncia) return;
+    try {
+      await publicacionService.denunciar(denunciaPostId, motivoDenuncia, detalleDenuncia);
+      showToast("🚩 Denuncia registrada con éxito");
+      setShowDenunciaModal(false);
+      setDenunciaPostId(null);
+    } catch (e: any) {
+      console.error(e);
+      showToast(`❌ ${e.message || "Error al registrar denuncia"}`);
+    }
+  };
+
+  const handleIgnorarDenuncia = async (idDenuncia: number) => {
+    try {
+      await publicacionService.eliminarDenuncia(idDenuncia);
+      showToast("✅ Denuncia descartada");
+      fetchDenunciadas();
+    } catch (e) {
+      console.error(e);
+      showToast("❌ Error al descartar denuncia");
+    }
+  };
+
+  const handleEliminarPublicacionClick = (idPost: number, tituloPost: string) => {
+    setPostIdAEliminar(idPost);
+    setTituloPostAEliminar(tituloPost);
+  };
+
+  const handleConfirmarEliminar = async () => {
+    if (!postIdAEliminar) return;
+    try {
+      await publicacionService.eliminarPublicacion(postIdAEliminar);
+      showToast("🗑️ Publicación eliminada");
+      fetchDenunciadas();
+      setPosts(prev => prev.filter(p => p.id !== postIdAEliminar));
+    } catch (e) {
+      console.error(e);
+      showToast("❌ Error al eliminar la publicación");
+    } finally {
+      setPostIdAEliminar(null);
+      setTituloPostAEliminar("");
+    }
+  };
+
   const getFiltered=()=>{
+    if (activeFilter === "Denuncias") {
+      let f = [...denunciadas];
+      f = f.map(rawPost => {
+        const found = posts.find(p => p.id === Number(rawPost.id));
+        if (found) {
+          return {
+            ...found,
+            denuncias: rawPost.denuncias
+          };
+        }
+        return rawPost;
+      });
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        f = f.filter(p => (p.title || '').toLowerCase().includes(q) || (p.desc || '').toLowerCase().includes(q) || (p.author || '').toLowerCase().includes(q));
+      }
+      return f;
+    }
+
     let f = showHiddenOnly
       ? posts.filter(p=>p.hidden || hiddenPostIds.has(Number(p.id)))
       : posts.filter(p=>!p.hidden && !hiddenPostIds.has(Number(p.id)));
@@ -1887,7 +2057,7 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
           replyTo: savedComment.replyTo,
           parentId: savedComment.parentId,
           replyToText: savedComment.replyToText,
-          authorPic: savedComment.authorPic || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+          authorPic: savedComment.authorPic || undefined
         }];
         return { ...p, comments: newComments };
       }));
@@ -1907,7 +2077,7 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
           replyTo,
           parentId,
           replyToText,
-          authorPic: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+          authorPic: authService.getUsuarioGuardado()?.foto_url || undefined
         }]
       }));
       showToast("💬 Comentario agregado localmente");
@@ -1965,22 +2135,45 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
     setEditPost(p);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editPost) return;
-    const updated = {
+    const nuevaDesc = editDesc;
+    const nuevosTags = editTags.split(',').map(t => t.trim()).filter(Boolean);
+
+    // Solo las publicaciones (type: "Publicacion") existen en la base de datos y tienen
+    // endpoint de edición; los eventos, por ahora, se siguen editando solo en el estado local.
+    const esPublicacionDeBD = editPost.type === "Publicacion";
+
+    let updated = {
       ...editPost,
-      desc: editDesc,
-      tags: editTags.split(',').map(t => t.trim()).filter(Boolean),
+      desc: nuevaDesc,
+      tags: nuevosTags,
     };
+
+    if (esPublicacionDeBD) {
+      try {
+        const pubActualizada = await publicacionService.editarPublicacion(Number(editPost.id), {
+          desc: nuevaDesc,
+          tags: nuevosTags,
+        });
+        updated = { ...editPost, ...pubActualizada };
+      } catch (err: any) {
+        console.error("Error al editar la publicación:", err);
+        alert("Error al guardar los cambios en el servidor: " + (err?.message || "intenta de nuevo."));
+        return; // No cerramos el modal ni actualizamos el estado si falló en el servidor
+      }
+    }
+
     setPosts(prev => prev.map(p => p.id === editPost.id ? updated : p));
     const saved = localStorage.getItem("unah_posts");
     if (saved) {
-      try {
-        const list = JSON.parse(saved).map((p: any) => p.id === editPost.id ? updated : p);
-        localStorage.setItem("unah_posts", JSON.stringify(list));
-      } catch {
-        localStorage.removeItem("unah_posts");
-      }
+try {
+  const list = JSON.parse(saved).map((p: any) => p.id === editPost.id ? updated : p);
+  localStorage.setItem("unah_posts", JSON.stringify(list));
+} catch (e) {
+  console.warn("No se pudo guardar 'unah_posts' tras edición en localStorage:", e);
+  localStorage.removeItem("unah_posts");
+}
     }
     setEditPost(null);
     showToast("✅ Publicación actualizada");
@@ -2177,12 +2370,11 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
           tags: cleanTags,
           images: d.images || []
         };
-        // El estudiante ya no publica directo: la solicitud queda "pendiente" hasta que
-        // Coordinación la remita a VOAE, VOAE la autorice y Coordinación la publique.
+        // Las publicaciones se crean directamente visibles en el feed (sin restricción).
         const savedPub = await publicacionService.crearPublicacion(payload);
 
-        setPosts(prev => [{ ...savedPub, estado: savedPub.estado || "pendiente" }, ...prev]);
-        showToast("📨 Tu solicitud fue enviada a Coordinación para su revisión");
+        setPosts(prev => [{ ...savedPub, estado: savedPub.estado || "publicado" }, ...prev]);
+        showToast("✅ Publicación creada");
       } catch (err: any) {
         console.error("Error al enviar la solicitud de publicación:", err);
         alert("Error al enviar la solicitud al servidor: " + err.message);
@@ -2231,6 +2423,12 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
 
   return (
     <>
+      {cargandoFeedInicial && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-3 bg-white/90 backdrop-blur-sm">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#FFD100] border-t-[#003366]"></div>
+          <p className="text-sm font-bold text-[#003366]">Cargando el muro...</p>
+        </div>
+      )}
       <style>{`
         :root{--navy:#F4F6F8;--navy-mid:#FFFFFF;--navy-light:#F4F6F8;--navy-border:#E2E8F0;
           --yellow:#FFD100;--yellow-hover:#FFE766;--yellow-soft:rgba(255,209,0,0.15);
@@ -2313,6 +2511,76 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
   .stories-bar {
     padding: 10px;
     gap: 10px;
+  }
+
+  /* Filtros con scroll horizontal en vez de romper el layout */
+  .controls-row {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+  .filter-tabs {
+    overflow-x: auto;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+  .filter-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .sort-select {
+    width: 100%;
+  }
+
+  /* El panel de "Detalle de evento" pasa a pantalla completa en vez de 400px fijos */
+  .drawer-panel {
+    width: 100%;
+    max-width: 100vw;
+    padding: 16px;
+  }
+
+  /* El dropdown de notificaciones no se sale del viewport */
+  .notifications-dropdown {
+    width: min(288px, 92vw);
+    right: -8px;
+  }
+
+  /* El visor de historias se ajusta al ancho real del teléfono */
+  .story-viewer {
+    width: 92vw;
+    max-width: 320px;
+    height: min(480px, 80vh);
+    padding: 24px 18px;
+  }
+
+  /* Tarjetas de publicación más compactas */
+  .post-card {
+    padding: 14px;
+  }
+  .post-image-item {
+    height: 160px;
+  }
+
+  /* Modal de detalle de publicación/evento */
+  .detail-modal-card {
+    padding: 20px 16px 22px;
+    width: 96vw;
+  }
+  .dmc-meta-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 400px) {
+  .search-input {
+    width: 100px;
+  }
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+  }
+  .avatar-btn {
+    width: 32px;
+    height: 32px;
   }
 }
         /* STORIES */
@@ -2838,36 +3106,6 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
             </div>
             <div className="topbar-right" onClick={e=>e.stopPropagation()}>
               {!showOnlySaved && <button className="btn-primary" onClick={()=>setShowModal(true)}>+ Crear Post</button>}
-              <div style={{position:"relative"}}>
-                <button className="icon-btn" onClick={()=>{setNotiOpen(v=>!v);}}>
-                  🔔 {unread>0 && <span className="badge">{unread}</span>}
-                </button>
-                {notiOpen && (
-                  <div className="notifications-dropdown">
-                    <div className="noti-header">
-                      <h3>Notificaciones</h3>
-                      <button className="noti-clear-btn" onClick={()=>{marcarTodasLeidas(); showToast("Notificaciones leídas"); setNotiOpen(false);}}>Marcar leídas</button>
-                    </div>
-                    <div className="noti-list">
-                      {notifications.length === 0 && (
-                        <p style={{fontSize:12, color:"var(--text-secondary)", fontWeight:600, padding:"4px 2px"}}>No tienes notificaciones.</p>
-                      )}
-                      {notifications.slice(0,5).map(n=>(
-                        <div key={n.id} className={`noti-item${n.unread?" unread":""}`} onClick={()=>{ if(n.unread) marcarNotificacionLeidaAPI(n.id); }}>
-                          <div className="noti-icon-box">{n.icon}</div>
-                          <div>
-                            <div className="noti-text">{n.text}</div>
-                            <div className="noti-time">{n.time}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="noti-viewall" onClick={()=>{setNotiOpen(false); setMostrarHistorialNotificaciones(true);}}>
-                      Ver todas las notificaciones
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </header>
 
@@ -2876,9 +3114,21 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
             <div className="feed-column">
               <div className="controls-row">
                 <div className="filter-tabs">
-                  {["Todas","Publicacion","Evento"].map(t=>(
+                  {(() => {
+                    const tabs = ["Todas", "Publicacion", "Evento"];
+                    const u = authService.getUsuarioGuardado();
+                    const isModerador = u && (
+                      u.rol?.toUpperCase() === 'ADMIN' || 
+                      u.rol?.toUpperCase() === 'VOAE' || 
+                      u.rol?.toUpperCase().startsWith('VOAE_')
+                    );
+                    if (isModerador) {
+                      tabs.push("Denuncias");
+                    }
+                    return tabs;
+                  })().map(t=>(
                     <button key={t} className={`filter-btn${activeFilter===t && !showHiddenOnly?" active":""}`} onClick={()=>{setActiveFilter(t);setShowHiddenOnly(false);}}>
-                      {t==="Todas"?"🌐 Todas":t==="Publicacion"?"📢 Publicaciones":"📅 Eventos"}
+                      {t==="Todas"?"🌐 Todas":t==="Publicacion"?"📢 Publicaciones":t==="Evento"?"📅 Eventos":"⚠️ Denuncias"}
                     </button>
                   ))}
                   {posts.some(p=>p.hidden) && (
@@ -2904,17 +3154,81 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
                   </div>
                 </div>
               ) : (
-                filtered.slice(0, visibleCount).map(p=>(
-                  <PostCard key={p.id} post={p}
-                    onReact={handleReact} onToggleComments={handleToggleComments}
-                    onAddComment={handleAddComment}
-                    onReactComment={handleReactComment}
-                    onHide={handleHide} onUnhide={handleUnhide} onSave={handleSave} onShare={handleShare}
-                    onOpenDrawer={setDrawerPost} onInscribir={handleInscribir}
-                    onOpenDetail={setDetailPost} onEdit={handleEditPost}
-                    openCommentIds={openCommentIds} isLoggedIn={isLoggedIn}
-                    showOnlySaved={showOnlySaved} showHiddenOnly={showHiddenOnly} />
-                ))
+                filtered.slice(0, visibleCount).map(p=>{
+                  const isDenunciadasTab = activeFilter === "Denuncias";
+                  return (
+                    <div key={p.id} className={isDenunciadasTab ? "border border-red-500/40 rounded-xl p-3 bg-red-950/10 mb-4" : ""}>
+                      <PostCard post={p}
+                        onReact={handleReact} onToggleComments={handleToggleComments}
+                        onAddComment={handleAddComment}
+                        onReactComment={handleReactComment}
+                        onHide={handleHide} onUnhide={handleUnhide} onSave={handleSave} onShare={handleShare}
+                        onOpenDrawer={setDrawerPost} onInscribir={handleInscribir}
+                        onOpenDetail={setDetailPost} onEdit={handleEditPost}
+                        onDenunciar={handleOpenDenunciarModal}
+                        openCommentIds={openCommentIds} isLoggedIn={isLoggedIn}
+                        showOnlySaved={showOnlySaved} showHiddenOnly={showHiddenOnly}
+                        isDenunciadasTab={isDenunciadasTab} />
+                      {isDenunciadasTab && p.denuncias && (
+                        <div className="mt-4 p-4 rounded-xl border border-slate-200 bg-white shadow-sm" style={{ fontFamily: 'inherit' }}>
+                          {/* Header */}
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+                            <div className="flex items-center gap-2">
+                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-50 text-red-500 text-xs">🚩</span>
+                              <h4 className="text-sm font-extrabold text-slate-800 tracking-tight">Reportes Recibidos</h4>
+                              <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-red-50 text-red-600">
+                                {p.denuncias.length}
+                              </span>
+                            </div>
+                          </div>
+
+
+
+                          {/* Denuncias List */}
+                          <div className="space-y-3 mb-4">
+                            {p.denuncias.map((d: any) => (
+                              <div key={d.id_denuncia} className="bg-slate-50 p-3.5 rounded-lg border border-slate-100 shadow-sm transition-all hover:border-slate-200">
+                                <div className="flex justify-between items-start mb-2">
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-slate-700 bg-slate-200/60 px-2.5 py-0.5 rounded-full w-max">
+                                      {d.motivo}
+                                    </span>
+                                  </div>
+                                  <button 
+                                    onClick={() => handleIgnorarDenuncia(d.id_denuncia)} 
+                                    className="text-xs font-bold text-emerald-700 hover:text-emerald-800 transition-colors flex items-center gap-1 cursor-pointer bg-emerald-50 hover:bg-emerald-100/80 px-2.5 py-1 rounded-md"
+                                    style={{ padding: '4px 10px' }}
+                                  >
+                                    ✔️ Descartar
+                                  </button>
+                                </div>
+                                
+                                {d.detalle && (
+                                  <p className="text-xs text-slate-600 bg-white p-2.5 rounded border-l-2 border-slate-350 my-2 italic">
+                                    "{d.detalle}"
+                                  </p>
+                                )}
+                                
+                                <div className="flex justify-between items-center text-[10px] text-slate-500 mt-2">
+                                  <span>Por: <strong>{d.denunciante_nombre}</strong></span>
+                                  <span>{new Date(d.fecha_creacion).toLocaleString()}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Danger action */}
+                          <button
+                            onClick={() => handleEliminarPublicacionClick(p.id, p.title)}
+                            className="w-full py-2.5 px-4 bg-white hover:bg-red-600 text-red-600 hover:text-white border border-red-200 hover:border-red-600 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            🗑️ Eliminar Publicación Definitivamente
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
               )}
 
               {filtered.length > 0 && !showHiddenOnly && !showOnlySaved && (
@@ -3076,9 +3390,158 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
       )}
 
       {showModal && <NewPostModal onClose={()=>setShowModal(false)} onCreate={handleCreate} />}
+      {showDenunciaModal && (
+        <div style={{display:"flex",position:"fixed",inset:0,background:"rgba(0,51,102,0.4)",zIndex:200,alignItems:"center",justifyContent:"center"}} onClick={() => setShowDenunciaModal(false)}>
+          <div style={{background:"var(--navy-mid)",borderRadius:"var(--radius)",padding:28,width:450,maxWidth:"95vw",
+            boxShadow:"0 16px 48px rgba(0,0,0,0.15)",border:"1px solid var(--navy-border)",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+            <h2 style={{fontSize:18,fontWeight:800,color:"var(--white)",marginBottom:16}}>🚩 Reportar Publicación</h2>
+            
+            <label style={{ fontSize:12, fontWeight:700, color:"var(--text-secondary)", display:"block", marginBottom:4 }}>MOTIVO DE LA DENUNCIA</label>
+            <select
+              value={motivoDenuncia}
+              onChange={e => setMotivoDenuncia(e.target.value)}
+              style={{ width:"100%", border:"1.5px solid var(--navy-border)", background:"var(--navy)",
+                borderRadius:"var(--radius-sm)", padding:"9px 12px", fontSize:14, color:"var(--white)", outline:"none", marginBottom:16 }}
+            >
+              <option value="Contenido Inadecuado">Contenido Inadecuado / Ofensivo</option>
+              <option value="Spam / Publicidad">Spam o Publicidad no deseada</option>
+              <option value="Acoso o Violencia">Acoso, Odio o Violencia</option>
+              <option value="Información Falsa">Información Falsa / Fake News</option>
+              <option value="Otros">Otros motivos</option>
+            </select>
+
+            <label style={{ fontSize:12, fontWeight:700, color:"var(--text-secondary)", display:"block", marginBottom:4 }}>DETALLES ADICIONALES (OPCIONAL)</label>
+            <textarea
+              value={detalleDenuncia}
+              onChange={e => setDetalleDenuncia(e.target.value)}
+              placeholder="Explica brevemente la razón de tu reporte..."
+              rows={4}
+              style={{ width:"100%", border:"1.5px solid var(--navy-border)", background:"var(--navy)",
+                borderRadius:"var(--radius-sm)", padding:"9px 12px", fontSize:14, color:"var(--white)", outline:"none", marginBottom:20, resize:"none" }}
+            />
+
+            <div style={{display:"flex",gap:12}}>
+              <button
+                onClick={() => setShowDenunciaModal(false)}
+                style={{flex: 1, padding:"10px", borderRadius:"var(--radius-sm)", border:"1.5px solid var(--navy-border)",
+                  fontSize:13, fontWeight:700, cursor:"pointer", background:"none", color:"var(--white)"}}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmDenuncia}
+                style={{flex: 1, padding:"10px", borderRadius:"var(--radius-sm)", border:"none",
+                  fontSize:13, fontWeight:700, cursor:"pointer", background:"#ef4444", color:"var(--white)"}}
+              >
+                Enviar Reporte
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <Toast message={toast} />
       {confettiKey !== null && <ConfettiBurst confettiKey={confettiKey} />}
+
+      <EliminarConfirmModal
+        isOpen={postIdAEliminar !== null}
+        onClose={() => setPostIdAEliminar(null)}
+        onConfirm={handleConfirmarEliminar}
+        title={tituloPostAEliminar}
+      />
     </>
   );
 }
+
+function EliminarConfirmModal({ isOpen, onClose, onConfirm, title }: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div style={{
+      display: "flex",
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,51,102,0.45)",
+      backdropFilter: "blur(4px)",
+      zIndex: 1300,
+      alignItems: "center",
+      justifyContent: "center"
+    }} onClick={onClose}>
+      <div style={{
+        background: "var(--navy-mid)",
+        border: "1px solid var(--navy-border)",
+        padding: 24,
+        borderRadius: "var(--radius)",
+        width: "90%",
+        maxWidth: 400,
+        boxShadow: "0 12px 30px rgba(0,0,0,0.15)",
+        fontFamily: "inherit"
+      }} onClick={e => e.stopPropagation()}>
+        
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 20, textAlign: "center" }}>
+          <span style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 50,
+            height: 50,
+            borderRadius: "50%",
+            background: "rgba(239, 68, 68, 0.1)",
+            color: "rgb(239, 68, 68)",
+            fontSize: 22
+          }}>
+            ⚠️
+          </span>
+          <h3 style={{ fontSize: 16, fontWeight: 900, color: "var(--text-primary)", margin: 0 }}>
+            ¿Eliminar publicación?
+          </h3>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0, lineHeight: "1.5" }}>
+            ¿Estás seguro de que deseas eliminar la publicación <strong>"{title}"</strong> definitivamente? Esta acción no se puede deshacer.
+          </p>
+        </div>
+
+        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+          <button
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "1.5px solid var(--navy-border)",
+              borderRadius: "var(--radius-sm)",
+              padding: "9px 18px",
+              fontSize: 13,
+              fontWeight: 600,
+              color: "var(--text-secondary)",
+              cursor: "pointer",
+              transition: "all 0.2s"
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{
+              background: "rgb(239, 68, 68)",
+              border: "none",
+              borderRadius: "var(--radius-sm)",
+              padding: "9px 18px",
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#fff",
+              cursor: "pointer",
+              boxShadow: "0 4px 12px rgba(239, 68, 68, 0.2)",
+              transition: "all 0.2s"
+            }}
+          >
+            Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export { Feed as SocialFeed };

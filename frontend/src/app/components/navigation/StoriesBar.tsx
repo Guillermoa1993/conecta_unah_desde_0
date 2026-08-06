@@ -228,9 +228,13 @@ export function StoriesBar() {
         <div className="story-item-h" onClick={() => setModalAbierto(true)}>
           <div className="story-ring-h">
             <div className="story-ava-h">
-              <span className="story-plus-h">+</span>
-              {usuario?.nombre ? iniciales(usuario.nombre) : 'TU'}
-            </div>
+            <span className="story-plus-h">+</span>
+              {usuario?.foto_url ? (
+             <img src={usuario.foto_url} alt={usuario.nombre} />
+              ) : (
+              usuario?.nombre ? iniciales(usuario.nombre) : 'TU'
+              )}
+           </div>
           </div>
           <span className="story-name-h">Tu estado</span>
         </div>

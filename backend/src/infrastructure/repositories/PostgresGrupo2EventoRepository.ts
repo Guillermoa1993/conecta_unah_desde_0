@@ -60,9 +60,25 @@ export class PostgresGrupo2EventoRepository implements Grupo2EventoRepository {
       const descripcionLimpia = typeof row.DESCRIPCION === 'string'
         ? row.DESCRIPCION.split('---EVENTO_METADATA---')[0].trim()
         : row.DESCRIPCION;
-      const [ubicacionNombre, ubicacionLink] = typeof row.UBICACION === 'string'
+      const ubicacionPartes = typeof row.UBICACION === 'string'
         ? row.UBICACION.split('|')
-        : [row.UBICACION, undefined];
+        : [row.UBICACION];
+      const [ubicacionNombre, ubicacionLink, ubicacionCoords] = ubicacionPartes;
+
+      // Las coordenadas pueden venir en las columnas dedicadas (e.latitud/e.longitud)
+      // o, para eventos más antiguos, embebidas en el propio campo "lugar" con formato
+      // "nombre|link|lat,lng" (mismo formato que ya usa PostgresEventoRepository).
+      let eventoLat = row.EVENTO_LATITUD ? parseFloat(row.EVENTO_LATITUD) : undefined;
+      let eventoLng = row.EVENTO_LONGITUD ? parseFloat(row.EVENTO_LONGITUD) : undefined;
+      if ((eventoLat === undefined || eventoLng === undefined) && ubicacionCoords && ubicacionCoords.includes(',')) {
+        const [cLat, cLng] = ubicacionCoords.split(',');
+        const parsedLat = parseFloat(cLat);
+        const parsedLng = parseFloat(cLng);
+        if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
+          eventoLat = parsedLat;
+          eventoLng = parsedLng;
+        }
+      }
 
       const mapped: any = {
         EVENTO_ID: row.EVENTO_ID,
@@ -78,8 +94,8 @@ export class PostgresGrupo2EventoRepository implements Grupo2EventoRepository {
         HORAS_VOAE: parseFloat(row.HORAS_VOAE) || 0,
         UBICACION: ubicacionNombre || undefined,
         UBICACION_LINK: ubicacionLink || undefined,
-        EVENTO_LATITUD: row.EVENTO_LATITUD ? parseFloat(row.EVENTO_LATITUD) : undefined,
-        EVENTO_LONGITUD: row.EVENTO_LONGITUD ? parseFloat(row.EVENTO_LONGITUD) : undefined,
+        EVENTO_LATITUD: eventoLat,
+        EVENTO_LONGITUD: eventoLng,
         Categoria: row.Categoria,
       };
 

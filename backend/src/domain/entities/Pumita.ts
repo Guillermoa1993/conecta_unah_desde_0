@@ -4,4 +4,6 @@ export interface Pumita {
   nombre: string;
   estado: 'pendiente' | 'aceptada' | 'bloqueada';
   soy_solicitante: boolean; // true si yo envié la solicitud
+  foto_url?: string;
+  biografia?: string;
 }

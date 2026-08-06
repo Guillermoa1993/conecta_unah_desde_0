@@ -1,0 +1,1 @@
+SELECT id_rol, nombre FROM tabla_grupo_1_rol ORDER BY id_rol;

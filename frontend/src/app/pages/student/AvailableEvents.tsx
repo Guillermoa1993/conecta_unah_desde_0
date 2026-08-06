@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { grupo2EventosService } from '../../../services';
-import { Share, LogOut } from 'lucide-react';
+import { Share, LogOut, User, Folder, Monitor, Globe, ThumbsUp, Clock, Calendar, MapPin, Users, AlertTriangle } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import { EventDetailMapPreview } from '../../components/app/EventDetailMapPreview';
 
 interface AsistenciaInfo {
   entrada: string;
@@ -24,11 +25,20 @@ interface Evento {
   HORAS_VOAE?: number;
   UBICACION?: string;
   UBICACION_LINK?: string;
+  EVENTO_LATITUD?: number;
+  EVENTO_LONGITUD?: number;
   Categoria?: string;
   ASISTENCIA?: AsistenciaInfo;
 }
 
 export const AvailableEvents: React.FC = () => {
+
+  // Solo el rol Estudiante puede matricularse a eventos; los demás roles
+  // (tutor, admin, voae) solo pueden ver la pantalla y los eventos, sin
+  // poder inscribirse — así el botón no aparece para quien de todos modos
+  // el backend le va a rechazar la inscripción.
+  const rolActual = (sessionStorage.getItem("unah_role") ?? "").toLowerCase();
+  const puedeMatricularse = rolActual === "estudiante" || rolActual === "dev";
 
   const [origenFiltro, setOrigenFiltro] = useState<'mis-eventos' | 'nuevos'>('mis-eventos');
   const [busqueda, setBusqueda] = useState('');
@@ -86,6 +96,10 @@ export const AvailableEvents: React.FC = () => {
   // Referencia para el contenedor del scanner HTML5
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const [eventos, setEventos] = useState<Evento[]>([]);
+  // Solo para el primer llamado al entrar a la pantalla; las recargas
+  // posteriores (tras inscribirse, registrar asistencia, etc.) no vuelven
+  // a mostrar el spinner de pantalla completa.
+  const [cargandoEventosInicial, setCargandoEventosInicial] = useState(true);
 
   const cargarEventos = async () => {
     try {
@@ -104,6 +118,8 @@ export const AvailableEvents: React.FC = () => {
         HORAS_VOAE: ev.HORAS_VOAE,
         UBICACION: ev.UBICACION,
         UBICACION_LINK: ev.UBICACION_LINK,
+        EVENTO_LATITUD: ev.EVENTO_LATITUD,
+        EVENTO_LONGITUD: ev.EVENTO_LONGITUD,
         Categoria: ev.Categoria,
         ASISTENCIA: ev.ASISTENCIA ? {
           entrada: ev.ASISTENCIA.entrada,
@@ -120,7 +136,7 @@ export const AvailableEvents: React.FC = () => {
   };
 
   useEffect(() => {
-    cargarEventos();
+    cargarEventos().finally(() => setCargandoEventosInicial(false));
   }, []);
 
   // Lector QR
@@ -241,7 +257,11 @@ export const AvailableEvents: React.FC = () => {
 
     posts.unshift(nuevoPost);
 
-    localStorage.setItem("unah_posts", JSON.stringify(posts));
+    try {
+      localStorage.setItem("unah_posts", JSON.stringify(posts));
+    } catch (e) {
+      console.warn("⚠️ No se pudo guardar 'unah_posts' en localStorage (DisponibleEvents):", e);
+    }
     window.dispatchEvent(new CustomEvent('unah-posts-changed'));
 
     setMensajeCompartido(true);
@@ -379,6 +399,12 @@ export const AvailableEvents: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#f3f4f6] p-4 font-sans antialiased">
+      {cargandoEventosInicial && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-3 bg-white/90 backdrop-blur-sm">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#FFD100] border-t-[#003366]"></div>
+          <p className="text-sm font-bold text-[#003366]">Cargando tus eventos...</p>
+        </div>
+      )}
       {/* MENSAJE DE EVENTO COMPARTIDO */}
       {mensajeCompartido && (
         <div className="fixed top-5 right-5 z-50 bg-emerald-600 text-white px-6 py-4 rounded-xl shadow-lg font-bold">
@@ -450,6 +476,13 @@ export const AvailableEvents: React.FC = () => {
                     }) // Cerramos el map correctamente aquí
                   }
 
+                  <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" />
+                    <p className="text-xs text-amber-800">
+                      <span className="font-bold">Recuerda:</span> estas horas solo son acumuladas por la aplicación; por tanto, las únicas horas válidas para el artículo 140 son aquellas que aprobó y emitió el departamento de VOAE.
+                    </p>
+                  </div>
+
                   <button 
                     onClick={() => setEventoHorasModal(false)} 
                     className="mt-4 w-full bg-slate-200 p-2 rounded"
@@ -493,7 +526,7 @@ export const AvailableEvents: React.FC = () => {
                 </div>
               </div>
               {/* ACCIONES DE FILA (SOLO PANTALLA INSCRITOS) */}
-              <div className="w-full md:w-auto flex justify-end gap-2 shrink-0">
+              <div className="w-full md:w-auto flex flex-wrap justify-end gap-2 shrink-0">
                 {origenFiltro === 'mis-eventos' && (
                   <>
                     {/* Botón de Entrada QR */}
@@ -586,15 +619,15 @@ export const AvailableEvents: React.FC = () => {
       {/* MODAL: DETALLE DE EVENTO */}
       {eventoDetalleModal && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden border">
+          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] shadow-2xl border flex flex-col overflow-hidden">
             {/* Header */}
-            <div className="px-6 py-4 border-b flex justify-between items-center">
+            <div className="px-6 py-4 border-b flex justify-between items-center shrink-0">
               <h3 className="text-xs font-extrabold text-[#004B87] tracking-wider uppercase">
                 💻 DETALLE DE EVENTO
               </h3>
               <button onClick={() => setEventoDetalleModal(null)} className="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
             </div>
-            <div className="p-6">
+            <div className="p-6 overflow-y-auto">
               {/* Encabezado con Imagen */}
               <div className="flex gap-4 mb-6 items-start">
                 {eventoDetalleModal.AVATAR_URL ? (
@@ -612,60 +645,116 @@ export const AvailableEvents: React.FC = () => {
               {/* Descripción */}
               <p className="text-sm text-slate-600 mb-6">{eventoDetalleModal.DESCRIPCION}</p>
               {/* Grid de Cards */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <div className="border rounded-xl p-3 bg-slate-50">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Horario</p>
-                  <p className="font-bold text-slate-800 text-sm">{eventoDetalleModal.HORARIO}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mb-6">
+                {/* 1. Fecha */}
+                <div className="flex items-center gap-3 border border-slate-100 rounded-2xl p-3 bg-[#f8fafc]">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50/80 border border-blue-100/50 flex items-center justify-center shrink-0">
+                    <Calendar className="text-[#004B87] size-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Fecha</span>
+                    <span className="text-sm font-black text-[#003560] mt-0.5 block truncate">{eventoDetalleModal.FECHA || 'No especificada'}</span>
+                  </div>
                 </div>
-                <div className="border rounded-xl p-3 bg-slate-50">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Lugar</p>
-                  <p className="font-bold text-slate-800 text-sm">{eventoDetalleModal.UBICACION}</p>
-                  {eventoDetalleModal.UBICACION_LINK && (
-                    <a
-                      href={eventoDetalleModal.UBICACION_LINK}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-1 inline-block text-xs font-bold text-[#004B87] underline hover:text-[#003366]"
-                    >
-                      Ver en Google Maps
-                    </a>
-                  )}
+
+                {/* 2. Horario */}
+                <div className="flex items-center gap-3 border border-slate-100 rounded-2xl p-3 bg-[#f8fafc]">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50/80 border border-blue-100/50 flex items-center justify-center shrink-0">
+                    <Clock className="text-[#004B87] size-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Horario</span>
+                    <span className="text-sm font-black text-[#003560] mt-0.5 block truncate">{eventoDetalleModal.HORARIO}</span>
+                  </div>
                 </div>
-                <div className="border rounded-xl p-3 bg-slate-50 col-span-2">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Categoría y Tipo</p>
-                  <p className="font-bold text-slate-800 text-sm">
-                    {eventoDetalleModal.Categoria} — ARTICULO 140
-                  </p>
+
+                {/* 3. Lugar */}
+                <div className="flex items-center gap-3 border border-slate-100 rounded-2xl p-3 bg-[#f8fafc] col-span-2">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50/80 border border-blue-100/50 flex items-center justify-center shrink-0">
+                    <MapPin className="text-[#004B87] size-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Lugar</span>
+                    {(() => {
+                      const loc = eventoDetalleModal.UBICACION || "No especificado";
+                      if (loc.includes("|")) {
+                        const [bName, bLink] = loc.split("|");
+                        return (
+                          <a href={bLink} target="_blank" rel="noopener noreferrer" className="text-sm font-black text-[#004B87] hover:underline block truncate mt-0.5" title={bName}>
+                            {bName}
+                          </a>
+                        );
+                      }
+                      if (eventoDetalleModal.UBICACION_LINK) {
+                        return (
+                          <a href={eventoDetalleModal.UBICACION_LINK} target="_blank" rel="noopener noreferrer" className="text-sm font-black text-[#004B87] hover:underline block truncate mt-0.5" title={loc}>
+                            {loc}
+                          </a>
+                        );
+                      }
+                      return <span className="text-sm font-black text-[#003560] mt-0.5 block truncate" title={loc}>{loc}</span>;
+                    })()}
+                  </div>
                 </div>
-                {/* Horas a Obtener */}
-                <div className="border rounded-xl p-3 bg-blue-50 border-blue-100 col-span-2">
-                  <p className="text-[10px] font-bold text-blue-600 uppercase">Horas a Obtener</p>
-                  <p className="font-black text-blue-900 text-sm">
-                   {(() => {
-                     const hours = eventoDetalleModal.HORAS_VOAE ?? 0;
-                     const clasif = (eventoDetalleModal.Categoria || "").trim().toLowerCase();
-                     
-                     if (eventoDetalleModal.EVENTO_ID <= 4) {
-                       return "3 Horas Académicas";
-                     }
-                     
-                     let scopeLabel = eventoDetalleModal.Categoria || "";
-                     if (clasif.includes("academico") || clasif.includes("académico")) {
-                       scopeLabel = "Académicas";
-                     } else if (clasif.includes("deportivo")) {
-                       scopeLabel = "Deportivas";
-                     } else if (clasif.includes("cultural")) {
-                       scopeLabel = "Culturales";
-                     } else if (clasif.includes("social")) {
-                       scopeLabel = "Sociales";
-                     }
-                     
-                     return `${hours} Horas ${scopeLabel}`;
-                   })()}
-                  </p>
+
+                {/* 3b. Mapa / Geolocalización del evento */}
+                <div className="col-span-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                    🗺️ Mapa del evento
+                  </span>
+                  <EventDetailMapPreview
+                    lat={eventoDetalleModal.EVENTO_LATITUD}
+                    lng={eventoDetalleModal.EVENTO_LONGITUD}
+                    lugar={eventoDetalleModal.UBICACION}
+                    className="w-full"
+                  />
+                </div>
+
+                {/* 4. Categoría */}
+                <div className="flex items-center gap-3 border border-slate-100 rounded-2xl p-3 bg-[#f8fafc] col-span-2">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50/80 border border-blue-100/50 flex items-center justify-center shrink-0">
+                    <Folder className="text-[#004B87] size-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Categoría y Tipo</span>
+                    <span className="text-sm font-black text-[#003560] mt-0.5 block truncate">{eventoDetalleModal.Categoria || 'Evento'} — ARTICULO 140</span>
+                  </div>
+                </div>
+
+                {/* 5. Horas a Obtener */}
+                <div className="flex items-center gap-3 border border-slate-100 rounded-2xl p-3 bg-[#f8fafc] col-span-2">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50/80 border border-blue-100/50 flex items-center justify-center shrink-0">
+                    <Clock className="text-[#004B87] size-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Horas a Obtener</span>
+                    <span className="text-sm font-black text-[#003560] mt-0.5 block truncate">
+                      {(() => {
+                        const hours = eventoDetalleModal.HORAS_VOAE ?? 0;
+                        const clasif = (eventoDetalleModal.Categoria || "").trim().toLowerCase();
+                        
+                        if (eventoDetalleModal.EVENTO_ID <= 4) {
+                          return "3 horas";
+                        }
+                        
+                        let scopeLabel = "horas";
+                        if (clasif.includes("academico") || clasif.includes("académico")) {
+                          scopeLabel = "horas académicas";
+                        } else if (clasif.includes("deportivo")) {
+                          scopeLabel = "horas deportivas";
+                        } else if (clasif.includes("cultural")) {
+                          scopeLabel = "horas culturales";
+                        } else if (clasif.includes("social")) {
+                          scopeLabel = "horas sociales";
+                        }
+                        
+                        return `${hours} ${scopeLabel}`;
+                      })()}
+                    </span>
+                  </div>
                 </div>
               </div>
-              {!eventoDetalleModal.INSCRITO && (
+              {!eventoDetalleModal.INSCRITO && puedeMatricularse && (
                 <button onClick={() => inscribirseAEvento(eventoDetalleModal.EVENTO_ID)} className="w-full py-3 bg-[#004B87] hover:bg-[#003560] text-white font-bold rounded-xl transition-all">
                   Inscribirme al Evento
                 </button>

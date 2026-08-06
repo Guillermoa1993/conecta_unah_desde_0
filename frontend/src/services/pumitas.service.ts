@@ -1,4 +1,5 @@
 import { api } from './api';
+import { PublicacionResponse } from './publicacion.service';
 
 export interface Pumita {
   id_conexion: number | null;
@@ -6,6 +7,8 @@ export interface Pumita {
   nombre: string;
   estado: 'pendiente' | 'aceptada' | 'bloqueada';
   soy_solicitante: boolean;
+  foto_url?: string;
+  biografia?: string;
 }
 
 export const pumitasService = {
@@ -29,5 +32,8 @@ export const pumitasService = {
   },
   eliminar(id_conexion: number): Promise<void> {
     return api.delete<void>(`/pumitas/${id_conexion}`);
+  },
+  listarPublicacionesDe(id_usuario: number): Promise<PublicacionResponse[]> {
+    return api.get<PublicacionResponse[]>(`/publicaciones/usuario/${id_usuario}`);
   },
 };

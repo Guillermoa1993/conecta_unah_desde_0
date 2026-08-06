@@ -11,9 +11,10 @@ r.get('/', autenticar, async (req: Request, res: Response) => {
     const id_usuario_actual = req.usuario!.id;
 
     let query = `
-      SELECT c.*, u.nombre as usuario_nombre, u.id_rol
+      SELECT c.*, u.nombre as usuario_nombre, u.id_rol, perf.foto_url as usuario_foto_url
       FROM tabla_grupo_2_comentario c
       JOIN tabla_grupo_1_usuario u ON c.id_usuario = u.id_usuario
+      LEFT JOIN tabla_grupo_1_perfil perf ON u.id_usuario = perf.id_usuario
     `;
     const params: any[] = [];
     
@@ -70,6 +71,7 @@ r.get('/', autenticar, async (req: Request, res: Response) => {
         id: row.id_comentario,
         author: row.usuario_nombre,
         authorInitials: initials || 'UN',
+        authorPic: row.usuario_foto_url || undefined,
         text: row.contenido,
         time: row.fecha_creacion ? new Date(row.fecha_creacion).toLocaleDateString() : "Reciente",
         replyTo: row.reply_to || undefined,
@@ -120,7 +122,10 @@ r.post('/', autenticar, async (req: Request, res: Response) => {
     
     // Fetch the user's name to return the complete comment object
     const userResult = await pool.query(
-      "SELECT nombre FROM tabla_grupo_1_usuario WHERE id_usuario = $1",
+      `SELECT u.nombre, perf.foto_url as usuario_foto_url 
+       FROM tabla_grupo_1_usuario u
+       LEFT JOIN tabla_grupo_1_perfil perf ON u.id_usuario = perf.id_usuario
+       WHERE u.id_usuario = $1`,
       [id_usuario]
     );
     const userName = userResult.rows[0]?.nombre || 'Usuario';
@@ -131,6 +136,7 @@ r.post('/', autenticar, async (req: Request, res: Response) => {
       id: newComment.id_comentario,
       author: userName,
       authorInitials: initials || 'UN',
+      authorPic: userResult.rows[0]?.usuario_foto_url || undefined,
       text: newComment.contenido,
       time: "Ahora mismo",
       replyTo: newComment.reply_to || undefined,

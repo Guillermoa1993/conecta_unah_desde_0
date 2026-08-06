@@ -58,8 +58,8 @@ export function StudentDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-[#004B87]">Dashboard del Estudiante</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#004B87]">Dashboard del Estudiante</h1>
+        <p className="text-muted-foreground mt-1 text-sm sm:text-base">
           Bienvenido de nuevo, monitorea tu progreso académico
         </p>
       </div>
@@ -74,7 +74,7 @@ export function StudentDashboard() {
       <ProgressCard currentHours={horasAcumuladas} requiredHours={REQUISITO_HORAS} />
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <CardTitle>Próximos Eventos</CardTitle>
           <Button variant="outline" className="border-[#004B87] text-[#004B87] hover:bg-[#004B87] hover:text-white" onClick={() => navigate("/student/events")}>
             Ver Todos
@@ -84,7 +84,7 @@ export function StudentDashboard() {
           <div className="space-y-4">
             {proximos.length === 0 && <p className="text-sm text-muted-foreground">No tienes próximos eventos.</p>}
             {proximos.map((insc) => (
-              <div key={insc.id} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-secondary transition-colors">
+              <div key={insc.id} className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg border border-border hover:bg-secondary transition-colors">
                 <div className="flex-1">
                   <h4 className="font-semibold text-[#004B87]">{insc.evento_titulo}</h4>
                   <div className="mt-1 flex items-center gap-4 text-sm text-muted-foreground">
@@ -104,7 +104,7 @@ export function StudentDashboard() {
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <CardTitle>Asistencia Reciente</CardTitle>
           <Button variant="outline" className="border-[#004B87] text-[#004B87] hover:bg-[#004B87] hover:text-white" onClick={() => navigate("/student/history")}>
             Ver Historial
@@ -114,7 +114,7 @@ export function StudentDashboard() {
           <div className="space-y-3">
             {asistenciaReciente.length === 0 && <p className="text-sm text-muted-foreground">Aún no tienes asistencias registradas.</p>}
             {asistenciaReciente.map((insc) => (
-              <div key={insc.id} className="flex items-center justify-between p-4 rounded-lg border border-border">
+              <div key={insc.id} className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg border border-border">
                 <div className="flex-1">
                   <h4 className="font-semibold text-[#004B87]">{insc.evento_titulo}</h4>
                   <p className="text-sm text-muted-foreground">{new Date(insc.evento_fecha).toLocaleDateString()}</p>

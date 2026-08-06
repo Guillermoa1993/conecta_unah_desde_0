@@ -1,0 +1,21 @@
+{
+    "sqltools.connections": [
+        {
+            "pgOptions": {
+                "ssl": {
+                    "rejectUnauthorized": false
+                },
+                "connectionTimeoutMillis": 10000
+            },
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "dpg-d9najp2jnfac73an21k0-a.virginia-postgres.render.com",
+            "port": 5432,
+            "askForPassword": true,
+            "driver": "PostgreSQL",
+            "name": "unah_9an6",
+            "database": "unah_9an6",
+            "username": "unah_9an6_user"
+        }
+    ]
+}

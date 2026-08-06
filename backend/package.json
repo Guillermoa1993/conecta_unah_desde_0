@@ -9,7 +9,9 @@
     "start": "node dist/infrastructure/server/index.js",
     "db:init": "ts-node-dev --transpile-only scripts/initDb.ts",
     "db:viewer": "ts-node-dev --transpile-only scripts/dbViewer.ts",
+    "db:test": "ts-node-dev --transpile-only scripts/test-conexion.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
+    
   },
   "keywords": [
     "unah",

@@ -250,12 +250,13 @@ export class PostgresEventoRepository implements EventoRepository {
     }
 
     const { rows } = await this.pool.query(
+
       `INSERT INTO tabla_grupo_3_eventos (
         titulo, descripcion, categoria, tipo_actividad, estado,
-        fecha_inicio, fecha_fin, lugar, enlace_virtual, cupo_maximo,
+        fecha_inicio, fecha_fin, lugar, latitud, longitud, enlace_virtual, cupo_maximo,
         duracion_horas, imagen_url, tutor_id, imagenes_adicionales
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *,
                 TO_CHAR(fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
                 TO_CHAR(fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin`,
@@ -268,6 +269,8 @@ export class PostgresEventoRepository implements EventoRepository {
         startDateTime,
         endDateTime,
         data.ubicacion || (data as any).lugar || null,
+        (data as any).latitud ?? null,
+        (data as any).longitud ?? null,
         data.enlace_virtual || null,
         data.cupo_maximo || 50,
         parseFloat(String(data.duracion_horas)) || 1.0,

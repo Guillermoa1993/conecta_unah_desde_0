@@ -12,10 +12,13 @@ export class PostgresPumitaRepository implements PumitaRepository {
          CASE WHEN p."Usuario_id_usuario" = $1 THEN p."Usuario_id_usuario1" ELSE p."Usuario_id_usuario" END AS id_usuario,
          u.nombre,
          p.estado,
-         (p."Usuario_id_usuario" = $1) AS soy_solicitante
+         (p."Usuario_id_usuario" = $1) AS soy_solicitante,
+         perfil.foto_url,
+         perfil.biografia
        FROM tabla_grupo_2_perfilpumita p
        JOIN tabla_grupo_1_usuario u
          ON u.id_usuario = CASE WHEN p."Usuario_id_usuario" = $1 THEN p."Usuario_id_usuario1" ELSE p."Usuario_id_usuario" END
+       LEFT JOIN tabla_grupo_1_perfil perfil ON perfil.id_usuario = u.id_usuario
        WHERE (p."Usuario_id_usuario" = $1 OR p."Usuario_id_usuario1" = $1)
          AND p.estado = 'aceptada'
        ORDER BY p.fecha_conexion DESC`,
@@ -31,9 +34,12 @@ export class PostgresPumitaRepository implements PumitaRepository {
          p."Usuario_id_usuario" AS id_usuario,
          u.nombre,
          p.estado,
-         false AS soy_solicitante
+         false AS soy_solicitante,
+         perfil.foto_url,
+         perfil.biografia
        FROM tabla_grupo_2_perfilpumita p
        JOIN tabla_grupo_1_usuario u ON u.id_usuario = p."Usuario_id_usuario"
+       LEFT JOIN tabla_grupo_1_perfil perfil ON perfil.id_usuario = u.id_usuario
        WHERE p."Usuario_id_usuario1" = $1 AND p.estado = 'pendiente'
        ORDER BY p.fecha_conexion DESC`,
       [id_usuario],
@@ -74,8 +80,11 @@ export class PostgresPumitaRepository implements PumitaRepository {
          u.id_usuario,
          u.nombre,
          'sugerido' AS estado,
-         false AS soy_solicitante
+         false AS soy_solicitante,
+         perfil.foto_url,
+         perfil.biografia
        FROM tabla_grupo_1_usuario u
+       LEFT JOIN tabla_grupo_1_perfil perfil ON perfil.id_usuario = u.id_usuario
        WHERE u.id_usuario <> $1
          AND u.id_usuario NOT IN (
            SELECT CASE WHEN p."Usuario_id_usuario" = $1 THEN p."Usuario_id_usuario1" ELSE p."Usuario_id_usuario" END
@@ -95,9 +104,12 @@ export class PostgresPumitaRepository implements PumitaRepository {
          p."Usuario_id_usuario1" AS id_usuario,
          u.nombre,
          p.estado,
-         true AS soy_solicitante
+         true AS soy_solicitante,
+         perfil.foto_url,
+         perfil.biografia
        FROM tabla_grupo_2_perfilpumita p
        JOIN tabla_grupo_1_usuario u ON u.id_usuario = p."Usuario_id_usuario1"
+       LEFT JOIN tabla_grupo_1_perfil perfil ON perfil.id_usuario = u.id_usuario
        WHERE p."Usuario_id_usuario" = $1 AND p.estado = 'pendiente'
        ORDER BY p.fecha_conexion DESC`,
       [id_usuario],
