@@ -6,52 +6,52 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { useNavigate } from "react-router";
-import { api } from "../../../services/api";
-
-interface InscripcionDetalle {
-  id: string;
-  estado: string; // valores reales en BD: 'INSCRITO' | 'CANCELADO' | 'ASISTIDO'
-  evento_titulo: string;
-  evento_fecha: string;
-  evento_horas: number;
-}
+import { grupo2EventosService, EventoGrupo2 } from "../../../services/grupo2-eventos.service";
 
 const REQUISITO_HORAS = 60;
 
 export function StudentDashboard() {
   const navigate = useNavigate();
-  const [inscripciones, setInscripciones] = useState<InscripcionDetalle[]>([]);
+  const [eventos, setEventos] = useState<EventoGrupo2[]>([]);
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
-    const cargarInscripciones = async () => {
+    const cargarEventos = async () => {
       try {
-        const datos = await api.get<InscripcionDetalle[]>("/inscripciones/mis-inscripciones");
-        setInscripciones(datos);
+        const datos = await grupo2EventosService.obtenerMisEventos();
+        setEventos(datos);
       } catch (error) {
-        console.error("Error al cargar inscripciones:", error);
+        console.error("Error al cargar eventos:", error);
       } finally {
         setCargando(false);
       }
     };
-    cargarInscripciones();
+    cargarEventos();
   }, []);
 
-  const asistidas = inscripciones.filter((i) => i.estado === "ASISTIDO");
-  const horasAcumuladas = asistidas.reduce((total, i) => total + (i.evento_horas || 0), 0);
-  const eventosCompletados = asistidas.length;
+  // Solo eventos a los que el estudiante está inscrito (mismo criterio que "Mis Eventos")
+  const inscritos = eventos.filter((e) => e.INSCRITO);
+
+  // Completados = finalizados con asistencia verificada (misma regla que calcularTotalHoras en AvailableEvents.tsx)
+  const completados = inscritos.filter(
+    (e) => e.ESTADO_ACTIVIDAD === "Finalizado" && e.ASISTENCIA?.estadoVerificacion === "Verificado"
+  );
+  const horasAcumuladas = completados.reduce((total, e) => total + (Number(e.HORAS_VOAE) || 0), 0);
+  const eventosCompletados = completados.length;
   const cumplimiento = Math.min(100, Math.round((horasAcumuladas / REQUISITO_HORAS) * 100));
 
-  const hoy = new Date();
-  const proximos = inscripciones
-    .filter((i) => i.estado !== "CANCELADO" && new Date(i.evento_fecha) >= hoy)
-    .sort((a, b) => new Date(a.evento_fecha).getTime() - new Date(b.evento_fecha).getTime());
+  // Próximos = inscritos que aún no han finalizado (Programado o En curso)
+  const proximos = inscritos
+    .filter((e) => e.ESTADO_ACTIVIDAD === "Programado" || e.ESTADO_ACTIVIDAD === "En curso")
+    .sort((a, b) => new Date(a.FECHA).getTime() - new Date(b.FECHA).getTime());
 
-  const asistenciaReciente = [...asistidas]
-    .sort((a, b) => new Date(b.evento_fecha).getTime() - new Date(a.evento_fecha).getTime())
+  const asistenciaReciente = [...completados]
+    .sort((a, b) => new Date(b.FECHA).getTime() - new Date(a.FECHA).getTime())
     .slice(0, 5);
 
-  
+  if (cargando) {
+    return <p className="text-muted-foreground">Cargando dashboard...</p>;
+  }
 
   return (
     <div className="space-y-6">
@@ -81,19 +81,19 @@ export function StudentDashboard() {
         <CardContent>
           <div className="space-y-4">
             {proximos.length === 0 && <p className="text-sm text-muted-foreground">No tienes próximos eventos.</p>}
-            {proximos.map((insc) => (
-              <div key={insc.id} className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg border border-border hover:bg-secondary transition-colors">
+            {proximos.map((ev) => (
+              <div key={ev.EVENTO_ID} className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg border border-border hover:bg-secondary transition-colors">
                 <div className="flex-1">
-                  <h4 className="font-semibold text-[#004B87]">{insc.evento_titulo}</h4>
+                  <h4 className="font-semibold text-[#004B87]">{ev.TITULO_EVENTO}</h4>
                   <div className="mt-1 flex items-center gap-4 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
-                      {new Date(insc.evento_fecha).toLocaleDateString()}
+                      {new Date(ev.FECHA).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
-                <Badge className={insc.estado === "INSCRITO" ? "bg-green-500 hover:bg-green-600" : "bg-yellow-500 hover:bg-yellow-600"}>
-                  {insc.estado === "INSCRITO" ? "Confirmado" : insc.estado}
+                <Badge className={ev.ESTADO_ACTIVIDAD === "En curso" ? "bg-yellow-500 hover:bg-yellow-600" : "bg-green-500 hover:bg-green-600"}>
+                  {ev.ESTADO_ACTIVIDAD === "En curso" ? "En curso" : "Confirmado"}
                 </Badge>
               </div>
             ))}
@@ -111,14 +111,14 @@ export function StudentDashboard() {
         <CardContent>
           <div className="space-y-3">
             {asistenciaReciente.length === 0 && <p className="text-sm text-muted-foreground">Aún no tienes asistencias registradas.</p>}
-            {asistenciaReciente.map((insc) => (
-              <div key={insc.id} className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg border border-border">
+            {asistenciaReciente.map((ev) => (
+              <div key={ev.EVENTO_ID} className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-lg border border-border">
                 <div className="flex-1">
-                  <h4 className="font-semibold text-[#004B87]">{insc.evento_titulo}</h4>
-                  <p className="text-sm text-muted-foreground">{new Date(insc.evento_fecha).toLocaleDateString()}</p>
+                  <h4 className="font-semibold text-[#004B87]">{ev.TITULO_EVENTO}</h4>
+                  <p className="text-sm text-muted-foreground">{new Date(ev.FECHA).toLocaleDateString()}</p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-sm font-medium text-[#004B87]">{insc.evento_horas} horas</span>
+                  <span className="text-sm font-medium text-[#004B87]">{ev.HORAS_VOAE} horas</span>
                   <Badge className="bg-green-500 hover:bg-green-600">Validado</Badge>
                 </div>
               </div>
