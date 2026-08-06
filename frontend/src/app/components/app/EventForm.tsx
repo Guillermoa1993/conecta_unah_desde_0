@@ -16,6 +16,7 @@ import {
   MapPin,
   Sparkles,
   Wand2,
+  Loader2,
 } from "lucide-react";
 import { LocationPicker, SEDES_DATA, resolveExactBuildingCoords } from "./LocationPicker";
 import { Button } from "../ui/button";
@@ -747,8 +748,11 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
     setCurrentStep((s) => Math.max(s - 1, 1));
   };
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     const errs = validate(data);
     setErrors(errs);
     if (data.tipo_evento === "HORAS_VOAE") {
@@ -845,6 +849,7 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
 
     (async () => {
       try {
+        setIsSubmitting(true);
         if (isEdit && initialEvent) {
           await api.put(`/eventos/${(initialEvent as any).id_evento || initialEvent.id}`, payload);
           toast.success("¡Cambios guardados con éxito!");
@@ -855,6 +860,8 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
         onClose();
       } catch (err: any) {
         toast.error("Error al guardar el evento", { description: err.message });
+      } finally {
+        setIsSubmitting(false);
       }
     })();
   };
@@ -1983,10 +1990,13 @@ export function EventForm({ initialEvent, onClose }: EventFormProps) {
               <Button
                 type="button"
                 onClick={handleSubmit}
+                disabled={isSubmitting}
                 className="gap-1.5 text-white"
                 style={{ backgroundColor: "#1e3a5f" }}
               >
-                {isEdit ? (
+                {isSubmitting ? (
+                  <><Loader2 className="size-4 animate-spin" /> Guardando...</>
+                ) : isEdit ? (
                   <><Check className="size-4" /> Guardar cambios</>
                 ) : (
                   <><Send className="size-4" /> Guardar borrador</>

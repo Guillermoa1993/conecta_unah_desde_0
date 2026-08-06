@@ -1022,7 +1022,10 @@ export function TutorEventos() {
     return (
       <EventForm
         initialEvent={editingEvent}
-        onClose={() => setEditingEvent(null)}
+        onClose={() => {
+          setEditingEvent(null);
+          fetchEvents();
+        }}
       />
     );
   }
