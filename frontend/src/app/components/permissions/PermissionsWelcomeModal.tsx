@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, Mic, Camera, Shield, CheckCircle2, ChevronRight } from "lucide-react";
+import { Bell, Camera, Shield, CheckCircle2, ChevronRight } from "lucide-react";
 import { usePermissions, type PermissionState } from "../../../hooks/usePermissions";
 
 interface Props {
@@ -14,13 +14,6 @@ const PERMS = [
     label: "Notificaciones",
     desc: "Recibe alertas de nuevos eventos, recordatorios y confirmaciones de asistencia.",
     color: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  },
-  {
-    key: "microphone" as const,
-    icon: <Mic className="h-5 w-5" />,
-    label: "Micrófono",
-    desc: "Requerido para funciones de accesibilidad y eventos con participación de audio.",
-    color: "bg-purple-500/10 text-purple-400 border-purple-500/20",
   },
   {
     key: "camera" as const,
@@ -38,14 +31,13 @@ function stateIcon(state: PermissionState) {
 }
 
 export function PermissionsWelcomeModal({ open, onDone }: Props) {
-  const { permissions, requestNotifications, requestMicrophone, requestCamera } = usePermissions();
+  const { permissions, requestNotifications, requestCamera } = usePermissions();
   const [requesting, setRequesting] = useState<string | null>(null);
 
   if (!open) return null;
 
   const requestMap = {
     notifications: requestNotifications,
-    microphone:    requestMicrophone,
     camera:        requestCamera,
   };
 
@@ -57,7 +49,7 @@ export function PermissionsWelcomeModal({ open, onDone }: Props) {
 
   const handleRequestAll = async () => {
     setRequesting("all");
-    await Promise.allSettled([requestNotifications(), requestMicrophone(), requestCamera()]);
+    await Promise.allSettled([requestNotifications(), requestCamera()]);
     setRequesting(null);
   };
 

@@ -5,7 +5,6 @@ export type PermissionState = "granted" | "denied" | "prompt" | "unavailable";
 export interface AppPermissions {
   notifications: PermissionState;
   camera: PermissionState;
-  microphone: PermissionState;
 }
 
 async function queryPermission(name: PermissionName): Promise<PermissionState> {
@@ -21,16 +20,14 @@ export function usePermissions() {
   const [permissions, setPermissions] = useState<AppPermissions>({
     notifications: "prompt",
     camera: "prompt",
-    microphone: "prompt",
   });
 
   const refresh = useCallback(async () => {
-    const [notifications, camera, microphone] = await Promise.all([
+    const [notifications, camera] = await Promise.all([
       queryPermission("notifications"),
       queryPermission("camera" as PermissionName),
-      queryPermission("microphone" as PermissionName),
     ]);
-    setPermissions({ notifications, camera, microphone });
+    setPermissions({ notifications, camera });
   }, []);
 
   useEffect(() => {
@@ -58,26 +55,12 @@ export function usePermissions() {
     }
   }, []);
 
-  const requestMicrophone = useCallback(async (): Promise<PermissionState> => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((t) => t.stop());
-      setPermissions((p) => ({ ...p, microphone: "granted" }));
-      return "granted";
-    } catch {
-      const state = await queryPermission("microphone" as PermissionName);
-      setPermissions((p) => ({ ...p, microphone: state }));
-      return state;
-    }
-  }, []);
-
   const requestAll = useCallback(async () => {
     await Promise.allSettled([
       requestNotifications(),
       requestCamera(),
-      requestMicrophone(),
     ]);
-  }, [requestNotifications, requestCamera, requestMicrophone]);
+  }, [requestNotifications, requestCamera]);
 
-  return { permissions, refresh, requestNotifications, requestCamera, requestMicrophone, requestAll };
+  return { permissions, refresh, requestNotifications, requestCamera, requestAll };
 }
