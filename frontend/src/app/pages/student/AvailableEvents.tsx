@@ -399,12 +399,7 @@ export const AvailableEvents: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#f3f4f6] p-4 font-sans antialiased">
-      {cargandoEventosInicial && (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-3 bg-white/90 backdrop-blur-sm">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#FFD100] border-t-[#003366]"></div>
-          <p className="text-sm font-bold text-[#003366]">Cargando tus eventos...</p>
-        </div>
-      )}
+     
       {/* MENSAJE DE EVENTO COMPARTIDO */}
       {mensajeCompartido && (
         <div className="fixed top-5 right-5 z-50 bg-emerald-600 text-white px-6 py-4 rounded-xl shadow-lg font-bold">
