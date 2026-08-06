@@ -2423,12 +2423,7 @@ try {
 
   return (
     <>
-      {cargandoFeedInicial && (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-3 bg-white/90 backdrop-blur-sm">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#FFD100] border-t-[#003366]"></div>
-          <p className="text-sm font-bold text-[#003366]">Cargando el muro...</p>
-        </div>
-      )}
+    
       <style>{`
         :root{--navy:#F4F6F8;--navy-mid:#FFFFFF;--navy-light:#F4F6F8;--navy-border:#E2E8F0;
           --yellow:#FFD100;--yellow-hover:#FFE766;--yellow-soft:rgba(255,209,0,0.15);

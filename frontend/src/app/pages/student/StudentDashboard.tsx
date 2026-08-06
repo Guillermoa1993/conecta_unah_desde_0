@@ -51,9 +51,7 @@ export function StudentDashboard() {
     .sort((a, b) => new Date(b.evento_fecha).getTime() - new Date(a.evento_fecha).getTime())
     .slice(0, 5);
 
-  if (cargando) {
-    return <p className="text-muted-foreground">Cargando dashboard...</p>;
-  }
+  
 
   return (
     <div className="space-y-6">
