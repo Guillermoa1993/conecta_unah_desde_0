@@ -39,6 +39,7 @@ export class BackupController {
   descargar = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const nombre = req.params['nombre'] as string;
+      await this.backupService.asegurarLocal(nombre);
       const ruta = this.backupService.rutaDe(nombre);
 
       const actorId = req.usuario?.id;
