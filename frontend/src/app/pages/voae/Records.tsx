@@ -307,6 +307,11 @@ export function VOAERecords() {
 
         if (isRecreativo) return false;
 
+        // Eventos vencidos sin realizarse (sin inscritos ni asistencias) NO pasan a Auditoría
+        const inscritos = Number(e.inscritos_count || 0);
+        const asistencias = Number(e.asistencias_count || 0);
+        if (inscritos === 0 && asistencias === 0) return false;
+
         const isAuditCompleted =
           localStorage.getItem(`voae_audit_completed_${e.id}`) === "true" ||
           e.auditoria_completada === true;

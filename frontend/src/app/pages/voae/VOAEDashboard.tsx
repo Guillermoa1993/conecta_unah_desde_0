@@ -303,6 +303,11 @@ export function VOAEDashboard() {
 
           if (isRecreativo) return false;
 
+          // Eventos vencidos sin realizarse (sin inscritos ni asistencias) NO pasan a Auditoría
+          const inscritos = Number(e.inscritos_count || 0);
+          const asistencias = Number(e.asistencias_count || 0);
+          if (inscritos === 0 && asistencias === 0) return false;
+
           // Si la auditoría ya fue finalizada por VOAE Dirección, ya NO se muestra aquí
           const isAuditCompleted =
             localStorage.getItem(`voae_audit_completed_${e.id}`) === "true" ||
@@ -357,6 +362,11 @@ export function VOAEDashboard() {
           Number(e.duracion_horas || 0) === 0;
 
         if (isRecreativo) return false;
+
+        // Eventos vencidos sin realizarse (sin inscritos ni asistencias) NO cuentan
+        const inscritos = Number(e.inscritos_count || 0);
+        const asistencias = Number(e.asistencias_count || 0);
+        if (inscritos === 0 && asistencias === 0) return false;
 
         // Solo se muestran los eventos que TIENEN la auditoría finalizada
         const isAuditCompleted =
