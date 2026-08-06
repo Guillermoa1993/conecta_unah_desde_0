@@ -2,6 +2,7 @@ import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Pool } from 'pg';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { invalidarTodasLasSesiones } from '../config/sesionMantenimiento';
 
 export interface BackupFile {
@@ -29,11 +30,81 @@ export interface HistoricoBackupRow {
 
 const BACKUP_DIR = process.env.BACKUP_DIR ?? '/app/backups';
 
+// ── Backblaze B2 (API compatible con S3) — respaldo fuera de la máquina local ──
+// Si las variables no están configuradas, el sistema sigue funcionando solo
+// con el disco local (comportamiento anterior); B2 es un "plus" opcional.
+// B2_ENDPOINT tiene la forma https://s3.<region>.backblazeb2.com
+// (lo obtienes al crear el bucket, junto con el "keyID" y la "applicationKey").
+const B2_BUCKET = process.env.B2_BUCKET_NAME;
+const b2Habilitado = Boolean(
+  process.env.B2_ENDPOINT && process.env.B2_KEY_ID && process.env.B2_APPLICATION_KEY && B2_BUCKET,
+);
+
+const s3Client = b2Habilitado
+  ? new S3Client({
+      region: process.env.B2_REGION ?? 'us-west-004',
+      endpoint: process.env.B2_ENDPOINT,
+      forcePathStyle: true,
+      credentials: {
+        accessKeyId: process.env.B2_KEY_ID as string,
+        secretAccessKey: process.env.B2_APPLICATION_KEY as string,
+      },
+    })
+  : null;
+
+if (!b2Habilitado) {
+  console.warn('⚠️  Backblaze B2 no configurado: los backups solo se guardan en disco local (BACKUP_DIR).');
+}
+
 export class BackupService {
   constructor(private readonly pool: Pool) {}
 
   private async ensureDir(): Promise<void> {
     await fs.mkdir(BACKUP_DIR, { recursive: true });
+  }
+
+  /** Sube el archivo de backup a Backblaze B2. No lanza error si falla —
+   *  el backup local ya se completó exitosamente; B2 es una copia extra. */
+  private async subirAB2(rutaCompleta: string, nombre: string): Promise<void> {
+    if (!s3Client) return;
+    try {
+      const contenido = await fs.readFile(rutaCompleta);
+      await s3Client.send(new PutObjectCommand({ Bucket: B2_BUCKET, Key: nombre, Body: contenido }));
+      console.log(`☁️  Backup ${nombre} subido a Backblaze B2 (${B2_BUCKET})`);
+    } catch (err) {
+      console.error(`⚠️  No se pudo subir el backup ${nombre} a B2:`, (err as Error).message);
+    }
+  }
+
+  /** Descarga el archivo desde B2 hacia BACKUP_DIR. Devuelve true si lo logró. */
+  private async descargarDeB2(nombre: string, rutaCompleta: string): Promise<boolean> {
+    if (!s3Client) return false;
+    try {
+      const respuesta = await s3Client.send(new GetObjectCommand({ Bucket: B2_BUCKET, Key: nombre }));
+      const bytes = await respuesta.Body?.transformToByteArray();
+      if (!bytes) return false;
+      await this.ensureDir();
+      await fs.writeFile(rutaCompleta, Buffer.from(bytes));
+      console.log(`☁️  Backup ${nombre} recuperado desde Backblaze B2`);
+      return true;
+    } catch (err) {
+      console.error(`⚠️  No se pudo recuperar ${nombre} desde B2:`, (err as Error).message);
+      return false;
+    }
+  }
+
+  /** Garantiza que el archivo exista en disco local antes de descargarlo o
+   *  restaurarlo, recuperándolo desde B2 si el volumen local lo perdió. */
+  async asegurarLocal(nombre: string): Promise<void> {
+    const ruta = this.rutaDe(nombre);
+    try {
+      await fs.access(ruta);
+    } catch {
+      const recuperado = await this.descargarDeB2(nombre, ruta);
+      if (!recuperado) {
+        throw new Error(`El respaldo ${nombre} no existe en disco local ni en B2`);
+      }
+    }
   }
 
   /** Toma la primera base de datos y el primer destino "local" activos como
@@ -110,6 +181,10 @@ export class BackupService {
         [idBackup, stats.size, duracionSegundos],
       );
 
+      // Copia adicional fuera de la máquina local; no bloquea ni falla el
+      // backup si B2 no está disponible.
+      await this.subirAB2(rutaCompleta, nombre);
+
       return { nombre, fecha: stats.mtime, tamanoBytes: stats.size };
     } catch (err) {
       const duracionSegundos = Math.round((Date.now() - inicio) / 1000);
@@ -180,7 +255,7 @@ export class BackupService {
     if (!databaseUrl) throw new Error('DATABASE_URL no está configurada');
 
     const ruta = this.rutaDe(nombreArchivo);
-    await fs.access(ruta); // lanza si no existe
+    await this.asegurarLocal(nombreArchivo);
 
     const idBackupOrigen = await this.obtenerOCrearRegistroBackup(nombreArchivo);
     const { idBaseDatos } = await this.destinoPorDefecto();
