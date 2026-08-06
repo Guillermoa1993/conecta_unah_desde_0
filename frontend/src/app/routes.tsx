@@ -4,6 +4,8 @@ import { ProtectedRoute } from "./components/guards/ProtectedRoute";
 import { PostDetail } from "./pages/PostDetail";
 import { PerfilRedirect } from "./pages/shared/PerfilRedirect";
 import { PerfilPendiente } from "./pages/shared/PerfilPendiente";
+import { PerfilInstitucional } from "./pages/shared/PerfilInstitucional";
+
 
 // Auth & registro (públicas)
 import { AuthCallback } from "./pages/AuthCallback";
@@ -129,7 +131,7 @@ export const router = createBrowserRouter([
       { path: "tutor/create-event",     element: P(<CreateEvent />) },
       { path: "tutor/event/:eventId",   element: P(<ManageEvent />) },
       { path: "tutor/reports",          element: P(<TutorReports />) },
-      { path: "tutor/ficha",             element: P(<FichaEmpleado />) },
+      { path: "tutor/ficha",             element: P(<PerfilInstitucional />) },
       { path: "tutor/live",              element: P(<LiveEvent />) },
       { path: "tutor/eventos",           element: P(<TutorEventos />) },
       { path: "tutor/history",           element: P(<TutorHistory />) },
@@ -147,7 +149,7 @@ export const router = createBrowserRouter([
       { path: "admin/permissions",      element: P(<Permissions />) },
       { path: "admin/backup",            element: P(<BackupRestore />) },
       { path: "admin/parametros",        element: P(<Parametros />) },
-      { path: "admin/perfil",            element: P(<PerfilPendiente />) },
+      { path: "admin/perfil",            element: P(<PerfilInstitucional />) },
       ...maintenanceRoutes("admin"),
 
       // ── VOAE DIRECCIÓN ────────────────────────────────────
@@ -155,7 +157,7 @@ export const router = createBrowserRouter([
       { path: "voae/reports",           element: P(<OfficialReports />) },
       { path: "voae/moderadores",       element: P(<Moderadores />) },
       { path: "voae/records",           element: P(<VOAERecords />) },
-      { path: "voae/perfil",             element: P(<PerfilPendiente />) },
+     { path: "voae/perfil",             element: P(<PerfilInstitucional />) },
       { path: "voae/centros",           element: P(<CentrosRegionales />) },
       { path: "voae/events/:id/validar",element: P(<ValidacionEvento />) },
       { path: "voae/events/:id/validacion",element: P(<AuditoriaEventoFinalizado />) },
@@ -165,7 +167,7 @@ export const router = createBrowserRouter([
       // ── VOAE DEPARTAMENTO (COORDINACIÓN) ─────────────────
       { path: "voae-depto",                    element: P(<VOAEDeptoDashboard />) },
       { path: "voae-depto/records",            element: P(<VOAEDeptoRecords />) },
-      { path: "voae-depto/perfil", element: P(<PerfilPendiente />) },
+      { path: "voae-depto/perfil", element: P(<PerfilInstitucional />) },
       { path: "voae-depto/events/:id/validar", element: P(<ValidacionDeptoEvento />) },
     ],
   },

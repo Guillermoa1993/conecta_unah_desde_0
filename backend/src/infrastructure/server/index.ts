@@ -253,7 +253,7 @@ const catalogoCtrl      = new CatalogoController(pool);
 const eventoCtrl       = new EventoController(crearEventoUC, obtenerEventosUC, obtenerEventoUC, actualizarUC, aprobarUC, eventoRepo);
 const inscripcionCtrl  = new InscripcionController(inscribirUC, cancelarInscUC, inscripcionRepo);
 const constanciaCtrl   = new ConstanciaController(constanciaUC, constanciaRepo);
-const notificacionCtrl = new NotificacionController(notificacionRepo);
+const notificacionCtrl = new NotificacionController(notificacionRepo, usuarioRepo);
 const estadoCtrl = new EstadoController(crearEstadoUC, obtenerEstadosUC);
 const forma003Ctrl = new Forma003Controller(
   crearForma003UC,

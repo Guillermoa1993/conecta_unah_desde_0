@@ -157,7 +157,10 @@ export type TipoNotificacion =
   | 'SISTEMA'
   | 'REACCION_PUMITA'
   | 'SOLICITUD_PUMITA'
-  | 'EVENTO_DISPONIBLE';
+  | 'EVENTO_DISPONIBLE'
+  | 'ANUNCIO_INFO'
+  | 'ANUNCIO_ADVERTENCIA'
+  | 'ANUNCIO_EXITO';
 
 export interface Notificacion {
   id: string;
@@ -171,6 +174,19 @@ export interface Notificacion {
   emisor_nombre?: string; 
   referencia_tipo?: string;   
   referencia_id?: number; 
+}
+
+// ─── Centro de Notificaciones (panel de admin/empleados) ─────────────────────
+export type GrupoDestinatarioNotificacion = 'Todos' | 'Estudiantes' | 'Tutores' | 'Personal VOAE';
+
+export interface NotificacionEnviada {
+  titulo: string | null;
+  mensaje: string;
+  tipo: TipoNotificacion;
+  destinatario_grupo: GrupoDestinatarioNotificacion;
+  fecha_creacion: string;
+  total_destinatarios: number;
+  total_leidas: number;
 }
 
 export type TipoReaccionPumita = 'APOYO' | 'FELICITACION' | 'SALUDO' | 'RUGIDO_PUMA';

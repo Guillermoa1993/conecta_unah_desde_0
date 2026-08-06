@@ -19,6 +19,7 @@ import { StoriesBar } from "./StoriesBar";
 import { useNotificaciones } from "../../../hooks/useNotificaciones";
 import { useAuth } from "../../../hooks/useAuth";
 import { authService } from "../../../services/auth.service";
+import type { Notificacion } from "../../../types";
 
 function tiempoRelativo(fechaIso: string): string {
   const fecha = new Date(fechaIso).getTime();
@@ -140,6 +141,46 @@ export function AppNavbar() {
   const isRegistrationPage = location.pathname.includes("/registro") || location.pathname.includes("/estudiante") || location.pathname.includes("/empleado");
   const isFeedScreen = location.pathname.startsWith("/student/feed");
 
+  // Antes esta lógica vivía solo en el panel de notificaciones de Mi Perfil
+  // (manejarClickNotificacion en StudentProfile.tsx). Al mover las notificaciones
+  // solo a este dropdown del navbar, esa navegación se quedó desconectada — aquí
+  // la reconectamos para que el clic sí lleve a algún lado según el tipo.
+  const manejarClickNotificacion = (notif: Notificacion) => {
+    if (!notif.leida) marcarLeida(notif.id);
+
+    const esEmpleado = sessionStorage.getItem("unah_user_type") === "empleado";
+
+    switch (notif.tipo) {
+      case "REACCION_PUMITA":
+      case "SOLICITUD_PUMITA":
+        // Perfil de quien envió la reacción/solicitud + el detalle de lo enviado
+        // se muestran dentro de Mi Perfil (modal de Pumitas), así que navegamos
+        // ahí pasando los datos para que se abra automáticamente.
+        navigate("/student/ficha", {
+          state: {
+            abrirNotificacionPumita: {
+              tipo: notif.tipo,
+              referenciaId: notif.referencia_id,
+              emisorNombre: notif.emisor_nombre,
+              mensaje: notif.mensaje,
+            },
+          },
+        });
+        break;
+      case "EVENTO_DISPONIBLE":
+        navigate("/student/events");
+        break;
+      case "EVENTO_APROBADO":
+      case "EVENTO_RECHAZADO":
+        navigate(esEmpleado ? "/tutor/eventos" : "/student/events");
+        break;
+      default:
+        // SISTEMA, ANUNCIO_*, RECORDATORIO, CONSTANCIA_EMITIDA, NUEVA_INSCRIPCION:
+        // todavía no tienen un destino específico definido.
+        break;
+    }
+  };
+
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-white px-3 sm:px-6 gap-2 sm:gap-4 w-full">
       <div className="flex items-center gap-2 sm:gap-4 shrink-0 min-w-0">
@@ -202,10 +243,8 @@ export function AppNavbar() {
               {notificaciones.slice(0, 8).map((notif) => (
                 <DropdownMenuItem
                   key={notif.id}
-                  className={`flex flex-col items-start py-3 ${notif.leida ? "" : "bg-[#FFD100]/10"}`}
-                  onClick={() => {
-                    if (!notif.leida) marcarLeida(notif.id);
-                  }}
+                  className={`flex flex-col items-start py-3 cursor-pointer ${notif.leida ? "" : "bg-[#FFD100]/10"}`}
+                  onClick={() => manejarClickNotificacion(notif)}
                 >
                   <p className="text-sm font-medium">{notif.titulo}</p>
                   <p className="text-sm text-muted-foreground">{notif.mensaje}</p>

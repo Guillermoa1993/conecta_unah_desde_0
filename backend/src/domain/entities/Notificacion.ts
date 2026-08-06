@@ -11,4 +11,6 @@ export interface Notificacion {
   emisor_foto_url?: string | null;
   referencia_tipo?: string | null;
   referencia_id?: number | null;
+  titulo?: string | null;
+  destinatario_grupo?: string | null;
 }

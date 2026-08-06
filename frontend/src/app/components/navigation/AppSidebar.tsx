@@ -23,7 +23,6 @@ const SOCIAL_ITEMS_BY_ROLE: Record<string, MenuItem[]> = {
     { icon: Rss,      label: "Muro",           path: "/student/feed"            },
     { icon: User,     label: "Perfil",         path: "/student/ficha"           },
     { icon: Calendar, label: "Mis Eventos",    path: "/student/events"          },
-    { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
     { icon: Home,     label: "Dashboard",      path: "/student"                 },
   ],
   tutor: [
@@ -34,20 +33,20 @@ const SOCIAL_ITEMS_BY_ROLE: Record<string, MenuItem[]> = {
   ],
   admin: [
     { icon: Rss,      label: "Muro",           path: "/student/feed"            },
-    { icon: User,     label: "Perfil",         path: "/student/ficha"           },
+    { icon: User,     label: "Perfil",         path: "/admin/perfil"            },
     { icon: Calendar, label: "Mis Eventos",    path: "/student/events"          },
     { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
     { icon: Home,     label: "Dashboard",      path: "/student"                 },
   ],
   voae: [
     { icon: Rss,      label: "Muro",           path: "/voae/feed"               },
-    { icon: User,     label: "Perfil",         path: "/tutor/ficha"             },
+    { icon: User,     label: "Perfil",         path: "/voae/perfil"             },
     { icon: Calendar, label: "Mis Eventos",    path: "/student/events"          },
     { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
   ],
   voae_depto: [
     { icon: Rss,      label: "Muro",           path: "/voae/feed"               },
-    { icon: User,     label: "Perfil",         path: "/tutor/ficha"             },
+    { icon: User,     label: "Perfil",         path: "/voae-depto/perfil"       },
     { icon: Calendar, label: "Mis Eventos",    path: "/student/events"          },
     { icon: Bell,     label: "Notificaciones", path: "/employees/notifications" },
   ],

@@ -6,8 +6,8 @@ const r = Router();
 
 // Roles que participan en la revisión de publicaciones
 const ROLES_COORDINACION = ['COORDINACION', 'ADMIN'];
-const ROLES_VOAE = ['VOAE', 'ADMIN'];
-const ROLES_RECHAZAR = ['COORDINACION', 'VOAE', 'ADMIN']; // cualquiera de los dos puede rechazar en su paso
+const ROLES_VOAE = ['VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'ADMIN'];
+const ROLES_RECHAZAR = ['COORDINACION', 'VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'ADMIN']; // cualquiera de los dos puede rechazar en su paso
 
 function mapPublicacion(row: any) {
   const names = (row.usuario_nombre || '').split(' ');
@@ -33,7 +33,7 @@ function mapPublicacion(row: any) {
     hidden: false,
     images: row.imagen_url ? [row.imagen_url] : [],
     createdAt: row.fecha_creacion ? new Date(row.fecha_creacion).getTime() : Date.now(),
-    profilePic: '/puma-icon.png',
+    profilePic: row.usuario_foto_url || '/puma-icon.png',
     estado: row.estado,
     motivoRechazo: row.motivo_rechazo || null,
   };
@@ -56,9 +56,10 @@ async function notificarEstudiante(id_usuario: number, tipoNombre: string, mensa
 r.get('/', autenticar, async (req: Request, res: Response) => {
   try {
     const result = await pool.query(`
-      SELECT p.*, u.nombre as usuario_nombre
+      SELECT p.*, u.nombre as usuario_nombre, perf.foto_url as usuario_foto_url
       FROM tabla_grupo_2_publicaciones p
       JOIN tabla_grupo_1_usuario u ON p.id_usuario = u.id_usuario
+      LEFT JOIN tabla_grupo_1_perfil perf ON u.id_usuario = perf.id_usuario
       ORDER BY p.fecha_creacion DESC
     `);
     res.json(result.rows.map(mapPublicacion));
@@ -81,11 +82,11 @@ r.post('/', autenticar, async (req: Request, res: Response) => {
 
     const imageUrl = Array.isArray(images) && images.length > 0 ? images[0] : null;
 
-    // El estado SIEMPRE se fija en 'pendiente' en el servidor.
+    // Las publicaciones se crean directamente en estado 'publicado' (sin restricción).
     const result = await pool.query(`
       INSERT INTO tabla_grupo_2_publicaciones
       (id_usuario, titulo, descripcion, categoria, tags, imagen_url, fecha_creacion, estado)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW(), 'pendiente')
+      VALUES ($1, $2, $3, $4, $5, $6, NOW(), 'publicado')
       RETURNING *
     `, [id_usuario, title, desc || '', scope || 'Academico', Array.isArray(tags) ? tags : [], imageUrl]);
 
@@ -106,9 +107,10 @@ r.post('/', autenticar, async (req: Request, res: Response) => {
 r.get('/pendientes', autenticar, autorizar(...ROLES_COORDINACION), async (req: Request, res: Response) => {
   try {
     const result = await pool.query(`
-      SELECT p.*, u.nombre as usuario_nombre
+      SELECT p.*, u.nombre as usuario_nombre, perf.foto_url as usuario_foto_url
       FROM tabla_grupo_2_publicaciones p
       JOIN tabla_grupo_1_usuario u ON p.id_usuario = u.id_usuario
+      LEFT JOIN tabla_grupo_1_perfil perf ON u.id_usuario = perf.id_usuario
       WHERE p.estado = 'pendiente'
       ORDER BY p.fecha_creacion ASC
     `);
@@ -152,9 +154,10 @@ r.patch('/:id/remitir-voae', autenticar, autorizar(...ROLES_COORDINACION), async
 r.get('/pendientes-voae', autenticar, autorizar(...ROLES_VOAE), async (req: Request, res: Response) => {
   try {
     const result = await pool.query(`
-      SELECT p.*, u.nombre as usuario_nombre
+      SELECT p.*, u.nombre as usuario_nombre, perf.foto_url as usuario_foto_url
       FROM tabla_grupo_2_publicaciones p
       JOIN tabla_grupo_1_usuario u ON p.id_usuario = u.id_usuario
+      LEFT JOIN tabla_grupo_1_perfil perf ON u.id_usuario = perf.id_usuario
       WHERE p.estado = 'en_revision_voae'
       ORDER BY p.fecha_creacion ASC
     `);
@@ -198,9 +201,10 @@ r.patch('/:id/aprobar-voae', autenticar, autorizar(...ROLES_VOAE), async (req: R
 r.get('/listas-publicar', autenticar, autorizar(...ROLES_COORDINACION), async (req: Request, res: Response) => {
   try {
     const result = await pool.query(`
-      SELECT p.*, u.nombre as usuario_nombre
+      SELECT p.*, u.nombre as usuario_nombre, perf.foto_url as usuario_foto_url
       FROM tabla_grupo_2_publicaciones p
       JOIN tabla_grupo_1_usuario u ON p.id_usuario = u.id_usuario
+      LEFT JOIN tabla_grupo_1_perfil perf ON u.id_usuario = perf.id_usuario
       WHERE p.estado = 'aprobado_voae'
       ORDER BY p.fecha_revision ASC
     `);
@@ -211,14 +215,77 @@ r.get('/listas-publicar', autenticar, autorizar(...ROLES_COORDINACION), async (r
   }
 });
 
+// ── GET /denunciadas (Obtiene todas las publicaciones con denuncias y sus detalles) ──
+r.get('/denunciadas', autenticar, autorizar(...ROLES_VOAE), async (req: Request, res: Response) => {
+  try {
+    const postsRes = await pool.query(`
+      SELECT DISTINCT p.*, u.nombre as usuario_nombre, perf.foto_url as usuario_foto_url
+      FROM tabla_grupo_2_publicaciones p
+      JOIN tabla_grupo_1_usuario u ON p.id_usuario = u.id_usuario
+      LEFT JOIN tabla_grupo_1_perfil perf ON u.id_usuario = perf.id_usuario
+      JOIN tabla_grupo_2_denuncia_publicacion d ON p.id_publicacion = d.id_publicacion
+      ORDER BY p.fecha_creacion DESC
+    `);
+
+    const postsMapped = postsRes.rows.map(mapPublicacion);
+    const result = [];
+
+    for (const post of postsMapped) {
+      const denunciasRes = await pool.query(`
+        SELECT d.id_denuncia, d.motivo, d.detalle, d.fecha_creacion, u.nombre as denunciante_nombre
+        FROM tabla_grupo_2_denuncia_publicacion d
+        JOIN tabla_grupo_1_usuario u ON d.id_usuario = u.id_usuario
+        WHERE d.id_publicacion = $1
+        ORDER BY d.fecha_creacion DESC
+      `, [post.id]);
+
+      result.push({
+        ...post,
+        denuncias: denunciasRes.rows
+      });
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener publicaciones denunciadas' });
+  }
+});
+
+// ── GET /usuarios/menciones (obtener listado de usuarios para menciones) ──
+r.get('/usuarios/menciones', autenticar, async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query(
+      `SELECT u.nombre, perf.foto_url 
+       FROM tabla_grupo_1_usuario u
+       LEFT JOIN tabla_grupo_1_perfil perf ON u.id_usuario = perf.id_usuario
+       ORDER BY u.nombre ASC`
+    );
+    const users = result.rows.map(row => {
+      const names = (row.nombre || '').split(' ');
+      const initials = names.map((n: string) => n ? n[0] : '').join('').substring(0, 2).toUpperCase() || 'UN';
+      return {
+        name: row.nombre,
+        initials,
+        pic: row.foto_url || null
+      };
+    });
+    res.json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener usuarios para menciones' });
+  }
+});
+
 // ── GET /:id (una sola publicación — para la vista de detalle compartible) ──
 r.get('/:id', autenticar, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const result = await pool.query(`
-      SELECT p.*, u.nombre as usuario_nombre
+      SELECT p.*, u.nombre as usuario_nombre, perf.foto_url as usuario_foto_url
       FROM tabla_grupo_2_publicaciones p
       JOIN tabla_grupo_1_usuario u ON p.id_usuario = u.id_usuario
+      LEFT JOIN tabla_grupo_1_perfil perf ON u.id_usuario = perf.id_usuario
       WHERE p.id_publicacion = $1
     `, [id]);
 
@@ -332,5 +399,136 @@ r.patch('/:id/rechazar', autenticar, autorizar(...ROLES_RECHAZAR), async (req: R
     res.status(500).json({ error: 'Error al rechazar la publicación' });
   }
 });
+
+// ── POST /:id/denunciar (Registra una denuncia de un estudiante sobre una publicación) ──
+r.post('/:id/denunciar', autenticar, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { motivo, detalle } = req.body;
+    const id_usuario = req.usuario!.id;
+
+    if (!motivo || motivo.trim() === '') {
+      res.status(400).json({ error: 'El motivo es obligatorio' });
+      return;
+    }
+
+    const pubExists = await pool.query('SELECT 1 FROM tabla_grupo_2_publicaciones WHERE id_publicacion = $1', [id]);
+    if (pubExists.rows.length === 0) {
+      res.status(404).json({ error: 'Publicación no encontrada' });
+      return;
+    }
+
+    // Contar denuncias anteriores de este usuario para este post
+    const countRes = await pool.query(
+      'SELECT COUNT(*) FROM tabla_grupo_2_denuncia_publicacion WHERE id_publicacion = $1 AND id_usuario = $2',
+      [id, id_usuario]
+    );
+    const count = parseInt(countRes.rows[0].count, 10);
+
+    if (count >= 2) {
+      res.status(400).json({ error: 'Has alcanzado el límite de 2 denuncias para esta publicación' });
+      return;
+    }
+
+    await pool.query(`
+      INSERT INTO tabla_grupo_2_denuncia_publicacion (id_publicacion, id_usuario, motivo, detalle)
+      VALUES ($1, $2, $3, $4)
+    `, [id, id_usuario, motivo, detalle || '']);
+
+    res.status(201).json({ ok: true, mensaje: 'Denuncia registrada con éxito' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al registrar la denuncia' });
+  }
+});
+
+
+
+// ── DELETE /denuncias/:id_denuncia (Descarta/elimina una denuncia específica) ──
+r.delete('/denuncias/:id_denuncia', autenticar, autorizar(...ROLES_VOAE), async (req: Request, res: Response) => {
+  try {
+    const { id_denuncia } = req.params;
+
+    const result = await pool.query('DELETE FROM tabla_grupo_2_denuncia_publicacion WHERE id_denuncia = $1', [id_denuncia]);
+    if (result.rowCount === 0) {
+      res.status(404).json({ error: 'Denuncia no encontrada' });
+      return;
+    }
+
+    res.json({ ok: true, mensaje: 'Denuncia descartada con éxito' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al descartar la denuncia' });
+  }
+});
+
+// ── PUT /:id (el autor edita el contenido — ej. corregir un error de dedo) ──
+r.put('/:id', autenticar, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { desc, tags } = req.body;
+    const id_usuario = req.usuario!.id;
+
+    const actual = await pool.query('SELECT * FROM tabla_grupo_2_publicaciones WHERE id_publicacion = $1', [id]);
+    if (actual.rows.length === 0) {
+      res.status(404).json({ error: 'Publicación no encontrada' });
+      return;
+    }
+
+    if (actual.rows[0].id_usuario !== id_usuario) {
+      res.status(403).json({ error: 'Solo el autor puede editar esta publicación' });
+      return;
+    }
+
+    const result = await pool.query(`
+      UPDATE tabla_grupo_2_publicaciones
+      SET descripcion = $2, tags = $3
+      WHERE id_publicacion = $1
+      RETURNING *
+    `, [
+      id,
+      typeof desc === 'string' ? desc : actual.rows[0].descripcion,
+      Array.isArray(tags) ? tags : actual.rows[0].tags,
+    ]);
+
+    const pub = result.rows[0];
+    const userResult = await pool.query("SELECT nombre FROM tabla_grupo_1_usuario WHERE id_usuario = $1", [pub.id_usuario]);
+    res.json(mapPublicacion({ ...pub, usuario_nombre: userResult.rows[0]?.nombre || 'Usuario' }));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al editar la publicación' });
+  }
+});
+
+// ── DELETE /:id (Elimina una publicación si es el autor o moderador) ──
+r.delete('/:id', autenticar, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user_id = req.usuario!.id;
+    const user_rol = (req.usuario!.rol || '').toUpperCase();
+
+    const actual = await pool.query('SELECT id_usuario FROM tabla_grupo_2_publicaciones WHERE id_publicacion = $1', [id]);
+    if (actual.rows.length === 0) {
+      res.status(404).json({ error: 'Publicación no encontrada' });
+      return;
+    }
+
+    const esAutor = actual.rows[0].id_usuario === user_id;
+    const esModerador = ROLES_VOAE.includes(user_rol);
+
+    if (!esAutor && !esModerador) {
+      res.status(403).json({ error: 'No tienes permiso para eliminar esta publicación' });
+      return;
+    }
+
+    await pool.query('DELETE FROM tabla_grupo_2_publicaciones WHERE id_publicacion = $1', [id]);
+    res.json({ ok: true, mensaje: 'Publicación eliminada con éxito' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar la publicación' });
+  }
+});
+
+
 
 export { r as publicacionRouter };

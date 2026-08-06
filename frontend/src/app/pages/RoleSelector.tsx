@@ -64,7 +64,7 @@ export function RoleSelector() {
       sessionStorage.setItem("unah_session_active", "true");
       sessionStorage.setItem("unah_role", role.id);
     }
-    navigate(role.path);
+    window.location.href = role.path;
   };
 
   return (

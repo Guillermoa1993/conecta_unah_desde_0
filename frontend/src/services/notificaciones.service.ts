@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { Notificacion, TipoNotificacion } from '../types';
+import type { Notificacion, TipoNotificacion, NotificacionEnviada, GrupoDestinatarioNotificacion } from '../types';
 
 // Forma cruda que devuelve el backend (Postgres) para cada notificación
 interface NotificacionRaw {
@@ -15,6 +15,7 @@ interface NotificacionRaw {
   emisor_foto_url?: string | null;
   referencia_tipo?: string | null;
   referencia_id?: number | null;
+  titulo?: string | null;   // ← agregar esta línea
 }
 
 const TITULOS_POR_TIPO: Record<string, string> = {
@@ -26,8 +27,11 @@ const TITULOS_POR_TIPO: Record<string, string> = {
   RECORDATORIO: 'Recordatorio',
   SISTEMA: 'Notificación del sistema',
   REACCION_PUMITA: 'Nueva reacción',
-  SOLICITUD_PUMITA: 'Nueva solicitud de conexión',   // ← nueva línea
-  EVENTO_DISPONIBLE: 'Nuevo evento disponible', 
+  SOLICITUD_PUMITA: 'Nueva solicitud de conexión',
+  EVENTO_DISPONIBLE: 'Nuevo evento disponible',
+  ANUNCIO_INFO: 'Aviso',                 // ← nuevo
+  ANUNCIO_ADVERTENCIA: 'Advertencia',    // ← nuevo
+  ANUNCIO_EXITO: 'Buenas noticias',      // ← nuevo
 };
 
 function mapearNotificacion(raw: NotificacionRaw): Notificacion {
@@ -35,7 +39,7 @@ function mapearNotificacion(raw: NotificacionRaw): Notificacion {
   return {
     id: String(raw.id_notificacion),
     usuario_id: String(raw.id_usuario),
-    titulo: TITULOS_POR_TIPO[tipo] ?? 'Notificación',
+    titulo: raw.titulo ?? TITULOS_POR_TIPO[tipo] ?? 'Notificación',
     mensaje: raw.mensaje,
     tipo,
     leida: raw.leida,
@@ -72,4 +76,19 @@ export const notificacionesService = {
   marcarTodasLeidas(): Promise<{ ok: boolean }> {
     return api.patch('/notificaciones/leer-todas');
   },
+
+  // ── Centro de Notificaciones (panel de admin/empleados) ──
+  getEnviadas(): Promise<NotificacionEnviada[]> {
+    return api.get<NotificacionEnviada[]>('/notificaciones/enviadas');
+  },
+
+  enviarMasiva(datos: {
+    titulo: string;
+    mensaje: string;
+    tipo: TipoNotificacion;
+    destinatario_grupo: GrupoDestinatarioNotificacion;
+  }): Promise<NotificacionEnviada> {
+    return api.post<NotificacionEnviada>('/notificaciones/masiva', datos);
+  },
 };
+

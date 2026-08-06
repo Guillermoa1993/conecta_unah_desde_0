@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { reaccionesService } from '../../../services/reacciones.service';
 import type { TipoReaccionPumita } from '../../../types';
 import { pumitasService, type Pumita } from '../../../services/pumitas.service';
+import { publicacionService, type PublicacionResponse } from '../../../services/publicacion.service';
+import { eventosService } from '../../../services/eventos.service';
 import { useAuth } from '../../../hooks/useAuth';
 import { useNotificaciones } from '../../../hooks/useNotificaciones';
-import { useNavigate } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
 import { authService } from '../../../services/auth.service';
 import { forma003Service, type RegistroForma003 } from '../../../services/forma003.service';
 import {
@@ -48,6 +50,7 @@ interface PublicacionGuardada {
   fechaGuardado: string;
   descripcion: string;
   detalle: string;
+  imagen?: string;
 }
 
 interface EventoGuardado {
@@ -57,6 +60,7 @@ interface EventoGuardado {
   estado: string;
   descripcion: string;
   detalle: string;
+  imagen?: string;
 }
 
 const perfilInicial: PerfilData = {
@@ -152,6 +156,7 @@ function leerGuardadosReales(): { publicaciones: PublicacionGuardada[]; eventos:
         fechaGuardado: p.savedAt || p.time || '',
         descripcion: p.desc || '',
         detalle: p.desc || '',
+        imagen: p.images && p.images.length > 0 ? p.images[0] : undefined,
       }));
 
     const eventos: EventoGuardado[] = guardados
@@ -163,6 +168,7 @@ function leerGuardadosReales(): { publicaciones: PublicacionGuardada[]; eventos:
         estado: p.hidden ? 'Oculto' : (p.time || ''),
         descripcion: p.desc || '',
         detalle: p.desc || '',
+        imagen: p.images && p.images.length > 0 ? p.images[0] : undefined,
       }));
 
     return { publicaciones, eventos };
@@ -273,6 +279,9 @@ useEffect(() => {
   const [pumitaSeleccionada, setPumitaSeleccionada] = useState<PumitaData | null>(null);
   const [mensajePerfilPumita, setMensajePerfilPumita] = useState('');
   const [mostrarMenuReaccionesPumita, setMostrarMenuReaccionesPumita] = useState(false);
+  const [mostrarPublicacionesPumita, setMostrarPublicacionesPumita] = useState(false);
+  const [publicacionesPumita, setPublicacionesPumita] = useState<PublicacionResponse[]>([]);
+  const [cargandoPublicacionesPumita, setCargandoPublicacionesPumita] = useState(false);
   const [mostrarRedPumita, setMostrarRedPumita] = useState(false);
   const [mostrarAgregarPumita, setMostrarAgregarPumita] = useState(false);
   const [busquedaAgregarPumita, setBusquedaAgregarPumita] = useState('');
@@ -280,6 +289,7 @@ useEffect(() => {
   const [cargandoPumitas, setCargandoPumitas] = useState(true);
   const [solicitudesPendientes, setSolicitudesPendientes] = useState<PumitaData[]>([]);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const cargarPumitas = async () => {
     try {
@@ -295,9 +305,9 @@ useEffect(() => {
         id_conexion: item.id_conexion,
         nombre: item.nombre,
         carrera: '',
-        avatar: `https://ui-avatars.com/api/?background=003366&color=fff&name=${encodeURIComponent(item.nombre)}`,
+        avatar: item.foto_url || `https://ui-avatars.com/api/?background=003366&color=fff&name=${encodeURIComponent(item.nombre)}`,
         estado,
-        biografia: '',
+        biografia: item.biografia ?? '',
         activo: true,
         solicitudEnviada,
       });
@@ -318,6 +328,12 @@ useEffect(() => {
 
   useEffect(() => {
     cargarPumitas();
+    // Antes solo se cargaba una vez al entrar: si alguien más te mandaba una
+    // solicitud de Pumita, no aparecía hasta recargar la página. Con este
+    // intervalo se refresca sola cada 15s para que las solicitudes nuevas
+    // (enviadas por otra persona) se vean sin tener que recargar.
+    const interval = setInterval(cargarPumitas, 15000);
+    return () => clearInterval(interval);
   }, []);
   
   useEffect(() => {
@@ -387,6 +403,54 @@ useEffect(() => {
   const [publicacionesGuardadasLocales, setPublicacionesGuardadasLocales] = useState<PublicacionGuardada[]>(() => leerGuardadosReales().publicaciones);
   const [publicacionQuitada, setPublicacionQuitada] = useState<{ publicacion: PublicacionGuardada; indice: number } | null>(null);
   const [timeoutPublicacionQuitada, setTimeoutPublicacionQuitada] = useState<number | null>(null);
+
+  // La imagen que se guardó en localStorage al momento de marcar "guardado" puede
+  // no existir o quedar desactualizada. Aquí la reemplazamos por la imagen real
+  // del evento/publicación tal como está hoy en la base de datos, y si el evento
+  // o la publicación ya no existe (fue eliminado), lo quitamos de guardados.
+  useEffect(() => {
+    Promise.allSettled([
+      publicacionService.getPublicaciones(),
+      eventosService.getAll(),
+    ]).then(([pubsRes, eventosRes]) => {
+      if (pubsRes.status === 'fulfilled') {
+        const publicacionesReales = pubsRes.value;
+        setPublicacionesGuardadasLocales((actuales) =>
+          actuales.filter((pub) => {
+            const real = publicacionesReales.find((p) => Number(p.id) === Number(pub.id));
+            if (!real) {
+              // Ya no existe en la base de datos: se quita también de localStorage.
+              sincronizarGuardadoEnLocalStorage(pub.id, pub.titulo, false);
+              return false;
+            }
+            return true;
+          }).map((pub) => {
+            const real = publicacionesReales.find((p) => Number(p.id) === Number(pub.id));
+            const imagenReal = real?.images && real.images.length > 0 ? real.images[0] : undefined;
+            return imagenReal ? { ...pub, imagen: imagenReal } : pub;
+          }),
+        );
+      }
+
+      if (eventosRes.status === 'fulfilled') {
+        const eventosReales = eventosRes.value;
+        // Los eventos se guardan en unah_posts con id = 10000 + id real del evento
+        setEventosGuardadosLocales((actuales) =>
+          actuales.filter((ev) => {
+            const real = eventosReales.find((e) => Number(e.id) === Number(ev.id) - 10000);
+            if (!real) {
+              sincronizarGuardadoEnLocalStorage(ev.id, ev.titulo, false);
+              return false;
+            }
+            return true;
+          }).map((ev) => {
+            const real = eventosReales.find((e) => Number(e.id) === Number(ev.id) - 10000);
+            return real?.portada_url ? { ...ev, imagen: real.portada_url } : ev;
+          }),
+        );
+      }
+    });
+  }, []);
   const [publicacionSeleccionada, setPublicacionSeleccionada] = useState<PublicacionGuardada | null>(null);
   const [eventoSeleccionado, setEventoSeleccionado] = useState<EventoGuardado | null>(null);
   const [fotoPerfil, setFotoPerfil] = useState<string | null>(null);
@@ -613,6 +677,25 @@ useEffect(() => {
     }
   };
 
+  const verPublicacionesDePumita = async (pumita: PumitaData) => {
+  if (mostrarPublicacionesPumita) {
+    setMostrarPublicacionesPumita(false);
+    return;
+  }
+
+  setMostrarPublicacionesPumita(true);
+  setCargandoPublicacionesPumita(true);
+  try {
+    const publicaciones = await pumitasService.listarPublicacionesDe(pumita.id_usuario);
+    setPublicacionesPumita(publicaciones);
+  } catch (error) {
+    console.error('No se pudieron cargar las publicaciones del Pumita', error);
+    setPublicacionesPumita([]);
+  } finally {
+    setCargandoPublicacionesPumita(false);
+  }
+ };
+
   const dejarDeSeguirPumita = async (pumita: PumitaData) => {
     if (!pumita.id_conexion) return;
     try {
@@ -713,24 +796,50 @@ useEffect(() => {
   return () => { activo = false; };
 }, []);
 
+// Abre el modal correcto (perfil de quien reaccionó, o la solicitud pendiente)
+// según el tipo real de notificación del backend ('REACCION_PUMITA' / 'SOLICITUD_PUMITA').
+// La usan tanto el panel local de notificaciones de esta página como las
+// notificaciones que llegan desde el bell del navbar (vía location.state).
+const abrirDesdeNotificacionPumita = (datos: { tipo: string; referenciaId?: number; emisorNombre?: string; mensaje?: string }) => {
+  if (datos.tipo === 'REACCION_PUMITA') {
+    const pumita = datos.emisorNombre ? pumitas.find((item) => item.nombre === datos.emisorNombre) : null;
+    if (pumita) abrirPerfilPumita(pumita);
+    if (datos.mensaje) mostrarEfectoReaccion(datos.mensaje);
+    document.getElementById('interaccion-social')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
+  if (datos.tipo === 'SOLICITUD_PUMITA') {
+    const pumita = solicitudesPendientes.find((item) => item.id_usuario === datos.referenciaId);
+    if (pumita) setSolicitudNotificacion(pumita);
+  }
+};
+
+// Si llegamos aquí desde el bell del navbar (AppNavbar) con una notificación de
+// Pumita, esperamos a que carguen pumitas/solicitudesPendientes y abrimos el
+// modal correspondiente. Limpiamos el state después para que no se vuelva a
+// disparar al navegar hacia atrás o refrescar.
+useEffect(() => {
+  const datos = (location.state as any)?.abrirNotificacionPumita;
+  if (!datos || cargandoPumitas) return;
+  abrirDesdeNotificacionPumita(datos);
+  navigate(location.pathname, { replace: true, state: {} });
+}, [location.state, cargandoPumitas, pumitas, solicitudesPendientes]);
+
 const manejarClickNotificacion = (notificacion: NotificacionPerfil) => {
   if (!notificacion.leida) {
     marcarNotificacionLeidaAPI(notificacion.id);
   }
 
   if (notificacion.tipo === 'reaccion') {
-    const pumita = notificacion.nombre ? pumitas.find((item) => item.nombre === notificacion.nombre) : null;
-    if (pumita) abrirPerfilPumita(pumita);
-    mostrarEfectoReaccion(notificacion.texto);
-    document.getElementById('interaccion-social')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    abrirDesdeNotificacionPumita({ tipo: 'REACCION_PUMITA', emisorNombre: notificacion.nombre, mensaje: notificacion.texto });
     setMostrarNotificaciones(false);
     setMostrarHistorialNotificaciones(false);
     return;
   }
 
   if (notificacion.tipo === 'solicitud') {
-    const pumita = solicitudesPendientes.find((item) => item.id_usuario === notificacion.referenciaId);
-    if (pumita) setSolicitudNotificacion(pumita);
+    abrirDesdeNotificacionPumita({ tipo: 'SOLICITUD_PUMITA', referenciaId: notificacion.referenciaId });
     setMostrarNotificaciones(false);
     setMostrarHistorialNotificaciones(false);
     return;
@@ -959,7 +1068,7 @@ if (viewMode === 'editar') {
       <div className="flex-1 p-4 md:p-6">
         <div className="mb-6 p-6 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-[#003366]">Mi Perfil</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#003366]">Mi Perfil</h1>
             <p className="text-[#5b6472] text-sm">Editar perfil</p>
             <div className="mt-3 h-1 w-16 rounded-full bg-[#FFD100]"></div>
           </div>
@@ -1234,61 +1343,11 @@ return (
       <div className="space-y-5">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-[#003366] mb-2">Mi Perfil</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#003366] mb-2">Mi Perfil</h1>
             <p className="text-[#5b6472] text-sm">Administra tu información académica y tus conexiones universitarias.</p>
             <div className="mt-3 h-1 w-16 rounded-full bg-[#FFD100]"></div>
           </div>
-          <div className="relative self-start">
-            <button
-              type="button"
-              onClick={() => setMostrarNotificaciones((actual) => !actual)}
-              className="relative w-11 h-11 rounded-xl bg-[#F4F6F8] border border-gray-200 text-[#003366] hover:border-[#FFD100] hover:bg-[#FFD100]/20 transition-colors"
-              aria-label="Ver notificaciones del perfil"
-            >
-              <span style={{ fontSize: 18 }}>🔔</span>
-              {notificacionesPerfil.some((notificacion) => !notificacion.leida) && (
-                <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-[#FFD100] text-[10px] font-bold text-[#003366] flex items-center justify-center">
-                  {notificacionesPerfil.filter((notificacion) => !notificacion.leida).length}
-                </span>
-              )}
-            </button>
-
-            {mostrarNotificaciones && (
-              <div className="absolute right-0 top-12 z-30 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white p-3 shadow-xl">
-                <h4 className="text-sm font-bold text-[#003366] mb-2">Notificaciones</h4>
-                <div className="space-y-2">
-                  {notificacionesPerfil.slice(0, 5).map((notificacion) => (
-                    <button
-                      key={notificacion.id}
-                      type="button"
-                      onClick={() => manejarClickNotificacion(notificacion)}
-                      className={`w-full flex items-start gap-3 rounded-lg p-3 text-left hover:bg-[#FFD100]/10 transition-colors ${
-                        notificacion.leida ? 'bg-[#F4F6F8]' : 'bg-[#F4F6F8] border border-dashed border-[#FFD100]'
-                      }`}
-                    >
-                      <span className="w-8 h-8 rounded-lg bg-white text-[#F59E0B] flex items-center justify-center shrink-0 border border-gray-200">
-                        <i className={`fa-solid ${notificacion.icon} text-xs`}></i>
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-[#003366]">{notificacion.texto}</p>
-                        <p className="text-[11px] text-[#5b6472]">{notificacion.tiempo}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMostrarHistorialNotificaciones(true);
-                    setMostrarNotificaciones(false);
-                  }}
-                  className="mt-3 w-full border-t border-gray-100 pt-3 text-xs font-bold text-[#004B87] hover:text-[#003366] transition-colors"
-                >
-                  Ver todas las notificaciones
-                </button>
-              </div>
-            )}
-          </div>
+       
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1761,7 +1820,15 @@ return (
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {eventosGuardadosLocales.map((evento) => (
-              <article key={`modal-${evento.titulo}`} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+              <article key={`modal-${evento.titulo}`} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                {evento.imagen ? (
+                  <img src={evento.imagen} alt={evento.titulo} className="w-full h-32 object-cover" />
+                ) : (
+                  <div className="w-full h-32 bg-[#F4F6F8] flex items-center justify-center">
+                    <i className="fa-solid fa-calendar-days text-2xl text-[#5b6472]/40"></i>
+                  </div>
+                )}
+                <div className="p-4">
                 <button
                   type="button"
                   onClick={() => setEventoSeleccionado(evento)}
@@ -1781,6 +1848,7 @@ return (
                 >
                   Quitar de guardados
                 </button>
+                </div>
               </article>
             ))}
             {eventosGuardadosLocales.length === 0 && (
@@ -1813,7 +1881,15 @@ return (
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {publicacionesGuardadasLocales.map((publicacion) => (
-              <article key={`modal-${publicacion.titulo}`} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:border-[#FFD100] transition-colors">
+              <article key={`modal-${publicacion.titulo}`} className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm hover:border-[#FFD100] transition-colors">
+                {publicacion.imagen ? (
+                  <img src={publicacion.imagen} alt={publicacion.titulo} className="w-full h-32 object-cover" />
+                ) : (
+                  <div className="w-full h-32 bg-[#F4F6F8] flex items-center justify-center">
+                    <i className="fa-solid fa-bookmark text-2xl text-[#5b6472]/40"></i>
+                  </div>
+                )}
+                <div className="p-4">
                 <button
                   type="button"
                   onClick={() => setPublicacionSeleccionada(publicacion)}
@@ -1831,6 +1907,7 @@ return (
                 >
                   Quitar de guardados
                 </button>
+                </div>
               </article>
             ))}
             {publicacionesGuardadasLocales.length === 0 && (
@@ -1863,6 +1940,13 @@ return (
             </button>
           </div>
           <div className="rounded-xl border border-gray-200 bg-[#F4F6F8] p-4">
+            {publicacionSeleccionada.imagen && (
+              <img
+                src={publicacionSeleccionada.imagen}
+                alt={publicacionSeleccionada.titulo}
+                className="w-full max-h-64 object-cover rounded-lg mb-4"
+              />
+            )}
             <div className="flex items-center gap-3 border-b border-gray-200 pb-3">
               <span className="w-11 h-11 rounded-full bg-[#FFD100] text-[#003366] flex items-center justify-center shrink-0">
                 <i className="fa-solid fa-bookmark"></i>
@@ -1923,6 +2007,13 @@ return (
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 p-5">
             <div className="lg:col-span-2 rounded-xl border border-gray-200 bg-[#F4F6F8] p-5">
+              {eventoSeleccionado.imagen && (
+                <img
+                  src={eventoSeleccionado.imagen}
+                  alt={eventoSeleccionado.titulo}
+                  className="w-full max-h-64 object-cover rounded-lg mb-4"
+                />
+              )}
               <h4 className="text-lg font-bold text-[#003366]">Información del evento</h4>
               <p className="mt-3 text-sm leading-relaxed text-[#5b6472]">{eventoSeleccionado.detalle}</p>
               <p className="mt-4 text-sm leading-relaxed text-[#5b6472]">{eventoSeleccionado.descripcion}</p>
@@ -1958,6 +2049,8 @@ return (
               setPumitaSeleccionada(null);
               setMensajePerfilPumita('');
               setMostrarMenuReaccionesPumita(false);
+              setMostrarPublicacionesPumita(false);
+              setPublicacionesPumita([]);
             }}
             className="absolute top-3 right-3 w-9 h-9 rounded-lg bg-[#F4F6F8] border border-gray-200 text-[#003366] hover:bg-[#FFD100] transition-colors"
             aria-label="Cerrar perfil de Pumita"
@@ -2022,6 +2115,33 @@ return (
                     </div>
                   )}
                 </div>
+                <button
+  type="button"
+  onClick={() => verPublicacionesDePumita(pumitaSeleccionada)}
+  className="w-full border border-gray-200 bg-[#F4F6F8] text-[#003366] font-bold py-3 rounded-lg hover:border-[#FFD100] transition-colors"
+>
+  {mostrarPublicacionesPumita ? 'Ocultar publicaciones' : 'Ver publicaciones ▼'}
+</button>
+
+{mostrarPublicacionesPumita && (
+  <div className="w-full rounded-xl border border-gray-200 bg-white p-3 text-left">
+    {cargandoPublicacionesPumita ? (
+      <p className="text-sm text-[#5b6472]">Cargando publicaciones...</p>
+    ) : publicacionesPumita.length === 0 ? (
+      <p className="text-sm text-[#5b6472]">Este Pumita todavía no tiene publicaciones.</p>
+    ) : (
+      <div className="space-y-3">
+        {publicacionesPumita.map((pub) => (
+          <div key={pub.id} className="rounded-lg border border-gray-100 p-3">
+            <p className="text-sm font-bold text-[#003366]">{pub.title}</p>
+            <p className="mt-1 text-xs text-[#5b6472]">{pub.desc}</p>
+            <p className="mt-1 text-[10px] uppercase tracking-wide text-[#9aa2ab]">{pub.time}</p>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
               </div>
             ) : (
               <div className="mt-6 w-full space-y-3">
