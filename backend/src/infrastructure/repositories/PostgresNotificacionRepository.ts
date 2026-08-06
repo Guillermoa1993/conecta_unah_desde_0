@@ -45,7 +45,7 @@ export class PostgresNotificacionRepository implements NotificacionRepository {
        )
        VALUES (
          $1,
-         (SELECT id_tipo FROM tabla_grupo_1_tipo_notificacion WHERE nombre = $2),
+         COALESCE((SELECT id_tipo FROM tabla_grupo_1_tipo_notificacion WHERE nombre = $2 LIMIT 1), (SELECT id_tipo FROM tabla_grupo_1_tipo_notificacion LIMIT 1), 1),
          $3,
          FALSE,
          $4,

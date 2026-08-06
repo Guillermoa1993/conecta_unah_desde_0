@@ -53,6 +53,9 @@ export interface Evento {
   creador_nombre?: string;
   tutor_foto?: string;
   creador_foto?: string;
+  facultad?: string;
+  carrera?: string;
+  departamento?: string;
 }
 
 export interface CrearEventoDto {

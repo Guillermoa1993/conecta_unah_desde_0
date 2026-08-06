@@ -106,4 +106,21 @@ export class EventoController {
       res.status(201).json(resVal);
     } catch (err) { next(err); }
   };
+
+  cronExpirarEventos = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (this.eventoRepo.expirarEventosVencidos) {
+        const resultado = await this.eventoRepo.expirarEventosVencidos();
+        res.json({
+          success: true,
+          message: "Automatización Cron ejecutada con éxito. Eventos expirados/finalizados.",
+          timestamp: new Date().toISOString(),
+          eventosActualizados: resultado.actualizados,
+          detalles: resultado.detalles,
+        });
+      } else {
+        res.json({ success: true, message: "Sin método de expiración implementado", eventosActualizados: 0 });
+      }
+    } catch (err) { next(err); }
+  };
 }

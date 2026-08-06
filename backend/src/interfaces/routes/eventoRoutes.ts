@@ -25,5 +25,9 @@ export function eventoRouter(ctrl: EventoController): Router {
   r.patch('/:id/aprobar', autenticar, autorizar('VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'ADMIN'), ctrl.aprobar);
   r.patch('/:id/rechazar', autenticar, autorizar('VOAE', 'VOAE_DIRECCION', 'VOAE_DEPARTAMENTO', 'ADMIN'), ctrl.rechazar);
 
+  // Endpoint de Automatización Cron-Job (consumible por servicios como cron-job.org)
+  r.get('/cron/actualizar-estados', ctrl.cronExpirarEventos);
+  r.post('/cron/actualizar-estados', ctrl.cronExpirarEventos);
+
   return r;
 }

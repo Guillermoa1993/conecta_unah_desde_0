@@ -1744,9 +1744,10 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
   useEffect(() => {
     try {
       localStorage.setItem("unah_posts", JSON.stringify(posts));
-    } catch (e) {
-      console.warn("No se pudo guardar 'unah_posts' en localStorage (cuota excedida):", e);
-    }
+} catch (e) {
+    console.warn("No se pudo guardar 'unah_posts' en localStorage (cuota excedida):", e);
+    localStorage.removeItem("unah_posts");
+  }
   }, [posts]);
 
   const [hiddenPostIds, setHiddenPostIds] = useState<Set<number>>(() => {
@@ -2166,12 +2167,13 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
     setPosts(prev => prev.map(p => p.id === editPost.id ? updated : p));
     const saved = localStorage.getItem("unah_posts");
     if (saved) {
-      const list = JSON.parse(saved).map((p: any) => p.id === editPost.id ? updated : p);
-      try {
-        localStorage.setItem("unah_posts", JSON.stringify(list));
-      } catch (e) {
-        console.warn("No se pudo guardar 'unah_posts' tras edición en localStorage:", e);
-      }
+try {
+  const list = JSON.parse(saved).map((p: any) => p.id === editPost.id ? updated : p);
+  localStorage.setItem("unah_posts", JSON.stringify(list));
+} catch (e) {
+  console.warn("No se pudo guardar 'unah_posts' tras edición en localStorage:", e);
+  localStorage.removeItem("unah_posts");
+}
     }
     setEditPost(null);
     showToast("✅ Publicación actualizada");

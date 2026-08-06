@@ -52,8 +52,10 @@ r.get('/manifest.webmanifest', async (_req: Request, res: Response) => {
       lang: 'es-HN',
       categories: ['education', 'utilities'],
       icons: [
-        { src: '/puma_unah.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-        { src: '/puma_unah.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+        { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+        { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+        { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
       ],
     });
   } catch { res.status(500).json({ error: 'Error' }); }

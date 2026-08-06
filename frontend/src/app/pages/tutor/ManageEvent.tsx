@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { EventDetailMapPreview } from "../../components/app/EventDetailMapPreview";
+import { EventCoverBanner } from "../../components/app/EventCoverBanner";
 import { LocationPicker, resolveExactBuildingCoords } from "../../components/app/LocationPicker";
 import { api } from "../../../services/api";
 import { VoaeDrawer } from "../../components/app/VoaeDrawer";
@@ -554,20 +555,28 @@ export function ManageEvent() {
           : `E:${ubicacionLabel(entValid)} S:${ubicacionLabel(salValid)}`;
 
         return `
-          <tr>
-            <td style="padding:8px 12px;border:1px solid #ddd">${s.estudiante_nombre}</td>
-            <td style="padding:8px 12px;border:1px solid #ddd;font-family:monospace;font-size:12px">${s.estudiante_cuenta}</td>
-            <td style="padding:8px 12px;border:1px solid #ddd">${s.estudiante_cuenta}@unah.hn</td>
-            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">
-              ${isAssisted ? '<span style="color:#22c55e;font-weight:600">Asistió</span>' : '<span style="color:#ef4444;font-weight:600">No asistió</span>'}
+          <tr style="${students.indexOf(s) % 2 === 1 ? 'background-color: #f8fafc;' : ''}">
+            <td style="padding:9px 12px;border:1px solid #cbd5e1;font-weight:600;color:#0f172a">${s.estudiante_nombre}</td>
+            <td style="padding:9px 12px;border:1px solid #cbd5e1;font-family:monospace;font-size:11px;color:#334155">${s.estudiante_cuenta}</td>
+            <td style="padding:9px 12px;border:1px solid #cbd5e1;font-family:monospace;font-size:11px;color:#334155">${s.estudiante_cuenta}@unah.hn</td>
+            <td style="padding:9px 12px;border:1px solid #cbd5e1;text-align:center">
+              ${isAssisted ? '<span style="color:#16a34a;font-weight:bold">Asistió ✓</span>' : '<span style="color:#dc2626;font-weight:bold">No asistió ✕</span>'}
             </td>
-            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${horaLlegada}</td>
-            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${horaSalida}</td>
-            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center">${ubicacionStr}</td>
+            <td style="padding:9px 12px;border:1px solid #cbd5e1;text-align:center;font-weight:500">${horaLlegada}</td>
+            <td style="padding:9px 12px;border:1px solid #cbd5e1;text-align:center;font-weight:500">${horaSalida}</td>
+            <td style="padding:9px 12px;border:1px solid #cbd5e1;text-align:center;font-weight:600">${ubicacionStr}</td>
           </tr>
         `;
       })
       .join("");
+
+    const rowsContent = rows || `
+      <tr>
+        <td colspan="7" style="padding: 24px; text-align: center; color: #64748b; font-style: italic; background-color: #f8fafc; border: 1px solid #cbd5e1;">
+          No hay estudiantes registrados en este evento aún.
+        </td>
+      </tr>
+    `;
 
     const cleanEventTitle = (event.titulo || "Evento").replace(/[^a-zA-Z0-9-_]/g, "_");
     const pdfTitle = `Listado-${cleanEventTitle}`;
@@ -578,33 +587,56 @@ export function ManageEvent() {
         <meta charset="utf-8">
         <title>${pdfTitle}</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; }
-          h2 { font-size: 20px; margin-bottom: 4px; color: #004B87; }
-          .meta { font-size: 13px; color: #64748b; margin-bottom: 20px; }
-          table { width: 100%; border-collapse: collapse; font-size: 13px; }
-          th { background: #f1f5f9; padding: 8px 12px; text-align: left; border: 1px solid #ddd; font-size: 11px; text-transform: uppercase; color: #64748b; }
-          td { padding: 8px 12px; border: 1px solid #ddd; }
+          @page { size: A4 portrait; margin: 15mm; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+          body { font-family: Arial, sans-serif; padding: 20px; color: #0f172a; font-size: 10pt; }
+          .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2.5px solid #003366; padding-bottom: 12px; margin-bottom: 20px; }
+          h2 { font-size: 18px; margin: 0 0 6px 0; color: #003366; text-transform: uppercase; font-weight: bold; }
+          .meta { font-size: 10pt; color: #334155; margin-bottom: 20px; background-color: #f1f5f9 !important; border: 1.5px solid #94a3b8; padding: 12px 16px; border-radius: 8px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+          table { width: 100%; border-collapse: collapse; font-size: 10pt; margin-top: 10px; border: 1.5px solid #003366; }
+          th { background-color: #003366 !important; color: #ffffff !important; padding: 10px 12px; text-align: left; font-size: 9.5pt; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #002244; font-weight: bold; }
+          td { padding: 9px 12px; border: 1px solid #cbd5e1; }
+          .footer { margin-top: 35px; text-align: center; font-size: 8.5pt; color: #64748b; border-top: 1.5px solid #cbd5e1; padding-top: 14px; }
         </style>
       </head>
       <body>
+        <div class="header">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <img src="${window.location.origin}/logo-unah.png" style="height: 55px;" onError="this.style.display='none'" />
+            <img src="${window.location.origin}/logo-voae.png" style="height: 55px;" onError="this.style.display='none'" />
+          </div>
+          <div style="text-align: right; font-size: 8.5pt; color: #475569;">
+            <div><strong>UNIVERSIDAD NACIONAL AUTÓNOMA DE HONDURAS</strong></div>
+            <div><strong>VOAE UNAH &mdash; DIRECCIÓN DE VINCULACIÓN</strong></div>
+            <div><strong>Control de Asistencia e Inscripciones</strong></div>
+          </div>
+        </div>
+
         <h2>${event.titulo}</h2>
-        <div class="meta">Tutor: ${event.tutor_nombre || "Tutor Responsable"} &mdash; Fecha: ${new Date(event.fecha_inicio).toLocaleDateString()}</div>
+        <div class="meta">
+          <div><strong>Organizador / Tutor:</strong><br/> ${event.tutor_nombre || "Tutor Responsable"}</div>
+          <div><strong>Fecha del Evento:</strong><br/> ${new Date(event.fecha_inicio).toLocaleDateString("es-HN", { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+          <div><strong>Total Registrados:</strong><br/> ${students.length} Estudiantes</div>
+        </div>
+
         <table>
           <thead>
             <tr>
               <th>Estudiante</th>
               <th>No. Cuenta</th>
-              <th>Email</th>
+              <th>Correo Institucional</th>
               <th style="text-align:center">Estado</th>
-              <th style="text-align:center">Hora llegada</th>
-              <th style="text-align:center">Hora salida</th>
+              <th style="text-align:center">Hora Llegada</th>
+              <th style="text-align:center">Hora Salida</th>
               <th style="text-align:center">Ubicación</th>
             </tr>
           </thead>
-          <tbody>${rows}</tbody>
+          <tbody>${rowsContent}</tbody>
         </table>
-        <div style="margin-top:20px;font-size:11px;color:#94a3b8;text-align:center">
-          Generado el ${new Date().toLocaleDateString()} — Conecta Pumas
+
+        <div class="footer">
+          <p style="margin: 0; font-weight: bold; color: #003366;">Documento oficial generado por la plataforma Conecta Pumas UNAH.</p>
+          <p style="margin: 4px 0 0 0;">Fecha de Emisión: ${new Date().toLocaleDateString("es-HN", { day: 'numeric', month: 'long', year: 'numeric' })} &mdash; Verificación Institucional VOAE</p>
         </div>
       </body>
       </html>
@@ -871,28 +903,7 @@ export function ManageEvent() {
             </>
           )}
 
-          {event.portada_url || event.imagen_url ? (
-            <img src={event.portada_url || event.imagen_url} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <div
-              className="w-full h-full grid place-items-center"
-              style={{ backgroundColor: PLACEHOLDER_BG[event.categoria] || "#f1f5f9" }}
-            >
-              <div
-                className="size-20 rounded-full grid place-items-center"
-                style={{
-                  backgroundColor: PLACEHOLDER_INITIALS_BG[event.categoria] || "#e2e8f0",
-                }}
-              >
-                <div
-                  className="text-3xl font-bold"
-                  style={{ color: PLACEHOLDER_TEXT[event.categoria] || "#64748b" }}
-                >
-                  {CATEGORY_LABEL[event.categoria]?.slice(0, 2).toUpperCase()}
-                </div>
-              </div>
-            </div>
-          )}
+          <EventCoverBanner event={event} heightClass="h-64 md:h-72" showDetailsOverlay={false} />
         </div>
 
         {/* Right: Maps / Link box */}
@@ -1143,43 +1154,81 @@ export function ManageEvent() {
             </div>
 
             <TabsContent value="enrolled">
-              <Card className="shadow-sm border-slate-200">
-                <CardContent className="p-0">
-                  {students.length === 0 ? (
-                    <div className="text-center py-12 text-sm text-muted-foreground">No hay estudiantes inscritos en este evento.</div>
-                  ) : (
-                    <Table>
-                      <TableHeader className="bg-slate-50">
-                        <TableRow>
-                          <TableHead className="font-semibold text-slate-700">Estudiante</TableHead>
-                          <TableHead className="font-semibold text-slate-700">Cuenta</TableHead>
-                          <TableHead className="font-semibold text-slate-700">Email</TableHead>
-                          <TableHead className="font-semibold text-slate-700">Carrera</TableHead>
-                          <TableHead className="font-semibold text-slate-700">Inscripción</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paginatedEnrolled.map((s) => (
-                          <TableRow key={s.id} className="hover:bg-slate-50/50">
-                            <TableCell>
-                              <div className="flex items-center gap-2.5">
-                                <div className="size-8 rounded-full bg-[#004B87]/15 text-[#004B87] font-bold text-xs flex items-center justify-center">
-                                  {s.estudiante_nombre?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
-                                </div>
-                                <span className="font-medium text-slate-800">{s.estudiante_nombre}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-mono text-xs text-slate-600">{s.estudiante_cuenta || (s as any).cuenta || "20211001234"}</TableCell>
-                            <TableCell className="text-xs text-slate-500">{s.estudiante_correo || (s as any).email || `${s.estudiante_cuenta}@unah.hn`}</TableCell>
-                            <TableCell className="text-xs text-slate-500">{s.estudiante_carrera || (s as any).carrera || "Carrera de Estudiante"}</TableCell>
-                            <TableCell className="text-xs text-slate-500">{s.inscrito_at ? new Date(s.inscrito_at).toLocaleDateString("es-HN") : "—"}</TableCell>
+              {/* Vista Móvil: Tarjetas Adaptativas 100% ancho */}
+              <div className="md:hidden space-y-3">
+                {students.length === 0 ? (
+                  <div className="text-center py-12 text-sm text-slate-400 bg-white rounded-xl border border-slate-200">No hay estudiantes inscritos en este evento.</div>
+                ) : (
+                  paginatedEnrolled.map((s) => (
+                    <div key={s.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-2.5">
+                      <div className="flex items-center gap-3">
+                        <div className="size-9 rounded-full bg-[#004B87]/15 text-[#004B87] font-bold text-xs flex items-center justify-center shrink-0">
+                          {s.estudiante_nombre?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-bold text-slate-800 text-sm leading-tight truncate">{s.estudiante_nombre}</h4>
+                          <span className="text-[11px] font-mono text-slate-500">{s.estudiante_cuenta || (s as any).cuenta || "20211001234"}</span>
+                        </div>
+                      </div>
+                      <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs space-y-1">
+                        <div>
+                          <span className="text-slate-400 font-semibold block text-[10px] uppercase">Carrera</span>
+                          <span className="font-medium text-slate-700">{s.estudiante_carrera || (s as any).carrera || "Carrera de Estudiante"}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-semibold block text-[10px] uppercase">Correo</span>
+                          <span className="font-mono text-slate-600 text-[11px]">{s.estudiante_correo || (s as any).email || `${s.estudiante_cuenta}@unah.hn`}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-semibold block text-[10px] uppercase">Fecha de Inscripción</span>
+                          <span className="font-medium text-slate-600">{s.inscrito_at ? new Date(s.inscrito_at).toLocaleDateString("es-HN") : "—"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Vista Escritorio: Tabla */}
+              <div className="hidden md:block">
+                <Card className="shadow-sm border-slate-200">
+                  <CardContent className="p-0 overflow-x-auto">
+                    {students.length === 0 ? (
+                      <div className="text-center py-12 text-sm text-muted-foreground">No hay estudiantes inscritos en este evento.</div>
+                    ) : (
+                      <Table className="whitespace-nowrap">
+                        <TableHeader className="bg-slate-50">
+                          <TableRow>
+                            <TableHead className="font-semibold text-slate-700">Estudiante</TableHead>
+                            <TableHead className="font-semibold text-slate-700">Cuenta</TableHead>
+                            <TableHead className="font-semibold text-slate-700">Email</TableHead>
+                            <TableHead className="font-semibold text-slate-700">Carrera</TableHead>
+                            <TableHead className="font-semibold text-slate-700">Inscripción</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedEnrolled.map((s) => (
+                            <TableRow key={s.id} className="hover:bg-slate-50/50">
+                              <TableCell>
+                                <div className="flex items-center gap-2.5">
+                                  <div className="size-8 rounded-full bg-[#004B87]/15 text-[#004B87] font-bold text-xs flex items-center justify-center">
+                                    {s.estudiante_nombre?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                                  </div>
+                                  <span className="font-medium text-slate-800">{s.estudiante_nombre}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-mono text-xs text-slate-600">{s.estudiante_cuenta || (s as any).cuenta || "20211001234"}</TableCell>
+                              <TableCell className="text-xs text-slate-500">{s.estudiante_correo || (s as any).email || `${s.estudiante_cuenta}@unah.hn`}</TableCell>
+                              <TableCell className="text-xs text-slate-500">{s.estudiante_carrera || (s as any).carrera || "Carrera de Estudiante"}</TableCell>
+                              <TableCell className="text-xs text-slate-500">{s.inscrito_at ? new Date(s.inscrito_at).toLocaleDateString("es-HN") : "—"}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
 
               {totalEnrolled > 0 && (
                 <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex-wrap gap-3 text-xs mt-3 text-slate-600">
@@ -1231,82 +1280,150 @@ export function ManageEvent() {
             </TabsContent>
 
             <TabsContent value="attendance">
-              <Card className="shadow-sm border-slate-200">
-                <CardContent className="p-0">
-                  {students.length === 0 ? (
-                    <div className="text-center py-12 text-sm text-muted-foreground">No hay estudiantes registrados.</div>
-                  ) : (
-                    <Table>
-                      <TableHeader className="bg-slate-50">
-                        <TableRow>
-                          <TableHead className="w-12"></TableHead>
-                          <TableHead className="font-semibold text-slate-700">Estudiante</TableHead>
-                          <TableHead className="font-semibold text-slate-700">Cuenta</TableHead>
-                          <TableHead className="font-semibold text-slate-700">Email</TableHead>
-                          <TableHead className="font-semibold text-slate-700">Carrera</TableHead>
-                          <TableHead className="font-semibold text-slate-700">Inscripción</TableHead>
-                          <TableHead className="font-semibold text-slate-700">Hora de Llegada</TableHead>
-                          <TableHead className="font-semibold text-slate-700">Hora de Salida</TableHead>
-                          <TableHead className="text-center font-semibold text-slate-700">Asistencia</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paginatedAttendance.map((s) => {
-                          const isAssisted = s.estado === "ASISTIDO";
-                          const isRejected = s.estado === "RECHAZADO";
-                          return (
-                            <TableRow key={s.id} className="hover:bg-slate-50/50">
-                              <TableCell>
-                                <Checkbox
-                                  checked={isAssisted}
-                                  onCheckedChange={(checked) => toggleAttendance(s.id, checked === true)}
-                                  disabled={event.estado === "FINALIZADO"}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2.5">
-                                  <div className="size-8 rounded-full bg-[#004B87]/15 text-[#004B87] font-bold text-xs flex items-center justify-center">
-                                    {s.estudiante_nombre?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+              {/* Vista Móvil: Tarjetas Adaptativas 100% ancho */}
+              <div className="md:hidden space-y-3">
+                {students.length === 0 ? (
+                  <div className="text-center py-12 text-sm text-slate-400 bg-white rounded-xl border border-slate-200">No hay estudiantes registrados.</div>
+                ) : (
+                  paginatedAttendance.map((s) => {
+                    const isAssisted = s.estado === "ASISTIDO";
+                    const isRejected = s.estado === "RECHAZADO";
+                    return (
+                      <div key={s.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5">
+                            <Checkbox
+                              checked={isAssisted}
+                              onCheckedChange={(checked) => toggleAttendance(s.id, checked === true)}
+                              disabled={event.estado === "FINALIZADO"}
+                            />
+                            <div>
+                              <h4 className="font-bold text-slate-800 text-sm leading-tight">{s.estudiante_nombre}</h4>
+                              <span className="text-[11px] font-mono text-slate-500">{s.estudiante_cuenta || (s as any).cuenta || "20211001234"}</span>
+                            </div>
+                          </div>
+
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase shrink-0 ${
+                              isAssisted
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                : isRejected
+                                ? "bg-red-100 text-red-800 border border-red-200"
+                                : "bg-slate-100 text-slate-600 border border-slate-200"
+                            }`}
+                          >
+                            {isAssisted ? "Asistió" : isRejected ? "No asistió" : "Pendiente"}
+                          </span>
+                        </div>
+
+                        <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs space-y-1">
+                          <div>
+                            <span className="text-slate-400 font-semibold block text-[10px] uppercase">Carrera</span>
+                            <span className="font-medium text-slate-700">{s.estudiante_carrera || (s as any).carrera || "Carrera de Estudiante"}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 font-semibold block text-[10px] uppercase">Correo</span>
+                            <span className="font-mono text-slate-600 text-[11px]">{s.estudiante_correo || (s as any).email || `${s.estudiante_cuenta}@unah.hn`}</span>
+                          </div>
+                        </div>
+
+                        {!isAssisted && !isRejected && event.estado !== "FINALIZADO" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full gap-1.5 text-xs h-8 border-amber-500 text-amber-600 hover:bg-amber-50 font-bold justify-center"
+                            onClick={() => {
+                              setAuditoriaStudent(s);
+                              setAuditoriaIndex(students.indexOf(s));
+                            }}
+                          >
+                            <Eye className="size-3.5" /> Auditar Presencialmente
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Vista Escritorio: Tabla */}
+              <div className="hidden md:block">
+                <Card className="shadow-sm border-slate-200">
+                  <CardContent className="p-0 overflow-x-auto">
+                    {students.length === 0 ? (
+                      <div className="text-center py-12 text-sm text-muted-foreground">No hay estudiantes registrados.</div>
+                    ) : (
+                      <Table className="whitespace-nowrap">
+                        <TableHeader className="bg-slate-50">
+                          <TableRow>
+                            <TableHead className="w-12"></TableHead>
+                            <TableHead className="font-semibold text-slate-700">Estudiante</TableHead>
+                            <TableHead className="font-semibold text-slate-700">Cuenta</TableHead>
+                            <TableHead className="font-semibold text-slate-700">Email</TableHead>
+                            <TableHead className="font-semibold text-slate-700">Carrera</TableHead>
+                            <TableHead className="font-semibold text-slate-700">Inscripción</TableHead>
+                            <TableHead className="font-semibold text-slate-700">Hora de Llegada</TableHead>
+                            <TableHead className="font-semibold text-slate-700">Hora de Salida</TableHead>
+                            <TableHead className="text-center font-semibold text-slate-700">Asistencia</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedAttendance.map((s) => {
+                            const isAssisted = s.estado === "ASISTIDO";
+                            const isRejected = s.estado === "RECHAZADO";
+                            return (
+                              <TableRow key={s.id} className="hover:bg-slate-50/50">
+                                <TableCell>
+                                  <Checkbox
+                                    checked={isAssisted}
+                                    onCheckedChange={(checked) => toggleAttendance(s.id, checked === true)}
+                                    disabled={event.estado === "FINALIZADO"}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="size-8 rounded-full bg-[#004B87]/15 text-[#004B87] font-bold text-xs flex items-center justify-center">
+                                      {s.estudiante_nombre?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                                    </div>
+                                    <span className="font-medium text-slate-800">{s.estudiante_nombre}</span>
                                   </div>
-                                  <span className="font-medium text-slate-800">{s.estudiante_nombre}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell className="font-mono text-xs text-slate-600">{s.estudiante_cuenta || (s as any).cuenta || "20211001234"}</TableCell>
-                              <TableCell className="text-xs text-slate-500">{s.estudiante_correo || (s as any).email || `${s.estudiante_cuenta}@unah.hn`}</TableCell>
-                              <TableCell className="text-xs text-slate-500">{s.estudiante_carrera || (s as any).carrera || "Carrera de Estudiante"}</TableCell>
-                              <TableCell className="text-xs text-slate-500">{s.inscrito_at ? new Date(s.inscrito_at).toLocaleDateString("es-HN") : "—"}</TableCell>
-                              <TableCell className="text-xs text-slate-600">
-                                {isAssisted ? new Date(s.inscrito_at || Date.now()).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' }) : "—"}
-                              </TableCell>
-                              <TableCell className="text-xs text-slate-600">
-                                {isAssisted ? (
-                                  event.estado === "FINALIZADO" ? (
-                                    new Date(event.fecha_fin).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' })
-                                  ) : (
-                                    <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-amber-50 text-amber-800 border border-amber-100">
-                                      Sin registrar salida
+                                </TableCell>
+                                <TableCell className="font-mono text-xs text-slate-600">{s.estudiante_cuenta || (s as any).cuenta || "20211001234"}</TableCell>
+                                <TableCell className="text-xs text-slate-500">{s.estudiante_correo || (s as any).email || `${s.estudiante_cuenta}@unah.hn`}</TableCell>
+                                <TableCell className="text-xs text-slate-500">{s.estudiante_carrera || (s as any).carrera || "Carrera de Estudiante"}</TableCell>
+                                <TableCell className="text-xs text-slate-500">{s.inscrito_at ? new Date(s.inscrito_at).toLocaleDateString("es-HN") : "—"}</TableCell>
+                                <TableCell className="text-xs text-slate-600">
+                                  {isAssisted ? new Date(s.inscrito_at || Date.now()).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' }) : "—"}
+                                </TableCell>
+                                <TableCell className="text-xs text-slate-600">
+                                  {isAssisted ? (
+                                    event.estado === "FINALIZADO" ? (
+                                      new Date(event.fecha_fin).toLocaleTimeString("es-HN", { hour: '2-digit', minute: '2-digit' })
+                                    ) : (
+                                      <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-amber-50 text-amber-800 border border-amber-100">
+                                        Sin registrar salida
+                                      </span>
+                                    )
+                                  ) : "—"}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {isAssisted ? (
+                                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                      Asistió
                                     </span>
-                                  )
-                                ) : "—"}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {isAssisted ? (
-                                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                    Asistió
-                                  </span>
-                                ) : isRejected ? (
-                                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">
-                                    No asistió
-                                  </span>
-                                ) : event.estado !== "FINALIZADO" ? (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="gap-1 text-xs h-7 px-2.5 border-amber-500 text-amber-600 hover:bg-amber-50 font-bold"
-                                    onClick={() => {
-                                      setAuditoriaStudent(s);
-                                      setAuditoriaIndex(students.indexOf(s));
-                                    }}
+                                  ) : isRejected ? (
+                                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">
+                                      No asistió
+                                    </span>
+                                  ) : event.estado !== "FINALIZADO" ? (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="gap-1 text-xs h-7 px-2.5 border-amber-500 text-amber-600 hover:bg-amber-50 font-bold"
+                                      onClick={() => {
+                                        setAuditoriaStudent(s);
+                                        setAuditoriaIndex(students.indexOf(s));
+                                      }}
                                   >
                                     <Eye className="size-3" /> Verificar
                                   </Button>
@@ -1324,6 +1441,7 @@ export function ManageEvent() {
                   )}
                 </CardContent>
               </Card>
+            </div>
 
               {totalAttendance > 0 && (
                 <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex-wrap gap-3 text-xs mt-3 text-slate-600">
@@ -1476,6 +1594,14 @@ export function ManageEvent() {
                     <span className="font-semibold text-slate-800 mt-0.5 block">{event.duracion_horas} hrs ({event.tipo_duracion === "TOTALES" ? "totales" : "diarias"})</span>
                   </div>
                 )}
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Facultad del Organizador</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">{event.facultad || "Facultad de Ciencias"}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Carrera / Departamento</span>
+                  <span className="font-semibold text-slate-800 mt-0.5 block">{event.departamento || event.carrera || "Departamento General"}</span>
+                </div>
                 <div className="sm:col-span-2 md:col-span-3 border-t border-slate-100 pt-3">
                   <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider block">Descripción del evento</span>
                   <p className="text-slate-700 leading-relaxed mt-1 bg-slate-50 p-3 rounded-lg border border-slate-100 whitespace-pre-wrap">{event.descripcion}</p>

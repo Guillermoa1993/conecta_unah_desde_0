@@ -44,7 +44,31 @@ export function AppNavbar() {
   const usuarioGuardado = authService.getUsuarioGuardado();
   const usuarioActivo = usuario || usuarioGuardado;
 
-  const nombreUsuario = usuarioActivo?.nombre || localStorage.getItem("unah_usuario_nombre") || "Usuario Puma";
+  const activeRole = (
+    sessionStorage.getItem("unah_role") ||
+    (location.pathname.startsWith("/voae-depto") ? "VOAE_DEPARTAMENTO" :
+     location.pathname.startsWith("/voae") ? "VOAE_DIRECCION" :
+     location.pathname.startsWith("/tutor") ? "EMPLEADO" :
+     location.pathname.startsWith("/admin") ? "ADMIN" :
+     usuarioActivo?.rol || "ESTUDIANTE")
+  ).toString().toUpperCase();
+
+  const getNombreUsuario = () => {
+    if (usuarioActivo?.nombre) return usuarioActivo.nombre;
+
+    if (activeRole.includes("DEPTO") || activeRole.includes("COORDINAC")) {
+      return "Coordinador de Departamento (Prueba)";
+    }
+    if (activeRole.includes("VOAE")) {
+      return "Dirección VOAE (Prueba)";
+    }
+    if (activeRole.includes("TUTOR") || activeRole.includes("EMPLEADO")) {
+      return "Empleado / Tutor (Prueba)";
+    }
+    return "Estudiante (Prueba)";
+  };
+
+  const nombreUsuario = getNombreUsuario();
   const fotoUsuario = usuarioActivo?.foto_url || localStorage.getItem("unah_foto_perfil");
 
   const getInitials = (name: string) => {
@@ -55,13 +79,25 @@ export function AppNavbar() {
     return name.slice(0, 2).toUpperCase();
   };
 
+  const getInicioRoute = () => {
+    if (activeRole.includes("DEPTO") || activeRole.includes("COORDINAC")) return "/voae-depto";
+    if (activeRole.includes("VOAE")) return "/voae";
+    if (activeRole.includes("TUTOR") || activeRole.includes("EMPLEADO")) return "/tutor/feed";
+    if (activeRole.includes("ADMIN")) return "/admin/administracion";
+    return "/student/feed";
+  };
+
+  const getPerfilRoute = () => {
+    if (activeRole.includes("TUTOR") || activeRole.includes("EMPLEADO") || activeRole.includes("DOCENTE")) return "/tutor/ficha";
+    return "/student/ficha";
+  };
+
   const permDeniedOrPending = Object.values(permissions).some(
     (s) => s === "denied" || s === "prompt"
   );
 
   const getRoleName = () => {
-    const rawRole = (usuarioActivo?.rol || sessionStorage.getItem("unah_role") || "").toString().toUpperCase();
-    switch (rawRole) {
+    switch (activeRole) {
       case 'ESTUDIANTE':
       case 'STUDENT':
         return 'Estudiante';
@@ -263,19 +299,16 @@ export function AppNavbar() {
                     <AvatarImage src={fotoUsuario} alt={nombreUsuario} className="object-cover" />
                   )}
                   <AvatarFallback className="bg-[#004B87] text-white text-xs font-semibold">
-                    {usuario?.nombre ? getInitials(usuario.nombre) : <User className="h-4 w-4" />}
+                    {getInitials(nombreUsuario)}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium text-[#004B87]">{nombreUsuario}</span>
+                <span className="text-sm font-medium text-[#004B87] hidden lg:inline truncate max-w-[160px]">{nombreUsuario}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => {
-                const userType = sessionStorage.getItem("unah_user_type");
-                navigate(userType === "empleado" ? "/tutor/ficha" : "/student/ficha");
-              }}>
+              <DropdownMenuItem onClick={() => navigate(getPerfilRoute())}>
                 <User className="mr-2 h-4 w-4" />
                 Perfil
               </DropdownMenuItem>
@@ -284,10 +317,7 @@ export function AppNavbar() {
                 Notificaciones
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => {
-                const userType = sessionStorage.getItem("unah_user_type");
-                navigate(userType === "empleado" ? "/tutor" : "/student");
-              }}>
+              <DropdownMenuItem onClick={() => navigate(getInicioRoute())}>
                 <Home className="mr-2 h-4 w-4" />
                 Inicio
               </DropdownMenuItem>

@@ -299,11 +299,21 @@ export function Login() {
         body: JSON.stringify({ correo }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Error al enviar código");
+      if (!res.ok) {
+        const errorMsg = data.error ?? "Error al enviar código";
+        if (errorMsg === "NO_ENROLADO") {
+          toast.info("Cuenta no enrolada. Redirigiendo al formulario de enrolamiento...");
+          const targetPath = domain === "@unah.edu.hn" ? "/registro/empleado" : "/registro/estudiante";
+          navigate(targetPath, { state: { email: correo } });
+          return;
+        }
+        throw new Error(errorMsg);
+      }
       toast.success(`Código de seguridad enviado a: ${correo}`);
       setStep(2);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al enviar código");
+      const errMsg = err instanceof Error ? err.message : "Error al enviar código";
+      toast.error(errMsg);
     } finally {
       setLoading(false);
     }

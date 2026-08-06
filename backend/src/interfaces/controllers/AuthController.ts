@@ -70,8 +70,12 @@ actualizarPerfil = async (req: Request, res: Response, next: NextFunction) => {
       await this.enviarOtpUseCase.execute(correo);
       res.json({ mensaje: 'Código enviado correctamente' });
     } catch (err) {
+      if (err instanceof Error && err.message === 'CORREO_NO_REGISTRADO') {
+        res.status(404).json({ error: 'Este correo no está registrado.' });
+        return;
+      }
       if (err instanceof Error && err.message === 'NO_ENROLADO') {
-        res.status(404).json({ error: 'Este correo no está registrado. Debes enrolarte primero.' });
+        res.status(403).json({ error: 'NO_ENROLADO' });
         return;
       }
       next(err);
@@ -117,7 +121,9 @@ actualizarPerfil = async (req: Request, res: Response, next: NextFunction) => {
         return;
       }
       const usuario = await this.usuarioRepo!.findByCorreo(correo);
-      res.json({ existe: !!usuario });
+      if (!usuario) { res.json({ existe: false, enrolado: false }); return; }
+      const enrolado = await this.usuarioRepo!.estaEnrolado(usuario.id_usuario);
+      res.json({ existe: true, enrolado });
     } catch (err) { next(err); }
   };
 
@@ -205,9 +211,38 @@ actualizarPerfil = async (req: Request, res: Response, next: NextFunction) => {
             correo: 'voae_depto@unah.hn',
             rol: 'VOAE_DEPARTAMENTO',
           };
+        } else if (rol.includes('voae')) {
+          usuario = {
+            id_usuario: 88,
+            id: 88,
+            nombre: 'Dirección VOAE (Prueba)',
+            correo: 'voae@unah.hn',
+            rol: 'VOAE_DIRECCION',
+          };
+        } else if (rol.includes('tutor') || rol.includes('empleado')) {
+          usuario = {
+            id_usuario: 77,
+            id: 77,
+            nombre: 'Empleado / Tutor (Prueba)',
+            correo: 'tutor@unah.edu.hn',
+            rol: 'EMPLEADO',
+          };
+        } else if (rol.includes('admin')) {
+          usuario = {
+            id_usuario: 66,
+            id: 66,
+            nombre: 'Administrador (Prueba)',
+            correo: 'admin@unah.hn',
+            rol: 'ADMIN',
+          };
         } else {
-          res.status(404).json({ error: `Usuario de prueba "${correo}" no encontrado en la DB` });
-          return;
+          usuario = {
+            id_usuario: 55,
+            id: 55,
+            nombre: 'Estudiante (Prueba)',
+            correo: 'guillermo.ayestas@unah.hn',
+            rol: 'ESTUDIANTE',
+          };
         }
       }
 

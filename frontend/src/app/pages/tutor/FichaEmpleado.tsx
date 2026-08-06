@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api";
 import { useLocation, useNavigate, useBlocker } from "react-router";
+import { authService } from "../../../services/auth.service";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -70,13 +72,46 @@ export function FichaEmpleado() {
   const [correoUsuario, setCorreoUsuario] = useState("");
   const [correoDominio, setCorreoDominio] = useState("@unah.edu.hn");
   const [correoYaExiste, setCorreoYaExiste] = useState(false);
+  const [fromCallback, setFromCallback] = useState(false);
+
+  // Guard: solo bloquea si hay sesión activa en esta pestaña Y ya está enrolado
+  useEffect(() => {
+    const sessionActive = sessionStorage.getItem('unah_session_active') === 'true';
+    if (!sessionActive || !authService.getToken()) return;
+    const usuario = authService.getUsuarioGuardado();
+    if (usuario?.enrolado) {
+      const rol = sessionStorage.getItem('unah_role') ?? 'tutor';
+      const ROL_PATH: Record<string, string> = {
+        student: '/student/feed', tutor: '/tutor/eventos',
+        admin: '/admin', voae: '/voae', voae_depto: '/voae-depto', dev: '/student/feed',
+      };
+      navigate(ROL_PATH[rol] ?? '/tutor/eventos', { replace: true });
+    }
+  }, []);
+
+  // Pre-fill email if coming from Login redirect or AuthCallback (enrolamiento incompleto)
+  useEffect(() => {
+    const state = location.state as { email?: string; fromCallback?: boolean } | null;
+    if (state?.fromCallback) setFromCallback(true);
+    if (state?.email) {
+      const email = state.email;
+      const atIndex = email.indexOf("@");
+      if (atIndex > 0) {
+        setCorreoUsuario(email.substring(0, atIndex));
+        const dom = email.substring(atIndex);
+        if (dom === "@unah.hn" || dom === "@unah.edu.hn") {
+          setCorreoDominio(dom);
+        }
+      }
+    }
+  }, []);
 
   useEffect(() => {
     setFormData((prev) => ({ ...prev, correo: `${correoUsuario.trim()}${correoDominio}` }));
   }, [correoUsuario, correoDominio]);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/catalogos/departamentos")
+    fetch(`${API_URL}/catalogos/departamentos`)
       .then((res) => res.json())
       .then((data) => setDepartamentos(data))
       .catch(() => toast.error("No se pudieron cargar los departamentos"));
@@ -303,7 +338,7 @@ export function FichaEmpleado() {
   const handleSendOtp = async () => {
     setEnviando(true);
     try {
-      const res = await fetch("http://localhost:5000/api/auth/otp-registro/enviar", {
+      const res = await fetch(`${API_URL}/auth/otp-registro/enviar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ correo: formData.correo }),
@@ -328,7 +363,7 @@ export function FichaEmpleado() {
     }
     setEnviando(true);
     try {
-      const res = await fetch("http://localhost:5000/api/auth/registro-empleado", {
+      const res = await fetch(`${API_URL}/auth/registro-empleado`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -574,8 +609,8 @@ export function FichaEmpleado() {
         const h = img.naturalHeight;
         const aspectRatio = w / h;
 
-        // Proporciones: Carnet tiene formato landscape (~1.58). Aceptamos entre 1.2 y 1.9
-        const aspectRatioOk = (aspectRatio >= 1.2 && aspectRatio <= 1.9);
+        // Proporciones: Carnet tiene formato landscape (~1.58). Aceptamos flexiblemente entre 0.9 y 2.5
+        const aspectRatioOk = (aspectRatio >= 0.9 && aspectRatio <= 2.5);
 
         const targetAspect = 1.58;
         const aspectScore = aspectRatioOk ? 100 : Math.max(0, 100 - Math.abs(aspectRatio - targetAspect) * 120);
@@ -1272,7 +1307,8 @@ export function FichaEmpleado() {
                       required
                       placeholder="nombre.apellido"
                       value={correoUsuario}
-                      onChange={(e) => setCorreoUsuario(e.target.value)}
+                      disabled={fromCallback}
+                      onChange={(e) => { if (!fromCallback) setCorreoUsuario(e.target.value); }}
                       className={`h-11 flex-1 rounded-lg bg-slate-50 focus-visible:ring-[#FFD100] border-slate-200 text-[#003366] ${correoUsuario && !(correoDominio === "@unah.hn" || correoDominio === "@unah.edu.hn")
                         ? "border-red-400 focus-visible:ring-red-400"
                         : correoUsuario
@@ -1497,11 +1533,11 @@ export function FichaEmpleado() {
                       onClick={() => document.getElementById("forma003-upload")?.click()}
                     >
                       {forma003 ? (
-                        <div className="relative aspect-[1.58] max-w-md mx-auto overflow-hidden rounded-lg bg-black flex items-center justify-center shadow-inner">
+                        <div className="relative w-full flex items-center justify-center p-3 min-h-[220px] max-h-[460px] bg-slate-900/5 rounded-lg shadow-inner">
                           <img
                             src={forma003}
                             alt="Carnet Empleado"
-                            className="w-full h-full object-contain"
+                            className="max-w-full max-h-[440px] h-auto w-auto object-contain rounded-lg shadow-sm"
                           />
                           {forma003Status === 'scanning' && (
                             <div className="absolute inset-0 bg-slate-900/60 rounded-xl flex flex-col items-center justify-center p-6 text-center">

@@ -29,4 +29,11 @@ export interface UsuarioRepository {
     foto_url?: string;
   }): Promise<Usuario | null>;
   delete(id: number): Promise<boolean>;
+  estaEnrolado(id: number): Promise<boolean>;
+  marcarEnrolado(id: number): Promise<void>;
+  completarEnrolamiento(id: number, data: {
+    nombre?: string; carrera?: string; telefono?: string; numero_cuenta?: string;
+    centro_regional?: string; genero?: string; biografia?: string; foto_url?: string;
+    forma003_base64?: string; numero_empleado?: string; departamento?: string;
+  }): Promise<Usuario>;
 }

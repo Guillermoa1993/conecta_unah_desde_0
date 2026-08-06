@@ -32,6 +32,7 @@ export const authService = {
     localStorage.removeItem('unah_token');
     localStorage.removeItem('unah_usuario');
     sessionStorage.removeItem('unah_role');
+    sessionStorage.removeItem('unah_session_active');
   },
 
   getUsuarioGuardado(): Usuario | null {

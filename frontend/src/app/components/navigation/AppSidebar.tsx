@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, Link, useNavigate } from "react-router";
 import {
-  Home, Calendar, QrCode, History, Plus, BarChart3, Users, Settings,
+  Home, Calendar, CalendarCheck, QrCode, History, Plus, BarChart3, Users, Settings,
   Shield, FileText, MessageSquare, ChevronDown, ChevronUp,
   MapPin, Bell, LogOut, Rss, KeyRound, User,
   Wifi, ShieldCheck, ClipboardList, SendHorizonal, Database, SlidersHorizontal, Mail,
@@ -266,7 +266,7 @@ export function AppSidebar() {
                     title={isCollapsed ? adminSectionLabel : undefined}
                   >
                     <div className="flex items-center gap-3">
-                      <Shield className="h-5 w-5" />
+                      <CalendarCheck className="h-5 w-5" />
                       {!isCollapsed && <span>{adminSectionLabel}</span>}
                     </div>
                     {!isCollapsed && (

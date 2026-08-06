@@ -276,15 +276,11 @@ export function VOAEDashboard() {
     fetchEvents();
   }, []);
 
-  // 1. Pendientes VOAE Dirección
+  // 1. Pendientes VOAE Dirección (Únicamente los aprobados por Coordinación esperando firma final)
   const pendingEvents = useMemo(
     () =>
       events
-        .filter(
-          (e) =>
-            e.estado === "PENDIENTE_APROBACION_VOAE" ||
-            e.estado === "PENDIENTE_APROBACION"
-        )
+        .filter((e) => e.estado === "PENDIENTE_APROBACION_VOAE")
         .sort((a, b) => new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime()),
     [events]
   );
@@ -423,8 +419,9 @@ export function VOAEDashboard() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#003366]"></div>
+      <div className="flex flex-col justify-center items-center py-24 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3 max-w-5xl mx-auto my-8">
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-[#004B87] border-t-transparent"></div>
+        <p className="text-xs font-bold text-[#004B87] animate-pulse">Cargando propuestas y eventos de Dirección VOAE...</p>
       </div>
     );
   }
@@ -585,16 +582,16 @@ export function VOAEDashboard() {
           <div className="space-y-4">
             <div className="space-y-3">
               {paginatedClosed.map((ev) => (
-                <div key={ev.id} className="rounded-lg border p-4 flex items-center gap-4 bg-slate-50 hover:bg-slate-100 transition-colors">
+                <div key={ev.id} className="rounded-lg border p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50 hover:bg-slate-100 transition-colors">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-slate-800">{ev.titulo}</p>
                     <p className="text-[11px] text-muted-foreground font-medium mt-1">
                       Organizador: <strong>{ev.tutor_nombre || ev.creador_nombre || "Tutor"}</strong> · Fin: {formatDate(ev.fecha_fin)} · {ev.inscritos_count || 0} alumnos inscritos
                     </p>
                   </div>
-                  <Button asChild size="sm" variant="outline" className="border-slate-300 hover:border-[#004B87] hover:text-[#004B87] font-semibold">
+                  <Button asChild size="sm" variant="outline" className="w-full sm:w-auto border-slate-300 hover:border-[#004B87] hover:text-[#004B87] font-semibold justify-center">
                     <Link to={`/voae/events/${ev.id}/validacion`}>
-                      <ShieldCheck className="size-3.5 mr-1.5 text-emerald-600" /> Ver validaciones
+                      <ShieldCheck className="size-3.5 mr-1.5 text-emerald-600 shrink-0" /> Ver validaciones
                     </Link>
                   </Button>
                 </div>

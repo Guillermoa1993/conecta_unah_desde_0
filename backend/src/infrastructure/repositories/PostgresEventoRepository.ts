@@ -86,6 +86,9 @@ export class PostgresEventoRepository implements EventoRepository {
       creador_nombre: row.tutor_nombre || undefined,
       tutor_foto: row.tutor_foto || undefined,
       creador_foto: row.tutor_foto || undefined,
+      facultad: row.facultad_nombre || "Facultad de Ciencias",
+      carrera: row.carrera_nombre || row.departamento_nombre || "Departamento General",
+      departamento: row.departamento_nombre || row.carrera_nombre || "Departamento General",
       latitud: pLat as any,
       longitud: pLng as any,
     };
@@ -94,6 +97,7 @@ export class PostgresEventoRepository implements EventoRepository {
   async findById(id: string): Promise<Evento | null> {
     const { rows } = await this.pool.query(
       `SELECT e.*, u.nombre AS tutor_nombre, p.foto_url AS tutor_foto,
+              f.nombre AS facultad_nombre, c.nombre AS carrera_nombre, d.nombre AS departamento_nombre,
               TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
               TO_CHAR(e.fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
@@ -101,12 +105,16 @@ export class PostgresEventoRepository implements EventoRepository {
        FROM tabla_grupo_3_eventos e
        LEFT JOIN tabla_grupo_1_usuario u ON e.tutor_id::text = u.id_usuario::text
        LEFT JOIN tabla_grupo_1_perfil  p ON u.id_usuario = p.id_usuario
+       LEFT JOIN tabla_grupo_1_carreras c ON u.id_carrera = c.id_carrera
+       LEFT JOIN tabla_grupo_1_facultad f ON c.id_facultad = f.id_facultad
+       LEFT JOIN tabla_grupo_1_departamento d ON p.id_departamento = d.id_departamento
        WHERE e.id = $1`, [id]
     );
     return rows[0] ? this.mapRowToEvento(rows[0]) : null;
   }
 
   async findAll(filtros: FiltrosEvento = {}): Promise<Evento[]> {
+    await this.expirarEventosVencidos();
     const conditions: string[] = [];
     const values: unknown[] = [];
     let idx = 1;
@@ -121,6 +129,7 @@ export class PostgresEventoRepository implements EventoRepository {
 
     const { rows } = await this.pool.query(
       `SELECT e.*, u.nombre AS tutor_nombre, p.foto_url AS tutor_foto,
+              f.nombre AS facultad_nombre, c.nombre AS carrera_nombre, d.nombre AS departamento_nombre,
               TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
               TO_CHAR(e.fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
@@ -128,6 +137,9 @@ export class PostgresEventoRepository implements EventoRepository {
        FROM tabla_grupo_3_eventos e
        LEFT JOIN tabla_grupo_1_usuario u ON e.tutor_id::text = u.id_usuario::text
        LEFT JOIN tabla_grupo_1_perfil  p ON u.id_usuario = p.id_usuario
+       LEFT JOIN tabla_grupo_1_carreras c ON u.id_carrera = c.id_carrera
+       LEFT JOIN tabla_grupo_1_facultad f ON c.id_facultad = f.id_facultad
+       LEFT JOIN tabla_grupo_1_departamento d ON p.id_departamento = d.id_departamento
        ${where} ORDER BY e.fecha_inicio DESC LIMIT $${idx++} OFFSET $${idx++}`,
       [...values, limit, offset],
     );
@@ -141,8 +153,10 @@ export class PostgresEventoRepository implements EventoRepository {
   }
 
   async findByTutor(tutor_id: string): Promise<Evento[]> {
+    await this.expirarEventosVencidos();
     const { rows } = await this.pool.query(
       `SELECT e.*, u.nombre AS tutor_nombre, p.foto_url AS tutor_foto,
+              f.nombre AS facultad_nombre, c.nombre AS carrera_nombre, d.nombre AS departamento_nombre,
               TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
               TO_CHAR(e.fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
@@ -150,6 +164,9 @@ export class PostgresEventoRepository implements EventoRepository {
        FROM tabla_grupo_3_eventos e
        LEFT JOIN tabla_grupo_1_usuario u ON e.tutor_id::text = u.id_usuario::text
        LEFT JOIN tabla_grupo_1_perfil  p ON u.id_usuario = p.id_usuario
+       LEFT JOIN tabla_grupo_1_carreras c ON u.id_carrera = c.id_carrera
+       LEFT JOIN tabla_grupo_1_facultad f ON c.id_facultad = f.id_facultad
+       LEFT JOIN tabla_grupo_1_departamento d ON p.id_departamento = d.id_departamento
        WHERE e.tutor_id = $1 ORDER BY e.created_at DESC`,
       [tutor_id],
     );
@@ -168,6 +185,7 @@ export class PostgresEventoRepository implements EventoRepository {
 
     const { rows } = await this.pool.query(
       `SELECT e.*, u.nombre AS tutor_nombre, p.foto_url AS tutor_foto,
+              f.nombre AS facultad_nombre, c.nombre AS carrera_nombre, d.nombre AS departamento_nombre,
               TO_CHAR(e.fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
               TO_CHAR(e.fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin,
               COALESCE((SELECT COUNT(*) FROM tabla_grupo_3_inscripcion WHERE evento_id = e.id AND estado != 'CANCELADO'), 0) AS inscritos_count,
@@ -175,8 +193,12 @@ export class PostgresEventoRepository implements EventoRepository {
        FROM tabla_grupo_3_eventos e
        LEFT JOIN tabla_grupo_1_usuario u ON e.tutor_id::text = u.id_usuario::text
        LEFT JOIN tabla_grupo_1_perfil  p ON u.id_usuario = p.id_usuario
+       LEFT JOIN tabla_grupo_1_carreras c ON u.id_carrera = c.id_carrera
+       LEFT JOIN tabla_grupo_1_facultad f ON c.id_facultad = f.id_facultad
+       LEFT JOIN tabla_grupo_1_departamento d ON p.id_departamento = d.id_departamento
        WHERE ${whereCondition} ORDER BY e.created_at ASC`,
     );
+    return rows.map(r => this.mapRowToEvento(r));
     return rows.map(r => this.mapRowToEvento(r));
   }
 
@@ -200,35 +222,63 @@ export class PostgresEventoRepository implements EventoRepository {
     };
     finalDesc += "\n---EVENTO_METADATA---" + JSON.stringify(metadata);
 
+    let safeTutorId: any = data.tutor_id;
+    try {
+      if (safeTutorId) {
+        const checkU = await this.pool.query(
+          `SELECT id_usuario FROM tabla_grupo_1_usuario WHERE id_usuario::text = $1 LIMIT 1`,
+          [String(safeTutorId)]
+        );
+        if (checkU.rows.length === 0) {
+          const fallbackU = await this.pool.query(
+            `SELECT id_usuario FROM tabla_grupo_1_usuario ORDER BY id_usuario LIMIT 1`
+          );
+          if (fallbackU.rows.length > 0) {
+            safeTutorId = fallbackU.rows[0].id_usuario;
+          }
+        }
+      } else {
+        const fallbackU = await this.pool.query(
+          `SELECT id_usuario FROM tabla_grupo_1_usuario ORDER BY id_usuario LIMIT 1`
+        );
+        if (fallbackU.rows.length > 0) {
+          safeTutorId = fallbackU.rows[0].id_usuario;
+        }
+      }
+    } catch (_e) {
+      // Fallback silencioso
+    }
+
     const { rows } = await this.pool.query(
-  `INSERT INTO tabla_grupo_3_eventos (
-    titulo, descripcion, categoria, tipo_actividad, estado,
-    fecha_inicio, fecha_fin, lugar, latitud, longitud, enlace_virtual, cupo_maximo,
-    duracion_horas, imagen_url, tutor_id, imagenes_adicionales
-  )
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-  RETURNING *,
-            TO_CHAR(fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
-            TO_CHAR(fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin`,
-  [
-    data.titulo,
-    finalDesc,
-    data.categoria,
-    data.tipo_actividad,
-    defaultEstado,
-    startDateTime,
-    endDateTime,
-    data.ubicacion || (data as any).lugar || null,
-    (data as any).latitud ?? null,
-    (data as any).longitud ?? null,
-    data.enlace_virtual || null,
-    data.cupo_maximo || 50,
-    parseFloat(String(data.duracion_horas)) || 1.0,
-    data.portada_url || null,
-    data.tutor_id,
-    data.imagenes_adicionales || []
-  ],
-);
+
+      `INSERT INTO tabla_grupo_3_eventos (
+        titulo, descripcion, categoria, tipo_actividad, estado,
+        fecha_inicio, fecha_fin, lugar, latitud, longitud, enlace_virtual, cupo_maximo,
+        duracion_horas, imagen_url, tutor_id, imagenes_adicionales
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      RETURNING *,
+                TO_CHAR(fecha_inicio, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_inicio,
+                TO_CHAR(fecha_fin, 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_fin`,
+      [
+        data.titulo,
+        finalDesc,
+        data.categoria,
+        data.tipo_actividad,
+        defaultEstado,
+        startDateTime,
+        endDateTime,
+        data.ubicacion || (data as any).lugar || null,
+        (data as any).latitud ?? null,
+        (data as any).longitud ?? null,
+        data.enlace_virtual || null,
+        data.cupo_maximo || 50,
+        parseFloat(String(data.duracion_horas)) || 1.0,
+        data.portada_url || null,
+        safeTutorId,
+        data.imagenes_adicionales || []
+      ],
+    );
     return this.mapRowToEvento(rows[0]);
   }
 
@@ -352,5 +402,29 @@ export class PostgresEventoRepository implements EventoRepository {
       [eventoId, estudianteId, estrellas, comentario]
     );
     return rows[0];
+  }
+
+  async expirarEventosVencidos(): Promise<{ actualizados: number; detalles: any[] }> {
+    try {
+      const query = `
+        UPDATE tabla_grupo_3_eventos
+        SET estado = 'FINALIZADO',
+            updated_at = NOW()
+        WHERE estado IN ('PROGRAMADO', 'EN_CURSO', 'EN_CURSO_SALIDA', 'PENDIENTE_APROBACION_DEPTO', 'PENDIENTE_APROBACION_VOAE', 'PENDIENTE_APROBACION')
+          AND (
+            (fecha_fin IS NOT NULL AND fecha_fin <= NOW() - INTERVAL '24 hours')
+            OR (fecha_fin IS NULL AND fecha_inicio <= NOW() - INTERVAL '24 hours')
+          )
+        RETURNING id, titulo, estado, fecha_inicio, fecha_fin;
+      `;
+      const { rows } = await this.pool.query(query);
+      return {
+        actualizados: rows.length,
+        detalles: rows.map(r => ({ id: r.id, titulo: r.titulo, estado: r.estado, fecha_inicio: r.fecha_inicio }))
+      };
+    } catch (err: any) {
+      console.warn("⚠️ Warning en expirarEventosVencidos:", err?.message || err);
+      return { actualizados: 0, detalles: [] };
+    }
   }
 }

@@ -1,147 +1,104 @@
+version: '3.9'
 # ─── UNAH CONECTA PUMAS ────────────────────────────────────────────────────────
 # Base de datos: Render.com (PostgreSQL externo, sin contenedor local de DB)
 # ─────────────────────────────────────────────────────────────────────────────
-
 services:
 
-  # ───────────────────────────────────────────────────────────────────────────
-  # BACKEND (Node.js + Express + TypeScript)
-  # ───────────────────────────────────────────────────────────────────────────
+  # ── Backend (API Express) ──────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
       target: production
-
     container_name: unah_backend
-
     ports:
       - "5000:5000"
-
     env_file:
       - ./backend/.env
-
     environment:
       - PORT=5000
-      - DATABASE_URL=${DATABASE_URL}
-      - JWT_SECRET=${JWT_SECRET:-unah_conecta_pumas_2026_jwt_secret_key_cambiar_en_produccion}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
+      - DATABASE_URL=postgresql://usuario_db:password_db@host_render_postgres/nombre_bd
+      - JWT_SECRET=tu_jwt_secret_seguro_aqui
+      - FRONTEND_URL=http://localhost:5173
       - NODE_OPTIONS=--dns-result-order=ipv4first
-      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
-      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
-      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
-      - AZURE_REDIRECT_URI=${AZURE_REDIRECT_URI}
-      - GMAIL_USER=${GMAIL_USER}
-      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
-
+      - AZURE_CLIENT_ID=tu_azure_client_id
+      - AZURE_CLIENT_SECRET=tu_azure_client_secret
+      - AZURE_TENANT_ID=tu_azure_tenant_id
+      - AZURE_REDIRECT_URI=http://localhost:5000/api/auth/microsoft/callback
+      - GMAIL_USER=tu_correo@gmail.com
+      - GMAIL_APP_PASSWORD=tu_app_password_gmail
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
-      interval: 15s
-      timeout: 5s
+      interval: 30s
+      timeout: 10s
       retries: 3
-      start_period: 10s
-    networks:
-      - unah_network
 
-  # ── Backend Desarrollo ─────────────────────────────────────────────────────
+  # ── Backend en modo desarrollo (hot-reload) ────────────────────────────────
   backend-dev:
     build:
       context: ./backend
       dockerfile: Dockerfile
       target: development
-
     container_name: unah_backend_dev
-
     ports:
       - "5000:5000"
-
     env_file:
       - ./backend/.env
-
     environment:
-      - PORT=${PORT}
-      - DATABASE_URL=${DATABASE_URL}
-      - JWT_SECRET=${JWT_SECRET}
-      - FRONTEND_URL=${FRONTEND_URL}
+      - PORT=5000
+      - DATABASE_URL=postgresql://usuario_db:password_db@host_render_postgres/nombre_bd
+      - JWT_SECRET=tu_jwt_secret_seguro_aqui
+      - FRONTEND_URL=http://localhost:5173
       - NODE_OPTIONS=--dns-result-order=ipv4first
-      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
-      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
-      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
-      - AZURE_REDIRECT_URI=${AZURE_REDIRECT_URI}
-      - GMAIL_USER=${GMAIL_USER}
-      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
-
+      - AZURE_CLIENT_ID=tu_azure_client_id
+      - AZURE_CLIENT_SECRET=tu_azure_client_secret
+      - AZURE_TENANT_ID=tu_azure_tenant_id
+      - AZURE_REDIRECT_URI=http://localhost:5000/api/auth/microsoft/callback
+      - GMAIL_USER=tu_correo@gmail.com
+      - GMAIL_APP_PASSWORD=tu_app_password_gmail
     volumes:
       - ./backend:/app
       - /app/node_modules
-
-    profiles:
-      - dev
-
+    profiles: ["dev"]
     restart: unless-stopped
 
-  # ───────────────────────────────────────────────────────────────────────────
-  # FRONTEND (React + Vite + Tailwind + Nginx)
-  # ───────────────────────────────────────────────────────────────────────────
+  # ── Frontend (React + Nginx) ───────────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       target: production
-
     container_name: unah_frontend
-
     ports:
       - "5173:80"
-
     depends_on:
-      backend:
-        condition: service_healthy
-
+      - backend
     restart: unless-stopped
-    networks:
-      - unah_network
 
-  # ── Frontend Desarrollo ────────────────────────────────────────────────────
+  # ── Frontend en modo desarrollo (Vite hot-reload) ─────────────────────────
   frontend-dev:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       target: development
-
     container_name: unah_frontend_dev
-
     ports:
       - "5173:5185"
-
     environment:
       - VITE_API_URL=http://backend-dev:5000/api
-
     volumes:
       - ./frontend:/app
       - /app/node_modules
-
     depends_on:
       - backend-dev
-
-    profiles:
-      - dev
-
+    profiles: ["dev"]
     restart: unless-stopped
 
-  # ───────────────────────────────────────────────────────────────────────────
-  # ADMINER (Gestor Web de Base de Datos PostgreSQL)
-  # ───────────────────────────────────────────────────────────────────────────
+  # ── Adminer (visualizador de BD) ───────────────────────────────────────────
   adminer:
     image: adminer:latest
     container_name: unah_adminer
     ports:
       - "8080:8080"
     restart: unless-stopped
-    networks:
-      - unah_network
-
-networks:
-  unah_network:
-    driver: bridge

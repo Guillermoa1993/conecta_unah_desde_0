@@ -7,7 +7,14 @@ export class EnviarOtp {
 
   async execute(correo: string): Promise<void> {
     const usuario = await this.usuarioRepo.findByCorreo(correo);
-    if (!usuario) throw new Error('NO_ENROLADO');
+    if (!usuario) throw new Error('CORREO_NO_REGISTRADO');
+
+    const rolBase = [1, 2].includes(usuario.id_rol); // estudiante o tutor/empleado
+    if (rolBase) {
+      const enrolado = await this.usuarioRepo.estaEnrolado(usuario.id_usuario);
+      if (!enrolado) throw new Error('NO_ENROLADO');
+    }
+
     if (usuario.estado !== 'ACTIVO') throw new Error('Cuenta suspendida o inactiva');
 
     const codigo = Math.floor(100000 + Math.random() * 900000).toString();
