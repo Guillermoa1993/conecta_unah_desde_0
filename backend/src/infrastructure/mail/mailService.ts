@@ -6,6 +6,7 @@ function createTransporter() {
     host: cfg('SMTP_HOST', 'smtp.gmail.com'),
     port: parseInt(cfg('SMTP_PORT', '587')),
     secure: false,
+    family: 4,
     auth: {
       user: cfg('GMAIL_USER'),
       pass: cfg('GMAIL_APP_PASSWORD'),
