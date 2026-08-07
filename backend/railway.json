@@ -5,8 +5,6 @@
   },
   "deploy": {
     "startCommand": "node dist/infrastructure/server/index.js",
-    "healthcheckPath": "/ping",
-    "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE"
   }
 }
