@@ -8,3 +8,4 @@ export { grupo2EventosService } from './grupo2-eventos.service';
 export { comentarioService } from './comentario.service';
 export { publicacionService } from './publicacion.service';
 export { reaccionPostService } from './reaccionPost.service';
+export { moderacionService } from './moderacion.service';

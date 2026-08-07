@@ -3,6 +3,36 @@ import { grupo2EventosService } from '../../../services';
 import { Share, LogOut } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
+// Guarda la lista de posts en localStorage. Si se excede la cuota del
+// navegador (típicamente por imágenes en base64 acumuladas), primero
+// recorta las publicaciones más antiguas y, si aún así no cabe, quita las
+// imágenes como último recurso — nunca deja que el error tumbe la app.
+function guardarPostsEnStorageConLimite(posts: any[]): void {
+  try {
+    localStorage.setItem("unah_posts", JSON.stringify(posts));
+    return;
+  } catch {
+    // sigue abajo
+  }
+
+  try {
+    const recortados = posts.slice(0, 30);
+    localStorage.setItem("unah_posts", JSON.stringify(recortados));
+    return;
+  } catch {
+    // sigue abajo
+  }
+
+  try {
+    const sinImagenes = posts.slice(0, 30).map((p) => ({ ...p, images: [] }));
+    localStorage.setItem("unah_posts", JSON.stringify(sinImagenes));
+  } catch {
+    // Si ni así cabe, no insistimos más — la app sigue funcionando,
+    // simplemente esta publicación no queda cacheada localmente.
+    try { localStorage.removeItem("unah_posts"); } catch { /* no-op */ }
+  }
+}
+
 interface AsistenciaInfo {
   entrada: string;
   salida?: string; 
@@ -241,7 +271,7 @@ export const AvailableEvents: React.FC = () => {
 
     posts.unshift(nuevoPost);
 
-    localStorage.setItem("unah_posts", JSON.stringify(posts));
+    guardarPostsEnStorageConLimite(posts);
     window.dispatchEvent(new CustomEvent('unah-posts-changed'));
 
     setMensajeCompartido(true);

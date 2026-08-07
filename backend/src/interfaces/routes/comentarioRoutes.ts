@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { autenticar } from '../middlewares/authMiddleware';
 import pool from '../../infrastructure/database/db';
+import { ModeracionService } from '../../infrastructure/moderacion/ModeracionService';
 
 const r = Router();
+const moderacionService = new ModeracionService(pool);
 
 // GET all or filtered comments
 r.get('/', autenticar, async (req: Request, res: Response) => {
@@ -29,8 +31,17 @@ r.get('/', autenticar, async (req: Request, res: Response) => {
     
     const result = await pool.query(query, params);
 
+    // Oculta los comentarios de usuarios con shadowban a todos menos a
+    // ellos mismos (siguen viendo su propio comentario, nadie más lo ve).
+    const idsShadowbanned = await moderacionService.idsUsuariosShadowbanned();
+    const filas = idsShadowbanned.length
+      ? result.rows.filter(
+          (row) => row.id_usuario === id_usuario_actual || !idsShadowbanned.includes(row.id_usuario),
+        )
+      : result.rows;
+
     // Reacciones de todos los comentarios obtenidos, en un solo query
-    const idsComentarios = result.rows.map(row => row.id_comentario);
+    const idsComentarios = filas.map(row => row.id_comentario);
     let countsByComment: Record<number, Record<string, number>> = {};
     let userReactionByComment: Record<number, string> = {};
 
@@ -61,7 +72,7 @@ r.get('/', autenticar, async (req: Request, res: Response) => {
     }
     
     // Map rows to frontend Comment format
-    const comments = result.rows.map(row => {
+    const comments = filas.map(row => {
       // Generate initials from user name
       const names = row.usuario_nombre.split(' ');
       const initials = names.map((n: string) => n ? n[0] : '').join('').substring(0, 2).toUpperCase();
@@ -94,6 +105,18 @@ r.post('/', autenticar, async (req: Request, res: Response) => {
   try {
     const { id_evento, id_publicacion, parent_id, reply_to, reply_to_text, contenido } = req.body;
     const id_usuario = req.usuario!.id; // from JWT token
+
+    const estadoModeracion = await moderacionService.obtenerEstado(id_usuario);
+    if (estadoModeracion.bloqueado) {
+      res.status(403).json({ error: 'Tu cuenta fue bloqueada permanentemente por infracciones repetidas.' });
+      return;
+    }
+    if (estadoModeracion.suspendidoHasta) {
+      res.status(403).json({
+        error: `Tu cuenta está suspendida hasta ${estadoModeracion.suspendidoHasta.toLocaleString('es-HN')} por una infracción reportada.`,
+      });
+      return;
+    }
     
     if (!contenido || contenido.trim() === '') {
       res.status(400).json({ error: 'El contenido del comentario no puede estar vacío' });
