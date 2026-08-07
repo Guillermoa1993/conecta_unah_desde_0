@@ -54,6 +54,36 @@ function isValidInput(text: string): boolean {
   return !forbiddenChars.test(text);
 }
 
+// Las imágenes de los posts se guardan como base64 (pueden pesar varios MB entre
+// todas). Guardar el arreglo completo de posts CON sus imágenes en localStorage
+// superaba fácilmente la cuota (~5MB) y hacía fallar el guardado completo,
+// incluyendo los eventos y publicaciones marcados como guardados. Por eso, antes
+// de persistir en localStorage quitamos la imagen y dejamos solo lo esencial
+// (título, descripción, fecha, saved, etc.). La imagen se sigue mostrando
+// normalmente mientras la sesión está activa porque viene del backend/estado.
+function esBase64Imagen(valor?: string): boolean {
+  return !!valor && valor.startsWith("data:image/");
+}
+
+function postParaStorage(post: Post): Post {
+  const { images, ...resto } = post;
+  // También limpiamos foto de perfil del autor y de quienes comentaron si son
+  // base64 (mismo problema de cuota que las fotos del post). Las URLs
+  // normales (http/https) sí se conservan porque no ocupan espacio real.
+  const limpio: Post = {
+    ...resto,
+    profilePic: esBase64Imagen(resto.profilePic) ? undefined : resto.profilePic,
+    comments: (resto.comments || []).map(c =>
+      esBase64Imagen(c.authorPic) ? { ...c, authorPic: undefined } : c
+    ),
+  } as Post;
+  return limpio;
+}
+
+function postsParaStorage(lista: Post[]): Post[] {
+  return lista.map(postParaStorage);
+}
+
 function parseSavedAt(savedAt?: string): number {
   if (!savedAt) return 0;
   const parts = savedAt.split(' ');
@@ -1360,8 +1390,87 @@ function NewPostModal({ onClose, onCreate }: {
 /* ─── MAIN FEED ─── */
 export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolean }) {
   const [posts, setPosts] = useState<Post[]>(() => {
-    const saved = localStorage.getItem("unah_posts");
-    let loadedPosts: Post[] = saved ? JSON.parse(saved) : [...initialPosts];
+    // Limpieza única de datos "viejos": si el usuario guardó posts/eventos ANTES
+    // de este arreglo, es posible que "unah_posts" o "unah_events" ya tengan
+    // fotos en base64 ocupando la cuota de localStorage. Las quitamos aquí mismo
+    // al cargar, para que el guardado vuelva a funcionar sin que el usuario
+    // tenga que borrar el localStorage a mano.
+    // Limpieza única de datos "viejos": si el usuario guardó posts/eventos ANTES
+    // de este arreglo, es posible que "unah_posts" o "unah_events" ya tengan
+    // fotos en base64 ocupando la cuota de localStorage. Las quitamos aquí mismo
+    // al cargar, para que el guardado vuelva a funcionar sin que el usuario
+    // tenga que borrar el localStorage a mano. Todo esto es defensivo: si algo
+    // sale mal o los datos no tienen la forma esperada, nunca debe tumbar la
+    // pantalla — en el peor caso simplemente se descarta ese dato puntual.
+    try {
+      const rawPosts = localStorage.getItem("unah_posts");
+      if (rawPosts) {
+        const parsed = JSON.parse(rawPosts);
+        if (Array.isArray(parsed)) {
+          const limpios = parsed.map((p: any) => {
+            try {
+              if (!p || typeof p !== "object") return p;
+              const { images, ...resto } = p;
+              return {
+                ...resto,
+                profilePic: esBase64Imagen(resto.profilePic) ? undefined : resto.profilePic,
+                comments: Array.isArray(resto.comments)
+                  ? resto.comments.map((c: any) =>
+                      c && esBase64Imagen(c.authorPic) ? { ...c, authorPic: undefined } : c
+                    )
+                  : [],
+              };
+            } catch {
+              // Si un post individual viene mal formado, lo dejamos tal cual
+              // (o se filtra más abajo) en vez de tumbar la limpieza completa.
+              return p;
+            }
+          }).filter((p: any) => p && typeof p === "object");
+          localStorage.setItem("unah_posts", JSON.stringify(limpios));
+        } else {
+          // "unah_posts" no es un arreglo válido: lo descartamos para no
+          // arrastrar datos corruptos que rompan la pantalla más abajo.
+          localStorage.removeItem("unah_posts");
+        }
+      }
+    } catch (e) {
+      console.warn("No se pudo limpiar 'unah_posts' de imágenes base64 viejas:", e);
+      localStorage.removeItem("unah_posts");
+    }
+    try {
+      const rawEvents = localStorage.getItem("unah_events");
+      if (rawEvents) {
+        const parsedEvents = JSON.parse(rawEvents);
+        if (Array.isArray(parsedEvents)) {
+          const eventosLimpios = parsedEvents.map((ev: any) =>
+            ev && esBase64Imagen(ev.AVATAR_URL) ? { ...ev, AVATAR_URL: '/puma-icon.png' } : ev
+          );
+          localStorage.setItem("unah_events", JSON.stringify(eventosLimpios));
+        } else {
+          localStorage.removeItem("unah_events");
+        }
+      }
+    } catch (e) {
+      console.warn("No se pudo limpiar 'unah_events' de imágenes base64 viejas:", e);
+      localStorage.removeItem("unah_events");
+    }
+
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem("unah_posts");
+    } catch {}
+
+    let loadedPosts: Post[] = [...initialPosts];
+    try {
+      if (saved) {
+        const parsedSaved = JSON.parse(saved);
+        if (Array.isArray(parsedSaved)) {
+          loadedPosts = parsedSaved;
+        }
+      }
+    } catch (e) {
+      console.warn("'unah_posts' tenía datos corruptos, se usan los posts por defecto:", e);
+    }
     
     // Ensure mock profilePic and images are updated/synced from initialPosts
     loadedPosts = loadedPosts.map(p => {
@@ -1750,7 +1859,7 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
   // Sync to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem("unah_posts", JSON.stringify(posts));
+      localStorage.setItem("unah_posts", JSON.stringify(postsParaStorage(posts)));
     } catch {
       localStorage.removeItem("unah_posts");
     }
@@ -2197,7 +2306,7 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
     if (saved) {
       try {
         const list = JSON.parse(saved).map((p: any) => p.id === editPost.id ? updated : p);
-        localStorage.setItem("unah_posts", JSON.stringify(list));
+        localStorage.setItem("unah_posts", JSON.stringify(postsParaStorage(list)));
       } catch {
         localStorage.removeItem("unah_posts");
       }
@@ -2319,11 +2428,24 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
               UBICACION: post.lugar || 'Ciudad Universitaria',
               CLASIFICACION: post.scope || 'General',
               HORAS_VOAE: post.voaeHoras || 2,
-              AVATAR_URL: (post.images && post.images[0]) || '/puma-icon.png'
+              // No guardamos imágenes base64 aquí (mismo problema de cuota que en
+              // "unah_posts"): si la foto del post es una URL normal (http/https)
+              // sí la conservamos como portada; si es base64 (data:image/...) la
+              // omitimos y se usa el ícono por defecto.
+              AVATAR_URL: (post.images && post.images[0] && !post.images[0].startsWith('data:image/'))
+                ? post.images[0]
+                : '/puma-icon.png'
             });
             updatedEvents = eventsList;
           }
-          localStorage.setItem("unah_events", JSON.stringify(updatedEvents));
+          // Quitamos también cualquier AVATAR_URL en base64 que ya existiera de
+          // eventos previos, para no seguir arrastrando el problema de cuota.
+          const updatedEventsSinBase64 = updatedEvents.map((ev: any) =>
+            ev.AVATAR_URL && typeof ev.AVATAR_URL === 'string' && ev.AVATAR_URL.startsWith('data:image/')
+              ? { ...ev, AVATAR_URL: '/puma-icon.png' }
+              : ev
+          );
+          localStorage.setItem("unah_events", JSON.stringify(updatedEventsSinBase64));
         } catch (e) {
           console.error("Error al sincronizar localStorage:", e);
         }
