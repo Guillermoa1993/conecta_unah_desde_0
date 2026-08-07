@@ -12,7 +12,7 @@ RUN npm run build
 # ── Etapa 2: Servidor de producción (Nginx) ──────────────────────────────────
 FROM nginx:alpine AS production
 
-RUN rm /etc/nginx/conf.d/default.conf
+RUN apk add --no-cache gettext && rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=builder /app/dist /usr/share/nginx/html
 
