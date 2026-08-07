@@ -332,7 +332,7 @@ app.use(errorMiddleware);
 
 // Carga config de BD y luego arranca el servidor
 loadConfig().then(() => {
-  const PORT = Number(cfg('PORT', '5000'));
+  const PORT = Number(process.env.PORT) || Number(cfg('PORT', '5000'));
   const sslActivo = cfg('SSL_ACTIVO') === '1';
   const sslCert   = cfg('SSL_CERTIFICADO', '');
 
