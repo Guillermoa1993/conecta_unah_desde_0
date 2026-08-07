@@ -24,6 +24,7 @@ import { PostgresUsuarioSeguridadRepository } from '../repositories/PostgresUsua
 import { PostgresRolSeguridadRepository } from '../repositories/PostgresRolSeguridadRepository';
 import { PostgresPermisoSeguridadRepository } from '../repositories/PostgresPermisoSeguridadRepository';
 import { BackupService } from '../backup/BackupService';
+import { ModeracionService } from '../moderacion/ModeracionService';
 import { PostgresDashboardRepository } from '../repositories/PostgresDashboardRepository';
 
 // Use cases
@@ -97,6 +98,7 @@ import { Grupo2EventoController } from '../../interfaces/controllers/Grupo2Event
 // Módulo 4 · Seguridad — controllers
 import { BitacoraController } from '../../interfaces/controllers/BitacoraController';
 import { BackupController } from '../../interfaces/controllers/BackupController';
+import { ModeracionController } from '../../interfaces/controllers/ModeracionController';
 import { DashboardController } from '../../interfaces/controllers/DashboardController';
 import { UsuarioSeguridadController } from '../../interfaces/controllers/UsuarioSeguridadController';
 import { RolSeguridadController } from '../../interfaces/controllers/RolSeguridadController';
@@ -117,6 +119,7 @@ import { parametrosRouter } from '../../interfaces/routes/parametrosRoutes';
 import { solicitudCambioCarreraRouter } from '../../interfaces/routes/solicitudCambioCarreraRoutes';
 import { grupo2EventoRouter } from '../../interfaces/routes/grupo2EventoRoutes';
 import { comentarioRouter } from '../../interfaces/routes/comentarioRoutes';
+import { moderacionRouter } from '../../interfaces/routes/moderacionRoutes';
 import { publicacionRouter } from '../../interfaces/routes/publicacionRoutes';
 import { reaccionPostRouter } from '../../interfaces/routes/reaccionPostRoutes';
 import { reaccionComentarioRouter } from '../../interfaces/routes/reaccionComentarioRoutes';
@@ -181,6 +184,7 @@ const usuarioSegRepo  = new PostgresUsuarioSeguridadRepository(pool);
 const rolSegRepo      = new PostgresRolSeguridadRepository(pool);
 const permisoSegRepo  = new PostgresPermisoSeguridadRepository(pool);
 const backupService   = new BackupService(pool);
+const moderacionService = new ModeracionService(pool);
 
 // ── Use cases ───────────────────────────────────────────────────────────────
 const loginUC          = new LoginUsuario(usuarioRepo);
@@ -277,6 +281,7 @@ const grupo2EventoCtrl = new Grupo2EventoController(
 // Módulo 4 · Seguridad — controllers
 const bitacoraCtrl = new BitacoraController(bitacoraRepo);
 const backupCtrl   = new BackupController(backupService, bitacoraRepo);
+const moderacionCtrl = new ModeracionController(moderacionService);
 const dashboardRepo = new PostgresDashboardRepository(pool);
 const dashboardCtrl = new DashboardController(dashboardRepo);
 const usuarioSegCtrl = new UsuarioSeguridadController(
@@ -308,6 +313,7 @@ app.use('/api/parametros',    parametrosRouter);
 app.use('/api/solicitudes-cambio-carrera', solicitudCambioCarreraRouter(solicitudCambioCarreraCtrl));
 app.use('/api/grupo2/mis-eventos', grupo2EventoRouter(grupo2EventoCtrl));
 app.use('/api/comentarios',            comentarioRouter);
+app.use('/api/moderacion',             moderacionRouter(moderacionCtrl));
 app.use('/api/publicaciones',          publicacionRouter);
 app.use('/api/reacciones-post',        reaccionPostRouter);
 app.use('/api/reacciones-comentario',  reaccionComentarioRouter);

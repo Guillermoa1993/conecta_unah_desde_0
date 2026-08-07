@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { Readable } from 'stream';
 import { Pool } from 'pg';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { invalidarTodasLasSesiones } from '../config/sesionMantenimiento';
@@ -28,7 +29,7 @@ export interface HistoricoBackupRow {
   destino_nombre: string;
 }
 
-const BACKUP_DIR = process.env.BACKUP_DIR ?? '/app/backups';
+const BACKUP_DIR = path.resolve(process.env.BACKUP_DIR ?? '/app/backups');
 
 // ── Backblaze B2 (API compatible con S3) — respaldo fuera de la máquina local ──
 // Si las variables no están configuradas, el sistema sigue funcionando solo
@@ -63,6 +64,19 @@ export class BackupService {
     await fs.mkdir(BACKUP_DIR, { recursive: true });
   }
 
+  private getCommand(commandName: string, envVar: string): string {
+    const configured = process.env[envVar];
+    return configured ? path.resolve(configured) : commandName;
+  }
+
+  private getPgDumpCommand(): string {
+    return this.getCommand('pg_dump', 'PGDUMP_PATH');
+  }
+
+  private getPsqlCommand(): string {
+    return this.getCommand('psql', 'PSQL_PATH');
+  }
+
   /** Sube el archivo de backup a Backblaze B2. No lanza error si falla —
    *  el backup local ya se completó exitosamente; B2 es una copia extra. */
   private async subirAB2(rutaCompleta: string, nombre: string): Promise<void> {
@@ -95,8 +109,17 @@ export class BackupService {
 
   /** Garantiza que el archivo exista en disco local antes de descargarlo o
    *  restaurarlo, recuperándolo desde B2 si el volumen local lo perdió. */
+  private resolveBackupPath(nombre: string): string {
+    const rutaCompleta = path.resolve(BACKUP_DIR, nombre);
+    const directorio = path.resolve(BACKUP_DIR);
+    if (rutaCompleta !== directorio && !rutaCompleta.startsWith(directorio + path.sep)) {
+      throw new Error('Nombre de archivo inválido');
+    }
+    return rutaCompleta;
+  }
+
   async asegurarLocal(nombre: string): Promise<void> {
-    const ruta = this.rutaDe(nombre);
+    const ruta = this.resolveBackupPath(nombre);
     try {
       await fs.access(ruta);
     } catch {
@@ -151,7 +174,8 @@ export class BackupService {
       await new Promise<void>((resolve, reject) => {
         // --no-owner / --no-privileges: evita fallos de restauración si el
         // usuario destino no coincide exactamente con el usuario de Render.
-        const proceso = spawn('pg_dump', [
+        const comando = this.getPgDumpCommand();
+        const proceso = spawn(comando, [
           databaseUrl,
           '--no-owner',
           '--no-privileges',
@@ -162,7 +186,7 @@ export class BackupService {
         proceso.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
 
         proceso.on('error', (err) => {
-          reject(new Error(`No se pudo ejecutar pg_dump: ${err.message}`));
+          reject(new Error(`No se pudo ejecutar ${comando}: ${err.message}. Asegúrate de tener ${comando} instalado o configura PGDUMP_PATH.`));
         });
 
         proceso.on('close', (code) => {
@@ -207,11 +231,7 @@ export class BackupService {
 
   /** Devuelve la ruta absoluta de un backup, validando que no se escape del directorio */
   rutaDe(nombre: string): string {
-    const rutaCompleta = path.join(BACKUP_DIR, nombre);
-    if (!rutaCompleta.startsWith(path.resolve(BACKUP_DIR))) {
-      throw new Error('Nombre de archivo inválido');
-    }
-    return rutaCompleta;
+    return this.resolveBackupPath(nombre);
   }
 
   async eliminar(nombre: string): Promise<boolean> {
@@ -271,13 +291,14 @@ export class BackupService {
 
     try {
       await new Promise<void>((resolve, reject) => {
-        const proceso = spawn('psql', [databaseUrl, '-v', 'ON_ERROR_STOP=1', '-f', ruta]);
+        const comando = this.getPsqlCommand();
+        const proceso = spawn(comando, [databaseUrl, '-v', 'ON_ERROR_STOP=1', '-f', ruta]);
 
         let stderr = '';
         proceso.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
 
         proceso.on('error', (err) => {
-          reject(new Error(`No se pudo ejecutar psql: ${err.message}`));
+          reject(new Error(`No se pudo ejecutar ${comando}: ${err.message}. Asegúrate de tener ${comando} instalado o configura PSQL_PATH.`));
         });
 
         proceso.on('close', (code) => {

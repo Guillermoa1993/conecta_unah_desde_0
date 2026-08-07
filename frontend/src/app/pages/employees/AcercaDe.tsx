@@ -1,4 +1,5 @@
-﻿import {
+﻿import { useState, useEffect } from "react";
+import {
   Clock, QrCode, ShieldCheck, Bell, History, Smartphone,
   KeyRound, Lock, Users, Database, ClipboardCheck, Compass,
 } from "lucide-react";
@@ -52,6 +53,27 @@ const TEAM: {
 ];
 
 export function AcercaDe() {
+  const [groupPhotoPreview, setGroupPhotoPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (groupPhotoPreview) {
+        URL.revokeObjectURL(groupPhotoPreview);
+      }
+    };
+  }, [groupPhotoPreview]);
+
+  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+
+    if (groupPhotoPreview) {
+      URL.revokeObjectURL(groupPhotoPreview);
+    }
+    setGroupPhotoPreview(URL.createObjectURL(file));
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       {/* Hero */}
@@ -79,6 +101,47 @@ export function AcercaDe() {
                 {APP_INFO.ciclo}
               </Badge>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+      <Card className="border border-slate-200 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-[#003366]">Foto del Grupo</CardTitle>
+          <CardDescription>Sube una foto del grupo y reemplázala solo seleccionando otra imagen.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-6 md:grid-cols-[280px_1fr] items-start">
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 flex h-full flex-col items-center justify-center text-center">
+            {groupPhotoPreview ? (
+              <img
+                src={groupPhotoPreview}
+                alt="Vista previa de la foto del grupo"
+                className="h-72 w-full max-w-[260px] rounded-3xl object-cover shadow-sm"
+              />
+            ) : (
+              <div className="flex h-72 w-full max-w-[260px] flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-300 bg-white p-6 text-slate-500">
+                <span className="text-sm font-semibold text-slate-700">Aún no hay foto cargada</span>
+                <span className="mt-3 text-xs leading-relaxed">Selecciona una imagen JPG o PNG para mostrar aquí.</span>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4 text-sm text-slate-600 leading-relaxed">
+            <p>
+              Este proyecto fue desarrollado por 24 alumnos de la Licenciatura en Informática Administrativa.
+              El equipo colaboró en el diseño, la programación, la integración de módulos y la puesta en marcha.
+            </p>
+            <p>
+              Usa el campo a continuación para subir la foto del grupo. Una vez subida, la imagen se mostrará en esta sección y solo se podrá reemplazar seleccionando otra foto.
+            </p>
+            <label className="block">
+              <span className="text-sm font-semibold text-[#003366]">Subir foto del grupo</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                className="mt-3 block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm transition hover:border-[#003366]/70"
+              />
+            </label>
           </div>
         </CardContent>
       </Card>
@@ -163,7 +226,7 @@ export function AcercaDe() {
         <CardHeader>
           <CardTitle className="text-[#003366]">Equipo de Desarrollo</CardTitle>
           <CardDescription>
-            Proyecto desarrollado por 7 integrantes de {APP_INFO.programa}, cada uno a cargo de un módulo del sistema.
+            Proyecto desarrollado por 24 alumnos de {APP_INFO.programa}, con roles distribuidos en los principales módulos del sistema.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

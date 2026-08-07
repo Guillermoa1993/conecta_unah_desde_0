@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { authService } from '../../../services/auth.service';
-import { eventosService, comentarioService, reaccionPostService, publicacionService, grupo2EventosService } from '../../../services';
+import { eventosService, comentarioService, reaccionPostService, publicacionService, grupo2EventosService, moderacionService } from '../../../services';
 import { pumitasService, type Pumita } from '../../../services/pumitas.service';
 import { useNotificaciones } from '../../../hooks/useNotificaciones';
 
@@ -642,11 +642,13 @@ function EventDrawer({ post, onClose, onInscribir, isLoggedIn }:
 }
 
 /* ─── POST CARD ─── */
-function PostCard({ post, onReact, onToggleComments, onAddComment, onReactComment, onHide, onUnhide, onSave, onShare,
+function PostCard({ post, onReact, onToggleComments, onAddComment, onReactComment, onReportComment, onReportPublicacion, onHide, onUnhide, onSave, onShare,
   onOpenDrawer, onInscribir, onOpenDetail, onEdit, onDenunciar, openCommentIds, isLoggedIn, showOnlySaved, showHiddenOnly, isDenunciadasTab }:
   { post:Post; onReact:(id:number,t:ActiveReaction)=>void; onToggleComments:(id:number)=>void;
     onAddComment:(id:number,text:string,replyTo?:string,parentId?:number,replyToText?:string)=>void;
     onReactComment:(postId:number,commentId:number,t:ActiveReaction)=>void;
+    onReportComment:(commentId:number)=>void;
+    onReportPublicacion:(publicacionId:number)=>void;
     onHide:(id:number)=>void; onUnhide:(id:number)=>void; onSave:(id:number)=>void; onShare:(id:number)=>void;
     onOpenDrawer:(p:Post)=>void; onInscribir:(id:number)=>void; onOpenDetail:(p:Post)=>void;
     onEdit:(p:Post)=>void; onDenunciar?:(id:number)=>void;
@@ -842,6 +844,9 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
             <div className="reaction-spacer" />
             {!isDenunciadasTab && (
               <>
+                <button className="action-icon-btn" style={{ color: "#b91c1c" }} onClick={() => onReportPublicacion(post.id)}>
+                  <span>🚩</span>
+                </button>
                 <button
                   className="btn-evento-whatsapp"
                   onClick={() => {
@@ -895,6 +900,7 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
                         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                           <CommentReactionBtn comment={parent} onReact={(t) => onReactComment(post.id, parent.id, t)} />
                           <button className="comment-reply-btn" onClick={() => setReplyingTo({ author: parent.author, parentId: parent.id, text: parent.text })}>Responder</button>
+                          <button className="comment-reply-btn" style={{ color: "#b91c1c" }} onClick={() => onReportComment(parent.id)}>Reportar</button>
                         </div>
                       )}
                     </div>
@@ -944,6 +950,7 @@ function PostCard({ post, onReact, onToggleComments, onAddComment, onReactCommen
                           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                             <CommentReactionBtn comment={reply} onReact={(t) => onReactComment(post.id, reply.id, t)} />
                             <button className="comment-reply-btn" onClick={() => setReplyingTo({ author: reply.author, parentId: parent.id, text: reply.text })}>Responder</button>
+                            <button className="comment-reply-btn" style={{ color: "#b91c1c" }} onClick={() => onReportComment(reply.id)}>Reportar</button>
                           </div>
                         )}
                       </div>
@@ -1744,10 +1751,9 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
   useEffect(() => {
     try {
       localStorage.setItem("unah_posts", JSON.stringify(posts));
-} catch (e) {
-    console.warn("No se pudo guardar 'unah_posts' en localStorage (cuota excedida):", e);
-    localStorage.removeItem("unah_posts");
-  }
+    } catch {
+      localStorage.removeItem("unah_posts");
+    }
   }, [posts]);
 
   const [hiddenPostIds, setHiddenPostIds] = useState<Set<number>>(() => {
@@ -2014,6 +2020,28 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
 
   const handleToggleComments=(id:number)=>setOpenCommentIds(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
 
+  const handleReportComment = async (commentId: number) => {
+    const motivo = window.prompt("¿Por qué reportas este comentario? (spam, ofensivo, información falsa, etc.)");
+    if (!motivo || !motivo.trim()) return;
+    try {
+      await moderacionService.reportarComentario(commentId, motivo.trim());
+      alert("Comentario reportado. Un administrador lo revisará.");
+    } catch (err) {
+      alert((err as Error).message || "No se pudo enviar el reporte.");
+    }
+  };
+
+  const handleReportPublicacion = async (publicacionId: number) => {
+    const motivo = window.prompt("¿Por qué reportas esta publicación? (spam, ofensivo, información falsa, etc.)");
+    if (!motivo || !motivo.trim()) return;
+    try {
+      await moderacionService.reportarPublicacion(publicacionId, motivo.trim());
+      alert("Publicación reportada. Un administrador la revisará.");
+    } catch (err) {
+      alert((err as Error).message || "No se pudo enviar el reporte.");
+    }
+  };
+
   const handleAddComment = async (id: number, text: string, replyTo?: string, parentId?: number, replyToText?: string) => {
     // Validaciones de Seguridad para comentarios
     if (hasSQLi(text)) {
@@ -2167,13 +2195,12 @@ export default function Feed({ showOnlySaved = false }: { showOnlySaved?: boolea
     setPosts(prev => prev.map(p => p.id === editPost.id ? updated : p));
     const saved = localStorage.getItem("unah_posts");
     if (saved) {
-try {
-  const list = JSON.parse(saved).map((p: any) => p.id === editPost.id ? updated : p);
-  localStorage.setItem("unah_posts", JSON.stringify(list));
-} catch (e) {
-  console.warn("No se pudo guardar 'unah_posts' tras edición en localStorage:", e);
-  localStorage.removeItem("unah_posts");
-}
+      try {
+        const list = JSON.parse(saved).map((p: any) => p.id === editPost.id ? updated : p);
+        localStorage.setItem("unah_posts", JSON.stringify(list));
+      } catch {
+        localStorage.removeItem("unah_posts");
+      }
     }
     setEditPost(null);
     showToast("✅ Publicación actualizada");
@@ -3157,6 +3184,8 @@ try {
                         onReact={handleReact} onToggleComments={handleToggleComments}
                         onAddComment={handleAddComment}
                         onReactComment={handleReactComment}
+                        onReportComment={handleReportComment}
+                        onReportPublicacion={handleReportPublicacion}
                         onHide={handleHide} onUnhide={handleUnhide} onSave={handleSave} onShare={handleShare}
                         onOpenDrawer={setDrawerPost} onInscribir={handleInscribir}
                         onOpenDetail={setDetailPost} onEdit={handleEditPost}
