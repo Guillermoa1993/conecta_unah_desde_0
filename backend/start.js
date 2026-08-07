@@ -1,6 +1,7 @@
 // Wrapper de arranque para Railway: captura errores de startup
 // Si el app principal falla, arranca un servidor minimal que muestra el error
 // y responde a /ping para que Railway no lo mate por healthcheck.
+// v2
 
 'use strict';
 
