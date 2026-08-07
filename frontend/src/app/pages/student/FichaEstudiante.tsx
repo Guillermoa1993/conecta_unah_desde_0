@@ -139,7 +139,7 @@ export function FichaEstudiante() {
   }, []);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/catalogos/carreras")
+    fetch(`${API_URL}/catalogos/carreras`)
       .then((res) => res.json())
       .then((data) => setCarreras(data))
       .catch(() => toast.error("No se pudieron cargar las carreras"));
@@ -156,7 +156,7 @@ export function FichaEstudiante() {
       return;
     }
     const timeoutId = setTimeout(() => {
-      fetch(`http://localhost:5000/api/auth/verificar-correo?correo=${encodeURIComponent(formData.correo)}`)
+      fetch(`${API_URL}/auth/verificar-correo?correo=${encodeURIComponent(formData.correo)}`)
         .then((res) => res.json())
         .then((data) => {
           setCorreoYaExiste(data.existe && data.enrolado);
