@@ -330,38 +330,19 @@ app.use('/api/admin/dashboard',    dashboardRouter(dashboardCtrl));
 // ── Error handler (debe ir al final) ────────────────────────────────────────
 app.use(errorMiddleware);
 
-// Carga config de BD y luego arranca el servidor
+// Arranca el servidor inmediatamente para que el healthcheck de Railway pase
+// mientras la config de BD se carga en segundo plano
+const PORT = Number(process.env.PORT) || 8080;
+app.listen(PORT, () => {
+  console.log(`\n🚀 UNAH Conecta API corriendo en http://localhost:${PORT}`);
+  console.log(`   Health:         GET  /api/health`);
+  console.log(`   Auth:           POST /api/auth/login | POST /api/auth/registro`);
+  console.log(`   Eventos:        GET  /api/eventos\n`);
+});
+
+// Carga config de BD en segundo plano (no bloquea el arranque)
 loadConfig().then(() => {
-  const PORT = Number(process.env.PORT) || Number(cfg('PORT', '5000'));
-  const sslActivo = cfg('SSL_ACTIVO') === '1';
-  const sslCert   = cfg('SSL_CERTIFICADO', '');
-
-  const banner = (proto: string, port: number) => {
-    console.log(`\n🚀 UNAH Conecta API corriendo en ${proto}://localhost:${port}`);
-    console.log(`   Health:         GET  /api/health`);
-    console.log(`   Auth:           POST /api/auth/login | POST /api/auth/registro`);
-    console.log(`   Eventos:        GET  /api/eventos`);
-    console.log(`   Inscripciones:  POST /api/inscripciones/evento/:id`);
-    console.log(`   Constancias:    GET  /api/constancias/pendientes`);
-    console.log(`   Perfil:         POST /api/perfil/reacciones | GET /api/perfil/reacciones/recibidas`);
-    console.log(`   Notificaciones: GET  /api/notificaciones\n`);
-  };
-
-  if (sslActivo && sslCert) {
-    try {
-      const keyPath  = sslCert.endsWith('.pem') ? sslCert.replace('cert.pem', 'key.pem') : `${sslCert}/key.pem`;
-      const certPath = sslCert.endsWith('.pem') ? sslCert : `${sslCert}/cert.pem`;
-      const credentials = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
-      https.createServer(credentials, app).listen(PORT, () => banner('https', PORT));
-    } catch (e: any) {
-      console.warn(`⚠️  SSL configurado pero certificado no encontrado (${e.message}). Arrancando en HTTP.`);
-      app.listen(PORT, () => banner('http', PORT));
-    }
-  } else {
-    app.listen(PORT, () => banner('http', PORT));
-  }
+  console.log('✅ Config de BD cargada correctamente');
 }).catch(err => {
-  console.error('⚠️ Warning cargando config desde BD:', err?.message || err);
-  const PORT = Number(process.env.PORT) || 5000;
-  app.listen(PORT, () => console.log(`🚀 UNAH Conecta API corriendo en http://localhost:${PORT}`));
+  console.warn('⚠️ Warning cargando config desde BD:', err?.message || err);
 });
