@@ -16,8 +16,8 @@ async function createTransporter() {
   const host = await resolveIPv4(smtpHost);
   return nodemailer.createTransport({
     host,
-    port: parseInt(cfg('SMTP_PORT', '587')),
-    secure: false,
+    port: 465,
+    secure: true,
     tls: { servername: smtpHost },
     connectionTimeout: 10000,
     greetingTimeout: 10000,
