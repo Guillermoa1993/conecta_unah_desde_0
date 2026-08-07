@@ -61,10 +61,10 @@ function BrandPanel() {
       {/* Logo badge */}
       <div className="flex items-center gap-3 z-10">
         <div className="h-10 w-10 bg-[#FFD100] text-[#003366] font-black rounded-lg flex items-center justify-center text-lg shadow-lg">
-          UE
+          CU
         </div>
         <div>
-          <div className="font-bold text-base tracking-wide">UNAH Eventos</div>
+          <div className="font-bold text-base tracking-wide">Conecta Pumas</div>
           <div className="text-[10px] text-white/60 tracking-widest uppercase">Sistema Universitario</div>
         </div>
       </div>
