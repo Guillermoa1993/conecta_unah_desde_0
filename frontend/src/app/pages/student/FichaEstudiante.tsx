@@ -2324,7 +2324,7 @@ export function FichaEstudiante() {
                   maxLength={6}
                 />
                 <p className="text-xs text-slate-400">
-                  ¿No recibiste el código? <button className="text-[#004B87] font-bold underline hover:text-[#003366]" type="button">Reenviar</button>
+                  ¿No recibiste el código? <button className="text-[#004B87] font-bold underline hover:text-[#003366]" type="button" onClick={handleSendOtp}>Reenviar</button>
                 </p>
               </div>
 
