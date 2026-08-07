@@ -1,9 +1,8 @@
-// Wrapper de arranque para Railway: captura errores de startup
-// Si el app principal falla, arranca un servidor minimal que muestra el error
-// y responde a /ping para que Railway no lo mate por healthcheck.
-// v2
-
 'use strict';
+
+// DIAGNÓSTICO: servidor HTTP mínimo sin Express para aislar el problema de red vs Express
+// Si este servidor tampoco responde externamente → problema de red/routing en Railway
+// Si responde → problema específico de Express 5
 
 const PORT = Number(process.env.PORT) || 8080;
 
@@ -14,26 +13,24 @@ process.on('unhandledRejection', (reason) => {
   console.error('[UNHANDLED REJECTION]', reason);
 });
 
-let startupError = null;
-try {
-  require('./dist/infrastructure/server/index.js');
-  console.log('[start.js] App principal cargada correctamente');
-} catch (err) {
-  startupError = err.message || String(err);
-  console.error('[start.js] ERROR al cargar app principal:', startupError);
-  console.error(err.stack);
+const http = require('http');
 
-  // Fallback minimal para que Railway no mate el proceso
-  const http = require('http');
-  http.createServer((req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    if (req.url === '/ping') {
-      res.end(JSON.stringify({ ok: false, startupError }));
-    } else {
-      res.statusCode = 503;
-      res.end(JSON.stringify({ error: 'Service unavailable - startup failed', startupError }));
-    }
-  }).listen(PORT, '0.0.0.0', () => {
-    console.log(`[start.js] Fallback server en puerto ${PORT}`);
-  });
-}
+const server = http.createServer((req, res) => {
+  const ip = req.socket.remoteAddress;
+  console.log(`[DIAG] ${req.method} ${req.url} desde ${ip}`);
+  res.writeHead(200, { 'Content-Type': 'application/json', 'X-Diagnostic': 'start-js-raw' });
+  res.end(JSON.stringify({ ok: true, diag: true, port: PORT, url: req.url }));
+});
+
+server.on('connection', (socket) => {
+  console.log(`[DIAG] TCP desde ${socket.remoteAddress}:${socket.remotePort}`);
+});
+
+server.on('error', (err) => {
+  console.error('[DIAG] Error servidor:', err.message);
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`[DIAG] Servidor diagnostico HTTP en http://0.0.0.0:${PORT}`);
+  console.log(`[DIAG] Express NO cargado — modo diagnostico puro`);
+});
