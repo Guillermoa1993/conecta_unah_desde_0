@@ -14,8 +14,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 // dotenv.config() carga el .env en desarrollo local.
 
 if (!process.env.DATABASE_URL) {
-  console.error('❌ DATABASE_URL no está definida. Verifica el docker-compose.yml o el archivo .env');
-  process.exit(1);
+  console.warn('⚠️  DATABASE_URL no está definida. Las operaciones de BD fallarán hasta que se configure.');
 }
 
 // La base de datos siempre es Render.com (tanto en dev como en producción,
