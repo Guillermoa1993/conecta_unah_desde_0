@@ -6,7 +6,7 @@ export async function enviarCodigoOtp(destinatario: string, codigo: string): Pro
   const apiKey = cfg('BREVO_API_KEY');
   if (!apiKey) throw new Error('BREVO_API_KEY no configurada');
 
-  const senderEmail = cfg('GMAIL_USER', 'josecarlosaguilar71123@gmail.com');
+  const senderEmail = cfg('GMAIL_USER', 'unah_conecta@outlook.com');
 
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
