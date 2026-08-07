@@ -331,14 +331,19 @@ app.use('/api/admin/dashboard',    dashboardRouter(dashboardCtrl));
 // ── Error handler (debe ir al final) ────────────────────────────────────────
 app.use(errorMiddleware);
 
-// Arranca el servidor inmediatamente para que el healthcheck de Railway pase
-// mientras la config de BD se carga en segundo plano
+// Evita que errores no capturados maten el proceso
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION (proceso continúa):', err.message, err.stack);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('UNHANDLED REJECTION (proceso continúa):', reason);
+});
+
+// Arranca en 0.0.0.0 para que Railway pueda enrutar el tráfico
 const PORT = Number(process.env.PORT) || 8080;
-app.listen(PORT, () => {
-  console.log(`\n🚀 UNAH Conecta API corriendo en http://localhost:${PORT}`);
-  console.log(`   Health:         GET  /api/health`);
-  console.log(`   Auth:           POST /api/auth/login | POST /api/auth/registro`);
-  console.log(`   Eventos:        GET  /api/eventos\n`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n[STARTUP] PORT=${PORT} NODE_ENV=${process.env.NODE_ENV}`);
+  console.log(`🚀 UNAH Conecta API corriendo en http://0.0.0.0:${PORT}`);
 });
 
 // Carga config de BD en segundo plano (no bloquea el arranque)
