@@ -6,7 +6,7 @@
     "buildTarget": "production"
   },
   "deploy": {
-    "healthcheckPath": "/api/health",
+    "healthcheckPath": "/ping",
     "healthcheckTimeout": 60,
     "restartPolicyType": "ON_FAILURE"
   }

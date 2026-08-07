@@ -298,6 +298,7 @@ const permisoSegCtrl = new PermisoSeguridadController(
 );
 
 // ── Rutas ───────────────────────────────────────────────────────────────────
+app.get('/ping', (_req, res) => res.json({ ok: true }));
 app.get('/api/health', (req, res) => healthCtrl.handle(req, res));
 app.use('/api/auth',          authRouter(authCtrl));
 app.use('/api/catalogos',     catalogoRouter(catalogoCtrl));
