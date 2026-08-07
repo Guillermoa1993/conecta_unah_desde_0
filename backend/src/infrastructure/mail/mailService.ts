@@ -1,12 +1,27 @@
 import nodemailer from 'nodemailer';
+import { promises as dns } from 'dns';
 import { cfg } from '../config/configService';
 
-function createTransporter() {
+async function resolveIPv4(hostname: string): Promise<string> {
+  try {
+    const addrs = await dns.resolve4(hostname);
+    return addrs[0];
+  } catch {
+    return hostname;
+  }
+}
+
+async function createTransporter() {
+  const smtpHost = cfg('SMTP_HOST', 'smtp.gmail.com');
+  const host = await resolveIPv4(smtpHost);
   return nodemailer.createTransport({
-    host: cfg('SMTP_HOST', 'smtp.gmail.com'),
+    host,
     port: parseInt(cfg('SMTP_PORT', '587')),
     secure: false,
-    family: 4,
+    tls: { servername: smtpHost },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
     auth: {
       user: cfg('GMAIL_USER'),
       pass: cfg('GMAIL_APP_PASSWORD'),
@@ -16,7 +31,7 @@ function createTransporter() {
 
 export async function enviarCodigoOtp(destinatario: string, codigo: string): Promise<void> {
   if (cfg('NOTIF_EMAIL_ACTIVO', '1') === '0') return;
-  const transporter = createTransporter();
+  const transporter = await createTransporter();
   const gmailUser = cfg('GMAIL_USER');
 
   await transporter.sendMail({
