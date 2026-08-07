@@ -7,6 +7,8 @@ COPY package.json package-lock.json* ./
 RUN npm install --frozen-lockfile 2>/dev/null || npm install
 
 COPY . .
+ARG VITE_API_URL=https://conectaunahdesde0-production.up.railway.app/api
+ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
 # ── Etapa alternativa: Desarrollo con hot-reload ─────────────────────────────
