@@ -250,8 +250,17 @@ export const AvailableEvents: React.FC = () => {
 
     posts.unshift(nuevoPost);
 
+    // Igual que en SocialFeed: no persistimos las imágenes (pueden ser base64 y
+    // pesar varios MB) para no exceder la cuota de localStorage y así no perder
+    // el estado de "guardado" de eventos/publicaciones. Al recargar, SocialFeed
+    // vuelve a completar la imagen desde initialPosts/backend cuando aplica.
+    const postsParaGuardar = posts.map((p: any) => {
+      const { images, ...resto } = p;
+      return resto;
+    });
+
     try {
-      localStorage.setItem("unah_posts", JSON.stringify(posts));
+      localStorage.setItem("unah_posts", JSON.stringify(postsParaGuardar));
     } catch (e) {
       console.warn("⚠️ No se pudo guardar 'unah_posts' en localStorage (DisponibleEvents):", e);
     }

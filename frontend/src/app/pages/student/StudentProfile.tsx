@@ -408,48 +408,84 @@ useEffect(() => {
   // no existir o quedar desactualizada. Aquí la reemplazamos por la imagen real
   // del evento/publicación tal como está hoy en la base de datos, y si el evento
   // o la publicación ya no existe (fue eliminado), lo quitamos de guardados.
+  //
+  // IMPORTANTE: antes esto comparaba contra publicacionService.getPublicaciones()
+  // y eventosService.getAll() completos. Ambos endpoints devuelven una LISTA
+  // recortada por el backend (p. ej. eventos usa LIMIT 50 ORDER BY fecha_inicio DESC),
+  // así que un evento/publicación guardado que no cayera dentro de ese recorte se
+  // interpretaba como "ya no existe" y se desguardaba solo, silenciosamente,
+  // incluso siendo un dato 100% válido. Por eso el contador de "Mi Perfil"
+  // terminaba en 0 aunque en el Muro sí aparecía como guardado.
+  //
+  // Ahora se verifica CADA ítem guardado de forma individual (por id), y solo se
+  // quita de guardados cuando el backend confirma explícitamente que ya no existe
+  // (404 / null). Si la petición falla por red, token, timeout, etc., el ítem se
+  // deja tal cual (fail-safe: nunca se pierde un guardado real por un error de red).
   useEffect(() => {
-    Promise.allSettled([
-      publicacionService.getPublicaciones(),
-      eventosService.getAll(),
-    ]).then(([pubsRes, eventosRes]) => {
-      if (pubsRes.status === 'fulfilled') {
-        const publicacionesReales = pubsRes.value;
-        setPublicacionesGuardadasLocales((actuales) =>
-          actuales.filter((pub) => {
-            const real = publicacionesReales.find((p) => Number(p.id) === Number(pub.id));
-            if (!real) {
-              // Ya no existe en la base de datos: se quita también de localStorage.
+    let cancelado = false;
+
+    (async () => {
+      const publicacionesActuales = leerGuardadosReales().publicaciones;
+      const resultadosPub = await Promise.all(
+        publicacionesActuales.map(async (pub) => {
+          if (pub.id === undefined) return { pub, real: null, confirmadoNoExiste: false };
+          try {
+            const real = await publicacionService.getPorId(pub.id);
+            return { pub, real, confirmadoNoExiste: !real };
+          } catch {
+            // Error de red/servidor: no confirma que no exista, se conserva.
+            return { pub, real: null, confirmadoNoExiste: false };
+          }
+        }),
+      );
+
+      if (cancelado) return;
+      setPublicacionesGuardadasLocales(
+        resultadosPub
+          .filter(({ confirmadoNoExiste, pub }) => {
+            if (confirmadoNoExiste) {
               sincronizarGuardadoEnLocalStorage(pub.id, pub.titulo, false);
               return false;
             }
             return true;
-          }).map((pub) => {
-            const real = publicacionesReales.find((p) => Number(p.id) === Number(pub.id));
+          })
+          .map(({ pub, real }) => {
             const imagenReal = real?.images && real.images.length > 0 ? real.images[0] : undefined;
             return imagenReal ? { ...pub, imagen: imagenReal } : pub;
           }),
-        );
-      }
+      );
 
-      if (eventosRes.status === 'fulfilled') {
-        const eventosReales = eventosRes.value;
-        // Los eventos se guardan en unah_posts con id = 10000 + id real del evento
-        setEventosGuardadosLocales((actuales) =>
-          actuales.filter((ev) => {
-            const real = eventosReales.find((e) => Number(e.id) === Number(ev.id) - 10000);
-            if (!real) {
+      const eventosActuales = leerGuardadosReales().eventos;
+      const resultadosEv = await Promise.all(
+        eventosActuales.map(async (ev) => {
+          if (ev.id === undefined) return { ev, real: null, confirmadoNoExiste: false };
+          const idReal = String(Number(ev.id) - 10000);
+          try {
+            const real = await eventosService.getById(idReal);
+            return { ev, real, confirmadoNoExiste: !real };
+          } catch {
+            return { ev, real: null, confirmadoNoExiste: false };
+          }
+        }),
+      );
+
+      if (cancelado) return;
+      setEventosGuardadosLocales(
+        resultadosEv
+          .filter(({ confirmadoNoExiste, ev }) => {
+            if (confirmadoNoExiste) {
               sincronizarGuardadoEnLocalStorage(ev.id, ev.titulo, false);
               return false;
             }
             return true;
-          }).map((ev) => {
-            const real = eventosReales.find((e) => Number(e.id) === Number(ev.id) - 10000);
-            return real?.portada_url ? { ...ev, imagen: real.portada_url } : ev;
-          }),
-        );
-      }
-    });
+          })
+          .map(({ ev, real }) => (real?.portada_url ? { ...ev, imagen: real.portada_url } : ev)),
+      );
+    })();
+
+    return () => {
+      cancelado = true;
+    };
   }, []);
   const [publicacionSeleccionada, setPublicacionSeleccionada] = useState<PublicacionGuardada | null>(null);
   const [eventoSeleccionado, setEventoSeleccionado] = useState<EventoGuardado | null>(null);
