@@ -1,13 +1,14 @@
-﻿import { useState, useEffect } from "react";
-import {
+﻿import {
   Clock, QrCode, ShieldCheck, Bell, History, Smartphone,
   KeyRound, Lock, Users, Database, ClipboardCheck, Compass,
+  MapPin, Share2, UserCog,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { Separator } from "../../components/ui/separator";
 import logoUnah from "../../../imports/logoUnah.png";
 import logoIA from "../../../imports/logoIA.png";
+import fotoEquipo from "../../../imports/foto-equipo-implementacion.jpeg";
 
 /* ─── Información editable del sistema ─── */
 const APP_INFO = {
@@ -28,6 +29,42 @@ const FEATURES = [
 
 const TECH_FRONTEND = ["React", "TypeScript", "Vite", "Tailwind CSS", "shadcn/ui", "React Router", "PWA / Workbox"];
 const TECH_BACKEND = ["Node.js", "Express.js", "TypeScript", "MySQL", "Docker", "Clean Architecture", "JWT"];
+
+/* ─── Grupos del proyecto — resumen general, sin nombres todavía ───
+   Cuando tengan los nombres definitivos de cada integrante, se pueden
+   agregar aquí (o crear un TEAM propio por grupo, como ya existe para
+   el Grupo 4 más abajo). */
+const GROUPS: {
+  nombre: string;
+  descripcion: string;
+  icon: React.ElementType;
+  color: string;
+}[] = [
+  {
+    nombre: "Grupo 1 — Usuarios y Roles",
+    descripcion: "Gestión de cuentas, roles y catálogos base del sistema.",
+    icon: UserCog,
+    color: "from-blue-500 to-indigo-600",
+  },
+  {
+    nombre: "Grupo 2 — Mis Eventos y Red Social",
+    descripcion: "Inscripción y asistencia a eventos, además del feed social: publicaciones, comentarios y reacciones.",
+    icon: Share2,
+    color: "from-rose-500 to-pink-600",
+  },
+  {
+    nombre: "Grupo 3 — Eventos y Geolocalización",
+    descripcion: "Creación y administración de eventos, con verificación de ubicación para inscripciones y asistencia.",
+    icon: MapPin,
+    color: "from-amber-500 to-orange-600",
+  },
+  {
+    nombre: "Grupo 4 — Seguridad",
+    descripcion: "Roles y permisos, bitácora de auditoría, respaldos y moderación de contenido. Detalle abajo.",
+    icon: ShieldCheck,
+    color: "from-emerald-500 to-teal-600",
+  },
+];
 
 /* ─── Equipo — 7 roles, según la división de trabajo del proyecto ───
    Para agregar tu foto: importá la imagen arriba del archivo (junto a
@@ -53,27 +90,6 @@ const TEAM: {
 ];
 
 export function AcercaDe() {
-  const [groupPhotoPreview, setGroupPhotoPreview] = useState<string | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (groupPhotoPreview) {
-        URL.revokeObjectURL(groupPhotoPreview);
-      }
-    };
-  }, [groupPhotoPreview]);
-
-  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) return;
-
-    if (groupPhotoPreview) {
-      URL.revokeObjectURL(groupPhotoPreview);
-    }
-    setGroupPhotoPreview(URL.createObjectURL(file));
-  };
-
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       {/* Hero */}
@@ -104,46 +120,20 @@ export function AcercaDe() {
           </div>
         </CardContent>
       </Card>
-      <Card className="border border-slate-200 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-[#003366]">Foto del Grupo</CardTitle>
-          <CardDescription>Sube una foto del grupo y reemplázala solo seleccionando otra imagen.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-6 md:grid-cols-[280px_1fr] items-start">
-          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 flex h-full flex-col items-center justify-center text-center">
-            {groupPhotoPreview ? (
-              <img
-                src={groupPhotoPreview}
-                alt="Vista previa de la foto del grupo"
-                className="h-72 w-full max-w-[260px] rounded-3xl object-cover shadow-sm"
-              />
-            ) : (
-              <div className="flex h-72 w-full max-w-[260px] flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-300 bg-white p-6 text-slate-500">
-                <span className="text-sm font-semibold text-slate-700">Aún no hay foto cargada</span>
-                <span className="mt-3 text-xs leading-relaxed">Selecciona una imagen JPG o PNG para mostrar aquí.</span>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-4 text-sm text-slate-600 leading-relaxed">
-            <p>
+      <Card className="overflow-hidden border border-slate-200 shadow-sm">
+        <div className="relative">
+          <img
+            src={fotoEquipo}
+            alt="Foto del equipo del proyecto Conecta Pumas"
+            className="w-full h-[420px] object-cover"
+          />
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-6">
+            <p className="text-white text-sm leading-relaxed max-w-2xl">
               Este proyecto fue desarrollado por 24 alumnos de la Licenciatura en Informática Administrativa.
               El equipo colaboró en el diseño, la programación, la integración de módulos y la puesta en marcha.
             </p>
-            <p>
-              Usa el campo a continuación para subir la foto del grupo. Una vez subida, la imagen se mostrará en esta sección y solo se podrá reemplazar seleccionando otra foto.
-            </p>
-            <label className="block">
-              <span className="text-sm font-semibold text-[#003366]">Subir foto del grupo</span>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoUpload}
-                className="mt-3 block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm transition hover:border-[#003366]/70"
-              />
-            </label>
           </div>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Qué es */}
@@ -221,12 +211,37 @@ export function AcercaDe() {
         </CardContent>
       </Card>
 
-      {/* Equipo de desarrollo */}
+      {/* Grupos del proyecto */}
+      <div>
+        <h2 className="text-sm font-bold text-[#003366] mb-3 px-1">
+          Grupos del Proyecto ({APP_INFO.programa})
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {GROUPS.map((g) => {
+            const Icon = g.icon;
+            return (
+              <Card key={g.nombre} className="border border-slate-150 shadow-sm">
+                <CardContent className="p-5 flex items-start gap-3">
+                  <div className={`h-11 w-11 rounded-lg bg-gradient-to-br ${g.color} text-white flex items-center justify-center shadow-md shrink-0`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-[#003366]">{g.nombre}</p>
+                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{g.descripcion}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Equipo de desarrollo — detalle del Grupo 4 (Seguridad) */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-[#003366]">Equipo de Desarrollo</CardTitle>
+          <CardTitle className="text-[#003366]">Grupo 4 — Seguridad: Detalle del Equipo</CardTitle>
           <CardDescription>
-            Proyecto desarrollado por 24 alumnos de {APP_INFO.programa}, con roles distribuidos en los principales módulos del sistema.
+            Roles distribuidos dentro del módulo de Seguridad. Los nombres de cada integrante se agregarán próximamente.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
